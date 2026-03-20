@@ -1,65 +1,114 @@
 import SwiftUI
 
-// MARK: - Adaptive Colors (light + dark mode)
+// MARK: - Semantic Color Aliases (Apple Design Standards)
+//
+// Use SwiftUI's built-in adaptive colors instead of custom values.
+// These automatically adapt to light/dark mode, accessibility settings,
+// and platform conventions.
 
 extension Color {
-    init(light: Color, dark: Color) {
-        #if os(macOS)
-        self.init(nsColor: NSColor(name: nil) { appearance in
-            let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            return isDark ? NSColor(dark) : NSColor(light)
-        })
-        #else
-        self.init(uiColor: UIColor { traits in
-            traits.userInterfaceStyle == .dark ? UIColor(dark) : UIColor(light)
-        })
-        #endif
+    // Backgrounds — use system groupedBackground which adapts per platform
+    static let bg = Color(.systemGroupedBackground)
+    static let bgCard = Color(.secondarySystemGroupedBackground)
+    static let bgInput = Color(.tertiarySystemGroupedBackground)
+
+    // Card border — system separator adapts to light/dark
+    static let cardBorder = Color(.separator)
+
+    // Text — semantic system labels
+    static let textPrimary = Color(.label)
+    static let textSecondary = Color(.secondaryLabel)
+    static let textMuted = Color(.tertiaryLabel)
+
+    // Status — use system-standard colors
+    static let success = Color.green
+    static let warning = Color.orange
+    static let danger = Color.red
+}
+
+// MARK: - Shared Date Formatting
+
+enum DateFormatting {
+    private static let isoFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        return f
+    }()
+
+    private static let displayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        return f
+    }()
+
+    private static let largeNumberFormatter: NumberFormatter = {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        return f
+    }()
+
+    static func todayString() -> String {
+        isoFormatter.string(from: Date())
+    }
+
+    static func dateString(_ date: Date) -> String {
+        isoFormatter.string(from: date)
+    }
+
+    static func dateFromString(_ str: String) -> Date? {
+        isoFormatter.date(from: str)
+    }
+
+    static func displayDate(_ isoString: String) -> String {
+        guard let date = isoFormatter.date(from: isoString) else { return isoString }
+        return displayFormatter.string(from: date)
+    }
+
+    static func formatLargeNumber(_ value: Int) -> String {
+        largeNumberFormatter.string(from: NSNumber(value: value)) ?? "\(value)"
+    }
+
+    static func formatMarkerValue(_ value: Double) -> String {
+        value.truncatingRemainder(dividingBy: 1) == 0
+            ? String(format: "%.0f", value)
+            : String(format: "%.1f", value)
     }
 }
 
-extension Color {
-    // Backgrounds
-    static let bg = Color(
-        light: Color(red: 248/255, green: 250/255, blue: 252/255),
-        dark: Color(red: 15/255, green: 23/255, blue: 42/255)
-    )
-    static let bgCard = Color(
-        light: .white,
-        dark: Color(red: 30/255, green: 41/255, blue: 59/255)
-    )
-    static let bgInput = Color(
-        light: Color(red: 241/255, green: 245/255, blue: 249/255),
-        dark: Color(red: 51/255, green: 65/255, blue: 85/255)
-    )
+// MARK: - Shared UI Components
 
-    // Brand — health/vitality red
-    static let accent = Color(red: 239/255, green: 68/255, blue: 68/255)     // red-500
-    static let accentDark = Color(red: 220/255, green: 38/255, blue: 38/255)  // red-600
+struct SectionLabel: View {
+    let text: String
+    var body: some View {
+        Text(text)
+            .font(.caption)
+            .fontWeight(.semibold)
+            .foregroundColor(.textMuted)
+            .tracking(1)
+    }
+}
 
-    // Card border
-    static let cardBorder = Color(
-        light: Color(red: 226/255, green: 232/255, blue: 240/255),
-        dark: Color(red: 51/255, green: 65/255, blue: 85/255).opacity(0.5)
-    )
+struct EmptyStateView: View {
+    let icon: String
+    let title: String
+    let subtitle: String
 
-    // Text
-    static let textPrimary = Color(
-        light: Color(red: 15/255, green: 23/255, blue: 42/255),
-        dark: .white
-    )
-    static let textSecondary = Color(
-        light: Color(red: 71/255, green: 85/255, blue: 105/255),
-        dark: Color(red: 148/255, green: 163/255, blue: 184/255)
-    )
-    static let textMuted = Color(
-        light: Color(red: 148/255, green: 163/255, blue: 184/255),
-        dark: Color(red: 100/255, green: 116/255, blue: 139/255)
-    )
-
-    // Status
-    static let success = Color(red: 34/255, green: 197/255, blue: 94/255)
-    static let warning = Color(red: 245/255, green: 158/255, blue: 11/255)
-    static let danger = Color(red: 239/255, green: 68/255, blue: 68/255)
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 36))
+                .foregroundColor(.textMuted)
+            Text(title)
+                .font(.headline)
+                .foregroundColor(.textSecondary)
+            Text(subtitle)
+                .font(.caption)
+                .foregroundColor(.textMuted)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 32)
+    }
 }
 
 // MARK: - Layout Constants
@@ -87,3 +136,25 @@ extension View {
         modifier(CardStyle())
     }
 }
+
+// MARK: - Cross-Platform Keyboard Type
+
+#if os(macOS)
+// Map iOS UIColor semantic names to NSColor equivalents
+extension NSColor {
+    static let systemGroupedBackground = NSColor.windowBackgroundColor
+    static let secondarySystemGroupedBackground = NSColor.controlBackgroundColor
+    static let tertiarySystemGroupedBackground = NSColor.textBackgroundColor
+    static let label = NSColor.labelColor
+    static let secondaryLabel = NSColor.secondaryLabelColor
+    static let tertiaryLabel = NSColor.tertiaryLabelColor
+    static let separator = NSColor.separatorColor
+}
+
+// No-op on macOS where keyboardType doesn't exist
+enum UIKeyboardType { case decimalPad, numberPad, `default` }
+
+extension View {
+    func keyboardType(_ type: UIKeyboardType) -> some View { self }
+}
+#endif

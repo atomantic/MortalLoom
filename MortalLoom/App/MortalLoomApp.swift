@@ -28,53 +28,70 @@ struct ContentView: View {
         Group {
             #if os(macOS)
             MacContentView()
-                .tint(.accent)
             #else
             tabContent
-                .tint(.accent)
             #endif
         }
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(appearance.mode.colorScheme)
     }
 
     #if os(iOS)
     @ViewBuilder
     private var tabContent: some View {
+        // iOS tabs: Overview=0, Body=1, Blood=2, Substances=3, Lifestyle=4, Calendar=5, Genome=6, Settings=7
         if #available(iOS 18.0, *) {
             TabView(selection: $selectedTab) {
                 Tab("Overview", systemImage: "heart.text.clipboard", value: 0) {
-                    NavigationStack { OverviewView() }
+                    NavigationStack { OverviewView(selectedTab: $selectedTab) }
                 }
                 Tab("Body", systemImage: "figure.stand", value: 1) {
                     NavigationStack { BodyView() }
                 }
-                Tab("Substances", systemImage: "flask", value: 2) {
+                Tab("Blood", systemImage: "drop.fill", value: 2) {
+                    NavigationStack { BloodView() }
+                }
+                Tab("Substances", systemImage: "flask", value: 3) {
                     NavigationStack { SubstancesView() }
                 }
-                Tab("Genome", systemImage: "allergens", value: 3) {
+                Tab("Lifestyle", systemImage: "list.bullet.clipboard", value: 4) {
+                    NavigationStack { LifestyleView() }
+                }
+                Tab("Calendar", systemImage: "calendar", value: 5) {
+                    NavigationStack { LifeCalendarView() }
+                }
+                Tab("Genome", systemImage: "allergens", value: 6) {
                     NavigationStack { GenomeView() }
                 }
-                Tab("Settings", systemImage: "gear", value: 4) {
+                Tab("Settings", systemImage: "gear", value: 7) {
                     NavigationStack { SettingsView() }
                 }
             }
         } else {
             TabView(selection: $selectedTab) {
-                NavigationStack { OverviewView() }
+                NavigationStack { OverviewView(selectedTab: $selectedTab) }
                     .tabItem { Label("Overview", systemImage: "heart.text.clipboard") }
                     .tag(0)
                 NavigationStack { BodyView() }
                     .tabItem { Label("Body", systemImage: "figure.stand") }
                     .tag(1)
+                NavigationStack { BloodView() }
+                    .tabItem { Label("Blood", systemImage: "drop.fill") }
+                    .tag(2)
                 NavigationStack { SubstancesView() }
                     .tabItem { Label("Substances", systemImage: "flask") }
-                    .tag(2)
+                    .tag(3)
+                NavigationStack { LifestyleView() }
+                    .tabItem { Label("Lifestyle", systemImage: "list.bullet.clipboard") }
+                    .tag(4)
+                NavigationStack { LifeCalendarView() }
+                    .tabItem { Label("Calendar", systemImage: "calendar") }
+                    .tag(5)
                 NavigationStack { GenomeView() }
                     .tabItem { Label("Genome", systemImage: "allergens") }
-                    .tag(3)
+                    .tag(6)
                 NavigationStack { SettingsView() }
                     .tabItem { Label("Settings", systemImage: "gear") }
-                    .tag(4)
+                    .tag(7)
             }
         }
     }
@@ -90,9 +107,41 @@ struct MacContentView: View {
         case body
         case substances
         case blood
+        case lifeCalendar
         case genome
         case lifestyle
         case settings
+    }
+
+    // Convert NavItem selection to an Int binding for OverviewView
+    private var selectedTabBinding: Binding<Int> {
+        Binding<Int>(
+            get: {
+                switch selectedNav {
+                case .overview, .none: return 0
+                case .body: return 1
+                case .blood: return 2
+                case .substances: return 3
+                case .lifestyle: return 4
+                case .lifeCalendar: return 5
+                case .genome: return 6
+                case .settings: return 7
+                }
+            },
+            set: { newValue in
+                switch newValue {
+                case 0: selectedNav = .overview
+                case 1: selectedNav = .body
+                case 2: selectedNav = .blood
+                case 3: selectedNav = .substances
+                case 4: selectedNav = .lifestyle
+                case 5: selectedNav = .lifeCalendar
+                case 6: selectedNav = .genome
+                case 7: selectedNav = .settings
+                default: selectedNav = .overview
+                }
+            }
+        )
     }
 
     var body: some View {
@@ -100,7 +149,7 @@ struct MacContentView: View {
             List(selection: $selectedNav) {
                 HStack(spacing: 8) {
                     Image(systemName: "heart.text.clipboard")
-                        .foregroundColor(.accent)
+                        .foregroundColor(.accentColor)
                         .font(.title2)
                     Text("MortalLoom")
                         .font(.title3).fontWeight(.bold)
@@ -117,6 +166,8 @@ struct MacContentView: View {
                         .tag(NavItem.body)
                     Label("Blood", systemImage: "drop.fill")
                         .tag(NavItem.blood)
+                    Label("Life Calendar", systemImage: "calendar")
+                        .tag(NavItem.lifeCalendar)
                     Label("Genome", systemImage: "allergens")
                         .tag(NavItem.genome)
                 }
@@ -140,13 +191,15 @@ struct MacContentView: View {
             Group {
                 switch selectedNav {
                 case .overview, .none:
-                    OverviewView()
+                    OverviewView(selectedTab: selectedTabBinding)
                 case .body:
                     BodyView()
                 case .substances:
                     SubstancesView()
                 case .blood:
                     BloodView()
+                case .lifeCalendar:
+                    LifeCalendarView()
                 case .genome:
                     GenomeView()
                 case .lifestyle:

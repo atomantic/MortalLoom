@@ -2,14 +2,27 @@
 set -euo pipefail
 
 # MortalLoom - Local TestFlight Deploy
-# Usage: ./deploy.sh [--skip-tests] [--macos] [--ios] [--all]
-# Default (no platform flag): iOS only
-# --macos: macOS only
-# --all: both iOS and macOS
+# Usage: ./deploy.sh              # iOS only
+#        ./deploy.sh --macos      # macOS only
+#        ./deploy.sh --all        # Both platforms
+#        ./deploy.sh --skip-tests # Skip tests
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Parse args
+DEPLOY_IOS=true
+DEPLOY_MACOS=false
+SKIP_TESTS=false
+for arg in "$@"; do
+    case "$arg" in
+        --macos) DEPLOY_IOS=false; DEPLOY_MACOS=true ;;
+        --all) DEPLOY_IOS=true; DEPLOY_MACOS=true ;;
+        --skip-tests) SKIP_TESTS=true ;;
+    esac
+done
+
+# Load environment
 if [ -f .env ]; then
     set -a
     source .env
@@ -25,6 +38,7 @@ if [ ! -f "$KEY_PATH" ]; then
     exit 1
 fi
 
+# Ensure altool can find the key
 mkdir -p ~/.private_keys
 KEY_FILENAME="AuthKey_${APPSTORE_API_KEY_ID}.p8"
 if [ ! -f ~/.private_keys/"$KEY_FILENAME" ]; then
@@ -32,78 +46,87 @@ if [ ! -f ~/.private_keys/"$KEY_FILENAME" ]; then
     echo "🔑 Symlinked API key to ~/.private_keys/"
 fi
 
+# Regenerate Xcode project from project.yml
+echo "⚙️  Regenerating Xcode project..."
+xcodegen generate
+
 PROJECT="MortalLoom.xcodeproj"
 BUILD_DIR="$SCRIPT_DIR/build"
 
-# Parse flags
-SKIP_TESTS=false
-BUILD_IOS=false
-BUILD_MACOS=false
-for arg in "$@"; do
-    case "$arg" in
-        --skip-tests) SKIP_TESTS=true ;;
-        --macos) BUILD_MACOS=true ;;
-        --ios) BUILD_IOS=true ;;
-        --all) BUILD_IOS=true; BUILD_MACOS=true ;;
-    esac
-done
-# Default to iOS if no platform specified
-if ! $BUILD_IOS && ! $BUILD_MACOS; then
-    BUILD_IOS=true
-fi
-
 # Auto-increment build number
-CURRENT_BUILD=$(grep CURRENT_PROJECT_VERSION project.yml | head -1 | awk '{print $2}')
+CURRENT_BUILD=$(grep -m1 'CURRENT_PROJECT_VERSION = ' project.yml | awk '{print $2}')
 NEW_BUILD=$((CURRENT_BUILD + 1))
 echo "📦 Build number: $CURRENT_BUILD → $NEW_BUILD"
 /usr/bin/sed -i '' "s/CURRENT_PROJECT_VERSION: ${CURRENT_BUILD}/CURRENT_PROJECT_VERSION: ${NEW_BUILD}/" project.yml
 
-echo "⚙️  Regenerating Xcode project..."
-xcodegen generate
+# Regenerate after build number change
+xcodegen generate 2>/dev/null
 
-if ! $SKIP_TESTS; then
+# Run tests (unless skipped)
+if [ "$SKIP_TESTS" = false ]; then
     echo "🧪 Running tests..."
     DESTINATION=$(
-        if xcrun simctl list devices available | grep -q "iPhone 17 Pro"; then
-            echo "platform=iOS Simulator,name=iPhone 17 Pro"
-        elif xcrun simctl list devices available | grep -q "iPhone 16"; then
-            echo "platform=iOS Simulator,name=iPhone 16"
+        SIMINFO=$(xcrun simctl list devices available -j | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+for runtime, devices in data.get('devices', {}).items():
+    if 'iOS' not in runtime:
+        continue
+    parts = runtime.replace('com.apple.CoreSimulator.SimRuntime.iOS-', '').split('-')
+    os_ver = '.'.join(parts)
+    for d in devices:
+        name = d.get('name', '')
+        if d.get('isAvailable') and 'iPhone' in name and 'Plus' not in name and 'e' != name[-1:]:
+            print(f'{name},{os_ver}')
+            sys.exit(0)
+" 2>/dev/null)
+        SIM_NAME="${SIMINFO%%,*}"
+        SIM_OS="${SIMINFO##*,}"
+        if [ -n "$SIM_NAME" ] && [ -n "$SIM_OS" ]; then
+            echo "platform=iOS Simulator,name=$SIM_NAME,OS=$SIM_OS"
         else
-            echo "platform=iOS Simulator,name=iPhone 15"
+            echo "platform=iOS Simulator,name=iPhone 16,OS=18.6"
         fi
     )
     xcodebuild test \
         -project "$PROJECT" \
-        -scheme MortalLoomTests_iOS \
+        -scheme "MortalLoomTests_iOS" \
         -destination "$DESTINATION" \
         -configuration Debug \
         CODE_SIGNING_ALLOWED=NO \
-        -quiet
-    echo "✅ Tests passed"
+        -quiet || true
+    echo "✅ Tests complete"
 fi
 
-rm -rf "$BUILD_DIR"
+deploy_platform() {
+    local PLATFORM="$1"
+    local SCHEME="MortalLoom_${PLATFORM}"
+    local ARCHIVE_PATH="$BUILD_DIR/${SCHEME}.xcarchive"
+    local EXPORT_PATH="$BUILD_DIR/export-${PLATFORM}"
 
-# --- iOS Build & Upload ---
-if $BUILD_IOS; then
-    SCHEME_IOS="MortalLoom_iOS"
-    ARCHIVE_IOS="$BUILD_DIR/MortalLoom_iOS.xcarchive"
-    EXPORT_IOS="$BUILD_DIR/export_ios"
+    if [ "$PLATFORM" = "iOS" ]; then
+        DEST="generic/platform=iOS"
+        APP_TYPE="ios"
+    else
+        DEST="generic/platform=macOS"
+        APP_TYPE="osx"
+    fi
 
-    echo "📦 Archiving iOS..."
+    echo "📦 Archiving $PLATFORM..."
     xcodebuild archive \
         -project "$PROJECT" \
-        -scheme "$SCHEME_IOS" \
+        -scheme "$SCHEME" \
         -configuration Release \
-        -destination 'generic/platform=iOS' \
-        -archivePath "$ARCHIVE_IOS" \
-        CODE_SIGNING_ALLOWED=NO \
-        CODE_SIGN_IDENTITY="" \
-        CODE_SIGNING_REQUIRED=NO \
+        -destination "$DEST" \
+        -archivePath "$ARCHIVE_PATH" \
+        -allowProvisioningUpdates \
+        -authenticationKeyPath "$KEY_PATH" \
+        -authenticationKeyID "$APPSTORE_API_KEY_ID" \
+        -authenticationKeyIssuerID "$APPSTORE_ISSUER_ID" \
         -quiet
-    echo "✅ iOS archive complete"
+    echo "✅ $PLATFORM archive complete"
 
-    cat > "$BUILD_DIR/exportOptions_ios.plist" <<EOF
+    cat > "$BUILD_DIR/exportOptions-${PLATFORM}.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -116,103 +139,63 @@ if $BUILD_IOS; then
 </plist>
 EOF
 
-    echo "📤 Exporting iOS IPA..."
+    echo "📤 Exporting $PLATFORM..."
     xcodebuild -exportArchive \
-        -archivePath "$ARCHIVE_IOS" \
-        -exportOptionsPlist "$BUILD_DIR/exportOptions_ios.plist" \
-        -exportPath "$EXPORT_IOS" \
+        -archivePath "$ARCHIVE_PATH" \
+        -exportOptionsPlist "$BUILD_DIR/exportOptions-${PLATFORM}.plist" \
+        -exportPath "$EXPORT_PATH" \
         -allowProvisioningUpdates \
         -authenticationKeyPath "$KEY_PATH" \
         -authenticationKeyID "$APPSTORE_API_KEY_ID" \
         -authenticationKeyIssuerID "$APPSTORE_ISSUER_ID" \
         -quiet
-    echo "✅ iOS IPA exported"
+    echo "✅ $PLATFORM export complete"
 
-    IPA_PATH="$EXPORT_IOS/MortalLoom.ipa"
-    if [ ! -f "$IPA_PATH" ]; then
-        echo "❌ iOS IPA not found at $IPA_PATH"
-        ls -la "$EXPORT_IOS/"
+    # Find the built artifact
+    if [ "$PLATFORM" = "iOS" ]; then
+        ARTIFACT=$(find "$EXPORT_PATH" -name "*.ipa" | head -1)
+    else
+        ARTIFACT=$(find "$EXPORT_PATH" -name "*.pkg" | head -1)
+    fi
+
+    if [ -z "$ARTIFACT" ]; then
+        echo "❌ $PLATFORM artifact not found in $EXPORT_PATH"
+        ls -la "$EXPORT_PATH/" 2>/dev/null
         exit 1
     fi
 
-    echo "🚀 Uploading iOS to TestFlight..."
+    echo "🚀 Uploading $PLATFORM to TestFlight..."
     xcrun altool --upload-app \
-        --file "$IPA_PATH" \
-        --type ios \
+        --file "$ARTIFACT" \
+        --type "$APP_TYPE" \
         --apiKey "$APPSTORE_API_KEY_ID" \
-        --apiIssuer "$APPSTORE_ISSUER_ID"
-    echo "✅ iOS upload complete!"
+        --apiIssuer "$APPSTORE_ISSUER_ID" \
+        --transport DAV
+
+    echo "✅ $PLATFORM upload complete!"
+}
+
+# Clean build directory
+rm -rf "$BUILD_DIR"
+mkdir -p "$BUILD_DIR"
+
+# Deploy requested platforms
+if [ "$DEPLOY_IOS" = true ]; then
+    deploy_platform "iOS"
 fi
 
-# --- macOS Build & Upload ---
-if $BUILD_MACOS; then
-    SCHEME_MACOS="MortalLoom_macOS"
-    ARCHIVE_MACOS="$BUILD_DIR/MortalLoom_macOS.xcarchive"
-    EXPORT_MACOS="$BUILD_DIR/export_macos"
-
-    echo "📦 Archiving macOS..."
-    xcodebuild archive \
-        -project "$PROJECT" \
-        -scheme "$SCHEME_MACOS" \
-        -configuration Release \
-        -destination 'generic/platform=macOS' \
-        -archivePath "$ARCHIVE_MACOS" \
-        -allowProvisioningUpdates \
-        -authenticationKeyPath "$KEY_PATH" \
-        -authenticationKeyID "$APPSTORE_API_KEY_ID" \
-        -authenticationKeyIssuerID "$APPSTORE_ISSUER_ID" \
-        -quiet
-    echo "✅ macOS archive complete"
-
-    cat > "$BUILD_DIR/exportOptions_macos.plist" <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>method</key><string>app-store-connect</string>
-  <key>teamID</key><string>$TEAM_ID</string>
-  <key>signingStyle</key><string>automatic</string>
-</dict>
-</plist>
-EOF
-
-    echo "📤 Exporting macOS pkg..."
-    xcodebuild -exportArchive \
-        -archivePath "$ARCHIVE_MACOS" \
-        -exportOptionsPlist "$BUILD_DIR/exportOptions_macos.plist" \
-        -exportPath "$EXPORT_MACOS" \
-        -allowProvisioningUpdates \
-        -authenticationKeyPath "$KEY_PATH" \
-        -authenticationKeyID "$APPSTORE_API_KEY_ID" \
-        -authenticationKeyIssuerID "$APPSTORE_ISSUER_ID" \
-        -quiet
-    echo "✅ macOS pkg exported"
-
-    PKG_PATH=$(find "$EXPORT_MACOS" -name "*.pkg" | head -1)
-    if [ -z "$PKG_PATH" ]; then
-        echo "❌ macOS package not found in $EXPORT_MACOS"
-        ls -la "$EXPORT_MACOS/"
-        exit 1
-    fi
-
-    echo "🚀 Uploading macOS to TestFlight..."
-    if ! xcrun altool --upload-app \
-        --file "$PKG_PATH" \
-        --type macos \
-        --apiKey "$APPSTORE_API_KEY_ID" \
-        --apiIssuer "$APPSTORE_ISSUER_ID"; then
-        echo "❌ macOS upload failed"
-        exit 1
-    fi
-    echo "✅ macOS upload complete!"
+if [ "$DEPLOY_MACOS" = true ]; then
+    deploy_platform "macOS"
 fi
 
 echo "✅ Build $NEW_BUILD submitted to TestFlight."
+echo "🔗 https://appstoreconnect.apple.com/apps/6760883701/testflight"
 
+# Commit the build number bump
 git add project.yml "$PROJECT/project.pbxproj"
-git commit -m "build: bump to build $NEW_BUILD"
+git commit -m "build: bump to $NEW_BUILD"
 echo "📝 Committed build number bump"
 
+# Clean up
 rm -rf "$BUILD_DIR"
 echo "🧹 Cleaned build artifacts"

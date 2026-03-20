@@ -10,20 +10,44 @@
 		050980359F1180012E9D3CBC /* AppearanceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 765271B94F125643F18F3646 /* AppearanceManager.swift */; };
 		0F7F142E18D533C8791C697B /* MortalLoomApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25A938EE48931E1A7D80455D /* MortalLoomApp.swift */; };
 		102EC106BBDF1BC27CB3AC74 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A430A6D6F069A9C484A8BB2 /* Theme.swift */; };
+		17B7AFAED17D2200F9677430 /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C111B7B3DAB461735C8004F /* HealthKitService.swift */; };
 		259AA046172B3216F2A26D31 /* GenomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71A0187A10BAA3CC7819A176 /* GenomeView.swift */; };
+		285C3B38D82FDF5C57FDAA1E /* EpigeneticTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DE7B02859718A26B4B9906E /* EpigeneticTest.swift */; };
 		29AFDFA8BC814239784F41DC /* BodyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4711239695D8FA36364CFC90 /* BodyView.swift */; };
+		30B68822C19248773D62696A /* LifeCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ABFE2DBE2C3A4FAFEE5EE6E /* LifeCalendarView.swift */; };
 		3765ED39C36AEB475A71D25C /* MortalLoomTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93CDAC363DF57A04037AECCA /* MortalLoomTests.swift */; };
+		3784D4A41C14139EA74E88B0 /* BloodTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92F50631566FFE40D88FAD5C /* BloodTest.swift */; };
+		3842F700657CFF9D845E179E /* AppData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76AFC65F04DD19B1C921A47F /* AppData.swift */; };
+		3C18B8B01E742711B45066D0 /* BodyEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DE6F91C7E33B0F86F79570E /* BodyEntry.swift */; };
 		3EB4BFEEC7B0A7546C3AA212 /* MortalLoomApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25A938EE48931E1A7D80455D /* MortalLoomApp.swift */; };
 		3F2F2D1B90AB3A95141A9988 /* BloodView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BB3FF2B8EF635AAE437983D /* BloodView.swift */; };
+		47E4013FF9139533AA44FC4D /* DeathClockEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4C6F3F7D27B38D804FA5B61 /* DeathClockEngine.swift */; };
+		4C31E78A1FDAC239E647CB2D /* DataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB2E368CC2CD70A93D9E7BAE /* DataStore.swift */; };
+		4E21F7279130B3025E25A8EA /* DataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB2E368CC2CD70A93D9E7BAE /* DataStore.swift */; };
+		53B90A52CDA6CC6EAEF56C54 /* AppData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76AFC65F04DD19B1C921A47F /* AppData.swift */; };
 		576B5647EBFAD63011F04625 /* BodyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4711239695D8FA36364CFC90 /* BodyView.swift */; };
 		5A2E410C2C2B798ACABD6D2F /* LifestyleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFAFEF1D1D8E89AA3E949F4F /* LifestyleView.swift */; };
+		64B0B5357DF80CDAEB3370A1 /* DeathClockEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4C6F3F7D27B38D804FA5B61 /* DeathClockEngine.swift */; };
 		6B55E49F18136F5F6D016FAC /* AppearanceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 765271B94F125643F18F3646 /* AppearanceManager.swift */; };
+		6BF9BE408C71949F1E582340 /* HealthProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FCF31AF121B47E7C7DF22B1 /* HealthProfile.swift */; };
+		6E9F84A23A6E864D78163091 /* LifeCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ABFE2DBE2C3A4FAFEE5EE6E /* LifeCalendarView.swift */; };
 		6EF9106333950CF8212C2EA0 /* GenomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71A0187A10BAA3CC7819A176 /* GenomeView.swift */; };
+		706C426B98DE5CF39A715C7E /* EpigeneticTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DE7B02859718A26B4B9906E /* EpigeneticTest.swift */; };
+		89C3332067D295F52E472691 /* EyeExam.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6800ABC07A07655F56FA658 /* EyeExam.swift */; };
+		95980F1A20C4AD1E940663E0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8DFE4C5B3F84209835BAB96B /* Assets.xcassets */; };
+		9D54A8470E4B66EA28F7DBE9 /* BodyEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DE6F91C7E33B0F86F79570E /* BodyEntry.swift */; };
+		A17140154ACE65029AA7C02B /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C111B7B3DAB461735C8004F /* HealthKitService.swift */; };
+		AD7F1DCB8D68FC9792B1F154 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8DFE4C5B3F84209835BAB96B /* Assets.xcassets */; };
+		B9CD04929700DA3CFF13A92E /* SubstanceEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14643E58DFCB5BCF7D13DC86 /* SubstanceEntry.swift */; };
+		BB734E45988022F6F6C80BF3 /* SubstanceEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14643E58DFCB5BCF7D13DC86 /* SubstanceEntry.swift */; };
 		C27099DAB0C46C3647878607 /* BloodView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BB3FF2B8EF635AAE437983D /* BloodView.swift */; };
+		C505D8C48C08E5ECEAE8215B /* BloodTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92F50631566FFE40D88FAD5C /* BloodTest.swift */; };
 		CAE4E3026BDDD0FF4A4CBBA1 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37A71E4A0A8F1CD94F8E00BB /* SettingsView.swift */; };
 		DD7B9C9787A28BAD1712D040 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A430A6D6F069A9C484A8BB2 /* Theme.swift */; };
+		DE453F18D91452A344184BB6 /* EyeExam.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6800ABC07A07655F56FA658 /* EyeExam.swift */; };
 		E118CBAF40777154C639267F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37A71E4A0A8F1CD94F8E00BB /* SettingsView.swift */; };
 		E7899B9BBD38F6820A45779D /* SubstancesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04C1C61D4BD2F3E4B50538F2 /* SubstancesView.swift */; };
+		F6492A6DE3039DDD7AD27755 /* HealthProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FCF31AF121B47E7C7DF22B1 /* HealthProfile.swift */; };
 		F693696AC5E6CC72FC037C48 /* OverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86691FE1BB15DD7BDC355BE6 /* OverviewView.swift */; };
 		F70C90E5AEE5A80B621DDA0A /* OverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86691FE1BB15DD7BDC355BE6 /* OverviewView.swift */; };
 		F94DC225DE842B1FBDB919DC /* SubstancesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04C1C61D4BD2F3E4B50538F2 /* SubstancesView.swift */; };
@@ -50,31 +74,58 @@
 
 /* Begin PBXFileReference section */
 		04C1C61D4BD2F3E4B50538F2 /* SubstancesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubstancesView.swift; sourceTree = "<group>"; };
+		14643E58DFCB5BCF7D13DC86 /* SubstanceEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubstanceEntry.swift; sourceTree = "<group>"; };
 		25A938EE48931E1A7D80455D /* MortalLoomApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MortalLoomApp.swift; sourceTree = "<group>"; };
 		37A71E4A0A8F1CD94F8E00BB /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		3C111B7B3DAB461735C8004F /* HealthKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitService.swift; sourceTree = "<group>"; };
+		3DE6F91C7E33B0F86F79570E /* BodyEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyEntry.swift; sourceTree = "<group>"; };
 		4711239695D8FA36364CFC90 /* BodyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyView.swift; sourceTree = "<group>"; };
+		4FCF31AF121B47E7C7DF22B1 /* HealthProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthProfile.swift; sourceTree = "<group>"; };
+		5ABFE2DBE2C3A4FAFEE5EE6E /* LifeCalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifeCalendarView.swift; sourceTree = "<group>"; };
 		5C8ED8531BC086732C92DA9B /* MortalLoomTests_macOS.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MortalLoomTests_macOS.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		63EFA7304632982F7F2C834D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		6BB3FF2B8EF635AAE437983D /* BloodView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BloodView.swift; sourceTree = "<group>"; };
+		6DE7B02859718A26B4B9906E /* EpigeneticTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpigeneticTest.swift; sourceTree = "<group>"; };
 		71A0187A10BAA3CC7819A176 /* GenomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenomeView.swift; sourceTree = "<group>"; };
 		765271B94F125643F18F3646 /* AppearanceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceManager.swift; sourceTree = "<group>"; };
+		76AFC65F04DD19B1C921A47F /* AppData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppData.swift; sourceTree = "<group>"; };
 		86691FE1BB15DD7BDC355BE6 /* OverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverviewView.swift; sourceTree = "<group>"; };
 		8A430A6D6F069A9C484A8BB2 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		8B7AF9F6502500320E7D9D44 /* MortalLoom.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MortalLoom.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8DFE4C5B3F84209835BAB96B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		92F50631566FFE40D88FAD5C /* BloodTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BloodTest.swift; sourceTree = "<group>"; };
 		93CDAC363DF57A04037AECCA /* MortalLoomTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MortalLoomTests.swift; sourceTree = "<group>"; };
 		9A913A076D3406287294E60C /* MortalLoom.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MortalLoom.entitlements; sourceTree = "<group>"; };
 		9F15E56CD7761DC17846A67A /* MortalLoom.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = MortalLoom.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B4C6F3F7D27B38D804FA5B61 /* DeathClockEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeathClockEngine.swift; sourceTree = "<group>"; };
 		BEB68C77C3325AF758E23E9D /* MortalLoomTests_iOS.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MortalLoomTests_iOS.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		C6800ABC07A07655F56FA658 /* EyeExam.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EyeExam.swift; sourceTree = "<group>"; };
+		CB2E368CC2CD70A93D9E7BAE /* DataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataStore.swift; sourceTree = "<group>"; };
 		DFAFEF1D1D8E89AA3E949F4F /* LifestyleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifestyleView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
+		0735569E352A35DA295334AF /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				76AFC65F04DD19B1C921A47F /* AppData.swift */,
+				92F50631566FFE40D88FAD5C /* BloodTest.swift */,
+				3DE6F91C7E33B0F86F79570E /* BodyEntry.swift */,
+				6DE7B02859718A26B4B9906E /* EpigeneticTest.swift */,
+				C6800ABC07A07655F56FA658 /* EyeExam.swift */,
+				4FCF31AF121B47E7C7DF22B1 /* HealthProfile.swift */,
+				14643E58DFCB5BCF7D13DC86 /* SubstanceEntry.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
 		1BBC69BB43F3625EAE781C47 /* Views */ = {
 			isa = PBXGroup;
 			children = (
 				6BB3FF2B8EF635AAE437983D /* BloodView.swift */,
 				4711239695D8FA36364CFC90 /* BodyView.swift */,
 				71A0187A10BAA3CC7819A176 /* GenomeView.swift */,
+				5ABFE2DBE2C3A4FAFEE5EE6E /* LifeCalendarView.swift */,
 				DFAFEF1D1D8E89AA3E949F4F /* LifestyleView.swift */,
 				86691FE1BB15DD7BDC355BE6 /* OverviewView.swift */,
 				37A71E4A0A8F1CD94F8E00BB /* SettingsView.swift */,
@@ -86,11 +137,29 @@
 		551E3EC94F5DFE5E0315E4FE /* App */ = {
 			isa = PBXGroup;
 			children = (
+				8DFE4C5B3F84209835BAB96B /* Assets.xcassets */,
 				63EFA7304632982F7F2C834D /* Info.plist */,
 				9A913A076D3406287294E60C /* MortalLoom.entitlements */,
 				25A938EE48931E1A7D80455D /* MortalLoomApp.swift */,
 			);
 			path = App;
+			sourceTree = "<group>";
+		};
+		6C378C2253BD9DD74E5BC23F /* Engine */ = {
+			isa = PBXGroup;
+			children = (
+				B4C6F3F7D27B38D804FA5B61 /* DeathClockEngine.swift */,
+				3C111B7B3DAB461735C8004F /* HealthKitService.swift */,
+			);
+			path = Engine;
+			sourceTree = "<group>";
+		};
+		6E9274E32608F1D549362C16 /* Storage */ = {
+			isa = PBXGroup;
+			children = (
+				CB2E368CC2CD70A93D9E7BAE /* DataStore.swift */,
+			);
+			path = Storage;
 			sourceTree = "<group>";
 		};
 		800505DC00BACA5D2DF18561 = {
@@ -125,6 +194,9 @@
 			isa = PBXGroup;
 			children = (
 				551E3EC94F5DFE5E0315E4FE /* App */,
+				6C378C2253BD9DD74E5BC23F /* Engine */,
+				0735569E352A35DA295334AF /* Models */,
+				6E9274E32608F1D549362C16 /* Storage */,
 				E599AA8322014F85417D9A81 /* Theme */,
 				1BBC69BB43F3625EAE781C47 /* Views */,
 			);
@@ -148,6 +220,7 @@
 			buildConfigurationList = 183DF249C37E4A0CB9E6F1F6 /* Build configuration list for PBXNativeTarget "MortalLoom_iOS" */;
 			buildPhases = (
 				A148AACC6C3AA6D3AD90D844 /* Sources */,
+				028CEBD22F2ABBC6F4DB8391 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -183,6 +256,7 @@
 			buildConfigurationList = AE92E1D225F45508E773C574 /* Build configuration list for PBXNativeTarget "MortalLoom_macOS" */;
 			buildPhases = (
 				E807A08906E51A628D0319C5 /* Sources */,
+				12321516C214A7BB4717DBF5 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -260,6 +334,25 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		028CEBD22F2ABBC6F4DB8391 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				95980F1A20C4AD1E940663E0 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		12321516C214A7BB4717DBF5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AD7F1DCB8D68FC9792B1F154 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		33EC488B6D867C9C06996940 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -281,14 +374,25 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3842F700657CFF9D845E179E /* AppData.swift in Sources */,
 				050980359F1180012E9D3CBC /* AppearanceManager.swift in Sources */,
+				3784D4A41C14139EA74E88B0 /* BloodTest.swift in Sources */,
 				C27099DAB0C46C3647878607 /* BloodView.swift in Sources */,
+				3C18B8B01E742711B45066D0 /* BodyEntry.swift in Sources */,
 				29AFDFA8BC814239784F41DC /* BodyView.swift in Sources */,
+				4C31E78A1FDAC239E647CB2D /* DataStore.swift in Sources */,
+				47E4013FF9139533AA44FC4D /* DeathClockEngine.swift in Sources */,
+				285C3B38D82FDF5C57FDAA1E /* EpigeneticTest.swift in Sources */,
+				DE453F18D91452A344184BB6 /* EyeExam.swift in Sources */,
 				6EF9106333950CF8212C2EA0 /* GenomeView.swift in Sources */,
+				17B7AFAED17D2200F9677430 /* HealthKitService.swift in Sources */,
+				6BF9BE408C71949F1E582340 /* HealthProfile.swift in Sources */,
+				30B68822C19248773D62696A /* LifeCalendarView.swift in Sources */,
 				F9CFE333BC9375AD2A481B9C /* LifestyleView.swift in Sources */,
 				0F7F142E18D533C8791C697B /* MortalLoomApp.swift in Sources */,
 				F693696AC5E6CC72FC037C48 /* OverviewView.swift in Sources */,
 				E118CBAF40777154C639267F /* SettingsView.swift in Sources */,
+				BB734E45988022F6F6C80BF3 /* SubstanceEntry.swift in Sources */,
 				F94DC225DE842B1FBDB919DC /* SubstancesView.swift in Sources */,
 				102EC106BBDF1BC27CB3AC74 /* Theme.swift in Sources */,
 			);
@@ -298,14 +402,25 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				53B90A52CDA6CC6EAEF56C54 /* AppData.swift in Sources */,
 				6B55E49F18136F5F6D016FAC /* AppearanceManager.swift in Sources */,
+				C505D8C48C08E5ECEAE8215B /* BloodTest.swift in Sources */,
 				3F2F2D1B90AB3A95141A9988 /* BloodView.swift in Sources */,
+				9D54A8470E4B66EA28F7DBE9 /* BodyEntry.swift in Sources */,
 				576B5647EBFAD63011F04625 /* BodyView.swift in Sources */,
+				4E21F7279130B3025E25A8EA /* DataStore.swift in Sources */,
+				64B0B5357DF80CDAEB3370A1 /* DeathClockEngine.swift in Sources */,
+				706C426B98DE5CF39A715C7E /* EpigeneticTest.swift in Sources */,
+				89C3332067D295F52E472691 /* EyeExam.swift in Sources */,
 				259AA046172B3216F2A26D31 /* GenomeView.swift in Sources */,
+				A17140154ACE65029AA7C02B /* HealthKitService.swift in Sources */,
+				F6492A6DE3039DDD7AD27755 /* HealthProfile.swift in Sources */,
+				6E9F84A23A6E864D78163091 /* LifeCalendarView.swift in Sources */,
 				5A2E410C2C2B798ACABD6D2F /* LifestyleView.swift in Sources */,
 				3EB4BFEEC7B0A7546C3AA212 /* MortalLoomApp.swift in Sources */,
 				F70C90E5AEE5A80B621DDA0A /* OverviewView.swift in Sources */,
 				CAE4E3026BDDD0FF4A4CBBA1 /* SettingsView.swift in Sources */,
+				B9CD04929700DA3CFF13A92E /* SubstanceEntry.swift in Sources */,
 				E7899B9BBD38F6820A45779D /* SubstancesView.swift in Sources */,
 				DD7B9C9787A28BAD1712D040 /* Theme.swift in Sources */,
 			);

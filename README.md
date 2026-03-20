@@ -1,8 +1,16 @@
 # MortalLoom
 
-Privacy-first longevity and health tracking for iOS and macOS.
+<p align="center">
+  <img src="Logo.png" alt="MortalLoom" width="200" />
+</p>
 
-No accounts. No data collection. No servers. Your health data stays on your device and in your iCloud.
+<p align="center">
+  Privacy-first longevity and health tracking for iOS and macOS.
+</p>
+
+<p align="center">
+  No accounts. No data collection. No servers. Your health data stays on your device and in your iCloud.
+</p>
 
 ## Features
 
@@ -14,6 +22,7 @@ No accounts. No data collection. No servers. Your health data stays on your devi
 - **Genome Analysis** — Upload 23andMe/AncestryDNA data, cross-reference ClinVar
 - **Apple Health** — Steps, heart rate, HRV, sleep, VO2 max, and more
 - **Lifestyle Assessment** — Quantify how habits affect your longevity estimate
+- **Life Calendar** — 4000-weeks grid visualization of your entire lifespan
 - **LEV Tracker** — Monitor progress toward Longevity Escape Velocity (2045)
 
 ## Privacy
