@@ -36,8 +36,13 @@ enum DeathClockEngine {
     // Based on SSA Period Life Table 2021
     static func ssaBaseline(sex: BiologicalSex?, ageYears: Int) -> Double {
         // Simplified: average life expectancy at various ages
-        // Male baseline ~76, Female baseline ~81
-        let base: Double = (sex == .female) ? 81.0 : 76.0
+        // Male baseline ~76, Female baseline ~81, unspecified uses average ~78.5
+        let base: Double
+        switch sex {
+        case .female: base = 81.0
+        case .male: base = 76.0
+        case nil: base = 78.5
+        }
         // Conditional LE increases as you age (survived selection)
         let bonus: Double
         switch ageYears {

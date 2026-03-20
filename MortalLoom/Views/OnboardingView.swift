@@ -116,13 +116,22 @@ struct OnboardingView: View {
             }
             .padding(.horizontal)
 
+            Button {
+                biologicalSex = nil
+                advanceStep()
+            } label: {
+                Text("Skip / Prefer not to say")
+                    .font(.subheadline)
+                    .foregroundColor(.textSecondary)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 4)
+
             Spacer()
 
             primaryButton("Next") {
                 advanceStep()
             }
-            .disabled(biologicalSex == nil)
-            .opacity(biologicalSex == nil ? 0.5 : 1)
         }
     }
 
