@@ -53,8 +53,8 @@ xcodegen generate
 PROJECT="MortalLoom.xcodeproj"
 BUILD_DIR="$SCRIPT_DIR/build"
 
-# Auto-increment build number
-CURRENT_BUILD=$(grep -m1 'CURRENT_PROJECT_VERSION = ' project.yml | awk '{print $2}')
+# Auto-increment build number in project.yml (YAML format: "CURRENT_PROJECT_VERSION: N")
+CURRENT_BUILD=$(grep -m1 'CURRENT_PROJECT_VERSION:' project.yml | awk '{print $2}')
 NEW_BUILD=$((CURRENT_BUILD + 1))
 echo "📦 Build number: $CURRENT_BUILD → $NEW_BUILD"
 /usr/bin/sed -i '' "s/CURRENT_PROJECT_VERSION: ${CURRENT_BUILD}/CURRENT_PROJECT_VERSION: ${NEW_BUILD}/" project.yml
@@ -165,14 +165,17 @@ EOF
     fi
 
     echo "🚀 Uploading $PLATFORM to TestFlight..."
-    xcrun altool --upload-app \
+    if xcrun altool --upload-app \
         --file "$ARTIFACT" \
         --type "$APP_TYPE" \
         --apiKey "$APPSTORE_API_KEY_ID" \
         --apiIssuer "$APPSTORE_ISSUER_ID" \
-        --transport DAV
-
-    echo "✅ $PLATFORM upload complete!"
+        --transport DAV; then
+        echo "✅ $PLATFORM upload complete!"
+    else
+        echo "❌ $PLATFORM upload failed"
+        exit 1
+    fi
 }
 
 # Clean build directory
