@@ -1,0 +1,22 @@
+# Xcode
+build/
+DerivedData/
+*.xcworkspace
+*.xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+
+# Dependencies
+Pods/
+
+# Local secrets
+.env
+
+# OS
+.DS_Store
+
+# Screenshots
+*.png
+
+# Playwright
+.playwright-mcp/
