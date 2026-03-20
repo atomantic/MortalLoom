@@ -27,6 +27,12 @@ xcodebuild test -project MeatSpace.xcodeproj -scheme MeatSpaceTests_iOS \
 ./deploy.sh --skip-tests # Skip tests
 ```
 
+## Product Vision
+
+MeatSpace Tracker is a **privacy-first longevity tracking app**. No accounts, no logins, no data collection, no telemetry, no third-party tracking. Your health data stays on your device and in your iCloud — never on our servers (we don't have any). You can export your data anytime, but it's never shared without your explicit action.
+
+This is the core brand promise and must be reflected in all App Store copy, marketing, and in-app messaging.
+
 ## Architecture
 
 MeatSpace Tracker is a native iOS/macOS SwiftUI app for lifespan health tracking. It mirrors the MeatSpace section of the PortOS web app.
