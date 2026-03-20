@@ -11,19 +11,23 @@ struct OnboardingView: View {
     @State private var dietQuality: DietQuality = .good
     @State private var stressLevel: StressLevel = .moderate
 
-    private let totalSteps = 8
+    @StateObject private var healthKit = HealthKitService.shared
+    @State private var healthKitRequested = false
+
+    private let totalSteps = 9
 
     var body: some View {
         VStack(spacing: 0) {
             TabView(selection: $currentStep) {
                 welcomeStep.tag(0)
-                birthDateStep.tag(1)
-                biologicalSexStep.tag(2)
-                smokingStep.tag(3)
-                exerciseStep.tag(4)
-                sleepStep.tag(5)
-                dietStressStep.tag(6)
-                resultsStep.tag(7)
+                healthKitStep.tag(1)
+                birthDateStep.tag(2)
+                biologicalSexStep.tag(3)
+                smokingStep.tag(4)
+                exerciseStep.tag(5)
+                sleepStep.tag(6)
+                dietStressStep.tag(7)
+                resultsStep.tag(8)
             }
             #if os(iOS)
             .tabViewStyle(.page(indexDisplayMode: .never))
@@ -69,7 +73,78 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Step 1: Birth Date
+    // MARK: - Step 1: Apple Health
+
+    @ViewBuilder
+    private var healthKitStep: some View {
+        stepContainer {
+            stepIcon("heart.fill")
+            stepTitle("Connect Apple Health")
+            stepDescription("MortalLoom can read your health data — steps, heart rate, sleep, weight, and more — to give you a complete picture of your longevity.")
+
+            Spacer()
+
+            if healthKit.isAvailable {
+                if healthKitRequested {
+                    VStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 48))
+                            .foregroundColor(.green)
+                        Text("Health access requested")
+                            .font(.subheadline)
+                            .foregroundColor(.textSecondary)
+                    }
+                } else {
+                    VStack(spacing: 12) {
+                        Image(systemName: "heart.text.clipboard")
+                            .font(.system(size: 64))
+                            .foregroundColor(.pink)
+
+                        Text("Your data never leaves your device.")
+                            .font(.caption)
+                            .foregroundColor(.textMuted)
+                    }
+                }
+            } else {
+                VStack(spacing: 8) {
+                    Image(systemName: "heart.slash")
+                        .font(.system(size: 48))
+                        .foregroundColor(.textMuted)
+                    Text("Apple Health is not available on this device.")
+                        .font(.subheadline)
+                        .foregroundColor(.textSecondary)
+                }
+            }
+
+            Spacer()
+
+            if healthKit.isAvailable && !healthKitRequested {
+                primaryButton("Connect Apple Health") {
+                    Task {
+                        await healthKit.requestAuthorization()
+                        healthKitRequested = true
+                        advanceStep()
+                    }
+                }
+
+                Button {
+                    advanceStep()
+                } label: {
+                    Text("Skip for now")
+                        .font(.subheadline)
+                        .foregroundColor(.textSecondary)
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 8)
+            } else {
+                primaryButton("Next") {
+                    advanceStep()
+                }
+            }
+        }
+    }
+
+    // MARK: - Step 2: Birth Date
 
     @ViewBuilder
     private var birthDateStep: some View {
@@ -368,7 +443,9 @@ struct OnboardingView: View {
         Button(action: action) {
             Text(label)
                 .font(.subheadline).fontWeight(.medium)
-                .padding(.horizontal, 12)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .padding(.horizontal, 8)
                 .padding(.vertical, 10)
                 .frame(maxWidth: .infinity)
                 .foregroundColor(isSelected ? .white : .textPrimary)
@@ -602,8 +679,9 @@ struct OnboardingView: View {
         )
         Task {
             await DataStore.shared.updateProfile(profile)
+            UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
+            NotificationCenter.default.post(name: .profileDidChange, object: nil)
+            isPresented = false
         }
-        UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
-        isPresented = false
     }
 }

@@ -443,5 +443,6 @@ struct LifestyleView: View {
 
         await DataStore.shared.updateProfile(profile)
         saved = true
+        NotificationCenter.default.post(name: .profileDidChange, object: nil)
     }
 }

@@ -2,6 +2,7 @@ import SwiftUI
 
 extension Notification.Name {
     static let showOnboarding = Notification.Name("showOnboarding")
+    static let profileDidChange = Notification.Name("profileDidChange")
 }
 
 @main

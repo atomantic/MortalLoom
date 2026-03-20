@@ -72,6 +72,9 @@ struct LifeCalendarView: View {
         .background(Color.bg)
         .navigationTitle("Life Calendar")
         .task { await loadData() }
+        .onReceive(NotificationCenter.default.publisher(for: .profileDidChange)) { _ in
+            Task { await loadData() }
+        }
     }
 
     // MARK: - Data Loading

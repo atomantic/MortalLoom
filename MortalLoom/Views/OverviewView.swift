@@ -28,9 +28,15 @@ struct OverviewView: View {
         .background(Color.bg)
         .navigationTitle("Overview")
         .task { await loadData() }
-        .onAppear { isVisible = true }
+        .onAppear {
+            isVisible = true
+            Task { await loadData() }
+        }
         .onDisappear { isVisible = false }
         .onReceive(timer) { _ in guard isVisible else { return }; updateCountdown() }
+        .onReceive(NotificationCenter.default.publisher(for: .profileDidChange)) { _ in
+            Task { await loadData() }
+        }
     }
 
     // MARK: - Data Loading
