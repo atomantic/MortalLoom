@@ -1,4 +1,4 @@
-# MeatSpace Tracker Goals
+# MortalLoom Goals
 
 ## Mission
 
@@ -10,7 +10,7 @@ LEV is the theoretical threshold where advances in medical science extend life e
 
 The concept was popularized by Aubrey de Grey, who estimates LEV could be reached by 2035-2045 for those who maintain good health until then. The key insight: **you don't need to solve aging today — you just need to survive long enough for the science to catch up.**
 
-## How MeatSpace Tracker Helps
+## How MortalLoom Helps
 
 ### 1. Know Your Baseline
 - Calculate life expectancy from actuarial tables (SSA data)
@@ -38,7 +38,7 @@ The concept was popularized by Aubrey de Grey, who estimates LEV could be reache
 
 ## Privacy as a Feature
 
-Health data is the most sensitive data a person has. MeatSpace Tracker is built on the principle that **privacy is not a tradeoff — it's a requirement.**
+Health data is the most sensitive data a person has. MortalLoom is built on the principle that **privacy is not a tradeoff — it's a requirement.**
 
 - No accounts, no logins, no servers
 - No data collection, no telemetry, no analytics

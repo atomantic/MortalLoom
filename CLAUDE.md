@@ -7,16 +7,16 @@
 xcodegen generate
 
 # Build iOS
-xcodebuild build -project MeatSpace.xcodeproj -scheme MeatSpace_iOS \
+xcodebuild build -project MortalLoom.xcodeproj -scheme MortalLoom_iOS \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
   -configuration Debug CODE_SIGNING_ALLOWED=NO -quiet
 
 # Build macOS
-xcodebuild build -project MeatSpace.xcodeproj -scheme MeatSpace_macOS \
+xcodebuild build -project MortalLoom.xcodeproj -scheme MortalLoom_macOS \
   -destination 'platform=macOS' -configuration Debug CODE_SIGNING_ALLOWED=NO -quiet
 
 # Run tests
-xcodebuild test -project MeatSpace.xcodeproj -scheme MeatSpaceTests_iOS \
+xcodebuild test -project MortalLoom.xcodeproj -scheme MortalLoomTests_iOS \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
   -configuration Debug CODE_SIGNING_ALLOWED=NO -quiet
 
@@ -29,13 +29,13 @@ xcodebuild test -project MeatSpace.xcodeproj -scheme MeatSpaceTests_iOS \
 
 ## Product Vision
 
-MeatSpace Tracker is a **privacy-first longevity tracking app**. No accounts, no logins, no data collection, no telemetry, no third-party tracking. Your health data stays on your device and in your iCloud — never on our servers (we don't have any). You can export your data anytime, but it's never shared without your explicit action.
+MortalLoom is a **privacy-first longevity tracking app**. No accounts, no logins, no data collection, no telemetry, no third-party tracking. Your health data stays on your device and in your iCloud — never on our servers (we don't have any). You can export your data anytime, but it's never shared without your explicit action.
 
 This is the core brand promise and must be reflected in all App Store copy, marketing, and in-app messaging.
 
 ## Architecture
 
-MeatSpace Tracker is a native iOS/macOS SwiftUI app for lifespan health tracking. It mirrors the MeatSpace section of the PortOS web app.
+MortalLoom is a native iOS/macOS SwiftUI app for lifespan health tracking. It mirrors the MeatSpace section of the PortOS web app under a new brand.
 
 - **Bundle ID**: `net.shadowpuppet.MeatSpaceTracker`
 - **Team ID**: `TYQ32QCF6K`
@@ -45,7 +45,7 @@ MeatSpace Tracker is a native iOS/macOS SwiftUI app for lifespan health tracking
 
 ### Project Structure
 ```
-MeatSpace/
+MortalLoom/
 ├── App/          # Entry point, Info.plist, entitlements
 ├── Theme/        # Colors, layout constants, card styles
 ├── Views/        # SwiftUI views (Overview, Body, Substances, Blood, Genome, Lifestyle, Settings)
@@ -54,7 +54,7 @@ MeatSpace/
 ├── Storage/      # Actor-based file I/O, iCloud sync
 ```
 
-### Key Features (from PortOS MeatSpace)
+### Key Features
 - Death clock countdown with life expectancy calculation
 - Epigenetic age tracking
 - Alcohol & nicotine substance tracking with NIAAA risk levels

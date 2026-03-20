@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct MeatSpaceApp: App {
+struct MortalLoomApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -10,7 +10,7 @@ struct MeatSpaceApp: App {
         .defaultSize(width: 1200, height: 800)
         .commands {
             CommandGroup(replacing: .appTermination) {
-                Button("Quit MeatSpace Tracker") {
+                Button("Quit MortalLoom") {
                     NSApplication.shared.terminate(nil)
                 }
                 .keyboardShortcut("q", modifiers: .command)
@@ -102,7 +102,7 @@ struct MacContentView: View {
                     Image(systemName: "heart.text.clipboard")
                         .foregroundColor(.accent)
                         .font(.title2)
-                    Text("MeatSpace")
+                    Text("MortalLoom")
                         .font(.title3).fontWeight(.bold)
                         .foregroundColor(.textPrimary)
                 }

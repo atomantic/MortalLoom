@@ -35,9 +35,9 @@ jobs:
           fi
 
           xcodebuild test \
-            -project MeatSpace.xcodeproj \
-            -scheme MeatSpace \
-            -only-testing:MeatSpaceTests \
+            -project MortalLoom.xcodeproj \
+            -scheme MortalLoom \
+            -only-testing:MortalLoomTests \
             -destination "$DESTINATION" \
             -configuration Debug \
             -derivedDataPath build \

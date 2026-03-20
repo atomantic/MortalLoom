@@ -1,4 +1,4 @@
-# MeatSpace Tracker
+# MortalLoom
 
 Privacy-first longevity and health tracking for iOS and macOS.
 
@@ -18,7 +18,7 @@ No accounts. No data collection. No servers. Your health data stays on your devi
 
 ## Privacy
 
-MeatSpace Tracker collects zero data. There are no analytics, no telemetry, no third-party SDKs, and no server-side components. All data is stored locally on your device and optionally synced via your personal iCloud account. You can export your data anytime.
+MortalLoom collects zero data. There are no analytics, no telemetry, no third-party SDKs, and no server-side components. All data is stored locally on your device and optionally synced via your personal iCloud account. You can export your data anytime.
 
 ## Development
 
@@ -32,8 +32,8 @@ MeatSpace Tracker collects zero data. There are no analytics, no telemetry, no t
 
 ```bash
 # Clone
-git clone git@github.com:atomantic/MeatSpace.git
-cd MeatSpace
+git clone git@github.com:atomantic/MortalLoom.git
+cd MortalLoom
 
 # Configure deployment credentials
 cp .env.example .env
@@ -43,7 +43,7 @@ cp .env.example .env
 xcodegen generate
 
 # Build
-xcodebuild build -project MeatSpace.xcodeproj -scheme MeatSpace_iOS \
+xcodebuild build -project MortalLoom.xcodeproj -scheme MortalLoom_iOS \
   -destination 'platform=iOS Simulator,name=iPhone 16' \
   -configuration Debug CODE_SIGNING_ALLOWED=NO -quiet
 ```
@@ -60,7 +60,7 @@ xcodebuild build -project MeatSpace.xcodeproj -scheme MeatSpace_iOS \
 ### Project Structure
 
 ```
-MeatSpace/
+MortalLoom/
 ├── App/          # Entry point, Info.plist, entitlements
 ├── Theme/        # Adaptive colors, layout constants, card styles
 ├── Views/        # SwiftUI views per feature section

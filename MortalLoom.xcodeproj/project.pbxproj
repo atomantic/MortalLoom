@@ -1,0 +1,686 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		050980359F1180012E9D3CBC /* AppearanceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 765271B94F125643F18F3646 /* AppearanceManager.swift */; };
+		0F7F142E18D533C8791C697B /* MortalLoomApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25A938EE48931E1A7D80455D /* MortalLoomApp.swift */; };
+		102EC106BBDF1BC27CB3AC74 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A430A6D6F069A9C484A8BB2 /* Theme.swift */; };
+		259AA046172B3216F2A26D31 /* GenomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71A0187A10BAA3CC7819A176 /* GenomeView.swift */; };
+		29AFDFA8BC814239784F41DC /* BodyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4711239695D8FA36364CFC90 /* BodyView.swift */; };
+		3765ED39C36AEB475A71D25C /* MortalLoomTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93CDAC363DF57A04037AECCA /* MortalLoomTests.swift */; };
+		3EB4BFEEC7B0A7546C3AA212 /* MortalLoomApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25A938EE48931E1A7D80455D /* MortalLoomApp.swift */; };
+		3F2F2D1B90AB3A95141A9988 /* BloodView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BB3FF2B8EF635AAE437983D /* BloodView.swift */; };
+		576B5647EBFAD63011F04625 /* BodyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4711239695D8FA36364CFC90 /* BodyView.swift */; };
+		5A2E410C2C2B798ACABD6D2F /* LifestyleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFAFEF1D1D8E89AA3E949F4F /* LifestyleView.swift */; };
+		6B55E49F18136F5F6D016FAC /* AppearanceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 765271B94F125643F18F3646 /* AppearanceManager.swift */; };
+		6EF9106333950CF8212C2EA0 /* GenomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71A0187A10BAA3CC7819A176 /* GenomeView.swift */; };
+		C27099DAB0C46C3647878607 /* BloodView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BB3FF2B8EF635AAE437983D /* BloodView.swift */; };
+		CAE4E3026BDDD0FF4A4CBBA1 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37A71E4A0A8F1CD94F8E00BB /* SettingsView.swift */; };
+		DD7B9C9787A28BAD1712D040 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A430A6D6F069A9C484A8BB2 /* Theme.swift */; };
+		E118CBAF40777154C639267F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37A71E4A0A8F1CD94F8E00BB /* SettingsView.swift */; };
+		E7899B9BBD38F6820A45779D /* SubstancesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04C1C61D4BD2F3E4B50538F2 /* SubstancesView.swift */; };
+		F693696AC5E6CC72FC037C48 /* OverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86691FE1BB15DD7BDC355BE6 /* OverviewView.swift */; };
+		F70C90E5AEE5A80B621DDA0A /* OverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86691FE1BB15DD7BDC355BE6 /* OverviewView.swift */; };
+		F94DC225DE842B1FBDB919DC /* SubstancesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04C1C61D4BD2F3E4B50538F2 /* SubstancesView.swift */; };
+		F9CFE333BC9375AD2A481B9C /* LifestyleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFAFEF1D1D8E89AA3E949F4F /* LifestyleView.swift */; };
+		FB48FECF084FE4302BBFD024 /* MortalLoomTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93CDAC363DF57A04037AECCA /* MortalLoomTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		0591E1B72CAFEC79575E2DF2 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AA97B8DC6CC30137C00C725E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2B3719758DE43B582B14978B;
+			remoteInfo = MortalLoom_iOS;
+		};
+		0A1476A1B7A19716F7D2901B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AA97B8DC6CC30137C00C725E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A0DED99AD0B32A6A9FF11972;
+			remoteInfo = MortalLoom_macOS;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		04C1C61D4BD2F3E4B50538F2 /* SubstancesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubstancesView.swift; sourceTree = "<group>"; };
+		25A938EE48931E1A7D80455D /* MortalLoomApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MortalLoomApp.swift; sourceTree = "<group>"; };
+		37A71E4A0A8F1CD94F8E00BB /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		4711239695D8FA36364CFC90 /* BodyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyView.swift; sourceTree = "<group>"; };
+		5C8ED8531BC086732C92DA9B /* MortalLoomTests_macOS.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MortalLoomTests_macOS.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		63EFA7304632982F7F2C834D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		6BB3FF2B8EF635AAE437983D /* BloodView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BloodView.swift; sourceTree = "<group>"; };
+		71A0187A10BAA3CC7819A176 /* GenomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenomeView.swift; sourceTree = "<group>"; };
+		765271B94F125643F18F3646 /* AppearanceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceManager.swift; sourceTree = "<group>"; };
+		86691FE1BB15DD7BDC355BE6 /* OverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverviewView.swift; sourceTree = "<group>"; };
+		8A430A6D6F069A9C484A8BB2 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		8B7AF9F6502500320E7D9D44 /* MortalLoom.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MortalLoom.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		93CDAC363DF57A04037AECCA /* MortalLoomTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MortalLoomTests.swift; sourceTree = "<group>"; };
+		9A913A076D3406287294E60C /* MortalLoom.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MortalLoom.entitlements; sourceTree = "<group>"; };
+		9F15E56CD7761DC17846A67A /* MortalLoom.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = MortalLoom.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		BEB68C77C3325AF758E23E9D /* MortalLoomTests_iOS.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MortalLoomTests_iOS.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		DFAFEF1D1D8E89AA3E949F4F /* LifestyleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifestyleView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		1BBC69BB43F3625EAE781C47 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				6BB3FF2B8EF635AAE437983D /* BloodView.swift */,
+				4711239695D8FA36364CFC90 /* BodyView.swift */,
+				71A0187A10BAA3CC7819A176 /* GenomeView.swift */,
+				DFAFEF1D1D8E89AA3E949F4F /* LifestyleView.swift */,
+				86691FE1BB15DD7BDC355BE6 /* OverviewView.swift */,
+				37A71E4A0A8F1CD94F8E00BB /* SettingsView.swift */,
+				04C1C61D4BD2F3E4B50538F2 /* SubstancesView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		551E3EC94F5DFE5E0315E4FE /* App */ = {
+			isa = PBXGroup;
+			children = (
+				63EFA7304632982F7F2C834D /* Info.plist */,
+				9A913A076D3406287294E60C /* MortalLoom.entitlements */,
+				25A938EE48931E1A7D80455D /* MortalLoomApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		800505DC00BACA5D2DF18561 = {
+			isa = PBXGroup;
+			children = (
+				BA60AC4E4AB0F67EC0B9E3F5 /* MortalLoom */,
+				A6EFBCD1490A7CAFF8E0FDA4 /* MortalLoomTests */,
+				B42444FC21559C3EF65581F7 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A6EFBCD1490A7CAFF8E0FDA4 /* MortalLoomTests */ = {
+			isa = PBXGroup;
+			children = (
+				93CDAC363DF57A04037AECCA /* MortalLoomTests.swift */,
+			);
+			path = MortalLoomTests;
+			sourceTree = "<group>";
+		};
+		B42444FC21559C3EF65581F7 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				9F15E56CD7761DC17846A67A /* MortalLoom.app */,
+				8B7AF9F6502500320E7D9D44 /* MortalLoom.app */,
+				BEB68C77C3325AF758E23E9D /* MortalLoomTests_iOS.xctest */,
+				5C8ED8531BC086732C92DA9B /* MortalLoomTests_macOS.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		BA60AC4E4AB0F67EC0B9E3F5 /* MortalLoom */ = {
+			isa = PBXGroup;
+			children = (
+				551E3EC94F5DFE5E0315E4FE /* App */,
+				E599AA8322014F85417D9A81 /* Theme */,
+				1BBC69BB43F3625EAE781C47 /* Views */,
+			);
+			path = MortalLoom;
+			sourceTree = "<group>";
+		};
+		E599AA8322014F85417D9A81 /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				765271B94F125643F18F3646 /* AppearanceManager.swift */,
+				8A430A6D6F069A9C484A8BB2 /* Theme.swift */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		2B3719758DE43B582B14978B /* MortalLoom_iOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 183DF249C37E4A0CB9E6F1F6 /* Build configuration list for PBXNativeTarget "MortalLoom_iOS" */;
+			buildPhases = (
+				A148AACC6C3AA6D3AD90D844 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MortalLoom_iOS;
+			packageProductDependencies = (
+			);
+			productName = MortalLoom_iOS;
+			productReference = 9F15E56CD7761DC17846A67A /* MortalLoom.app */;
+			productType = "com.apple.product-type.application";
+		};
+		775BD4D581F6E7CBAABB6A4B /* MortalLoomTests_macOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 405608E35AE8C59AF53353FC /* Build configuration list for PBXNativeTarget "MortalLoomTests_macOS" */;
+			buildPhases = (
+				33EC488B6D867C9C06996940 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				1480E76FA0005DD4D269241D /* PBXTargetDependency */,
+			);
+			name = MortalLoomTests_macOS;
+			packageProductDependencies = (
+			);
+			productName = MortalLoomTests_macOS;
+			productReference = 5C8ED8531BC086732C92DA9B /* MortalLoomTests_macOS.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		A0DED99AD0B32A6A9FF11972 /* MortalLoom_macOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AE92E1D225F45508E773C574 /* Build configuration list for PBXNativeTarget "MortalLoom_macOS" */;
+			buildPhases = (
+				E807A08906E51A628D0319C5 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MortalLoom_macOS;
+			packageProductDependencies = (
+			);
+			productName = MortalLoom_macOS;
+			productReference = 8B7AF9F6502500320E7D9D44 /* MortalLoom.app */;
+			productType = "com.apple.product-type.application";
+		};
+		BCD47523F84BE1D077C166E5 /* MortalLoomTests_iOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7450438796622DFC96206E7F /* Build configuration list for PBXNativeTarget "MortalLoomTests_iOS" */;
+			buildPhases = (
+				56DB0BB14003DB655619A4B2 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				4B65A864B6C83A97142D078E /* PBXTargetDependency */,
+			);
+			name = MortalLoomTests_iOS;
+			packageProductDependencies = (
+			);
+			productName = MortalLoomTests_iOS;
+			productReference = BEB68C77C3325AF758E23E9D /* MortalLoomTests_iOS.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		AA97B8DC6CC30137C00C725E /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					2B3719758DE43B582B14978B = {
+						DevelopmentTeam = TYQ32QCF6K;
+						ProvisioningStyle = Automatic;
+					};
+					775BD4D581F6E7CBAABB6A4B = {
+						DevelopmentTeam = TYQ32QCF6K;
+					};
+					A0DED99AD0B32A6A9FF11972 = {
+						DevelopmentTeam = TYQ32QCF6K;
+						ProvisioningStyle = Automatic;
+					};
+					BCD47523F84BE1D077C166E5 = {
+						DevelopmentTeam = TYQ32QCF6K;
+					};
+				};
+			};
+			buildConfigurationList = E1A1CEB6C703E8A52DD33F10 /* Build configuration list for PBXProject "MortalLoom" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 800505DC00BACA5D2DF18561;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = B42444FC21559C3EF65581F7 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				BCD47523F84BE1D077C166E5 /* MortalLoomTests_iOS */,
+				775BD4D581F6E7CBAABB6A4B /* MortalLoomTests_macOS */,
+				2B3719758DE43B582B14978B /* MortalLoom_iOS */,
+				A0DED99AD0B32A6A9FF11972 /* MortalLoom_macOS */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		33EC488B6D867C9C06996940 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FB48FECF084FE4302BBFD024 /* MortalLoomTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		56DB0BB14003DB655619A4B2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3765ED39C36AEB475A71D25C /* MortalLoomTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A148AACC6C3AA6D3AD90D844 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				050980359F1180012E9D3CBC /* AppearanceManager.swift in Sources */,
+				C27099DAB0C46C3647878607 /* BloodView.swift in Sources */,
+				29AFDFA8BC814239784F41DC /* BodyView.swift in Sources */,
+				6EF9106333950CF8212C2EA0 /* GenomeView.swift in Sources */,
+				F9CFE333BC9375AD2A481B9C /* LifestyleView.swift in Sources */,
+				0F7F142E18D533C8791C697B /* MortalLoomApp.swift in Sources */,
+				F693696AC5E6CC72FC037C48 /* OverviewView.swift in Sources */,
+				E118CBAF40777154C639267F /* SettingsView.swift in Sources */,
+				F94DC225DE842B1FBDB919DC /* SubstancesView.swift in Sources */,
+				102EC106BBDF1BC27CB3AC74 /* Theme.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E807A08906E51A628D0319C5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				6B55E49F18136F5F6D016FAC /* AppearanceManager.swift in Sources */,
+				3F2F2D1B90AB3A95141A9988 /* BloodView.swift in Sources */,
+				576B5647EBFAD63011F04625 /* BodyView.swift in Sources */,
+				259AA046172B3216F2A26D31 /* GenomeView.swift in Sources */,
+				5A2E410C2C2B798ACABD6D2F /* LifestyleView.swift in Sources */,
+				3EB4BFEEC7B0A7546C3AA212 /* MortalLoomApp.swift in Sources */,
+				F70C90E5AEE5A80B621DDA0A /* OverviewView.swift in Sources */,
+				CAE4E3026BDDD0FF4A4CBBA1 /* SettingsView.swift in Sources */,
+				E7899B9BBD38F6820A45779D /* SubstancesView.swift in Sources */,
+				DD7B9C9787A28BAD1712D040 /* Theme.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		1480E76FA0005DD4D269241D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A0DED99AD0B32A6A9FF11972 /* MortalLoom_macOS */;
+			targetProxy = 0A1476A1B7A19716F7D2901B /* PBXContainerItemProxy */;
+		};
+		4B65A864B6C83A97142D078E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2B3719758DE43B582B14978B /* MortalLoom_iOS */;
+			targetProxy = 0591E1B72CAFEC79575E2DF2 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		164FA22E8357763BD65D39D6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = TYQ32QCF6K;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		21071B4C765CC4513C9D8A5B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = net.shadowpuppet.MeatSpaceTracker.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MortalLoom.app/MortalLoom";
+			};
+			name = Release;
+		};
+		3083C5F0C57C3231C71772D5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = net.shadowpuppet.MeatSpaceTracker.tests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MortalLoom.app/Contents/MacOS/MortalLoom";
+			};
+			name = Release;
+		};
+		30ED1C62D6C03A26D79BD58A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = MortalLoom/App/MortalLoom.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = TYQ32QCF6K;
+				INFOPLIST_FILE = MortalLoom/App/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = MortalLoom;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "MortalLoom reads your health data to display metrics and trends.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "MortalLoom writes health data to keep your records in sync.";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = net.shadowpuppet.MeatSpaceTracker;
+				PRODUCT_NAME = MortalLoom;
+				SDKROOT = iphoneos;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		8044B74645BD7FCFF9AB99FC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = net.shadowpuppet.MeatSpaceTracker.tests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MortalLoom.app/Contents/MacOS/MortalLoom";
+			};
+			name = Debug;
+		};
+		A36F7C48F6125095BF7D6E18 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = net.shadowpuppet.MeatSpaceTracker.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MortalLoom.app/MortalLoom";
+			};
+			name = Debug;
+		};
+		B42353243FF548855C1AE257 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = MortalLoom/App/MortalLoom.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = TYQ32QCF6K;
+				INFOPLIST_FILE = MortalLoom/App/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = MortalLoom;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "MortalLoom reads your health data to display metrics and trends.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "MortalLoom writes health data to keep your records in sync.";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = net.shadowpuppet.MeatSpaceTracker;
+				PRODUCT_NAME = MortalLoom;
+				SDKROOT = iphoneos;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		C07D10D5FA999C9F0FF543FF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = TYQ32QCF6K;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		C14FEC6DAFE99F28EAEB8AAD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = MortalLoom/App/MortalLoom.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = TYQ32QCF6K;
+				INFOPLIST_FILE = MortalLoom/App/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = MortalLoom;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "MortalLoom reads your health data to display metrics and trends.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "MortalLoom writes health data to keep your records in sync.";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = net.shadowpuppet.MeatSpaceTracker;
+				PRODUCT_NAME = MortalLoom;
+				SDKROOT = macosx;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+			};
+			name = Debug;
+		};
+		CD8247966930EB0D2D9DD0DD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = MortalLoom/App/MortalLoom.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = TYQ32QCF6K;
+				INFOPLIST_FILE = MortalLoom/App/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = MortalLoom;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "MortalLoom reads your health data to display metrics and trends.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "MortalLoom writes health data to keep your records in sync.";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = net.shadowpuppet.MeatSpaceTracker;
+				PRODUCT_NAME = MortalLoom;
+				SDKROOT = macosx;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		183DF249C37E4A0CB9E6F1F6 /* Build configuration list for PBXNativeTarget "MortalLoom_iOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B42353243FF548855C1AE257 /* Debug */,
+				30ED1C62D6C03A26D79BD58A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		405608E35AE8C59AF53353FC /* Build configuration list for PBXNativeTarget "MortalLoomTests_macOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				8044B74645BD7FCFF9AB99FC /* Debug */,
+				3083C5F0C57C3231C71772D5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		7450438796622DFC96206E7F /* Build configuration list for PBXNativeTarget "MortalLoomTests_iOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A36F7C48F6125095BF7D6E18 /* Debug */,
+				21071B4C765CC4513C9D8A5B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		AE92E1D225F45508E773C574 /* Build configuration list for PBXNativeTarget "MortalLoom_macOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C14FEC6DAFE99F28EAEB8AAD /* Debug */,
+				CD8247966930EB0D2D9DD0DD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		E1A1CEB6C703E8A52DD33F10 /* Build configuration list for PBXProject "MortalLoom" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C07D10D5FA999C9F0FF543FF /* Debug */,
+				164FA22E8357763BD65D39D6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = AA97B8DC6CC30137C00C725E /* Project object */;
+}

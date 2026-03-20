@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# MeatSpace Tracker - Local TestFlight Deploy
+# MortalLoom - Local TestFlight Deploy
 # Usage: ./deploy.sh [--skip-tests] [--macos] [--ios] [--all]
 # Default (no platform flag): iOS only
 # --macos: macOS only
@@ -32,7 +32,7 @@ if [ ! -f ~/.private_keys/"$KEY_FILENAME" ]; then
     echo "🔑 Symlinked API key to ~/.private_keys/"
 fi
 
-PROJECT="MeatSpace.xcodeproj"
+PROJECT="MortalLoom.xcodeproj"
 BUILD_DIR="$SCRIPT_DIR/build"
 
 # Parse flags
@@ -74,7 +74,7 @@ if ! $SKIP_TESTS; then
     )
     xcodebuild test \
         -project "$PROJECT" \
-        -scheme MeatSpaceTests_iOS \
+        -scheme MortalLoomTests_iOS \
         -destination "$DESTINATION" \
         -configuration Debug \
         CODE_SIGNING_ALLOWED=NO \
@@ -86,8 +86,8 @@ rm -rf "$BUILD_DIR"
 
 # --- iOS Build & Upload ---
 if $BUILD_IOS; then
-    SCHEME_IOS="MeatSpace_iOS"
-    ARCHIVE_IOS="$BUILD_DIR/MeatSpace_iOS.xcarchive"
+    SCHEME_IOS="MortalLoom_iOS"
+    ARCHIVE_IOS="$BUILD_DIR/MortalLoom_iOS.xcarchive"
     EXPORT_IOS="$BUILD_DIR/export_ios"
 
     echo "📦 Archiving iOS..."
@@ -128,7 +128,7 @@ EOF
         -quiet
     echo "✅ iOS IPA exported"
 
-    IPA_PATH="$EXPORT_IOS/MeatSpace.ipa"
+    IPA_PATH="$EXPORT_IOS/MortalLoom.ipa"
     if [ ! -f "$IPA_PATH" ]; then
         echo "❌ iOS IPA not found at $IPA_PATH"
         ls -la "$EXPORT_IOS/"
@@ -146,8 +146,8 @@ fi
 
 # --- macOS Build & Upload ---
 if $BUILD_MACOS; then
-    SCHEME_MACOS="MeatSpace_macOS"
-    ARCHIVE_MACOS="$BUILD_DIR/MeatSpace_macOS.xcarchive"
+    SCHEME_MACOS="MortalLoom_macOS"
+    ARCHIVE_MACOS="$BUILD_DIR/MortalLoom_macOS.xcarchive"
     EXPORT_MACOS="$BUILD_DIR/export_macos"
 
     echo "📦 Archiving macOS..."

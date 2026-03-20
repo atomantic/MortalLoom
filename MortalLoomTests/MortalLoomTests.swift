@@ -1,6 +1,6 @@
 import XCTest
 
-final class MeatSpaceTests: XCTestCase {
+final class MortalLoomTests: XCTestCase {
     func testAppLaunches() {
         XCTAssertTrue(true, "App structure is valid")
     }
