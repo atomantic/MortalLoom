@@ -1,7 +1,7 @@
 # MortalLoom
 
 <p align="center">
-  <img src="Logo.png" alt="MortalLoom" width="200" />
+  <img src="LogoSimple.png" alt="MortalLoom" width="200" />
 </p>
 
 <p align="center">
