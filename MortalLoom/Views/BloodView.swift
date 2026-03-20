@@ -23,7 +23,6 @@ struct BloodView: View {
             .padding()
         }
         .background(Color.bg)
-        .navigationTitle("Blood")
         .sheet(isPresented: $showingAddForm) {
             BloodTestFormView(onSave: { test in
                 Task {

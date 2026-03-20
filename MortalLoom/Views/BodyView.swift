@@ -43,7 +43,6 @@ struct BodyView: View {
             .padding()
         }
         .background(Color.bg)
-        .navigationTitle("Body")
         .sheet(isPresented: $showingAddExam) {
             EyeExamFormView(onSave: { exam in
                 Task {

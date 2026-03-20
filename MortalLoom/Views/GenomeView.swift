@@ -39,7 +39,6 @@ struct GenomeView: View {
             .padding()
         }
         .background(Color.bg)
-        .navigationTitle("Genome")
         .sheet(isPresented: $showingAddTest) {
             EpigeneticTestFormView(onSave: { test in
                 Task {

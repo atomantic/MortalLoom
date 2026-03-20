@@ -28,7 +28,6 @@ struct SettingsView: View {
             .padding()
         }
         .background(Color.bg)
-        .navigationTitle("Settings")
         .fileImporter(
             isPresented: $showImporter,
             allowedContentTypes: [.json],
@@ -254,7 +253,7 @@ struct SettingsView: View {
             SectionLabel(text: "SETUP")
 
             Button {
-                UserDefaults.standard.set(false, forKey: "hasCompletedOnboarding")
+                UserDefaults.standard.set(false, forKey: AppConstants.hasCompletedOnboardingKey)
                 NotificationCenter.default.post(name: .showOnboarding, object: nil)
             } label: {
                 HStack {

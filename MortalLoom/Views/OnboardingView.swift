@@ -13,6 +13,8 @@ struct OnboardingView: View {
 
     @StateObject private var healthKit = HealthKitService.shared
     @State private var healthKitRequested = false
+    @State private var healthKitDenied = false
+    @State private var deathClockResult: DeathClockEngine.DeathClockResult?
 
     private let totalSteps = 9
 
@@ -87,12 +89,22 @@ struct OnboardingView: View {
             if healthKit.isAvailable {
                 if healthKitRequested {
                     VStack(spacing: 8) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 48))
-                            .foregroundColor(.green)
-                        Text("Health access requested")
-                            .font(.subheadline)
-                            .foregroundColor(.textSecondary)
+                        if healthKitDenied {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 48))
+                                .foregroundColor(.warning)
+                            Text("Health access was not granted. You can enable it later in Settings > Privacy > Health.")
+                                .font(.subheadline)
+                                .foregroundColor(.textSecondary)
+                                .multilineTextAlignment(.center)
+                        } else {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 48))
+                                .foregroundColor(.green)
+                            Text("Health access granted")
+                                .font(.subheadline)
+                                .foregroundColor(.textSecondary)
+                        }
                     }
                 } else {
                     VStack(spacing: 12) {
@@ -122,6 +134,7 @@ struct OnboardingView: View {
                 primaryButton("Connect Apple Health") {
                     Task {
                         await healthKit.requestAuthorization()
+                        healthKitDenied = !healthKit.authorized
                         healthKitRequested = true
                         advanceStep()
                     }
@@ -246,9 +259,9 @@ struct OnboardingView: View {
             Spacer()
 
             VStack(spacing: 12) {
-                smokingCard("Never", status: .never, impact: "+0y")
-                smokingCard("Former", status: .former, impact: "-2y")
-                smokingCard("Current", status: .current, impact: "-10y")
+                smokingCard("Never", status: .never, impact: String(format: "%+.0fy", DeathClockEngine.smokingImpact(.never)))
+                smokingCard("Former", status: .former, impact: String(format: "%+.0fy", DeathClockEngine.smokingImpact(.former)))
+                smokingCard("Current", status: .current, impact: String(format: "%+.0fy", DeathClockEngine.smokingImpact(.current)))
             }
             .padding(.horizontal)
 
@@ -463,22 +476,11 @@ struct OnboardingView: View {
 
     @ViewBuilder
     private var resultsStep: some View {
-        let birthDateStr = DateFormatting.dateString(birthDate)
-        let lifestyle = LifestyleData(
-            smokingStatus: smokingStatus,
-            exerciseMinutesPerWeek: Int(exerciseMinutes),
-            sleepHoursPerNight: sleepHours,
-            dietQuality: dietQuality,
-            stressLevel: stressLevel,
-            bmi: nil
-        )
-        let result = DeathClockEngine.calculate(birthDateStr: birthDateStr, sex: biologicalSex, lifestyle: lifestyle)
-
         stepContainer {
             stepIcon("clock")
             stepTitle("Your Life Expectancy")
 
-            if let result {
+            if let result = deathClockResult {
                 let baseline = result.lifeExpectancy.baseline
                 let adjustment = result.lifeExpectancy.lifestyleAdjustment
                 let total = result.lifeExpectancy.total
@@ -657,8 +659,21 @@ struct OnboardingView: View {
     }
 
     private func advanceStep() {
+        let nextStep = min(currentStep + 1, totalSteps - 1)
+        if nextStep == 8 {
+            let birthDateStr = DateFormatting.dateString(birthDate)
+            let lifestyle = LifestyleData(
+                smokingStatus: smokingStatus,
+                exerciseMinutesPerWeek: Int(exerciseMinutes),
+                sleepHoursPerNight: sleepHours,
+                dietQuality: dietQuality,
+                stressLevel: stressLevel,
+                bmi: nil
+            )
+            deathClockResult = DeathClockEngine.calculate(birthDateStr: birthDateStr, sex: biologicalSex, lifestyle: lifestyle)
+        }
         withAnimation(.easeInOut(duration: 0.3)) {
-            currentStep = min(currentStep + 1, totalSteps - 1)
+            currentStep = nextStep
         }
     }
 
@@ -677,9 +692,9 @@ struct OnboardingView: View {
             biologicalSex: biologicalSex,
             lifestyle: lifestyle
         )
-        Task {
+        Task { @MainActor in
             await DataStore.shared.updateProfile(profile)
-            UserDefaults.standard.set(true, forKey: "hasCompletedOnboarding")
+            UserDefaults.standard.set(true, forKey: AppConstants.hasCompletedOnboardingKey)
             NotificationCenter.default.post(name: .profileDidChange, object: nil)
             isPresented = false
         }

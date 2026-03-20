@@ -25,7 +25,6 @@ struct LifestyleView: View {
             .padding()
         }
         .background(Color.bg)
-        .navigationTitle("Lifestyle")
         .task { await loadData() }
     }
 

@@ -1,5 +1,9 @@
 import SwiftUI
 
+enum AppConstants {
+    static let hasCompletedOnboardingKey = "hasCompletedOnboarding"
+}
+
 extension Notification.Name {
     static let showOnboarding = Notification.Name("showOnboarding")
     static let profileDidChange = Notification.Name("profileDidChange")
@@ -28,7 +32,7 @@ struct MortalLoomApp: App {
 struct ContentView: View {
     @State private var appearance = AppearanceManager.shared
     @State private var selectedTab: Int = 0
-    @State private var showOnboarding = !UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
+    @State private var showOnboarding = !UserDefaults.standard.bool(forKey: AppConstants.hasCompletedOnboardingKey)
 
     var body: some View {
         Group {
