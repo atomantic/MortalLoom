@@ -22,6 +22,7 @@ struct SettingsView: View {
                 dataExportSection
                 dataImportSection
                 aboutSection
+                setupGuideSection
                 dangerZoneSection
             }
             .padding()
@@ -239,6 +240,37 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundColor(.textSecondary)
             }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle()
+    }
+
+    // MARK: - Setup Guide
+
+    @ViewBuilder
+    private var setupGuideSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionLabel(text: "SETUP")
+
+            Button {
+                UserDefaults.standard.set(false, forKey: "hasCompletedOnboarding")
+                NotificationCenter.default.post(name: .showOnboarding, object: nil)
+            } label: {
+                HStack {
+                    Image(systemName: "arrow.counterclockwise")
+                    Text("Show Setup Guide")
+                        .fontWeight(.semibold)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.accentColor)
+
+            Text("Re-run the onboarding wizard to update your profile data.")
+                .font(.caption)
+                .foregroundColor(.textSecondary)
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)

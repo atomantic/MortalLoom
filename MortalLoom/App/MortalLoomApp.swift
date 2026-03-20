@@ -1,5 +1,9 @@
 import SwiftUI
 
+extension Notification.Name {
+    static let showOnboarding = Notification.Name("showOnboarding")
+}
+
 @main
 struct MortalLoomApp: App {
     var body: some Scene {
@@ -23,6 +27,7 @@ struct MortalLoomApp: App {
 struct ContentView: View {
     @State private var appearance = AppearanceManager.shared
     @State private var selectedTab: Int = 0
+    @State private var showOnboarding = !UserDefaults.standard.bool(forKey: "hasCompletedOnboarding")
 
     var body: some View {
         Group {
@@ -33,6 +38,19 @@ struct ContentView: View {
             #endif
         }
         .preferredColorScheme(appearance.mode.colorScheme)
+        #if os(iOS)
+        .fullScreenCover(isPresented: $showOnboarding) {
+            OnboardingView(isPresented: $showOnboarding)
+        }
+        #else
+        .sheet(isPresented: $showOnboarding) {
+            OnboardingView(isPresented: $showOnboarding)
+                .frame(minWidth: 600, minHeight: 700)
+        }
+        #endif
+        .onReceive(NotificationCenter.default.publisher(for: .showOnboarding)) { _ in
+            showOnboarding = true
+        }
     }
 
     #if os(iOS)
