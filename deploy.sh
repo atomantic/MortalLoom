@@ -169,8 +169,7 @@ EOF
         --file "$ARTIFACT" \
         --type "$APP_TYPE" \
         --apiKey "$APPSTORE_API_KEY_ID" \
-        --apiIssuer "$APPSTORE_ISSUER_ID" \
-        --transport DAV; then
+        --apiIssuer "$APPSTORE_ISSUER_ID"; then
         echo "✅ $PLATFORM upload complete!"
     else
         echo "❌ $PLATFORM upload failed"
