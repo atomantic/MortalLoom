@@ -31,15 +31,24 @@ struct MortalLoomApp: App {
 
 struct ContentView: View {
     @State private var appearance = AppearanceManager.shared
-    @State private var selectedTab: Int = 0
+    @State private var selectedPage: AppPage = .overview
+    @State private var showSideMenu = false
     @State private var showOnboarding = !UserDefaults.standard.bool(forKey: AppConstants.hasCompletedOnboardingKey)
+
+    // Bridge for OverviewView's Int-based selectedTab binding
+    private var selectedTabBinding: Binding<Int> {
+        Binding<Int>(
+            get: { selectedPage.rawValue },
+            set: { selectedPage = AppPage.from(tabIndex: $0) }
+        )
+    }
 
     var body: some View {
         Group {
             #if os(macOS)
             MacContentView()
             #else
-            tabContent
+            iOSContent
             #endif
         }
         .preferredColorScheme(appearance.mode.colorScheme)
@@ -59,63 +68,51 @@ struct ContentView: View {
     }
 
     #if os(iOS)
+    private var iOSContent: some View {
+        ZStack {
+            VStack(spacing: 0) {
+                NavigationStack {
+                    pageContent
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarLeading) {
+                                Button { showSideMenu = true } label: {
+                                    Image(systemName: "line.3.horizontal")
+                                        .font(.title3)
+                                        .foregroundColor(.textPrimary)
+                                }
+                            }
+                        }
+                }
+
+                CustomTabBar(selectedPage: $selectedPage)
+            }
+
+            if showSideMenu {
+                SideMenuView(selectedPage: $selectedPage, isPresented: $showSideMenu)
+                    .transition(.opacity)
+            }
+        }
+    }
+
     @ViewBuilder
-    private var tabContent: some View {
-        // iOS tabs: Overview=0, Body=1, Blood=2, Substances=3, Lifestyle=4, Calendar=5, Genome=6, Settings=7
-        if #available(iOS 18.0, *) {
-            TabView(selection: $selectedTab) {
-                Tab("Overview", systemImage: "heart.text.clipboard", value: 0) {
-                    NavigationStack { OverviewView(selectedTab: $selectedTab) }
-                }
-                Tab("Body", systemImage: "figure.stand", value: 1) {
-                    NavigationStack { BodyView() }
-                }
-                Tab("Blood", systemImage: "drop.fill", value: 2) {
-                    NavigationStack { BloodView() }
-                }
-                Tab("Substances", systemImage: "flask", value: 3) {
-                    NavigationStack { SubstancesView() }
-                }
-                Tab("Lifestyle", systemImage: "list.bullet.clipboard", value: 4) {
-                    NavigationStack { LifestyleView() }
-                }
-                Tab("Calendar", systemImage: "calendar", value: 5) {
-                    NavigationStack { LifeCalendarView() }
-                }
-                Tab("Genome", systemImage: "allergens", value: 6) {
-                    NavigationStack { GenomeView() }
-                }
-                Tab("Settings", systemImage: "gear", value: 7) {
-                    NavigationStack { SettingsView() }
-                }
-            }
-        } else {
-            TabView(selection: $selectedTab) {
-                NavigationStack { OverviewView(selectedTab: $selectedTab) }
-                    .tabItem { Label("Overview", systemImage: "heart.text.clipboard") }
-                    .tag(0)
-                NavigationStack { BodyView() }
-                    .tabItem { Label("Body", systemImage: "figure.stand") }
-                    .tag(1)
-                NavigationStack { BloodView() }
-                    .tabItem { Label("Blood", systemImage: "drop.fill") }
-                    .tag(2)
-                NavigationStack { SubstancesView() }
-                    .tabItem { Label("Substances", systemImage: "flask") }
-                    .tag(3)
-                NavigationStack { LifestyleView() }
-                    .tabItem { Label("Lifestyle", systemImage: "list.bullet.clipboard") }
-                    .tag(4)
-                NavigationStack { LifeCalendarView() }
-                    .tabItem { Label("Calendar", systemImage: "calendar") }
-                    .tag(5)
-                NavigationStack { GenomeView() }
-                    .tabItem { Label("Genome", systemImage: "allergens") }
-                    .tag(6)
-                NavigationStack { SettingsView() }
-                    .tabItem { Label("Settings", systemImage: "gear") }
-                    .tag(7)
-            }
+    private var pageContent: some View {
+        switch selectedPage {
+        case .overview:
+            OverviewView(selectedTab: selectedTabBinding)
+        case .body:
+            BodyView()
+        case .blood:
+            BloodView()
+        case .habits:
+            SubstancesView()
+        case .lifestyle:
+            LifestyleView()
+        case .calendar:
+            LifeCalendarView()
+        case .genome:
+            GenomeView()
+        case .settings:
+            SettingsView()
         }
     }
     #endif
@@ -123,53 +120,18 @@ struct ContentView: View {
 
 #if os(macOS)
 struct MacContentView: View {
-    @State private var selectedNav: NavItem? = .overview
+    @State private var selectedPage: AppPage? = .overview
 
-    enum NavItem: Hashable {
-        case overview
-        case body
-        case substances
-        case blood
-        case lifeCalendar
-        case genome
-        case lifestyle
-        case settings
-    }
-
-    // Convert NavItem selection to an Int binding for OverviewView
     private var selectedTabBinding: Binding<Int> {
         Binding<Int>(
-            get: {
-                switch selectedNav {
-                case .overview, .none: return 0
-                case .body: return 1
-                case .blood: return 2
-                case .substances: return 3
-                case .lifestyle: return 4
-                case .lifeCalendar: return 5
-                case .genome: return 6
-                case .settings: return 7
-                }
-            },
-            set: { newValue in
-                switch newValue {
-                case 0: selectedNav = .overview
-                case 1: selectedNav = .body
-                case 2: selectedNav = .blood
-                case 3: selectedNav = .substances
-                case 4: selectedNav = .lifestyle
-                case 5: selectedNav = .lifeCalendar
-                case 6: selectedNav = .genome
-                case 7: selectedNav = .settings
-                default: selectedNav = .overview
-                }
-            }
+            get: { (selectedPage ?? .overview).rawValue },
+            set: { selectedPage = AppPage.from(tabIndex: $0) }
         )
     }
 
     var body: some View {
         NavigationSplitView {
-            List(selection: $selectedNav) {
+            List(selection: $selectedPage) {
                 HStack(spacing: 8) {
                     Image(systemName: "heart.text.clipboard")
                         .foregroundColor(.accentColor)
@@ -183,28 +145,20 @@ struct MacContentView: View {
                 .padding(.vertical, 4)
 
                 Section("Health") {
-                    Label("Overview", systemImage: "heart.text.clipboard")
-                        .tag(NavItem.overview)
-                    Label("Body", systemImage: "figure.stand")
-                        .tag(NavItem.body)
-                    Label("Blood", systemImage: "drop.fill")
-                        .tag(NavItem.blood)
-                    Label("Life Calendar", systemImage: "calendar")
-                        .tag(NavItem.lifeCalendar)
-                    Label("Genome", systemImage: "allergens")
-                        .tag(NavItem.genome)
+                    ForEach([AppPage.overview, .body, .blood, .calendar, .genome], id: \.self) { page in
+                        Label(page.title, systemImage: page.icon).tag(page)
+                    }
                 }
 
                 Section("Tracking") {
-                    Label("Substances", systemImage: "flask")
-                        .tag(NavItem.substances)
-                    Label("Lifestyle", systemImage: "list.bullet.clipboard")
-                        .tag(NavItem.lifestyle)
+                    ForEach([AppPage.habits, .lifestyle], id: \.self) { page in
+                        Label(page.title, systemImage: page.icon).tag(page)
+                    }
                 }
 
                 Section {
-                    Label("Settings", systemImage: "gear")
-                        .tag(NavItem.settings)
+                    Label(AppPage.settings.title, systemImage: AppPage.settings.icon)
+                        .tag(AppPage.settings)
                 }
             }
             .listStyle(.sidebar)
@@ -212,16 +166,16 @@ struct MacContentView: View {
             .background(Color.bg)
         } detail: {
             Group {
-                switch selectedNav {
+                switch selectedPage {
                 case .overview, .none:
                     OverviewView(selectedTab: selectedTabBinding)
                 case .body:
                     BodyView()
-                case .substances:
+                case .habits:
                     SubstancesView()
                 case .blood:
                     BloodView()
-                case .lifeCalendar:
+                case .calendar:
                     LifeCalendarView()
                 case .genome:
                     GenomeView()

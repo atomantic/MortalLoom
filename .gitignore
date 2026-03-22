@@ -20,3 +20,9 @@ Pods/
 
 # Playwright
 .playwright-mcp/
+
+# Claude
+.claude/
+
+# Editor themes
+.ghostty-theme

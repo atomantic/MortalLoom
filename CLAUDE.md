@@ -8,7 +8,7 @@ xcodegen generate
 
 # Build iOS
 xcodebuild build -project MortalLoom.xcodeproj -scheme MortalLoom_iOS \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.6' \
   -configuration Debug CODE_SIGNING_ALLOWED=NO -quiet
 
 # Build macOS
@@ -17,7 +17,7 @@ xcodebuild build -project MortalLoom.xcodeproj -scheme MortalLoom_macOS \
 
 # Run tests
 xcodebuild test -project MortalLoom.xcodeproj -scheme MortalLoomTests_iOS \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.6' \
   -configuration Debug CODE_SIGNING_ALLOWED=NO -quiet
 
 # Deploy to TestFlight

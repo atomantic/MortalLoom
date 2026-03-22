@@ -1,4 +1,5 @@
 import SwiftUI
+import Charts
 
 struct OverviewView: View {
     @Binding var selectedTab: Int
@@ -14,12 +15,18 @@ struct OverviewView: View {
     @State private var sortedBloodTests: [BloodTest] = []
     @State private var sortedEpigeneticTests: [EpigeneticTest] = []
     @State private var sortedEyeExams: [EyeExam] = []
+    // Cached chart data — recomputed in recalculate(), not on every render
+    @State private var cachedAlcoholRisk: DeathClockEngine.AlcoholRisk = .low
+    @State private var cachedHealthScore: Double = 0
+    @State private var cachedNormalPoints: [TrajectoryPoint] = []
+    @State private var cachedLevPoints: [TrajectoryPoint] = []
 
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
                 deathClockCard
                 if let lev { levCard(lev) }
+                if let dc = deathClock { lifetimeHealthChart(dc) }
                 vitalStatsRow
                 healthGrid
             }
@@ -63,13 +70,33 @@ struct OverviewView: View {
             sex: data.profile.biologicalSex,
             lifestyle: data.profile.lifestyle
         )
+        cachedAlcoholRisk = DeathClockEngine.alcoholRisk(drinks: data.alcoholDrinks, sex: data.profile.biologicalSex)
         if let dc = deathClock {
             lev = DeathClockEngine.calculateLEV(
                 birthDateStr: birthDate,
                 lifeExpectancy: dc.lifeExpectancy.total
             )
             countdown = DeathClockEngine.countdown(to: dc.deathDate)
+            recomputeChartData(dc)
         }
+    }
+
+    private func recomputeChartData(_ dc: DeathClockEngine.DeathClockResult) {
+        let currentYear = Calendar.current.component(.year, from: Date())
+        let birthYear = currentYear - dc.ageYears
+        let deathYear = birthYear + Int(dc.lifeExpectancy.total)
+        let levYear = 2045
+        let levDeathYear = birthYear + 120
+
+        cachedHealthScore = DeathClockEngine.healthScore(
+            lifestyle: data.profile.lifestyle,
+            ageYears: dc.ageYears,
+            latestEpigeneticTest: sortedEpigeneticTests.first,
+            alcoholRisk: cachedAlcoholRisk
+        )
+
+        cachedNormalPoints = normalTrajectory(currentYear: currentYear, deathYear: deathYear, currentHealth: cachedHealthScore)
+        cachedLevPoints = levTrajectory(currentYear: currentYear, levYear: levYear, levDeathYear: levDeathYear, currentHealth: cachedHealthScore, normalPoints: cachedNormalPoints)
     }
 
     private func updateCountdown() {
@@ -274,6 +301,279 @@ struct OverviewView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    // MARK: - Lifetime Health Chart
+
+    private enum TrajectorySeries: String { case normal = "Expected", lev = "LEV" }
+
+    private struct TrajectoryPoint: Identifiable {
+        let year: Int
+        let health: Double
+        let series: TrajectorySeries
+        let id: Int // precomputed for efficiency
+    }
+
+    @State private var selectedChartYear: Int?
+
+    @ViewBuilder
+    private func lifetimeHealthChart(_ dc: DeathClockEngine.DeathClockResult) -> some View {
+        let currentYear = Calendar.current.component(.year, from: Date())
+        let birthYear = currentYear - dc.ageYears
+        let deathYear = birthYear + Int(dc.lifeExpectancy.total)
+        let levYear = 2045
+        let levDeathYear = birthYear + 120
+
+        let chartEndYear = levDeathYear + 1
+
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "chart.xyaxis.line")
+                    .foregroundColor(.accentColor)
+                    .font(.title3)
+                Text("Health Trajectory")
+                    .font(.title3).fontWeight(.bold)
+                    .foregroundColor(.textPrimary)
+                Spacer()
+                Text(String(format: "%.0f%%", cachedHealthScore))
+                    .font(.headline).fontWeight(.bold).monospacedDigit()
+                    .foregroundColor(healthScoreColor(cachedHealthScore))
+            }
+
+            ZStack(alignment: .topLeading) {
+            Chart {
+                // Normal expected trajectory (now → death)
+                ForEach(cachedNormalPoints) { pt in
+                    LineMark(
+                        x: .value("Year", pt.year),
+                        y: .value("Health", pt.health),
+                        series: .value("Series", pt.series.rawValue)
+                    )
+                    .foregroundStyle(Color.warning)
+                    .lineStyle(StrokeStyle(lineWidth: 2.5))
+                    .interpolationMethod(.catmullRom)
+                }
+
+                // LEV optimistic trajectory
+                ForEach(cachedLevPoints) { pt in
+                    LineMark(
+                        x: .value("Year", pt.year),
+                        y: .value("Health", pt.health),
+                        series: .value("Series", pt.series.rawValue)
+                    )
+                    .foregroundStyle(Color.success)
+                    .lineStyle(StrokeStyle(lineWidth: 2.5, dash: [8, 4]))
+                    .interpolationMethod(.catmullRom)
+                }
+
+                // "Now" dot
+                PointMark(
+                    x: .value("Year", currentYear),
+                    y: .value("Health", cachedHealthScore)
+                )
+                .foregroundStyle(Color.accentColor)
+                .symbolSize(80)
+
+                // LEV vertical dashed line
+                RuleMark(x: .value("LEV", levYear))
+                    .foregroundStyle(Color.purple)
+                    .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [6, 4]))
+                    .annotation(position: .top, alignment: .center) {
+                        Text("LEV")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundColor(.purple)
+                    }
+
+                // Normal death marker
+                RuleMark(x: .value("Death", deathYear))
+                    .foregroundStyle(Color.danger.opacity(0.6))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                    .annotation(position: .top, alignment: .center) {
+                        Text("LE")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundColor(.danger.opacity(0.6))
+                    }
+
+                // Selection indicator
+                if let yr = selectedChartYear {
+                    RuleMark(x: .value("Selected", yr))
+                        .foregroundStyle(Color.textMuted.opacity(0.5))
+                        .lineStyle(StrokeStyle(lineWidth: 1))
+                }
+            }
+            .chartXSelection(value: $selectedChartYear)
+            .chartXAxis {
+                AxisMarks(values: .stride(by: 20)) { value in
+                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                        .foregroundStyle(Color.cardBorder)
+                    AxisValueLabel(anchor: .top) {
+                        if let v = value.as(Int.self) {
+                            VStack(spacing: 1) {
+                                Text("'\(String(format: "%02d", v % 100))")
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(Color.textMuted)
+                                Text("\(v - birthYear)")
+                                    .font(.system(size: 8))
+                                    .foregroundStyle(Color.textMuted.opacity(0.7))
+                            }
+                        }
+                    }
+                }
+            }
+            .chartYAxis {
+                AxisMarks(position: .leading, values: [0, 25, 50, 75, 100]) { value in
+                    AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                        .foregroundStyle(Color.cardBorder)
+                    AxisValueLabel {
+                        if let v = value.as(Int.self) {
+                            Text("\(v)%")
+                                .font(.system(size: 9))
+                                .foregroundStyle(Color.textMuted)
+                        }
+                    }
+                }
+            }
+            .chartYScale(domain: 0...105)
+            .chartXScale(domain: currentYear...chartEndYear)
+            .chartLegend(.hidden)
+            .frame(height: 220)
+
+            // Floating tooltip overlay
+            if let yr = selectedChartYear {
+                let age = yr - birthYear
+                let normal = cachedNormalPoints.first(where: { $0.year == yr })?.health
+                let lev = cachedLevPoints.first(where: { $0.year == yr })?.health
+                HStack(spacing: 10) {
+                    Text("\(yr)")
+                        .font(.caption.weight(.bold)).monospacedDigit()
+                        .foregroundColor(.textPrimary)
+                    Text("Age \(age)")
+                        .font(.caption2)
+                        .foregroundColor(.textSecondary)
+                    if let n = normal {
+                        HStack(spacing: 3) {
+                            Circle().fill(Color.warning).frame(width: 5, height: 5)
+                            Text(String(format: "%.0f%%", n))
+                                .font(.caption.weight(.bold)).monospacedDigit()
+                                .foregroundColor(.warning)
+                        }
+                    }
+                    if let l = lev {
+                        HStack(spacing: 3) {
+                            Circle().fill(Color.success).frame(width: 5, height: 5)
+                            Text(String(format: "%.0f%%", l))
+                                .font(.caption.weight(.bold)).monospacedDigit()
+                                .foregroundColor(.success)
+                        }
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Color.bgCard.opacity(0.95))
+                .cornerRadius(6)
+                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.cardBorder, lineWidth: 1))
+                .shadow(color: .black.opacity(0.3), radius: 4, y: 2)
+                .padding(.top, 4)
+                .padding(.leading, 30)
+            }
+            } // ZStack
+
+            // Legend
+            HStack(spacing: 16) {
+                legendItem(color: .warning, label: "Expected")
+                legendItem(color: .success, label: "LEV Path", dashed: true)
+            }
+            .font(.system(size: 10))
+        }
+        .padding()
+        .frame(maxWidth: .infinity)
+        .cardStyle()
+    }
+
+    private func healthScoreColor(_ score: Double) -> Color {
+        if score >= 75 { return .success }
+        if score >= 50 { return .warning }
+        return .danger
+    }
+
+    /// Now → Death: flat/improving for ~10 years, gentle decline mid-life, steeper only in final 5 years
+    private func normalTrajectory(currentYear: Int, deathYear: Int, currentHealth: Double) -> [TrajectoryPoint] {
+        var points: [TrajectoryPoint] = []
+        // Three phases: improvement (10yr), slow decline, steep final (5yr)
+        let improvementEndYear = currentYear + 10
+        let steepDeclineYear = deathYear - 5
+        let peakHealth = min(95, currentHealth + 5) // slight improvement from active health work
+        // Health at start of steep decline — gradual loss over the middle years
+        let atSteepStart = peakHealth * 0.55
+
+        for year in stride(from: currentYear, through: deathYear, by: 1) {
+            let health: Double
+            if year <= improvementEndYear {
+                // Flat to slightly improving — active health optimization
+                let t = Double(year - currentYear) / Double(max(1, improvementEndYear - currentYear))
+                health = currentHealth + (peakHealth - currentHealth) * t
+            } else if year <= steepDeclineYear {
+                // Gradual age-related decline
+                let t = Double(year - improvementEndYear) / Double(max(1, steepDeclineYear - improvementEndYear))
+                health = peakHealth + (atSteepStart - peakHealth) * t
+            } else {
+                // Steep final decline
+                let t = Double(year - steepDeclineYear) / Double(max(1, deathYear - steepDeclineYear))
+                health = atSteepStart * (1.0 - t * t)
+            }
+            points.append(TrajectoryPoint(year: year, health: max(0, health), series: .normal, id: year))
+        }
+        return points
+    }
+
+    /// Same as normal until LEV year, then therapies maintain/improve health far longer
+    private func levTrajectory(currentYear: Int, levYear: Int, levDeathYear: Int, currentHealth: Double, normalPoints: [TrajectoryPoint]) -> [TrajectoryPoint] {
+        var points: [TrajectoryPoint] = []
+        // Find health at LEV year from normal trajectory
+        let healthAtLEV = normalPoints.first(where: { $0.year == levYear })?.health ?? currentHealth
+        let peakHealth = min(98, healthAtLEV + 8) // LEV therapies recover + improve
+        let declineStart = levDeathYear - 10
+
+        for year in stride(from: levYear, through: levDeathYear, by: 1) {
+            let health: Double
+            let yearsAfterLEV = Double(year - levYear)
+            let rampUpYears = 10.0 // takes ~10 years for full LEV therapies to kick in
+            if yearsAfterLEV <= rampUpYears {
+                // Recovery and improvement as therapies take effect
+                let t = yearsAfterLEV / rampUpYears
+                health = healthAtLEV + (peakHealth - healthAtLEV) * t
+            } else if year <= declineStart {
+                // Maintained near-peak with very slow aging
+                let t = Double(year - levYear - Int(rampUpYears)) / Double(max(1, declineStart - levYear - Int(rampUpYears)))
+                health = peakHealth - (peakHealth * 0.08 * t)
+            } else {
+                // Gentle decline at end
+                let t = Double(year - declineStart) / Double(max(1, levDeathYear - declineStart))
+                let atDecline = peakHealth * 0.92
+                health = atDecline * (1.0 - 0.6 * t * t)
+            }
+            points.append(TrajectoryPoint(year: year, health: max(0, health), series: .lev, id: year + 10000))
+        }
+        return points
+    }
+
+    @ViewBuilder
+    private func legendItem(color: Color, label: String, dashed: Bool = false) -> some View {
+        HStack(spacing: 4) {
+            if dashed {
+                HStack(spacing: 2) {
+                    Rectangle().fill(color).frame(width: 4, height: 2)
+                    Rectangle().fill(color).frame(width: 4, height: 2)
+                    Rectangle().fill(color).frame(width: 4, height: 2)
+                }
+            } else {
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(color)
+                    .frame(width: 14, height: 2)
+            }
+            Text(label)
+                .foregroundColor(.textSecondary)
+        }
+    }
+
     // MARK: - Vital Stats Row
 
     @ViewBuilder
@@ -353,21 +653,21 @@ struct OverviewView: View {
         let weeklyGrams = weekDrinks.reduce(0.0) { $0 + $1.gramsAlcohol }
         let dailyAvg7d = weekDrinks.isEmpty ? 0 : weeklyGrams / 7.0
 
-        let risk = DeathClockEngine.alcoholRisk(drinks: data.alcoholDrinks, sex: data.profile.biologicalSex)
+        let riskColor = riskColor(cachedAlcoholRisk)
 
-        Button { selectedTab = tabIndex(for: .substances) } label: {
+        Button { navigateTo(.habits) } label: {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Image(systemName: "wineglass.fill")
-                        .foregroundColor(alcoholRiskColor(risk))
+                        .foregroundColor(riskColor)
                         .font(.title3)
                     Spacer()
-                    Text(risk.rawValue.capitalized)
+                    Text(cachedAlcoholRisk.rawValue.capitalized)
                         .font(.system(size: 10)).fontWeight(.semibold)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(alcoholRiskColor(risk).opacity(0.2))
-                        .foregroundColor(alcoholRiskColor(risk))
+                        .background(riskColor.opacity(0.2))
+                        .foregroundColor(riskColor)
                         .cornerRadius(4)
                 }
                 Text(String(format: "%.0fg today", todayGrams))
@@ -393,7 +693,7 @@ struct OverviewView: View {
     private var bodyTile: some View {
         let bmi = data.profile.lifestyle.bmi
 
-        Button { selectedTab = tabIndex(for: .body) } label: {
+        Button { navigateTo(.body) } label: {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Image(systemName: "figure.stand")
@@ -431,7 +731,7 @@ struct OverviewView: View {
         let tests = data.bloodTests
         let latestDate = sortedBloodTests.first?.date
 
-        Button { selectedTab = tabIndex(for: .blood) } label: {
+        Button { navigateTo(.blood) } label: {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Image(systemName: "drop.fill")
@@ -462,7 +762,7 @@ struct OverviewView: View {
     private var epigeneticTile: some View {
         let latest = sortedEpigeneticTests.first
 
-        Button { selectedTab = tabIndex(for: .body) } label: {
+        Button { navigateTo(.body) } label: {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Image(systemName: "dna")
@@ -508,7 +808,7 @@ struct OverviewView: View {
         let exams = data.eyeExams
         let latestDate = sortedEyeExams.first?.date
 
-        Button { selectedTab = tabIndex(for: .body) } label: {
+        Button { navigateTo(.body) } label: {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Image(systemName: "eye.fill")
@@ -540,7 +840,7 @@ struct OverviewView: View {
         let lifestyle = data.profile.lifestyle
         let isConfigured = lifestyle != .default
 
-        Button { selectedTab = tabIndex(for: .lifestyle) } label: {
+        Button { navigateTo(.lifestyle) } label: {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Image(systemName: "list.bullet.clipboard")
@@ -567,27 +867,15 @@ struct OverviewView: View {
 
     // MARK: - Helpers
 
-    private func alcoholRiskColor(_ risk: DeathClockEngine.AlcoholRisk) -> Color {
+    private func navigateTo(_ page: AppPage) {
+        selectedTab = page.rawValue
+    }
+
+    private func riskColor(_ risk: DeathClockEngine.AlcoholRisk) -> Color {
         switch risk {
-        case .low: return .success
-        case .moderate: return .warning
-        case .high: return .danger
-        }
-    }
-
-    private enum TabTarget {
-        case body, substances, blood, lifestyle, genome, settings
-    }
-
-    private func tabIndex(for target: TabTarget) -> Int {
-        // iOS tab order: Overview=0, Body=1, Blood=2, Substances=3, Lifestyle=4, Calendar=5, Genome=6, Settings=7
-        switch target {
-        case .body: return 1
-        case .blood: return 2
-        case .substances: return 3
-        case .lifestyle: return 4
-        case .genome: return 6
-        case .settings: return 7
+        case .low: .success
+        case .moderate: .warning
+        case .high: .danger
         }
     }
 }

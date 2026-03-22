@@ -229,4 +229,91 @@ enum DeathClockEngine {
         else if bmi >= 30 { return -3 }
         return 0
     }
+
+    // MARK: - Health Score (0-100)
+
+    /// Composite health score based on available metrics.
+    /// Weighted factors scored out of 100. A healthy 46-year-old with
+    /// good lifestyle and +2yr adjustment should score in the mid-80s.
+    static func healthScore(
+        lifestyle: LifestyleData,
+        ageYears: Int,
+        latestEpigeneticTest: EpigeneticTest?,
+        alcoholRisk: AlcoholRisk
+    ) -> Double {
+        var score = 0.0
+        var weight = 0.0
+
+        // Lifestyle factors (max 40 pts)
+        let lifestyleMax = 40.0
+        weight += lifestyleMax
+        var lifestylePts = lifestyleMax
+        switch lifestyle.smokingStatus {
+        case .never: break
+        case .former: lifestylePts -= 8
+        case .current: lifestylePts -= 30
+        }
+        // 150+ is the recommendation threshold — full credit at 150
+        if lifestyle.exerciseMinutesPerWeek >= 150 { /* full */ }
+        else if lifestyle.exerciseMinutesPerWeek >= 75 { lifestylePts -= 3 }
+        else { lifestylePts -= 10 }
+        if lifestyle.sleepHoursPerNight >= 7 && lifestyle.sleepHoursPerNight <= 9 { /* full */ }
+        else if lifestyle.sleepHoursPerNight >= 6 { lifestylePts -= 2 }
+        else { lifestylePts -= 6 }
+        switch lifestyle.dietQuality {
+        case .excellent: break
+        case .good: lifestylePts -= 1
+        case .fair: lifestylePts -= 5
+        case .poor: lifestylePts -= 12
+        }
+        switch lifestyle.stressLevel {
+        case .low: break
+        case .moderate: lifestylePts -= 1
+        case .high: lifestylePts -= 8
+        }
+        score += max(0, lifestylePts)
+
+        // BMI (max 15 pts) — no data = exclude from scoring
+        let bmiMax = 15.0
+        if let bmi = lifestyle.bmi {
+            weight += bmiMax
+            if bmi >= 18.5 && bmi < 25 { score += bmiMax }
+            else if bmi >= 25 && bmi < 30 { score += bmiMax * 0.7 }
+            else if bmi >= 30 && bmi < 35 { score += bmiMax * 0.4 }
+            else { score += bmiMax * 0.2 }
+        }
+
+        // Alcohol risk (max 15 pts)
+        let alcoholMax = 15.0
+        weight += alcoholMax
+        switch alcoholRisk {
+        case .low: score += alcoholMax
+        case .moderate: score += alcoholMax * 0.6
+        case .high: score += alcoholMax * 0.2
+        }
+
+        // Epigenetic pace of aging (max 20 pts)
+        let epiMax = 20.0
+        if let latest = latestEpigeneticTest,
+           let pace = latest.paceOfAging {
+            weight += epiMax
+            // 1.0 = aging at normal rate (should be ~80% credit, not a harsh penalty)
+            // < 0.85 = excellent, 0.85-1.0 = great, 1.0-1.1 = normal, > 1.1 = concerning
+            if pace < 0.85 { score += epiMax }
+            else if pace <= 1.0 { score += epiMax * (0.95 - (pace - 0.85) * 0.5) }
+            else if pace <= 1.15 { score += epiMax * (0.75 - (pace - 1.0) * 2.0) }
+            else { score += epiMax * 0.3 }
+        }
+        // No epigenetic data — just exclude from scoring
+
+        // Age-based natural decline — only penalize meaningfully after 60
+        let agePenalty: Double
+        if ageYears < 50 { agePenalty = 0 }
+        else if ageYears < 65 { agePenalty = Double(ageYears - 50) * 0.2 }
+        else if ageYears < 80 { agePenalty = 3.0 + Double(ageYears - 65) * 0.4 }
+        else { agePenalty = 9.0 + Double(ageYears - 80) * 0.6 }
+
+        let raw = (score / max(1, weight)) * 100.0 - agePenalty
+        return min(100, max(5, (raw * 10).rounded() / 10))
+    }
 }
