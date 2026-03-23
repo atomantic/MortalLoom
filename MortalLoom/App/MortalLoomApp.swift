@@ -65,6 +65,16 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .showOnboarding)) { _ in
             showOnboarding = true
         }
+        .task {
+            // Start iCloud file monitoring for cross-device sync
+            ICloudMonitor.shared.start()
+            #if os(iOS)
+            // Sync HealthKit data into shared storage so macOS can see it
+            if HealthKitService.shared.isAvailable && HealthKitService.shared.authorized {
+                await HealthKitSync.shared.syncBodyMetrics()
+            }
+            #endif
+        }
     }
 
     #if os(iOS)

@@ -1,10 +1,15 @@
 import Foundation
 
+extension Notification.Name {
+    static let dataDidSync = Notification.Name("dataDidSync")
+}
+
 actor DataStore {
     static let shared = DataStore()
 
     private var data: AppData = .empty
     private var loaded = false
+    private var lastSaveDate: Date = .distantPast
 
     // File locations
     private var localURL: URL {
@@ -21,7 +26,6 @@ actor DataStore {
     func load() -> AppData {
         if loaded { return data }
 
-        // Try iCloud first, then local
         let url = bestURL()
         if let fileData = try? Data(contentsOf: url),
            let decoded = try? JSONDecoder().decode(AppData.self, from: fileData) {
@@ -31,6 +35,26 @@ actor DataStore {
         return data
     }
 
+    /// Reload from disk if the iCloud file is newer than our last save.
+    /// Returns true if data was updated.
+    func reloadIfNeeded() -> Bool {
+        guard let cloudURL = iCloudURL,
+              FileManager.default.fileExists(atPath: cloudURL.path) else { return false }
+
+        let cloudDate = (try? FileManager.default.attributesOfItem(atPath: cloudURL.path)[.modificationDate] as? Date) ?? .distantPast
+        guard cloudDate > lastSaveDate else { return false }
+
+        if let fileData = try? Data(contentsOf: cloudURL),
+           let decoded = try? JSONDecoder().decode(AppData.self, from: fileData) {
+            data = decoded
+            lastSaveDate = cloudDate
+            // Also update local copy
+            try? fileData.write(to: localURL, options: .atomic)
+            return true
+        }
+        return false
+    }
+
     // Save to both local and iCloud
     func save(_ newData: AppData) {
         data = newData
@@ -38,10 +62,9 @@ actor DataStore {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         guard let encoded = try? encoder.encode(data) else { return }
 
-        // Always save locally
         try? encoded.write(to: localURL, options: .atomic)
+        lastSaveDate = Date()
 
-        // Also save to iCloud if available
         if let cloudURL = iCloudURL {
             let dir = cloudURL.deletingLastPathComponent()
             try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
