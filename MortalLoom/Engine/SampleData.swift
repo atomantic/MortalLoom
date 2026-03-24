@@ -274,6 +274,104 @@ enum SampleData {
                        ]),
     ]
 
+    // MARK: - Goals
+
+    static let goals: [Goal] = {
+        let today = DateFormatting.todayString()
+
+        // Goal 1: Publish a book — 35% done, on track
+        let bookGoal = Goal(
+            title: "Publish a book",
+            notes: "Technical book on distributed systems",
+            createdDate: dateStr(daysAgo: 120),
+            targetDate: dateStr(daysAgo: -365), // 1 year from now
+            checkIns: [
+                GoalCheckIn(date: dateStr(daysAgo: 110), progressPct: 5, note: "Outlined chapters"),
+                GoalCheckIn(date: dateStr(daysAgo: 90), progressPct: 12, note: "First two chapters drafted"),
+                GoalCheckIn(date: dateStr(daysAgo: 60), progressPct: 22, note: "Chapters 3-4 complete"),
+                GoalCheckIn(date: dateStr(daysAgo: 30), progressPct: 30, note: "Hit chapter 5, added diagrams"),
+                GoalCheckIn(date: dateStr(daysAgo: 5), progressPct: 35, note: "Chapter 6 draft done"),
+            ],
+            milestones: [
+                GoalMilestone(title: "Outline complete", completed: true, completedDate: dateStr(daysAgo: 110)),
+                GoalMilestone(title: "First draft (10 chapters)", completed: false),
+                GoalMilestone(title: "Technical review", completed: false),
+                GoalMilestone(title: "Final edits", completed: false),
+                GoalMilestone(title: "Submit to publisher", completed: false),
+            ],
+            checkInIntervalDays: 7,
+            priority: .high
+        )
+
+        // Goal 2: Run a marathon — needs check-in
+        let marathonGoal = Goal(
+            title: "Run a marathon",
+            notes: "Target: Portland Marathon",
+            createdDate: dateStr(daysAgo: 60),
+            targetDate: dateStr(daysAgo: -200),
+            checkIns: [
+                GoalCheckIn(date: dateStr(daysAgo: 55), progressPct: 10, note: "Started C25K"),
+                GoalCheckIn(date: dateStr(daysAgo: 30), progressPct: 25, note: "Can run 10K now"),
+                GoalCheckIn(date: dateStr(daysAgo: 14), progressPct: 35, note: "Half marathon distance reached"),
+            ],
+            milestones: [
+                GoalMilestone(title: "Run 5K", completed: true, completedDate: dateStr(daysAgo: 45)),
+                GoalMilestone(title: "Run 10K", completed: true, completedDate: dateStr(daysAgo: 30)),
+                GoalMilestone(title: "Run half marathon", completed: true, completedDate: dateStr(daysAgo: 14)),
+                GoalMilestone(title: "Run 30K", completed: false),
+                GoalMilestone(title: "Complete marathon", completed: false),
+            ],
+            checkInIntervalDays: 7,
+            priority: .medium
+        )
+
+        // Goal 3: Learn piano — stalled, slipping
+        let pianoGoal = Goal(
+            title: "Learn to play piano",
+            notes: "Classical repertoire — start with Chopin nocturnes",
+            createdDate: dateStr(daysAgo: 200),
+            targetDate: dateStr(daysAgo: -180),
+            checkIns: [
+                GoalCheckIn(date: dateStr(daysAgo: 190), progressPct: 5, note: "Bought keyboard, started lessons"),
+                GoalCheckIn(date: dateStr(daysAgo: 150), progressPct: 15, note: "Scales and basic chords"),
+                GoalCheckIn(date: dateStr(daysAgo: 90), progressPct: 20, note: "First simple piece learned"),
+            ],
+            milestones: [
+                GoalMilestone(title: "Learn scales and chords", completed: true, completedDate: dateStr(daysAgo: 150)),
+                GoalMilestone(title: "Play first complete piece", completed: true, completedDate: dateStr(daysAgo: 90)),
+                GoalMilestone(title: "Learn Chopin Nocturne Op.9 No.2", completed: false),
+                GoalMilestone(title: "Perform for someone", completed: false),
+            ],
+            checkInIntervalDays: 14,
+            priority: .low
+        )
+
+        // Goal 4: Completed goal
+        let gardenGoal = Goal(
+            title: "Build a raised garden bed",
+            notes: "Cedar 4x8, with drip irrigation",
+            createdDate: dateStr(daysAgo: 90),
+            completedDate: dateStr(daysAgo: 15),
+            checkIns: [
+                GoalCheckIn(date: dateStr(daysAgo: 80), progressPct: 20, note: "Materials purchased"),
+                GoalCheckIn(date: dateStr(daysAgo: 50), progressPct: 60, note: "Frame built"),
+                GoalCheckIn(date: dateStr(daysAgo: 30), progressPct: 80, note: "Soil and irrigation in"),
+                GoalCheckIn(date: dateStr(daysAgo: 15), progressPct: 100, note: "Planted first seeds!"),
+            ],
+            milestones: [
+                GoalMilestone(title: "Buy lumber and hardware", completed: true, completedDate: dateStr(daysAgo: 80)),
+                GoalMilestone(title: "Build frame", completed: true, completedDate: dateStr(daysAgo: 50)),
+                GoalMilestone(title: "Install irrigation", completed: true, completedDate: dateStr(daysAgo: 30)),
+                GoalMilestone(title: "Fill with soil and plant", completed: true, completedDate: dateStr(daysAgo: 15)),
+            ],
+            checkInIntervalDays: 7,
+            status: .completed,
+            priority: .medium
+        )
+
+        return [bookGoal, marathonGoal, pianoGoal, gardenGoal]
+    }()
+
     // MARK: - Full AppData
 
     static let fullAppData = AppData(
@@ -286,7 +384,8 @@ enum SampleData {
         eyeExams: eyeExams,
         epigeneticTests: epigeneticTests,
         bodyEntries: bodyEntries,
-        healthMetrics: healthMetrics
+        healthMetrics: healthMetrics,
+        goals: goals
     )
 }
 

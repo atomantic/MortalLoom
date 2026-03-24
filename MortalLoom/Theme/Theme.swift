@@ -74,6 +74,16 @@ enum DateFormatting {
             ? String(format: "%.0f", value)
             : String(format: "%.1f", value)
     }
+
+    static func formatDuration(_ days: Int) -> String {
+        if days < 7 { return "\(days)d" }
+        if days < 30 { return "\(days / 7)w" }
+        if days < 365 { return "\(days / 30)mo" }
+        let years = days / 365
+        let remainingMonths = (days % 365) / 30
+        if remainingMonths == 0 { return "\(years)y" }
+        return "\(years)y \(remainingMonths)mo"
+    }
 }
 
 // MARK: - Shared UI Components

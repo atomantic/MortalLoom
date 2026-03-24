@@ -368,10 +368,11 @@ final class ModelCodableTests: XCTestCase {
         XCTAssertEqual(decoded.epigeneticTests.count, data.epigeneticTests.count)
         XCTAssertEqual(decoded.bodyEntries.count, data.bodyEntries.count)
         XCTAssertEqual(decoded.healthMetrics.count, data.healthMetrics.count)
+        XCTAssertEqual(decoded.goals.count, data.goals.count)
     }
 
     func testAppDataBackwardsCompatibility() {
-        // Simulate old format without bodyEntries or healthMetrics
+        // Simulate old format without bodyEntries, healthMetrics, or goals
         let json = """
         {
             "profile": { "lifestyle": { "smokingStatus": "never", "exerciseMinutesPerWeek": 150, "sleepHoursPerNight": 7.5, "dietQuality": "good", "stressLevel": "moderate" } },
@@ -382,6 +383,7 @@ final class ModelCodableTests: XCTestCase {
         let decoded = try! JSONDecoder().decode(AppData.self, from: json)
         XCTAssertTrue(decoded.bodyEntries.isEmpty)
         XCTAssertTrue(decoded.healthMetrics.isEmpty)
+        XCTAssertTrue(decoded.goals.isEmpty)
     }
 
     func testAppDataBackwardsCompatibilityWithBodyNoMetrics() {
@@ -529,6 +531,7 @@ final class SampleDataTests: XCTestCase {
         XCTAssertFalse(data.eyeExams.isEmpty)
         XCTAssertFalse(data.epigeneticTests.isEmpty)
         XCTAssertFalse(data.healthMetrics.isEmpty)
+        XCTAssertFalse(data.goals.isEmpty)
     }
 
     func testSampleDataHasRealisticVolume() {
@@ -769,6 +772,14 @@ final class DateFormattingTests: XCTestCase {
         XCTAssertNil(DateFormatting.dateFromString(""))
     }
 
+    func testFormatDuration() {
+        XCTAssertEqual(DateFormatting.formatDuration(3), "3d")
+        XCTAssertEqual(DateFormatting.formatDuration(14), "2w")
+        XCTAssertEqual(DateFormatting.formatDuration(45), "1mo")
+        XCTAssertEqual(DateFormatting.formatDuration(400), "1y 1mo")
+        XCTAssertEqual(DateFormatting.formatDuration(365), "1y")
+    }
+
     func testFormatLargeNumber() {
         XCTAssertEqual(DateFormatting.formatLargeNumber(1000), "1,000")
         XCTAssertEqual(DateFormatting.formatLargeNumber(1234567), "1,234,567")
@@ -778,5 +789,201 @@ final class DateFormattingTests: XCTestCase {
         XCTAssertEqual(DateFormatting.formatMarkerValue(100.0), "100")
         XCTAssertEqual(DateFormatting.formatMarkerValue(5.5), "5.5")
         XCTAssertEqual(DateFormatting.formatMarkerValue(3.14), "3.1")
+    }
+}
+
+// MARK: - Goal Model Tests
+
+final class GoalModelTests: XCTestCase {
+
+    func testGoalProgressPercent() {
+        var goal = Goal(title: "Test")
+        XCTAssertEqual(goal.progressPercent, 0)
+
+        goal.checkIns.append(GoalCheckIn(progressPct: 50))
+        XCTAssertEqual(goal.progressPercent, 50)
+
+        goal.checkIns.append(GoalCheckIn(progressPct: 75))
+        XCTAssertEqual(goal.progressPercent, 75)
+    }
+
+    func testGoalIsOverdue() {
+        let pastDate = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -10, to: Date())!)
+        let futureDate = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: 10, to: Date())!)
+
+        let overdueGoal = Goal(title: "Overdue", targetDate: pastDate)
+        XCTAssertTrue(overdueGoal.isOverdue)
+
+        let futureGoal = Goal(title: "Future", targetDate: futureDate)
+        XCTAssertFalse(futureGoal.isOverdue)
+
+        let completedGoal = Goal(title: "Done", targetDate: pastDate, status: .completed)
+        XCTAssertFalse(completedGoal.isOverdue)
+
+        let noTargetGoal = Goal(title: "No target")
+        XCTAssertFalse(noTargetGoal.isOverdue)
+    }
+
+    func testGoalNeedsCheckIn() {
+        let oldDate = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -10, to: Date())!)
+        let recentDate = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -2, to: Date())!)
+
+        // Goal with old check-in (10 days ago, interval is 7)
+        var staleGoal = Goal(title: "Stale", createdDate: oldDate)
+        staleGoal.checkIns.append(GoalCheckIn(date: oldDate, progressPct: 20))
+        XCTAssertTrue(staleGoal.needsCheckIn)
+
+        // Goal with recent check-in
+        var freshGoal = Goal(title: "Fresh")
+        freshGoal.checkIns.append(GoalCheckIn(date: recentDate, progressPct: 20))
+        XCTAssertFalse(freshGoal.needsCheckIn)
+
+        // Paused goal doesn't need check-in
+        var pausedGoal = Goal(title: "Paused", createdDate: oldDate, status: .paused)
+        pausedGoal.checkIns.append(GoalCheckIn(date: oldDate, progressPct: 20))
+        XCTAssertFalse(pausedGoal.needsCheckIn)
+    }
+
+    func testGoalCodable() {
+        let goal = Goal(
+            title: "Test Goal",
+            notes: "Some notes",
+            targetDate: "2027-01-01",
+            checkIns: [GoalCheckIn(progressPct: 30, note: "Progress")],
+            milestones: [GoalMilestone(title: "Step 1", completed: true, completedDate: "2026-03-01")],
+            priority: .high
+        )
+        let data = try! JSONEncoder().encode(goal)
+        let decoded = try! JSONDecoder().decode(Goal.self, from: data)
+        XCTAssertEqual(decoded.title, goal.title)
+        XCTAssertEqual(decoded.notes, goal.notes)
+        XCTAssertEqual(decoded.targetDate, goal.targetDate)
+        XCTAssertEqual(decoded.checkIns.count, 1)
+        XCTAssertEqual(decoded.milestones.count, 1)
+        XCTAssertEqual(decoded.priority, .high)
+    }
+
+    func testCheckInClamps() {
+        let tooHigh = GoalCheckIn(progressPct: 150)
+        XCTAssertEqual(tooHigh.progressPct, 100)
+
+        let tooLow = GoalCheckIn(progressPct: -10)
+        XCTAssertEqual(tooLow.progressPct, 0)
+    }
+}
+
+// MARK: - GoalEngine Tests
+
+final class GoalEngineTests: XCTestCase {
+
+    private let now = Date()
+    private let deathDate = Calendar.current.date(byAdding: .year, value: 35, to: Date())
+    private let cognitiveDate = Calendar.current.date(byAdding: .year, value: 25, to: Date())
+
+    func testProjectionNoProgress() {
+        let goal = Goal(title: "New goal")
+        let projection = GoalEngine.project(goal: goal, deathDate: deathDate, healthyCognitiveDate: cognitiveDate)
+        XCTAssertNil(projection.projectedCompletionDate)
+        XCTAssertNil(projection.daysToCompletion)
+        XCTAssertEqual(projection.weeklyProgressRate, 0)
+    }
+
+    func testProjectionWithProgress() {
+        let created = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -30, to: now)!)
+        let checkInDate = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -2, to: now)!)
+        var goal = Goal(title: "Book", createdDate: created)
+        goal.checkIns = [
+            GoalCheckIn(date: created, progressPct: 10),
+            GoalCheckIn(date: checkInDate, progressPct: 40),
+        ]
+        let projection = GoalEngine.project(goal: goal, deathDate: deathDate, healthyCognitiveDate: cognitiveDate)
+        XCTAssertNotNil(projection.projectedCompletionDate)
+        XCTAssertNotNil(projection.daysToCompletion)
+        XCTAssertGreaterThan(projection.weeklyProgressRate, 0)
+        XCTAssertEqual(projection.urgencyLevel, .onTrack)
+    }
+
+    func testProjectionSlippage() {
+        let created = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -60, to: now)!)
+        let pastTarget = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -5, to: now)!)
+
+        var goal = Goal(title: "Overdue", createdDate: created, targetDate: pastTarget)
+        goal.checkIns = [
+            GoalCheckIn(date: created, progressPct: 10),
+            GoalCheckIn(date: DateFormatting.todayString(), progressPct: 30),
+        ]
+        let projection = GoalEngine.project(goal: goal, deathDate: deathDate, healthyCognitiveDate: cognitiveDate)
+        XCTAssertGreaterThan(projection.slippageDays, 0)
+        XCTAssertEqual(projection.urgencyLevel, .atRisk)
+    }
+
+    func testProjectionExceedsCognitiveYears() {
+        // Goal with slow progress — 2% over 90 days => ~100% in ~12.3 years
+        let threeMonthsAgo = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -90, to: now)!)
+        var goal = Goal(title: "Slow goal")
+        goal.checkIns = [
+            GoalCheckIn(date: threeMonthsAgo, progressPct: 1),
+            GoalCheckIn(date: DateFormatting.todayString(), progressPct: 3),
+        ]
+
+        // Cognitive deadline in 10 years, death in 20 years
+        // At 2% per 90 days, need ~4350 days (~11.9 years) — exceeds cognitive but not death
+        let nearCognitive = Calendar.current.date(byAdding: .year, value: 10, to: now)
+        let farDeath = Calendar.current.date(byAdding: .year, value: 20, to: now)
+        let projection = GoalEngine.project(goal: goal, deathDate: farDeath, healthyCognitiveDate: nearCognitive)
+        XCTAssertTrue(projection.exceedsCognitiveYears)
+        XCTAssertFalse(projection.exceedsLifespan)
+        XCTAssertEqual(projection.urgencyLevel, .critical)
+    }
+
+    func testProjectionExceedsLifespan() {
+        let yearAgo = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -365, to: now)!)
+        var goal = Goal(title: "Impossibly slow")
+        goal.checkIns = [
+            GoalCheckIn(date: yearAgo, progressPct: 0.1),
+            GoalCheckIn(date: DateFormatting.todayString(), progressPct: 0.2),
+        ]
+
+        let nearDeath = Calendar.current.date(byAdding: .year, value: 2, to: now)
+        let nearCognitive = Calendar.current.date(byAdding: .year, value: 1, to: now)
+        let projection = GoalEngine.project(goal: goal, deathDate: nearDeath, healthyCognitiveDate: nearCognitive)
+        XCTAssertTrue(projection.exceedsLifespan)
+        XCTAssertEqual(projection.urgencyLevel, .impossible)
+    }
+
+    func testCognitiveDeadline() {
+        let profile = SampleData.profile
+        let dc = DeathClockEngine.calculate(
+            birthDateStr: profile.birthDate!,
+            sex: profile.biologicalSex,
+            lifestyle: profile.lifestyle
+        )
+        let cogDeadline = GoalEngine.cognitiveDeadline(from: dc)
+        XCTAssertNotNil(cogDeadline)
+        // Cognitive deadline should be before death date
+        if let cog = cogDeadline, let death = dc?.deathDate {
+            XCTAssertLessThan(cog, death)
+        }
+    }
+
+    func testSampleGoalsHaveValidStructure() {
+        let goals = SampleData.goals
+        XCTAssertGreaterThanOrEqual(goals.count, 3)
+
+        for goal in goals {
+            XCTAssertFalse(goal.title.isEmpty)
+            XCTAssertFalse(goal.createdDate.isEmpty)
+
+            // All check-ins should have valid progress
+            for checkIn in goal.checkIns {
+                XCTAssertGreaterThanOrEqual(checkIn.progressPct, 0)
+                XCTAssertLessThanOrEqual(checkIn.progressPct, 100)
+            }
+        }
+
+        // Should have at least one completed goal
+        XCTAssertTrue(goals.contains { $0.status == .completed })
+        // Should have at least one active goal
+        XCTAssertTrue(goals.contains { $0.status == .active })
     }
 }

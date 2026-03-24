@@ -133,6 +133,8 @@ struct ContentView: View {
             GenomeView()
         case .settings:
             SettingsView()
+        case .goals:
+            GoalsView()
         }
     }
     #endif
@@ -171,7 +173,7 @@ struct MacContentView: View {
                 }
 
                 Section("Tracking") {
-                    ForEach([AppPage.habits, .lifestyle], id: \.self) { page in
+                    ForEach([AppPage.goals, .habits, .lifestyle], id: \.self) { page in
                         Label(page.title, systemImage: page.icon).tag(page)
                     }
                 }
@@ -201,6 +203,8 @@ struct MacContentView: View {
                     GenomeView()
                 case .lifestyle:
                     LifestyleView()
+                case .goals:
+                    GoalsView()
                 case .settings:
                     SettingsView()
                 }

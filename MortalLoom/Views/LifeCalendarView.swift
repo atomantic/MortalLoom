@@ -4,11 +4,19 @@ struct LifeCalendarView: View {
     @State private var data: AppData = .empty
     @State private var deathClock: DeathClockEngine.DeathClockResult?
     @State private var viewMode: ViewMode = .weeks
+    @State private var goalMarkers: [GoalMarker] = []
 
     private enum ViewMode: String, CaseIterable {
         case years = "Years"
         case months = "Months"
         case weeks = "Weeks"
+    }
+
+    struct GoalMarker {
+        let title: String
+        let weekIndex: Int
+        let isProjected: Bool  // true = projected completion, false = target date
+        let priority: GoalPriority
     }
 
     private var birthDate: Date? {
@@ -76,6 +84,14 @@ struct LifeCalendarView: View {
 
     private static let milestoneAges = [0, 18, 30, 40, 50, 60, 70, 80, 90, 100]
 
+    // Pre-computed sets for fast lookup during canvas drawing
+    private var goalWeekIndices: Set<Int> {
+        Set(goalMarkers.filter { !$0.isProjected }.map(\.weekIndex))
+    }
+    private var projectedWeekIndices: Set<Int> {
+        Set(goalMarkers.filter { $0.isProjected }.map(\.weekIndex))
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
@@ -86,6 +102,9 @@ struct LifeCalendarView: View {
                     case .years: yearsGrid
                     case .months: monthsGrid
                     case .weeks: weeksGrid
+                    }
+                    if !goalMarkers.isEmpty {
+                        goalMarkersList
                     }
                 } else {
                     emptyState
@@ -111,13 +130,43 @@ struct LifeCalendarView: View {
     private func recalculate() {
         guard let birthDateStr = data.profile.birthDate else {
             deathClock = nil
+            goalMarkers = []
             return
         }
-        deathClock = DeathClockEngine.calculate(
+        let dc = DeathClockEngine.calculate(
             birthDateStr: birthDateStr,
             sex: data.profile.biologicalSex,
             lifestyle: data.profile.lifestyle
         )
+        deathClock = dc
+
+        guard let birth = DeathClockEngine.dateFromString(birthDateStr) else {
+            goalMarkers = []
+            return
+        }
+
+        let cogDate = GoalEngine.cognitiveDeadline(from: dc)
+        var markers: [GoalMarker] = []
+
+        for goal in data.goals where goal.status == .active {
+            // Target date marker
+            if let targetStr = goal.targetDate,
+               let targetDate = DateFormatting.dateFromString(targetStr) {
+                let days = Calendar.current.dateComponents([.day], from: birth, to: targetDate).day ?? 0
+                let weekIdx = max(0, days / 7)
+                markers.append(GoalMarker(title: goal.title, weekIndex: weekIdx, isProjected: false, priority: goal.priority))
+            }
+
+            // Projected completion marker
+            let projection = GoalEngine.project(goal: goal, deathDate: dc?.deathDate, healthyCognitiveDate: cogDate)
+            if let projDate = projection.projectedCompletionDate {
+                let days = Calendar.current.dateComponents([.day], from: birth, to: projDate).day ?? 0
+                let weekIdx = max(0, days / 7)
+                markers.append(GoalMarker(title: goal.title, weekIndex: weekIdx, isProjected: true, priority: goal.priority))
+            }
+        }
+
+        goalMarkers = markers
     }
 
     // MARK: - Empty State
@@ -214,6 +263,9 @@ struct LifeCalendarView: View {
     @ViewBuilder
     private var yearsGrid: some View {
         let cols = 10
+        let goalYears = Set(goalMarkers.filter { !$0.isProjected }.map { $0.weekIndex / 52 })
+        let projectedYears = Set(goalMarkers.filter { $0.isProjected }.map { $0.weekIndex / 52 })
+
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: "square.grid.3x3.fill")
@@ -238,11 +290,17 @@ struct LifeCalendarView: View {
                         let isCurrent = i == currentAgeYear
                         let isSpent = i < currentAgeYear
                         let isMilestone = Self.milestoneAges.contains(i)
+                        let isGoalTarget = goalYears.contains(i)
+                        let isProjected = projectedYears.contains(i)
                         RoundedRectangle(cornerRadius: 3)
-                            .fill(yearCellColor(index: i, isCurrent: isCurrent, isSpent: isSpent, isMilestone: isMilestone))
+                            .fill(yearCellColor(index: i, isCurrent: isCurrent, isSpent: isSpent, isMilestone: isMilestone, isGoalTarget: isGoalTarget, isProjected: isProjected))
                             .frame(height: 24)
                             .overlay {
-                                if i % 10 == 0 || isCurrent {
+                                if isGoalTarget || isProjected {
+                                    Image(systemName: "target")
+                                        .font(.system(size: 8))
+                                        .foregroundColor(.white)
+                                } else if i % 10 == 0 || isCurrent {
                                     Text("\(i)")
                                         .font(.system(size: 8, weight: isCurrent ? .bold : .regular))
                                         .foregroundColor(isCurrent ? .white : .textMuted)
@@ -259,8 +317,10 @@ struct LifeCalendarView: View {
         .cardStyle()
     }
 
-    private func yearCellColor(index: Int, isCurrent: Bool, isSpent: Bool, isMilestone: Bool) -> Color {
+    private func yearCellColor(index: Int, isCurrent: Bool, isSpent: Bool, isMilestone: Bool, isGoalTarget: Bool, isProjected: Bool) -> Color {
         if isCurrent { return .accentColor }
+        if isGoalTarget { return .teal }
+        if isProjected { return .teal.opacity(0.5) }
         if isMilestone && isSpent { return .purple.opacity(0.5) }
         if isMilestone { return .purple.opacity(0.3) }
         if isSpent { return .textPrimary.opacity(0.25) }
@@ -329,8 +389,13 @@ struct LifeCalendarView: View {
         let currentShading: GraphicsContext.Shading = .color(.accentColor)
         let futureStrokeShading: GraphicsContext.Shading = .color(.cardBorder.opacity(0.2))
         let milestoneShading: GraphicsContext.Shading = .color(.purple.opacity(0.5))
+        let goalShading: GraphicsContext.Shading = .color(.teal)
+        let projectedShading: GraphicsContext.Shading = .color(.teal.opacity(0.5))
 
         let milestoneMonths = Set(Self.milestoneAges.map { $0 * 12 })
+        // Convert week indices to month indices (approximate: week / 4.33)
+        let goalMonthIndices = Set(goalMarkers.filter { !$0.isProjected }.map { Int(Double($0.weekIndex) / 4.33) })
+        let projectedMonthIndices = Set(goalMarkers.filter { $0.isProjected }.map { Int(Double($0.weekIndex) / 4.33) })
 
         for year in 0..<lifeExpectancyYears {
             let y = CGFloat(year) * (cellSize + spacing) + spacing
@@ -353,6 +418,14 @@ struct LifeCalendarView: View {
                     let expand: CGFloat = cellSize * 0.15
                     let expandedRect = CGRect(x: x - expand / 2, y: y - expand / 2, width: cellSize + expand, height: cellSize + expand)
                     context.fill(Path(roundedRect: expandedRect, cornerRadius: cornerRadius * 1.2), with: currentShading)
+                } else if goalMonthIndices.contains(monthIndex) {
+                    let expand: CGFloat = cellSize * 0.1
+                    let expandedRect = CGRect(x: x - expand / 2, y: y - expand / 2, width: cellSize + expand, height: cellSize + expand)
+                    context.fill(Path(roundedRect: expandedRect, cornerRadius: cornerRadius), with: goalShading)
+                } else if projectedMonthIndices.contains(monthIndex) {
+                    let expand: CGFloat = cellSize * 0.1
+                    let expandedRect = CGRect(x: x - expand / 2, y: y - expand / 2, width: cellSize + expand, height: cellSize + expand)
+                    context.fill(Path(roundedRect: expandedRect, cornerRadius: cornerRadius), with: projectedShading)
                 } else if milestoneMonths.contains(monthIndex) {
                     context.fill(path, with: milestoneShading)
                 } else if monthIndex < currentMonth {
@@ -422,6 +495,9 @@ struct LifeCalendarView: View {
             legendItem(color: .accentColor, label: "Now")
             legendItem(color: .clear, borderColor: .cardBorder.opacity(0.2), label: "Future")
             legendItem(color: .purple.opacity(0.4), label: "Milestone")
+            if !goalMarkers.isEmpty {
+                legendItem(color: .teal, label: "Goal")
+            }
         }
         .font(.system(size: 9))
     }
@@ -433,6 +509,9 @@ struct LifeCalendarView: View {
             legendItem(color: .accentColor, label: "This Week")
             legendItem(color: .clear, borderColor: .cardBorder.opacity(0.2), label: "Future")
             legendItem(color: .purple.opacity(0.5), label: "Milestone")
+            if !goalMarkers.isEmpty {
+                legendItem(color: .teal, label: "Goal")
+            }
         }
         .font(.system(size: 9))
     }
@@ -467,8 +546,12 @@ struct LifeCalendarView: View {
         let futureStrokeShading: GraphicsContext.Shading = .color(.cardBorder.opacity(0.2))
         let milestoneShading: GraphicsContext.Shading = .color(.purple.opacity(0.5))
         let deathShading: GraphicsContext.Shading = .color(.danger.opacity(0.7))
+        let goalShading: GraphicsContext.Shading = .color(.teal)
+        let projectedShading: GraphicsContext.Shading = .color(.teal.opacity(0.5))
 
         let milestoneWeeks = Set(Self.milestoneAges.map { $0 * 52 })
+        let goalWeeks = goalWeekIndices
+        let projectedWeeks = projectedWeekIndices
 
         for year in 0..<lifeExpectancyYears {
             let y = CGFloat(year) * (cellSize + spacing) + spacing
@@ -493,6 +576,14 @@ struct LifeCalendarView: View {
                     let expandedRect = CGRect(x: x - expand / 2, y: y - expand / 2, width: cellSize + expand, height: cellSize + expand)
                     let expandedPath = Path(roundedRect: expandedRect, cornerRadius: cornerRadius * 1.3)
                     context.fill(expandedPath, with: currentShading)
+                } else if goalWeeks.contains(weekIndex) {
+                    let expand: CGFloat = cellSize * 0.2
+                    let expandedRect = CGRect(x: x - expand / 2, y: y - expand / 2, width: cellSize + expand, height: cellSize + expand)
+                    context.fill(Path(roundedRect: expandedRect, cornerRadius: cornerRadius * 1.2), with: goalShading)
+                } else if projectedWeeks.contains(weekIndex) {
+                    let expand: CGFloat = cellSize * 0.15
+                    let expandedRect = CGRect(x: x - expand / 2, y: y - expand / 2, width: cellSize + expand, height: cellSize + expand)
+                    context.fill(Path(roundedRect: expandedRect, cornerRadius: cornerRadius * 1.1), with: projectedShading)
                 } else if milestoneWeeks.contains(weekIndex) {
                     context.fill(path, with: milestoneShading)
                 } else if weekIndex == totalWeeks {
@@ -504,6 +595,40 @@ struct LifeCalendarView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Goal Markers List
+
+    @ViewBuilder
+    private var goalMarkersList: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel(text: "GOALS ON YOUR TIMELINE")
+            ForEach(goalMarkers.sorted(by: { $0.weekIndex < $1.weekIndex }), id: \.title) { marker in
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(marker.isProjected ? Color.teal.opacity(0.5) : Color.teal)
+                        .frame(width: 8, height: 8)
+                    Text(marker.title)
+                        .font(.caption)
+                        .foregroundColor(.textPrimary)
+                        .lineLimit(1)
+                    Spacer()
+                    if let birth = birthDate {
+                        let targetDate = Calendar.current.date(byAdding: .day, value: marker.weekIndex * 7, to: birth)
+                        if let d = targetDate {
+                            Text(marker.isProjected ? "projected" : "target")
+                                .font(.system(size: 9))
+                                .foregroundColor(.textMuted)
+                            Text(DateFormatting.dateString(d))
+                                .font(.caption2).monospacedDigit()
+                                .foregroundColor(.textSecondary)
+                        }
+                    }
+                }
+            }
+        }
+        .padding()
+        .cardStyle()
     }
 
     // MARK: - Helpers

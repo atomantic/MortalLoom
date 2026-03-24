@@ -227,6 +227,28 @@ actor DataStore {
         save(d)
     }
 
+    // MARK: - Goals
+
+    func addGoal(_ goal: Goal) {
+        var d = load()
+        d.goals.append(goal)
+        save(d)
+    }
+
+    func updateGoal(_ goal: Goal) {
+        var d = load()
+        if let idx = d.goals.firstIndex(where: { $0.id == goal.id }) {
+            d.goals[idx] = goal
+            save(d)
+        }
+    }
+
+    func removeGoal(id: UUID) {
+        var d = load()
+        d.goals.removeAll { $0.id == id }
+        save(d)
+    }
+
     func exportData() -> Data? {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
