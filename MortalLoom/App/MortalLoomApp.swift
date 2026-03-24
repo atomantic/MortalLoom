@@ -2,6 +2,10 @@ import SwiftUI
 
 enum AppConstants {
     static let hasCompletedOnboardingKey = "hasCompletedOnboarding"
+    /// Launch with -sample-data to load realistic test data for screenshots
+    static var useSampleData: Bool {
+        ProcessInfo.processInfo.arguments.contains("-sample-data")
+    }
 }
 
 extension Notification.Name {
@@ -66,12 +70,18 @@ struct ContentView: View {
             showOnboarding = true
         }
         .task {
+            if AppConstants.useSampleData {
+                await DataStore.shared.save(SampleData.fullAppData)
+                UserDefaults.standard.set(true, forKey: AppConstants.hasCompletedOnboardingKey)
+            }
             // Start iCloud file monitoring for cross-device sync
             ICloudMonitor.shared.start()
             #if os(iOS)
             // Sync HealthKit data into shared storage so macOS can see it
             if HealthKitService.shared.isAvailable && HealthKitService.shared.authorized {
-                await HealthKitSync.shared.syncBodyMetrics()
+                async let body: Void = HealthKitSync.shared.syncBodyMetrics()
+                async let metrics: Void = HealthKitSync.shared.syncHealthMetrics()
+                _ = await (body, metrics)
             }
             #endif
         }

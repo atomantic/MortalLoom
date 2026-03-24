@@ -39,7 +39,12 @@ Port all MeatSpace features from PortOS web app to native iOS/macOS SwiftUI.
 ## Phase 7: Data Export/Import + Charts
 - [x] JSON export of all user data
 - [x] JSON import to restore data
-- [ ] Additional correlation charts (alcohol+HRV, activity+blood)
+- [x] Alcohol + HRV correlation chart (dual-axis: bars + line, summary stats)
+- [x] Nicotine + Heart Rate correlation chart (HR + resting HR lines, summary stats)
+- [x] HealthMetricEntry model with iCloud sync (HRV, HR, steps, etc.)
+- [x] Comprehensive test suite (86 unit tests + UI screenshot automation)
+- [x] Sample data factory for screenshots (-sample-data launch arg)
+- [ ] Activity + blood marker correlation chart
 
 ## Not Porting (web-specific)
 - Apple Health XML/JSON file import (replaced by native HealthKit)

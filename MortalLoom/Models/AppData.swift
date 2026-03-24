@@ -10,6 +10,7 @@ struct AppData: Codable, Sendable {
     var eyeExams: [EyeExam]
     var epigeneticTests: [EpigeneticTest]
     var bodyEntries: [BodyEntry]
+    var healthMetrics: [HealthMetricEntry]
 
     static let empty = AppData(
         profile: HealthProfile(birthDate: nil, biologicalSex: nil, lifestyle: .default),
@@ -20,13 +21,14 @@ struct AppData: Codable, Sendable {
         bloodTests: [],
         eyeExams: [],
         epigeneticTests: [],
-        bodyEntries: []
+        bodyEntries: [],
+        healthMetrics: []
     )
 
     init(profile: HealthProfile, alcoholDrinks: [AlcoholDrink], alcoholPresets: [AlcoholPreset],
          nicotineEntries: [NicotineEntry], nicotinePresets: [NicotinePreset],
          bloodTests: [BloodTest], eyeExams: [EyeExam], epigeneticTests: [EpigeneticTest],
-         bodyEntries: [BodyEntry] = []) {
+         bodyEntries: [BodyEntry] = [], healthMetrics: [HealthMetricEntry] = []) {
         self.profile = profile
         self.alcoholDrinks = alcoholDrinks
         self.alcoholPresets = alcoholPresets
@@ -36,12 +38,13 @@ struct AppData: Codable, Sendable {
         self.eyeExams = eyeExams
         self.epigeneticTests = epigeneticTests
         self.bodyEntries = bodyEntries
+        self.healthMetrics = healthMetrics
     }
 
-    // Support decoding files saved before bodyEntries was added
+    // Support decoding files saved before bodyEntries/healthMetrics were added
     enum CodingKeys: String, CodingKey {
         case profile, alcoholDrinks, alcoholPresets, nicotineEntries, nicotinePresets
-        case bloodTests, eyeExams, epigeneticTests, bodyEntries
+        case bloodTests, eyeExams, epigeneticTests, bodyEntries, healthMetrics
     }
 
     init(from decoder: Decoder) throws {
@@ -55,5 +58,6 @@ struct AppData: Codable, Sendable {
         eyeExams = try c.decode([EyeExam].self, forKey: .eyeExams)
         epigeneticTests = try c.decode([EpigeneticTest].self, forKey: .epigeneticTests)
         bodyEntries = try c.decodeIfPresent([BodyEntry].self, forKey: .bodyEntries) ?? []
+        healthMetrics = try c.decodeIfPresent([HealthMetricEntry].self, forKey: .healthMetrics) ?? []
     }
 }

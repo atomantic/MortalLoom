@@ -16,6 +16,7 @@
 		259AA046172B3216F2A26D31 /* GenomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71A0187A10BAA3CC7819A176 /* GenomeView.swift */; };
 		285C3B38D82FDF5C57FDAA1E /* EpigeneticTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DE7B02859718A26B4B9906E /* EpigeneticTest.swift */; };
 		29AFDFA8BC814239784F41DC /* BodyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4711239695D8FA36364CFC90 /* BodyView.swift */; };
+		2E1D5E1CCBA2285ED8D913BD /* ScreenshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B2CB5E984C7556ED4DE0610 /* ScreenshotTests.swift */; };
 		30B68822C19248773D62696A /* LifeCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ABFE2DBE2C3A4FAFEE5EE6E /* LifeCalendarView.swift */; };
 		32B20B696284DEE2E3ED3ED6 /* SideMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50C5058BFC45EAA680969317 /* SideMenuView.swift */; };
 		3765ED39C36AEB475A71D25C /* MortalLoomTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93CDAC363DF57A04037AECCA /* MortalLoomTests.swift */; };
@@ -30,6 +31,8 @@
 		4C31E78A1FDAC239E647CB2D /* DataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB2E368CC2CD70A93D9E7BAE /* DataStore.swift */; };
 		4C7D365FE00B06FD6BEF3568 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5C2474BC3DD2C321255F1AB /* OnboardingView.swift */; };
 		4E21F7279130B3025E25A8EA /* DataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB2E368CC2CD70A93D9E7BAE /* DataStore.swift */; };
+		515DD50D2EF016BD9377F88E /* HealthMetricEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44962B353191269E702D9756 /* HealthMetricEntry.swift */; };
+		528323E013ED0AE7CB0D781A /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 581A48FA229D5FCAD176458F /* SampleData.swift */; };
 		53B90A52CDA6CC6EAEF56C54 /* AppData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76AFC65F04DD19B1C921A47F /* AppData.swift */; };
 		576B5647EBFAD63011F04625 /* BodyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4711239695D8FA36364CFC90 /* BodyView.swift */; };
 		5A2E410C2C2B798ACABD6D2F /* LifestyleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFAFEF1D1D8E89AA3E949F4F /* LifestyleView.swift */; };
@@ -40,12 +43,14 @@
 		6EF9106333950CF8212C2EA0 /* GenomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71A0187A10BAA3CC7819A176 /* GenomeView.swift */; };
 		706C426B98DE5CF39A715C7E /* EpigeneticTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DE7B02859718A26B4B9906E /* EpigeneticTest.swift */; };
 		8054925D9DFCF64D9F30523A /* HealthKitSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66616D81AC46D85C5D584F4F /* HealthKitSync.swift */; };
+		8511F3B807C1BD9B498818D4 /* HealthMetricEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44962B353191269E702D9756 /* HealthMetricEntry.swift */; };
 		89C3332067D295F52E472691 /* EyeExam.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6800ABC07A07655F56FA658 /* EyeExam.swift */; };
 		95980F1A20C4AD1E940663E0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8DFE4C5B3F84209835BAB96B /* Assets.xcassets */; };
 		9D54A8470E4B66EA28F7DBE9 /* BodyEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DE6F91C7E33B0F86F79570E /* BodyEntry.swift */; };
 		A17140154ACE65029AA7C02B /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C111B7B3DAB461735C8004F /* HealthKitService.swift */; };
 		AA6C2E9E92FDD28CC9446059 /* SideMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50C5058BFC45EAA680969317 /* SideMenuView.swift */; };
 		AD7F1DCB8D68FC9792B1F154 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8DFE4C5B3F84209835BAB96B /* Assets.xcassets */; };
+		B7F6281A505841E019DE76FA /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 581A48FA229D5FCAD176458F /* SampleData.swift */; };
 		B9CD04929700DA3CFF13A92E /* SubstanceEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14643E58DFCB5BCF7D13DC86 /* SubstanceEntry.swift */; };
 		BB734E45988022F6F6C80BF3 /* SubstanceEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14643E58DFCB5BCF7D13DC86 /* SubstanceEntry.swift */; };
 		C27099DAB0C46C3647878607 /* BloodView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BB3FF2B8EF635AAE437983D /* BloodView.swift */; };
@@ -78,19 +83,30 @@
 			remoteGlobalIDString = A0DED99AD0B32A6A9FF11972;
 			remoteInfo = MortalLoom_macOS;
 		};
+		F89E935995737CAE101F0337 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AA97B8DC6CC30137C00C725E /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2B3719758DE43B582B14978B;
+			remoteInfo = MortalLoom_iOS;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		04C1C61D4BD2F3E4B50538F2 /* SubstancesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubstancesView.swift; sourceTree = "<group>"; };
 		14643E58DFCB5BCF7D13DC86 /* SubstanceEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubstanceEntry.swift; sourceTree = "<group>"; };
+		1B2CB5E984C7556ED4DE0610 /* ScreenshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotTests.swift; sourceTree = "<group>"; };
 		25A938EE48931E1A7D80455D /* MortalLoomApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MortalLoomApp.swift; sourceTree = "<group>"; };
 		29D32D124C715340FD2DC350 /* ICloudMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ICloudMonitor.swift; sourceTree = "<group>"; };
 		37A71E4A0A8F1CD94F8E00BB /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		3C111B7B3DAB461735C8004F /* HealthKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitService.swift; sourceTree = "<group>"; };
 		3DE6F91C7E33B0F86F79570E /* BodyEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyEntry.swift; sourceTree = "<group>"; };
+		44962B353191269E702D9756 /* HealthMetricEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthMetricEntry.swift; sourceTree = "<group>"; };
 		4711239695D8FA36364CFC90 /* BodyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyView.swift; sourceTree = "<group>"; };
 		4FCF31AF121B47E7C7DF22B1 /* HealthProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthProfile.swift; sourceTree = "<group>"; };
 		50C5058BFC45EAA680969317 /* SideMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideMenuView.swift; sourceTree = "<group>"; };
+		565672385B1B8A18B64FC8A8 /* MortalLoomUITests_iOS.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MortalLoomUITests_iOS.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		581A48FA229D5FCAD176458F /* SampleData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleData.swift; sourceTree = "<group>"; };
 		5ABFE2DBE2C3A4FAFEE5EE6E /* LifeCalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifeCalendarView.swift; sourceTree = "<group>"; };
 		5C8ED8531BC086732C92DA9B /* MortalLoomTests_macOS.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MortalLoomTests_macOS.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		63EFA7304632982F7F2C834D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -125,6 +141,7 @@
 				3DE6F91C7E33B0F86F79570E /* BodyEntry.swift */,
 				6DE7B02859718A26B4B9906E /* EpigeneticTest.swift */,
 				C6800ABC07A07655F56FA658 /* EyeExam.swift */,
+				44962B353191269E702D9756 /* HealthMetricEntry.swift */,
 				4FCF31AF121B47E7C7DF22B1 /* HealthProfile.swift */,
 				14643E58DFCB5BCF7D13DC86 /* SubstanceEntry.swift */,
 			);
@@ -165,6 +182,7 @@
 				B4C6F3F7D27B38D804FA5B61 /* DeathClockEngine.swift */,
 				3C111B7B3DAB461735C8004F /* HealthKitService.swift */,
 				66616D81AC46D85C5D584F4F /* HealthKitSync.swift */,
+				581A48FA229D5FCAD176458F /* SampleData.swift */,
 			);
 			path = Engine;
 			sourceTree = "<group>";
@@ -183,6 +201,7 @@
 			children = (
 				BA60AC4E4AB0F67EC0B9E3F5 /* MortalLoom */,
 				A6EFBCD1490A7CAFF8E0FDA4 /* MortalLoomTests */,
+				E277B8B2C113240F9FABA441 /* MortalLoomUITests */,
 				B42444FC21559C3EF65581F7 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -202,6 +221,7 @@
 				8B7AF9F6502500320E7D9D44 /* MortalLoom.app */,
 				BEB68C77C3325AF758E23E9D /* MortalLoomTests_iOS.xctest */,
 				5C8ED8531BC086732C92DA9B /* MortalLoomTests_macOS.xctest */,
+				565672385B1B8A18B64FC8A8 /* MortalLoomUITests_iOS.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -217,6 +237,14 @@
 				1BBC69BB43F3625EAE781C47 /* Views */,
 			);
 			path = MortalLoom;
+			sourceTree = "<group>";
+		};
+		E277B8B2C113240F9FABA441 /* MortalLoomUITests */ = {
+			isa = PBXGroup;
+			children = (
+				1B2CB5E984C7556ED4DE0610 /* ScreenshotTests.swift */,
+			);
+			path = MortalLoomUITests;
 			sourceTree = "<group>";
 		};
 		E599AA8322014F85417D9A81 /* Theme */ = {
@@ -303,6 +331,24 @@
 			productReference = BEB68C77C3325AF758E23E9D /* MortalLoomTests_iOS.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		D14CEF7D50E685454E8D52CE /* MortalLoomUITests_iOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 67B1C5EC93372CF8AE7BEF99 /* Build configuration list for PBXNativeTarget "MortalLoomUITests_iOS" */;
+			buildPhases = (
+				84361572B958E21B67DF14ED /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				1409680A6FBF6F10C371A416 /* PBXTargetDependency */,
+			);
+			name = MortalLoomUITests_iOS;
+			packageProductDependencies = (
+			);
+			productName = MortalLoomUITests_iOS;
+			productReference = 565672385B1B8A18B64FC8A8 /* MortalLoomUITests_iOS.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -326,6 +372,10 @@
 					BCD47523F84BE1D077C166E5 = {
 						DevelopmentTeam = TYQ32QCF6K;
 					};
+					D14CEF7D50E685454E8D52CE = {
+						DevelopmentTeam = TYQ32QCF6K;
+						TestTargetID = 2B3719758DE43B582B14978B;
+					};
 				};
 			};
 			buildConfigurationList = E1A1CEB6C703E8A52DD33F10 /* Build configuration list for PBXProject "MortalLoom" */;
@@ -344,6 +394,7 @@
 			targets = (
 				BCD47523F84BE1D077C166E5 /* MortalLoomTests_iOS */,
 				775BD4D581F6E7CBAABB6A4B /* MortalLoomTests_macOS */,
+				D14CEF7D50E685454E8D52CE /* MortalLoomUITests_iOS */,
 				2B3719758DE43B582B14978B /* MortalLoom_iOS */,
 				A0DED99AD0B32A6A9FF11972 /* MortalLoom_macOS */,
 			);
@@ -386,6 +437,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		84361572B958E21B67DF14ED /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2E1D5E1CCBA2285ED8D913BD /* ScreenshotTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		A148AACC6C3AA6D3AD90D844 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -403,6 +462,7 @@
 				6EF9106333950CF8212C2EA0 /* GenomeView.swift in Sources */,
 				17B7AFAED17D2200F9677430 /* HealthKitService.swift in Sources */,
 				8054925D9DFCF64D9F30523A /* HealthKitSync.swift in Sources */,
+				8511F3B807C1BD9B498818D4 /* HealthMetricEntry.swift in Sources */,
 				6BF9BE408C71949F1E582340 /* HealthProfile.swift in Sources */,
 				0D87387D9625A5E0D6645E02 /* ICloudMonitor.swift in Sources */,
 				30B68822C19248773D62696A /* LifeCalendarView.swift in Sources */,
@@ -410,6 +470,7 @@
 				0F7F142E18D533C8791C697B /* MortalLoomApp.swift in Sources */,
 				3ED7DB9F890E096685B588FA /* OnboardingView.swift in Sources */,
 				F693696AC5E6CC72FC037C48 /* OverviewView.swift in Sources */,
+				528323E013ED0AE7CB0D781A /* SampleData.swift in Sources */,
 				E118CBAF40777154C639267F /* SettingsView.swift in Sources */,
 				32B20B696284DEE2E3ED3ED6 /* SideMenuView.swift in Sources */,
 				BB734E45988022F6F6C80BF3 /* SubstanceEntry.swift in Sources */,
@@ -435,6 +496,7 @@
 				259AA046172B3216F2A26D31 /* GenomeView.swift in Sources */,
 				A17140154ACE65029AA7C02B /* HealthKitService.swift in Sources */,
 				43F16D78B1B0322352E79E50 /* HealthKitSync.swift in Sources */,
+				515DD50D2EF016BD9377F88E /* HealthMetricEntry.swift in Sources */,
 				F6492A6DE3039DDD7AD27755 /* HealthProfile.swift in Sources */,
 				193B171336A15EE178F25D61 /* ICloudMonitor.swift in Sources */,
 				6E9F84A23A6E864D78163091 /* LifeCalendarView.swift in Sources */,
@@ -442,6 +504,7 @@
 				3EB4BFEEC7B0A7546C3AA212 /* MortalLoomApp.swift in Sources */,
 				4C7D365FE00B06FD6BEF3568 /* OnboardingView.swift in Sources */,
 				F70C90E5AEE5A80B621DDA0A /* OverviewView.swift in Sources */,
+				B7F6281A505841E019DE76FA /* SampleData.swift in Sources */,
 				CAE4E3026BDDD0FF4A4CBBA1 /* SettingsView.swift in Sources */,
 				AA6C2E9E92FDD28CC9446059 /* SideMenuView.swift in Sources */,
 				B9CD04929700DA3CFF13A92E /* SubstanceEntry.swift in Sources */,
@@ -453,6 +516,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		1409680A6FBF6F10C371A416 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2B3719758DE43B582B14978B /* MortalLoom_iOS */;
+			targetProxy = F89E935995737CAE101F0337 /* PBXContainerItemProxy */;
+		};
 		1480E76FA0005DD4D269241D /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = A0DED99AD0B32A6A9FF11972 /* MortalLoom_macOS */;
@@ -585,6 +653,22 @@
 				SDKROOT = iphoneos;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		5A8471C1B7A95DDE76E0D3E6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = net.shadowpuppet.MeatSpaceTracker.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = MortalLoom_iOS;
 			};
 			name = Release;
 		};
@@ -771,6 +855,22 @@
 			};
 			name = Release;
 		};
+		FC51E338BA94FD22355D3F10 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = net.shadowpuppet.MeatSpaceTracker.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = MortalLoom_iOS;
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -788,6 +888,15 @@
 			buildConfigurations = (
 				8044B74645BD7FCFF9AB99FC /* Debug */,
 				3083C5F0C57C3231C71772D5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		67B1C5EC93372CF8AE7BEF99 /* Build configuration list for PBXNativeTarget "MortalLoomUITests_iOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FC51E338BA94FD22355D3F10 /* Debug */,
+				5A8471C1B7A95DDE76E0D3E6 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

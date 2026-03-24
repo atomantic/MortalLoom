@@ -81,6 +81,17 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: net.shadowpuppet.MeatSpaceTracker.tests
 
+  MortalLoomUITests_iOS:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - MortalLoomUITests
+    dependencies:
+      - target: MortalLoom_iOS
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: net.shadowpuppet.MeatSpaceTracker.uitests
+
   MortalLoomTests_macOS:
     type: bundle.unit-test
     platform: macOS

@@ -84,6 +84,12 @@ struct SubstancesView: View {
     @State private var nicotineEntries: [NicotineEntry] = []
     @State private var nicotinePresets: [NicotinePreset] = []
 
+    // Health metrics for correlation charts
+    @State private var healthMetrics: [HealthMetricEntry] = []
+    private var metricsByDate: [String: HealthMetricEntry] {
+        Dictionary(uniqueKeysWithValues: healthMetrics.map { ($0.date, $0) })
+    }
+
     // Alcohol form
     @State private var alcoName = ""
     @State private var alcoVolume = ""
@@ -165,6 +171,7 @@ struct SubstancesView: View {
         nicotineEntries = data.nicotineEntries
         nicotinePresets = data.nicotinePresets
         biologicalSex = data.profile.biologicalSex
+        healthMetrics = data.healthMetrics
     }
 
     // MARK: - Alcohol Section
@@ -173,6 +180,7 @@ struct SubstancesView: View {
     private var alcoholSection: some View {
         alcoholStatsBar
         alcoholChart
+        alcoholHrvCorrelation
         alcoholQuickAdd
         alcoholCustomForm
         alcoholHistory
@@ -257,6 +265,110 @@ struct SubstancesView: View {
         }
         .padding()
         .cardStyle()
+    }
+
+    // MARK: Alcohol + HRV Correlation
+
+    @ViewBuilder
+    private var alcoholHrvCorrelation: some View {
+        let days = last30DayStrings()
+        let drinksByDate = Dictionary(grouping: alcoholDrinks.filter { $0.abv > 1.0 }, by: \.date)
+
+        // Build correlation data
+        let correlationData: [(date: String, hrv: Double?, alcoholGrams: Double)] = days.map { day in
+            let metric = metricsByDate[day]
+            let grams = (drinksByDate[day] ?? []).reduce(0.0) { $0 + $1.gramsAlcohol }
+            return (day, metric?.hrv, grams)
+        }
+
+        // Calculate summary stats
+        let drinkingDays = correlationData.filter { $0.alcoholGrams > 1 && $0.hrv != nil }
+        let soberDays = correlationData.filter { $0.alcoholGrams <= 1 && $0.hrv != nil }
+        let avgDrinking = drinkingDays.isEmpty ? 0 : drinkingDays.compactMap(\.hrv).reduce(0, +) / Double(drinkingDays.count)
+        let avgSober = soberDays.isEmpty ? 0 : soberDays.compactMap(\.hrv).reduce(0, +) / Double(soberDays.count)
+        let hasData = !drinkingDays.isEmpty && !soberDays.isEmpty
+
+        if hasData {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Alcohol + HRV Correlation")
+                    .font(.headline)
+                    .foregroundColor(.textPrimary)
+
+                Chart {
+                    ForEach(correlationData, id: \.date) { item in
+                        if item.alcoholGrams > 0 {
+                            BarMark(
+                                x: .value("Date", item.date),
+                                y: .value("Alcohol", item.alcoholGrams)
+                            )
+                            .foregroundStyle(Color.accentColor.opacity(0.4))
+                        }
+                        if let hrv = item.hrv {
+                            LineMark(
+                                x: .value("Date", item.date),
+                                y: .value("HRV", hrv),
+                                series: .value("Metric", "HRV")
+                            )
+                            .foregroundStyle(Color.cyan)
+                            .lineStyle(StrokeStyle(lineWidth: 2))
+
+                            PointMark(
+                                x: .value("Date", item.date),
+                                y: .value("HRV", hrv)
+                            )
+                            .foregroundStyle(item.alcoholGrams > 1 ? Color.accentColor : Color.cyan)
+                            .symbolSize(item.alcoholGrams > 1 ? 30 : 15)
+                        }
+                    }
+                }
+                .chartXAxis {
+                    AxisMarks(values: .stride(by: .day, count: 7)) { _ in
+                        AxisGridLine()
+                        AxisValueLabel(format: .dateTime.month(.abbreviated).day(), centered: true)
+                    }
+                }
+                .chartForegroundStyleScale([
+                    "HRV (ms)": Color.cyan,
+                    "Alcohol (g)": Color.accentColor.opacity(0.4),
+                ])
+                .frame(height: Layout.chartFrameHeight)
+
+                let pctDiff = avgSober > 0 ? ((avgSober - avgDrinking) / avgSober * 100) : 0
+                HStack(spacing: 16) {
+                    VStack(spacing: 2) {
+                        Text("Drinking Days")
+                            .font(.caption2)
+                            .foregroundColor(.textMuted)
+                        Text(String(format: "%.0fms", avgDrinking))
+                            .font(.subheadline.bold())
+                            .foregroundColor(.accentColor)
+                    }
+                    VStack(spacing: 2) {
+                        Text("Sober Days")
+                            .font(.caption2)
+                            .foregroundColor(.textMuted)
+                        Text(String(format: "%.0fms", avgSober))
+                            .font(.subheadline.bold())
+                            .foregroundColor(.cyan)
+                    }
+                    VStack(spacing: 2) {
+                        Text("Difference")
+                            .font(.caption2)
+                            .foregroundColor(.textMuted)
+                        Text(String(format: "%.1f%%", pctDiff) + (pctDiff > 0 ? " lower" : " higher"))
+                            .font(.subheadline.bold())
+                            .foregroundColor(pctDiff > 0 ? .danger : .success)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+
+                Text("HRV measures autonomic nervous system recovery. Higher is better.")
+                    .font(.caption2)
+                    .foregroundColor(.textMuted)
+            }
+            .padding()
+            .cardStyle()
+        }
     }
 
     // MARK: Alcohol Quick Add
@@ -487,6 +599,7 @@ struct SubstancesView: View {
     private var nicotineSection: some View {
         nicotineStatsBar
         nicotineChart
+        nicotineHeartRateCorrelation
         nicotineQuickAdd
         nicotineCustomForm
         nicotineHistory
@@ -557,6 +670,105 @@ struct SubstancesView: View {
         }
         .padding()
         .cardStyle()
+    }
+
+    // MARK: Nicotine + Heart Rate Correlation
+
+    @ViewBuilder
+    private var nicotineHeartRateCorrelation: some View {
+        let days = last30DayStrings()
+        let nicoByDate = Dictionary(grouping: nicotineEntries, by: \.date)
+
+        let correlationData: [(date: String, hr: Double?, rhr: Double?, nicotineMg: Double)] = days.map { day in
+            let metric = metricsByDate[day]
+            let mg = (nicoByDate[day] ?? []).reduce(0.0) { $0 + $1.totalMg }
+            return (day, metric?.heartRate, metric?.restingHeartRate, mg)
+        }
+
+        let nicoDays = correlationData.filter { $0.nicotineMg > 0 && $0.hr != nil }
+        let cleanDays = correlationData.filter { $0.nicotineMg == 0 && $0.hr != nil }
+        let avgNico = nicoDays.isEmpty ? 0 : nicoDays.compactMap(\.hr).reduce(0, +) / Double(nicoDays.count)
+        let avgClean = cleanDays.isEmpty ? 0 : cleanDays.compactMap(\.hr).reduce(0, +) / Double(cleanDays.count)
+        let hasData = !nicoDays.isEmpty && !cleanDays.isEmpty
+
+        if hasData {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Nicotine + Heart Rate Correlation")
+                    .font(.headline)
+                    .foregroundColor(.textPrimary)
+
+                Chart {
+                    ForEach(correlationData, id: \.date) { item in
+                        if let hr = item.hr {
+                            LineMark(
+                                x: .value("Date", item.date),
+                                y: .value("HR", hr),
+                                series: .value("Metric", "HR")
+                            )
+                            .foregroundStyle(Color.red)
+                            .lineStyle(StrokeStyle(lineWidth: 2))
+                        }
+                        if let rhr = item.rhr {
+                            LineMark(
+                                x: .value("Date", item.date),
+                                y: .value("Resting HR", rhr),
+                                series: .value("Metric", "RHR")
+                            )
+                            .foregroundStyle(Color.pink)
+                            .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
+                        }
+                    }
+                }
+                .chartXAxis {
+                    AxisMarks(values: .stride(by: .day, count: 7)) { _ in
+                        AxisGridLine()
+                        AxisValueLabel(format: .dateTime.month(.abbreviated).day(), centered: true)
+                    }
+                }
+                .chartYAxisLabel("bpm")
+                .chartForegroundStyleScale([
+                    "Heart Rate": Color.red,
+                    "Resting HR": Color.pink,
+                ])
+                .frame(height: Layout.chartFrameHeight)
+
+                let pctDiff = avgClean > 0 ? ((avgNico - avgClean) / avgClean * 100) : 0
+                let direction = pctDiff > 0 ? "higher" : "lower"
+                HStack(spacing: 16) {
+                    VStack(spacing: 2) {
+                        Text("Nicotine Days")
+                            .font(.caption2)
+                            .foregroundColor(.textMuted)
+                        Text(String(format: "%.0f bpm", avgNico))
+                            .font(.subheadline.bold())
+                            .foregroundColor(.warning)
+                    }
+                    VStack(spacing: 2) {
+                        Text("Clean Days")
+                            .font(.caption2)
+                            .foregroundColor(.textMuted)
+                        Text(String(format: "%.0f bpm", avgClean))
+                            .font(.subheadline.bold())
+                            .foregroundColor(.red)
+                    }
+                    VStack(spacing: 2) {
+                        Text("Difference")
+                            .font(.caption2)
+                            .foregroundColor(.textMuted)
+                        Text(String(format: "%.1f%% %@", abs(pctDiff), direction))
+                            .font(.subheadline.bold())
+                            .foregroundColor(pctDiff > 0 ? .danger : .success)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+
+                Text("Nicotine raises heart rate by stimulating adrenaline release.")
+                    .font(.caption2)
+                    .foregroundColor(.textMuted)
+            }
+            .padding()
+            .cardStyle()
+        }
     }
 
     // MARK: Nicotine Quick Add

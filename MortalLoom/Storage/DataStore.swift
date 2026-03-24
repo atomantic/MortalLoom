@@ -197,6 +197,36 @@ actor DataStore {
         save(d)
     }
 
+    /// Upsert a health metric entry — merges fields into existing entry for the same date.
+    func upsertHealthMetric(_ entry: HealthMetricEntry) {
+        var d = load()
+        if let idx = d.healthMetrics.firstIndex(where: { $0.date == entry.date }) {
+            d.healthMetrics[idx].mergeFields(from: entry)
+        } else {
+            d.healthMetrics.append(entry)
+        }
+        save(d)
+    }
+
+    /// Bulk upsert health metrics (used by HealthKitSync).
+    func upsertHealthMetrics(_ entries: [HealthMetricEntry]) {
+        guard !entries.isEmpty else { return }
+        var d = load()
+        var byDate: [String: Int] = [:]
+        for (idx, m) in d.healthMetrics.enumerated() {
+            byDate[m.date] = idx
+        }
+        for entry in entries {
+            if let idx = byDate[entry.date] {
+                d.healthMetrics[idx].mergeFields(from: entry)
+            } else {
+                byDate[entry.date] = d.healthMetrics.count
+                d.healthMetrics.append(entry)
+            }
+        }
+        save(d)
+    }
+
     func exportData() -> Data? {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]

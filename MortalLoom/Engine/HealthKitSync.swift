@@ -88,5 +88,73 @@ final class HealthKitSync {
             NotificationCenter.default.post(name: .profileDidChange, object: nil)
         }
     }
+
+    /// Pull 90 days of daily health metrics (HRV, heart rate, steps, etc.) into AppData.
+    /// These persist to iCloud so macOS can render correlation charts without HealthKit.
+    func syncHealthMetrics() async {
+        guard hk.isAvailable, hk.authorized else { return }
+
+        let to = Date()
+        let from = Calendar.current.date(byAdding: .day, value: -90, to: to) ?? to
+
+        // Fetch all metric types in parallel
+        async let hrvData = hk.dailyStats(for: .heartRateVariabilitySDNN, unit: .secondUnit(with: .milli), aggregation: .average, from: from, to: to)
+        async let hrData = hk.dailyStats(for: .heartRate, unit: .count().unitDivided(by: .minute()), aggregation: .average, from: from, to: to)
+        async let rhrData = hk.dailyStats(for: .restingHeartRate, unit: .count().unitDivided(by: .minute()), aggregation: .average, from: from, to: to)
+        async let stepsData = hk.dailyStats(for: .stepCount, unit: .count(), aggregation: .sum, from: from, to: to)
+        async let activeEnergyData = hk.dailyStats(for: .activeEnergyBurned, unit: .kilocalorie(), aggregation: .sum, from: from, to: to)
+        async let exerciseData = hk.dailyStats(for: .appleExerciseTime, unit: .minute(), aggregation: .sum, from: from, to: to)
+        async let flightsData = hk.dailyStats(for: .flightsClimbed, unit: .count(), aggregation: .sum, from: from, to: to)
+        async let vo2Data = hk.dailyStats(for: .vo2Max, unit: HKUnit(from: "mL/min*kg"), aggregation: .average, from: from, to: to)
+        async let spo2Data = hk.dailyStats(for: .oxygenSaturation, unit: .percent(), aggregation: .average, from: from, to: to)
+        async let respData = hk.dailyStats(for: .respiratoryRate, unit: .count().unitDivided(by: .minute()), aggregation: .average, from: from, to: to)
+
+        // Collect all results
+        let hrv = await hrvData
+        let hr = await hrData
+        let rhr = await rhrData
+        let steps = await stepsData
+        let energy = await activeEnergyData
+        let exercise = await exerciseData
+        let flights = await flightsData
+        let vo2 = await vo2Data
+        let spo2 = await spo2Data
+        let resp = await respData
+
+        // Build a date-keyed dictionary of all metrics
+        var byDate: [String: HealthMetricEntry] = [:]
+
+        func merge(_ data: [(date: Date, value: Double)], into path: WritableKeyPath<HealthMetricEntry, Double?>) {
+            for item in data {
+                let dateStr = DateFormatting.dateString(item.date)
+                var entry = byDate[dateStr] ?? HealthMetricEntry(date: dateStr)
+                entry[keyPath: path] = item.value
+                byDate[dateStr] = entry
+            }
+        }
+
+        merge(hrv, into: \.hrv)
+        merge(hr, into: \.heartRate)
+        merge(rhr, into: \.restingHeartRate)
+        merge(steps, into: \.steps)
+        merge(energy, into: \.activeEnergy)
+        merge(exercise, into: \.exerciseMinutes)
+        merge(flights, into: \.flightsClimbed)
+        merge(vo2, into: \.vo2Max)
+        merge(resp, into: \.respiratoryRate)
+
+        // SpO2 comes as 0-1, convert to 0-100
+        for item in spo2 {
+            let dateStr = DateFormatting.dateString(item.date)
+            var entry = byDate[dateStr] ?? HealthMetricEntry(date: dateStr)
+            entry.oxygenSaturation = item.value * 100
+            byDate[dateStr] = entry
+        }
+
+        guard !byDate.isEmpty else { return }
+
+        await DataStore.shared.upsertHealthMetrics(Array(byDate.values))
+        NotificationCenter.default.post(name: .dataDidSync, object: nil)
+    }
 }
 #endif
