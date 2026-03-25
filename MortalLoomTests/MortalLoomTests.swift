@@ -792,6 +792,203 @@ final class DateFormattingTests: XCTestCase {
     }
 }
 
+// MARK: - Additional Model Codable Tests
+
+final class AdditionalModelTests: XCTestCase {
+
+    func testEyeExamCodable() {
+        let exam = EyeExam(date: "2026-03-15", leftSphere: -2.5, leftCylinder: -0.75, leftAxis: 170,
+                           rightSphere: -2.0, rightCylinder: -0.5, rightAxis: 10)
+        let data = try! JSONEncoder().encode(exam)
+        let decoded = try! JSONDecoder().decode(EyeExam.self, from: data)
+        XCTAssertEqual(decoded, exam)
+    }
+
+    func testEyeExamPartialFields() {
+        let exam = EyeExam(date: "2026-03-15", leftSphere: -2.0)
+        let data = try! JSONEncoder().encode(exam)
+        let decoded = try! JSONDecoder().decode(EyeExam.self, from: data)
+        XCTAssertEqual(decoded.leftSphere, -2.0)
+        XCTAssertNil(decoded.rightSphere)
+        XCTAssertNil(decoded.leftCylinder)
+    }
+
+    func testEpigeneticTestCodable() {
+        let test = EpigeneticTest(date: "2026-03-15", chronologicalAge: 45, biologicalAge: 42,
+                                  paceOfAging: 0.88, organScores: ["Heart": 40.0, "Brain": 43.5])
+        let data = try! JSONEncoder().encode(test)
+        let decoded = try! JSONDecoder().decode(EpigeneticTest.self, from: data)
+        XCTAssertEqual(decoded.chronologicalAge, 45)
+        XCTAssertEqual(decoded.biologicalAge, 42)
+        XCTAssertEqual(decoded.paceOfAging, 0.88)
+        XCTAssertEqual(decoded.organScores?["Heart"], 40.0)
+    }
+
+    func testEpigeneticTestPartialFields() {
+        let test = EpigeneticTest(date: "2026-03-15", chronologicalAge: 45, biologicalAge: 42)
+        let data = try! JSONEncoder().encode(test)
+        let decoded = try! JSONDecoder().decode(EpigeneticTest.self, from: data)
+        XCTAssertNil(decoded.paceOfAging)
+        XCTAssertNil(decoded.organScores)
+    }
+
+    func testBodyEntryCodable() {
+        let entry = BodyEntry(date: "2026-03-15", weightLbs: 155.5, bodyFatPct: 16.2)
+        let data = try! JSONEncoder().encode(entry)
+        let decoded = try! JSONDecoder().decode(BodyEntry.self, from: data)
+        XCTAssertEqual(decoded, entry)
+    }
+
+    func testBodyEntryPartialFields() {
+        let entry = BodyEntry(date: "2026-03-15", weightLbs: 155.5)
+        let data = try! JSONEncoder().encode(entry)
+        let decoded = try! JSONDecoder().decode(BodyEntry.self, from: data)
+        XCTAssertEqual(decoded.weightLbs, 155.5)
+        XCTAssertNil(decoded.bodyFatPct)
+    }
+
+    func testBloodTestCodable() {
+        let test = BloodTest(date: "2026-03-15", markers: ["glucose": 92, "ldl": 110])
+        let data = try! JSONEncoder().encode(test)
+        let decoded = try! JSONDecoder().decode(BloodTest.self, from: data)
+        XCTAssertEqual(decoded.markers["glucose"], 92)
+        XCTAssertEqual(decoded.markers["ldl"], 110)
+        XCTAssertEqual(decoded.markers.count, 2)
+    }
+
+    func testAlcoholPresetDefaults() {
+        let presets = AlcoholPreset.defaults
+        XCTAssertGreaterThanOrEqual(presets.count, 4)
+        for preset in presets {
+            XCTAssertFalse(preset.name.isEmpty)
+            XCTAssertGreaterThan(preset.oz, 0)
+            XCTAssertGreaterThanOrEqual(preset.abv, 0)
+        }
+        // Should have at least one NA option
+        XCTAssertTrue(presets.contains { $0.abv < 1.0 })
+    }
+
+    func testAlcoholPresetCodable() {
+        let preset = AlcoholPreset(name: "Test Beer", oz: 12, abv: 5.0)
+        let data = try! JSONEncoder().encode(preset)
+        let decoded = try! JSONDecoder().decode(AlcoholPreset.self, from: data)
+        XCTAssertEqual(decoded.name, preset.name)
+        XCTAssertEqual(decoded.oz, preset.oz)
+        XCTAssertEqual(decoded.abv, preset.abv)
+    }
+
+    func testNicotinePresetCodable() {
+        let preset = NicotinePreset(name: "Zyn 6mg", mgPerUnit: 6)
+        let data = try! JSONEncoder().encode(preset)
+        let decoded = try! JSONDecoder().decode(NicotinePreset.self, from: data)
+        XCTAssertEqual(decoded.name, preset.name)
+        XCTAssertEqual(decoded.mgPerUnit, preset.mgPerUnit)
+    }
+
+    func testGoalPriorityComparable() {
+        XCTAssertLessThan(GoalPriority.high, GoalPriority.medium)
+        XCTAssertLessThan(GoalPriority.medium, GoalPriority.low)
+        XCTAssertLessThan(GoalPriority.high, GoalPriority.low)
+
+        let priorities: [GoalPriority] = [.low, .high, .medium]
+        let sorted = priorities.sorted()
+        XCTAssertEqual(sorted, [.high, .medium, .low])
+    }
+
+    func testGoalEquatable() {
+        let goal1 = Goal(title: "Test", notes: "Notes", priority: .high)
+        var goal2 = goal1
+        XCTAssertEqual(goal1, goal2)
+
+        goal2.title = "Changed"
+        XCTAssertNotEqual(goal1, goal2)
+    }
+
+    func testGoalMilestoneCodable() {
+        let milestone = GoalMilestone(title: "Step 1", completed: true, completedDate: "2026-03-15")
+        let data = try! JSONEncoder().encode(milestone)
+        let decoded = try! JSONDecoder().decode(GoalMilestone.self, from: data)
+        XCTAssertEqual(decoded, milestone)
+    }
+
+    func testGoalStatusAllCases() {
+        XCTAssertEqual(GoalStatus.allCases.count, 4)
+        XCTAssertTrue(GoalStatus.allCases.contains(.active))
+        XCTAssertTrue(GoalStatus.allCases.contains(.paused))
+        XCTAssertTrue(GoalStatus.allCases.contains(.completed))
+        XCTAssertTrue(GoalStatus.allCases.contains(.abandoned))
+    }
+
+    func testSampleEyeExamsAreValid() {
+        let exams = SampleData.eyeExams
+        XCTAssertEqual(exams.count, 2)
+        for exam in exams {
+            XCTAssertFalse(exam.date.isEmpty)
+            if let sphere = exam.leftSphere {
+                XCTAssertLessThan(sphere, 0, "Myopic prescription should be negative")
+            }
+        }
+        // Second exam should show progression (more negative sphere)
+        if let first = exams.first?.leftSphere, let last = exams.last?.leftSphere {
+            XCTAssertLessThanOrEqual(last, first, "Myopia should progress")
+        }
+    }
+
+    func testSampleEpigeneticTestsAreValid() {
+        let tests = SampleData.epigeneticTests
+        XCTAssertEqual(tests.count, 2)
+        for test in tests {
+            XCTAssertGreaterThan(test.chronologicalAge, 0)
+            XCTAssertGreaterThan(test.biologicalAge, 0)
+            // Biological age should be less than chronological (healthy person)
+            XCTAssertLessThan(test.biologicalAge, test.chronologicalAge)
+            if let pace = test.paceOfAging {
+                XCTAssertLessThan(pace, 1.0, "Sample person should be aging slower than average")
+            }
+            if let organs = test.organScores {
+                XCTAssertGreaterThanOrEqual(organs.count, 5)
+            }
+        }
+    }
+
+    func testSampleBodyEntriesHaveMeasurements() {
+        let entries = SampleData.bodyEntries
+        for entry in entries {
+            // All entries should have weight
+            XCTAssertNotNil(entry.weightLbs)
+            if let weight = entry.weightLbs {
+                XCTAssertGreaterThan(weight, 100, "Weight too low: \(weight)")
+                XCTAssertLessThan(weight, 200, "Weight too high: \(weight)")
+            }
+            if let bf = entry.bodyFatPct {
+                XCTAssertGreaterThan(bf, 5, "Body fat too low: \(bf)")
+                XCTAssertLessThan(bf, 30, "Body fat too high: \(bf)")
+            }
+        }
+    }
+
+    func testSampleGoalsProduceValidProjections() {
+        let profile = SampleData.profile
+        let dc = DeathClockEngine.calculate(
+            birthDateStr: profile.birthDate!,
+            sex: profile.biologicalSex,
+            lifestyle: profile.lifestyle
+        )
+        let cogDate = GoalEngine.cognitiveDeadline(from: dc)
+
+        for goal in SampleData.goals where goal.status == .active {
+            let projection = GoalEngine.project(
+                goal: goal, deathDate: dc?.deathDate, healthyCognitiveDate: cogDate
+            )
+            // Active goals with check-ins should produce a projection
+            if !goal.checkIns.isEmpty {
+                XCTAssertNotNil(projection.projectedCompletionDate, "Goal '\(goal.title)' should have projection")
+                XCTAssertGreaterThan(projection.weeklyProgressRate, 0, "Goal '\(goal.title)' should have positive rate")
+            }
+        }
+    }
+}
+
 // MARK: - Goal Model Tests
 
 final class GoalModelTests: XCTestCase {
