@@ -1,9 +1,11 @@
 import SwiftUI
+import Charts
 
 // MARK: - BloodView
 
 struct BloodView: View {
     @State private var bloodTests: [BloodTest] = []
+    @State private var healthMetrics: [HealthMetricEntry] = []
     @State private var showingAddForm = false
     @State private var isLoading = true
 
@@ -17,6 +19,7 @@ struct BloodView: View {
                 } else if bloodTests.isEmpty {
                     emptyState
                 } else {
+                    activityCorrelationChart
                     testList
                 }
             }
@@ -59,6 +62,173 @@ struct BloodView: View {
         .cardStyle()
     }
 
+    // MARK: - Activity + Blood Marker Correlation
+
+    @ViewBuilder
+    private var activityCorrelationChart: some View {
+        let sorted = bloodTests.sorted { $0.date < $1.date }
+        let correlationData = buildCorrelationData(tests: sorted)
+        let trackedMarkers: [(key: String, label: String, color: Color)] = [
+            ("ldl", "LDL", .orange),
+            ("glucose", "Glucose", .purple),
+            ("triglycerides", "Triglycerides", .pink),
+            ("hba1c", "HbA1c", .red),
+        ]
+        let availableMarkers = trackedMarkers.filter { marker in
+            correlationData.allSatisfy { $0.markers[marker.key] != nil }
+        }
+
+        if sorted.count >= 2 && !correlationData.isEmpty && !availableMarkers.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Activity + Blood Markers")
+                    .font(.headline)
+                    .foregroundColor(.textPrimary)
+
+                Text("30-day avg activity before each test vs. key markers")
+                    .font(.caption)
+                    .foregroundColor(.textSecondary)
+
+                stepsChart(correlationData)
+                markerTrendChart(correlationData, markers: availableMarkers)
+
+                if correlationData.count >= 2 {
+                    activitySummary(correlationData, markers: availableMarkers)
+                }
+            }
+            .padding()
+            .cardStyle()
+        }
+    }
+
+    private func stepsChart(_ data: [CorrelationDataPoint]) -> some View {
+        Chart {
+            ForEach(data, id: \.testDate) { item in
+                BarMark(
+                    x: .value("Date", item.testDate),
+                    y: .value("Steps", item.avgDailySteps)
+                )
+                .foregroundStyle(Color.accentColor.opacity(0.3))
+            }
+        }
+        .chartYAxisLabel("Avg Daily Steps")
+        .chartXAxis {
+            AxisMarks { _ in
+                AxisGridLine()
+                AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+            }
+        }
+        .frame(height: 120)
+    }
+
+    private func markerTrendChart(_ data: [CorrelationDataPoint], markers: [(key: String, label: String, color: Color)]) -> some View {
+        Chart {
+            ForEach(markers, id: \.key) { marker in
+                ForEach(data, id: \.testDate) { item in
+                    if let value = item.markers[marker.key] {
+                        LineMark(
+                            x: .value("Date", item.testDate),
+                            y: .value(marker.label, value),
+                            series: .value("Marker", marker.label)
+                        )
+                        .foregroundStyle(marker.color)
+                        .lineStyle(StrokeStyle(lineWidth: 2))
+
+                        PointMark(
+                            x: .value("Date", item.testDate),
+                            y: .value(marker.label, value)
+                        )
+                        .foregroundStyle(marker.color)
+                        .symbolSize(30)
+                    }
+                }
+            }
+        }
+        .chartYAxisLabel("Marker Value")
+        .chartXAxis {
+            AxisMarks { _ in
+                AxisGridLine()
+                AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+            }
+        }
+        .frame(height: 160)
+    }
+
+    private struct CorrelationDataPoint {
+        let testDate: Date
+        let avgDailySteps: Double
+        let avgExerciseMin: Double
+        let avgActiveEnergy: Double
+        let markers: [String: Double]
+    }
+
+    private func buildCorrelationData(tests: [BloodTest]) -> [CorrelationDataPoint] {
+        let metricsByDate = Dictionary(grouping: healthMetrics, by: \.date)
+
+        return tests.compactMap { test -> CorrelationDataPoint? in
+            guard let testDate = DateFormatting.dateFromString(test.date) else { return nil }
+
+            // Get health metrics from 30 days before test
+            var totalSteps = 0.0, totalExercise = 0.0, totalEnergy = 0.0, count = 0.0
+            for dayOffset in 1...30 {
+                guard let day = Calendar.current.date(byAdding: .day, value: -dayOffset, to: testDate) else { continue }
+                let dayStr = DateFormatting.dateString(day)
+                if let metrics = metricsByDate[dayStr]?.first {
+                    totalSteps += metrics.steps ?? 0
+                    totalExercise += metrics.exerciseMinutes ?? 0
+                    totalEnergy += metrics.activeEnergy ?? 0
+                    count += 1
+                }
+            }
+
+            guard count > 0 else { return nil }
+
+            return CorrelationDataPoint(
+                testDate: testDate,
+                avgDailySteps: totalSteps / count,
+                avgExerciseMin: totalExercise / count,
+                avgActiveEnergy: totalEnergy / count,
+                markers: test.markers
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func activitySummary(_ data: [CorrelationDataPoint], markers: [(key: String, label: String, color: Color)]) -> some View {
+        let first = data.first!
+        let last = data.last!
+        let stepsDelta = last.avgDailySteps - first.avgDailySteps
+        let stepsDir = stepsDelta > 0 ? "higher" : "lower"
+
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 16) {
+                VStack(spacing: 2) {
+                    Text("Activity Trend")
+                        .font(.caption2)
+                        .foregroundColor(.textMuted)
+                    Text("\(abs(Int(stepsDelta))) steps \(stepsDir)")
+                        .font(.caption).fontWeight(.medium)
+                        .foregroundColor(stepsDelta > 0 ? .success : .warning)
+                }
+
+                ForEach(markers.prefix(3), id: \.key) { marker in
+                    if let firstVal = first.markers[marker.key], let lastVal = last.markers[marker.key] {
+                        let delta = lastVal - firstVal
+                        let ref = BloodMarkers.byKey[marker.key]
+                        let improved = ref.map { delta < 0 && lastVal <= $0.max } ?? (delta < 0)
+                        VStack(spacing: 2) {
+                            Text(marker.label)
+                                .font(.caption2)
+                                .foregroundColor(.textMuted)
+                            Text("\(delta > 0 ? "+" : "")\(DateFormatting.formatMarkerValue(delta))")
+                                .font(.caption).fontWeight(.medium)
+                                .foregroundColor(improved ? .success : .warning)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private var testList: some View {
         ForEach(bloodTests.sorted(by: { $0.date > $1.date })) { test in
             BloodTestCardView(test: test, onDelete: {
@@ -73,6 +243,7 @@ struct BloodView: View {
     private func loadData() async {
         let data = await DataStore.shared.getData()
         bloodTests = data.bloodTests
+        healthMetrics = data.healthMetrics
         isLoading = false
     }
 }

@@ -627,6 +627,36 @@ final class SampleDataTests: XCTestCase {
         XCTAssertLessThan(last.1, first.1, "Weight should trend downward in sample data")
     }
 
+    func testSampleDataSupportsActivityBloodCorrelation() {
+        // Blood tests need overlapping health metrics for the correlation chart
+        let bloodTests = SampleData.bloodTests.sorted { $0.date < $1.date }
+        let metricDates = Set(SampleData.healthMetrics.map(\.date))
+
+        XCTAssertGreaterThanOrEqual(bloodTests.count, 2, "Need at least 2 blood tests for correlation")
+
+        // At least the most recent blood test should have activity data in the 30 days before it
+        if let latestTest = bloodTests.last, let testDate = DateFormatting.dateFromString(latestTest.date) {
+            var matchingDays = 0
+            for dayOffset in 1...30 {
+                if let day = Calendar.current.date(byAdding: .day, value: -dayOffset, to: testDate) {
+                    let dayStr = DateFormatting.dateString(day)
+                    if metricDates.contains(dayStr) {
+                        matchingDays += 1
+                    }
+                }
+            }
+            XCTAssertGreaterThan(matchingDays, 0, "Latest blood test should have activity data in 30 days before it")
+        }
+
+        // All blood tests should have the key correlation markers
+        let correlationMarkers = ["ldl", "glucose", "triglycerides", "hba1c"]
+        for test in bloodTests {
+            for marker in correlationMarkers {
+                XCTAssertNotNil(test.markers[marker], "Blood test on \(test.date) missing \(marker)")
+            }
+        }
+    }
+
     func testSampleDataProducesValidDeathClock() {
         let profile = SampleData.profile
         let result = DeathClockEngine.calculate(
