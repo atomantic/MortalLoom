@@ -42,7 +42,7 @@ Port all MeatSpace features from PortOS web app to native iOS/macOS SwiftUI.
 - [x] Alcohol + HRV correlation chart (dual-axis: bars + line, summary stats)
 - [x] Nicotine + Heart Rate correlation chart (HR + resting HR lines, summary stats)
 - [x] HealthMetricEntry model with iCloud sync (HRV, HR, steps, etc.)
-- [x] Comprehensive test suite (132 unit tests + UI screenshot automation)
+- [x] Comprehensive test suite (259 unit tests + UI screenshot automation)
 - [x] Sample data factory for screenshots (-sample-data launch arg)
 - [x] Activity + blood marker correlation chart
 
@@ -53,6 +53,9 @@ Port all MeatSpace features from PortOS web app to native iOS/macOS SwiftUI.
 - [x] Life Calendar integration — goal target/projected dates as teal markers on all grid modes
 - [x] Sample goals (book, marathon, piano, garden)
 - [x] 12 new tests (Goal model, GoalEngine projections, sample data validation)
+- [x] SubstanceEngine extracted with rolling averages, NIAAA risk (24 tests)
+- [x] GenomeParser + GenomeVariant model extracted (20 tests)
+- [x] Edge case coverage for all engines and models (35 tests)
 
 ## Not Porting (web-specific)
 - Apple Health XML/JSON file import (replaced by native HealthKit)
