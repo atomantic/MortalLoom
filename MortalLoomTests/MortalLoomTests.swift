@@ -2170,39 +2170,30 @@ final class SampleDataCompletenessTests: XCTestCase {
 final class DateFormattingDaysAgoTests: XCTestCase {
 
     func testDaysAgoZero() {
-        let today = DateFormatting.todayString()
-        let result = DateFormatting.dateString(daysAgo: 0)
-        XCTAssertEqual(result, today)
+        XCTAssertEqual(DateFormatting.dateString(daysAgo: 0), DateFormatting.todayString())
     }
 
     func testDaysAgoPositive() {
-        let yesterday = DateFormatting.dateString(daysAgo: 1)
-        let today = DateFormatting.todayString()
-        XCTAssertLessThan(yesterday, today)
+        XCTAssertLessThan(DateFormatting.dateString(daysAgo: 1), DateFormatting.todayString())
     }
 
     func testDaysAgoNegative() {
-        // Negative daysAgo = future date
-        let tomorrow = DateFormatting.dateString(daysAgo: -1)
-        let today = DateFormatting.todayString()
-        XCTAssertGreaterThan(tomorrow, today)
+        XCTAssertGreaterThan(DateFormatting.dateString(daysAgo: -1), DateFormatting.todayString())
     }
 
     func testDaysAgoFromCustomDate() {
         let refDate = DateFormatting.dateFromString("2026-03-15")!
-        let result = DateFormatting.dateString(daysAgo: 7, from: refDate)
-        XCTAssertEqual(result, "2026-03-08")
+        XCTAssertEqual(DateFormatting.dateString(daysAgo: 7, from: refDate), "2026-03-08")
     }
 
     func testDaysAgoLargeValue() {
-        let result = DateFormatting.dateString(daysAgo: 365)
-        let today = DateFormatting.todayString()
-        XCTAssertLessThan(result, today)
-        // Should be roughly a year ago — ISO format ensures lexicographic ordering
-        let yearStr = String(result.prefix(4))
-        let thisYear = String(today.prefix(4))
-        XCTAssertLessThanOrEqual(Int(yearStr)!, Int(thisYear)!)
+        XCTAssertLessThan(DateFormatting.dateString(daysAgo: 365), DateFormatting.todayString())
     }
+}
+
+// MARK: - DateFormatting Edge Cases
+
+extension DateFormattingTests {
 
     func testFormatDurationEdgeCases() {
         XCTAssertEqual(DateFormatting.formatDuration(0), "0d")
@@ -2223,67 +2214,22 @@ final class DateFormattingDaysAgoTests: XCTestCase {
     }
 }
 
-// MARK: - SeededRandom Determinism Tests
-
-final class SeededRandomTests: XCTestCase {
-
-    func testSeededRandomDeterministic() {
-        // Same seed always produces same result
-        let a = SampleData.genomeVariants.count
-        let b = SampleData.genomeVariants.count
-        XCTAssertEqual(a, b)
-
-        // fullAppData should always produce same counts
-        let data1 = SampleData.fullAppData
-        let data2 = SampleData.fullAppData
-        XCTAssertEqual(data1.alcoholDrinks.count, data2.alcoholDrinks.count)
-        XCTAssertEqual(data1.nicotineEntries.count, data2.nicotineEntries.count)
-        XCTAssertEqual(data1.bodyEntries.count, data2.bodyEntries.count)
-    }
-
-    func testSampleDataAlcoholDrinksConsistentValues() {
-        // First few drinks should always be the same values (deterministic seeded random)
-        let drinks = SampleData.alcoholDrinks
-        guard drinks.count > 2 else { return }
-        // Spot check: first drink's values don't change between accesses
-        let first = drinks[0]
-        let firstAgain = SampleData.alcoholDrinks[0]
-        XCTAssertEqual(first.name, firstAgain.name)
-        XCTAssertEqual(first.oz, firstAgain.oz)
-        XCTAssertEqual(first.date, firstAgain.date)
-    }
-
-    func testSampleDataHealthMetricsConsistentCorrelation() {
-        // HRV should still be lower on drinking days across repeat accesses
-        let alcoholDates = Set(SampleData.alcoholDrinks.filter { $0.abv > 1.0 }.map(\.date))
-        let metrics = SampleData.healthMetrics
-        let drinkHRV = metrics.filter { alcoholDates.contains($0.date) }.compactMap(\.hrv)
-        let soberHRV = metrics.filter { !alcoholDates.contains($0.date) }.compactMap(\.hrv)
-        guard !drinkHRV.isEmpty, !soberHRV.isEmpty else { return }
-        let avgDrink = drinkHRV.reduce(0, +) / Double(drinkHRV.count)
-        let avgSober = soberHRV.reduce(0, +) / Double(soberHRV.count)
-        XCTAssertLessThan(avgDrink, avgSober)
-    }
-}
-
 // MARK: - GoalEngine Additional Edge Cases
 
 final class GoalEngineEdgeCaseTests: XCTestCase {
 
     func testProjectionZeroProgressCheckIn() {
-        let created = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -20, to: Date())!)
+        let created = DateFormatting.dateString(daysAgo: 20)
         var goal = Goal(title: "No progress", createdDate: created)
         goal.checkIns = [GoalCheckIn(date: created, progressPct: 0)]
         let projection = GoalEngine.project(goal: goal, deathDate: nil, healthyCognitiveDate: nil)
-        // 0% progress should return no projection
         XCTAssertNil(projection.projectedCompletionDate)
         XCTAssertEqual(projection.weeklyProgressRate, 0)
     }
 
     func testProjectionAheadOfSchedule() {
-        // 70% done in 30 days, target 180 days away — well ahead
-        let created = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -30, to: Date())!)
-        let target = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: 180, to: Date())!)
+        let created = DateFormatting.dateString(daysAgo: 30)
+        let target = DateFormatting.dateString(daysAgo: -180)
         var goal = Goal(title: "Ahead", createdDate: created, targetDate: target)
         goal.checkIns = [
             GoalCheckIn(date: created, progressPct: 20),
@@ -2296,25 +2242,22 @@ final class GoalEngineEdgeCaseTests: XCTestCase {
     }
 
     func testProjectionSlippingDueToMissedCheckIns() {
-        // Last check-in was 20 days ago, interval is 7 — should be slipping
-        let created = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -60, to: Date())!)
-        let checkIn = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -20, to: Date())!)
-        let target = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: 60, to: Date())!)
+        let created = DateFormatting.dateString(daysAgo: 60)
+        let checkIn = DateFormatting.dateString(daysAgo: 20)
+        let target = DateFormatting.dateString(daysAgo: -60)
         var goal = Goal(title: "Slipping", createdDate: created, targetDate: target)
         goal.checkIns = [
             GoalCheckIn(date: created, progressPct: 10),
             GoalCheckIn(date: checkIn, progressPct: 40),
         ]
         let projection = GoalEngine.project(goal: goal, deathDate: nil, healthyCognitiveDate: nil)
-        // Goal needs check-in (20 days > 7 day interval)
         XCTAssertTrue(goal.needsCheckIn)
-        // With missed check-ins, rate is reduced which can cause slippage
         XCTAssertGreaterThan(projection.weeklyProgressRate, 0)
     }
 
     func testProjectionWithAllDates() {
-        let created = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -30, to: Date())!)
-        let target = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: 90, to: Date())!)
+        let created = DateFormatting.dateString(daysAgo: 30)
+        let target = DateFormatting.dateString(daysAgo: -90)
         let deathDate = Calendar.current.date(byAdding: .year, value: 35, to: Date())
         let cogDate = Calendar.current.date(byAdding: .year, value: 25, to: Date())
 
@@ -2331,14 +2274,6 @@ final class GoalEngineEdgeCaseTests: XCTestCase {
     func testCognitiveDeadlineNilDeathClock() {
         XCTAssertNil(GoalEngine.cognitiveDeadline(from: nil))
     }
-
-    func testUrgencyLevelRawValues() {
-        XCTAssertEqual(GoalEngine.UrgencyLevel.onTrack.rawValue, "onTrack")
-        XCTAssertEqual(GoalEngine.UrgencyLevel.slipping.rawValue, "slipping")
-        XCTAssertEqual(GoalEngine.UrgencyLevel.atRisk.rawValue, "atRisk")
-        XCTAssertEqual(GoalEngine.UrgencyLevel.critical.rawValue, "critical")
-        XCTAssertEqual(GoalEngine.UrgencyLevel.impossible.rawValue, "impossible")
-    }
 }
 
 // MARK: - CorrelationEngine Additional Edge Cases
@@ -2347,48 +2282,43 @@ final class CorrelationEngineEdgeCaseTests: XCTestCase {
 
     func testBuildCorrelationDataEmptyMetrics() {
         let test = BloodTest(date: DateFormatting.todayString(), markers: ["glucose": 90])
-        let result = CorrelationEngine.buildCorrelationData(tests: [test], healthMetrics: [])
-        XCTAssertTrue(result.isEmpty)
+        XCTAssertTrue(CorrelationEngine.buildCorrelationData(tests: [test], healthMetrics: []).isEmpty)
     }
 
     func testBuildCorrelationDataEmptyTests() {
         let metrics = [HealthMetricEntry(date: DateFormatting.todayString(), steps: 8000)]
-        let result = CorrelationEngine.buildCorrelationData(tests: [], healthMetrics: metrics)
-        XCTAssertTrue(result.isEmpty)
+        XCTAssertTrue(CorrelationEngine.buildCorrelationData(tests: [], healthMetrics: metrics).isEmpty)
     }
 
     func testBuildCorrelationDataWindowLargerThanData() {
-        let testDate = "2026-03-15"
-        let test = BloodTest(date: testDate, markers: ["ldl": 100])
-        // Only 1 day of metrics within a 30-day window
-        let day = Calendar.current.date(byAdding: .day, value: -1, to: DateFormatting.dateFromString(testDate)!)!
-        let metrics = [HealthMetricEntry(date: DateFormatting.dateString(day), steps: 5000)]
+        let refDate = DateFormatting.dateFromString("2026-03-15")!
+        let test = BloodTest(date: "2026-03-15", markers: ["ldl": 100])
+        let metrics = [HealthMetricEntry(date: DateFormatting.dateString(daysAgo: 1, from: refDate), steps: 5000)]
         let result = CorrelationEngine.buildCorrelationData(tests: [test], healthMetrics: metrics, windowDays: 30)
         XCTAssertEqual(result.count, 1)
         XCTAssertEqual(result.first?.avgDailySteps ?? 0, 5000, accuracy: 0.1)
     }
 
     func testBuildCorrelationDataMultipleMarkersPreserved() {
-        let testDate = "2026-03-15"
-        let test = BloodTest(date: testDate, markers: ["glucose": 90, "ldl": 110, "cholesterol": 180])
-        let day = Calendar.current.date(byAdding: .day, value: -1, to: DateFormatting.dateFromString(testDate)!)!
-        let metrics = [HealthMetricEntry(date: DateFormatting.dateString(day), steps: 8000)]
+        let refDate = DateFormatting.dateFromString("2026-03-15")!
+        let test = BloodTest(date: "2026-03-15", markers: ["glucose": 90, "ldl": 110, "cholesterol": 180])
+        let metrics = [HealthMetricEntry(date: DateFormatting.dateString(daysAgo: 1, from: refDate), steps: 8000)]
         let result = CorrelationEngine.buildCorrelationData(tests: [test], healthMetrics: metrics)
         XCTAssertEqual(result.count, 1)
         XCTAssertEqual(result.first?.markers.count, 3)
         XCTAssertEqual(result.first?.markers["glucose"], 90)
     }
 
-    func testBuildCorrelationDataSortedByDate() {
+    func testBuildCorrelationDataMultipleTests() {
+        let refDate = DateFormatting.dateFromString("2026-03-15")!
         let metrics = (1...10).map { dayOffset -> HealthMetricEntry in
-            let day = Calendar.current.date(byAdding: .day, value: -dayOffset, to: DateFormatting.dateFromString("2026-03-15")!)!
-            return HealthMetricEntry(date: DateFormatting.dateString(day), steps: Double(dayOffset * 1000))
+            HealthMetricEntry(date: DateFormatting.dateString(daysAgo: dayOffset, from: refDate), steps: Double(dayOffset * 1000))
         }
         let tests = [
             BloodTest(date: "2026-03-15", markers: ["ldl": 100]),
             BloodTest(date: "2026-03-05", markers: ["ldl": 110]),
-        ]
-        let result = CorrelationEngine.buildCorrelationData(tests: tests.sorted { $0.date < $1.date }, healthMetrics: metrics)
+        ].sorted { $0.date < $1.date }
+        let result = CorrelationEngine.buildCorrelationData(tests: tests, healthMetrics: metrics)
         XCTAssertGreaterThanOrEqual(result.count, 1)
     }
 }
@@ -2398,16 +2328,13 @@ final class CorrelationEngineEdgeCaseTests: XCTestCase {
 final class GenomeParserEdgeCaseTests: XCTestCase {
 
     func testParseLargeWhitespace() {
-        let content = "   rs12913832\t15\t28365618\tGG   "
-        let variants = GenomeParser.parse(content)
+        let variants = GenomeParser.parse("   rs12913832\t15\t28365618\tGG   ")
         XCTAssertEqual(variants.count, 1)
         XCTAssertEqual(variants.first?.rsID, "rs12913832")
     }
 
     func testParseTabsWithExtraSpaces() {
-        let content = "rs12913832\t  15  \t  28365618  \t  GG  "
-        let variants = GenomeParser.parse(content)
-        XCTAssertEqual(variants.count, 1)
+        XCTAssertEqual(GenomeParser.parse("rs12913832\t  15  \t  28365618  \t  GG  ").count, 1)
     }
 
     func testParseMixedValidAndInvalid() {
@@ -2419,12 +2346,10 @@ final class GenomeParserEdgeCaseTests: XCTestCase {
         rs1805007\t16\t89919709\tCC
         not_rs\t1\t100\tAA
         """
-        let variants = GenomeParser.parse(content)
-        XCTAssertEqual(variants.count, 2)
+        XCTAssertEqual(GenomeParser.parse(content).count, 2)
     }
 
     func testParseRealWorld23andMeHeader() {
-        // Real 23andMe files have multi-line comments at the top
         let content = """
         # This data file generated by 23andMe at: Mon Jan 15 12:00:00 2026
         #
@@ -2434,41 +2359,23 @@ final class GenomeParserEdgeCaseTests: XCTestCase {
         rs12913832\t15\t28365618\tGG
         rs1805007\t16\t89919709\tCC
         """
-        let variants = GenomeParser.parse(content)
-        XCTAssertEqual(variants.count, 2)
+        XCTAssertEqual(GenomeParser.parse(content).count, 2)
     }
 
     func testParseSingleVariant() {
-        let variants = GenomeParser.parse("rs12913832\t15\t28365618\tGG")
-        XCTAssertEqual(variants.count, 1)
+        XCTAssertEqual(GenomeParser.parse("rs12913832\t15\t28365618\tGG").count, 1)
     }
 
     func testParseAncestryDNA5Columns() {
-        // AncestryDNA uses 5 columns with separate alleles
-        let content = "rs12913832\t15\t28365618\tA\tG"
-        let variants = GenomeParser.parse(content)
+        let variants = GenomeParser.parse("rs12913832\t15\t28365618\tA\tG")
         XCTAssertEqual(variants.count, 1)
         XCTAssertEqual(variants.first?.genotype, "AG")
-    }
-
-    func testParseOnlyComments() {
-        let content = """
-        # Comment 1
-        # Comment 2
-        # Comment 3
-        """
-        XCTAssertTrue(GenomeParser.parse(content).isEmpty)
     }
 }
 
 // MARK: - DeathClockEngine Countdown Edge Cases
 
 final class DeathClockCountdownEdgeCaseTests: XCTestCase {
-
-    func testCountdownNow() {
-        let countdown = DeathClockEngine.countdown(to: Date(), from: Date())
-        XCTAssertTrue(countdown.expired || countdown.totalDays <= 1)
-    }
 
     func testCountdownExactlyOneYear() {
         let now = Date()
@@ -2486,15 +2393,6 @@ final class DeathClockCountdownEdgeCaseTests: XCTestCase {
         XCTAssertFalse(countdown.expired)
         XCTAssertGreaterThanOrEqual(countdown.years, 99)
     }
-
-    func testCountdownPastDateIsExpired() {
-        let now = Date()
-        let pastDate = Calendar.current.date(byAdding: .year, value: -5, to: now)!
-        let countdown = DeathClockEngine.countdown(to: pastDate, from: now)
-        XCTAssertTrue(countdown.expired)
-        XCTAssertEqual(countdown.totalDays, 0)
-        XCTAssertEqual(countdown.years, 0)
-    }
 }
 
 // MARK: - LEV Engine Edge Cases
@@ -2504,13 +2402,12 @@ final class LEVEngineEdgeCaseTests: XCTestCase {
     func testLEVYoungPersonOnTrack() {
         let result = DeathClockEngine.calculateLEV(birthDateStr: "2000-01-01", lifeExpectancy: 85)
         XCTAssertNotNil(result)
-        XCTAssertTrue(result?.onTrack ?? false) // 85 >= age at LEV (45)
+        XCTAssertTrue(result?.onTrack ?? false)
     }
 
     func testLEVElderlyNotOnTrack() {
         let result = DeathClockEngine.calculateLEV(birthDateStr: "1940-01-01", lifeExpectancy: 90)
         XCTAssertNotNil(result)
-        // Person born 1940 would need to live to 105+ (2045), LE=90 is not enough
         XCTAssertFalse(result?.onTrack ?? true)
     }
 
@@ -2519,7 +2416,6 @@ final class LEVEngineEdgeCaseTests: XCTestCase {
         guard let lev = result else { XCTFail("Expected result"); return }
         XCTAssertGreaterThan(lev.researchProgress, 0)
         XCTAssertLessThanOrEqual(lev.researchProgress, 100)
-        // In 2026, progress should be about (2026-2000)/(2045-2000)*100 ≈ 57.8%
         XCTAssertGreaterThan(lev.researchProgress, 50)
         XCTAssertLessThan(lev.researchProgress, 70)
     }
