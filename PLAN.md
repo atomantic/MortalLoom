@@ -42,7 +42,7 @@ Port all MeatSpace features from PortOS web app to native iOS/macOS SwiftUI.
 - [x] Alcohol + HRV correlation chart (dual-axis: bars + line, summary stats)
 - [x] Nicotine + Heart Rate correlation chart (HR + resting HR lines, summary stats)
 - [x] HealthMetricEntry model with iCloud sync (HRV, HR, steps, etc.)
-- [x] Comprehensive test suite (118 unit tests + UI screenshot automation)
+- [x] Comprehensive test suite (132 unit tests + UI screenshot automation)
 - [x] Sample data factory for screenshots (-sample-data launch arg)
 - [x] Activity + blood marker correlation chart
 

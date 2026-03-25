@@ -146,27 +146,13 @@ struct LifeCalendarView: View {
         }
 
         let cogDate = GoalEngine.cognitiveDeadline(from: dc)
-        var markers: [GoalMarker] = []
-
-        for goal in data.goals where goal.status == .active {
-            // Target date marker
-            if let targetStr = goal.targetDate,
-               let targetDate = DateFormatting.dateFromString(targetStr) {
-                let days = Calendar.current.dateComponents([.day], from: birth, to: targetDate).day ?? 0
-                let weekIdx = max(0, days / 7)
-                markers.append(GoalMarker(title: goal.title, weekIndex: weekIdx, isProjected: false, priority: goal.priority))
-            }
-
-            // Projected completion marker
-            let projection = GoalEngine.project(goal: goal, deathDate: dc?.deathDate, healthyCognitiveDate: cogDate)
-            if let projDate = projection.projectedCompletionDate {
-                let days = Calendar.current.dateComponents([.day], from: birth, to: projDate).day ?? 0
-                let weekIdx = max(0, days / 7)
-                markers.append(GoalMarker(title: goal.title, weekIndex: weekIdx, isProjected: true, priority: goal.priority))
-            }
+        let computed = CorrelationEngine.goalMarkers(
+            goals: data.goals, birthDate: birth,
+            deathDate: dc?.deathDate, healthyCognitiveDate: cogDate
+        )
+        goalMarkers = computed.map {
+            GoalMarker(title: $0.title, weekIndex: $0.weekIndex, isProjected: $0.isProjected, priority: $0.priority)
         }
-
-        goalMarkers = markers
     }
 
     // MARK: - Empty State

@@ -1201,16 +1201,221 @@ final class GoalEngineTests: XCTestCase {
             XCTAssertFalse(goal.title.isEmpty)
             XCTAssertFalse(goal.createdDate.isEmpty)
 
-            // All check-ins should have valid progress
             for checkIn in goal.checkIns {
                 XCTAssertGreaterThanOrEqual(checkIn.progressPct, 0)
                 XCTAssertLessThanOrEqual(checkIn.progressPct, 100)
             }
         }
 
-        // Should have at least one completed goal
         XCTAssertTrue(goals.contains { $0.status == .completed })
-        // Should have at least one active goal
         XCTAssertTrue(goals.contains { $0.status == .active })
+    }
+
+    func testProjectionSingleCheckIn() {
+        let created = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -20, to: Date())!)
+        let checkInDate = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -5, to: Date())!)
+        var goal = Goal(title: "Single checkin", createdDate: created)
+        goal.checkIns = [GoalCheckIn(date: checkInDate, progressPct: 25)]
+
+        let projection = GoalEngine.project(goal: goal, deathDate: nil, healthyCognitiveDate: nil)
+        XCTAssertNotNil(projection.projectedCompletionDate)
+        XCTAssertNotNil(projection.daysToCompletion)
+        XCTAssertGreaterThan(projection.weeklyProgressRate, 0)
+    }
+
+    func testProjectionPausedGoal() {
+        var goal = Goal(title: "Paused", status: .paused)
+        goal.checkIns = [GoalCheckIn(date: DateFormatting.todayString(), progressPct: 50)]
+        // Paused goals don't needsCheckIn
+        XCTAssertFalse(goal.needsCheckIn)
+    }
+
+    func testProjectionCompletedGoal() {
+        var goal = Goal(title: "Done", status: .completed, priority: .high)
+        goal.checkIns = [GoalCheckIn(progressPct: 100, note: "Done")]
+        XCTAssertEqual(goal.progressPercent, 100)
+        XCTAssertFalse(goal.needsCheckIn)
+        XCTAssertFalse(goal.isOverdue)
+    }
+}
+
+// MARK: - CorrelationEngine Tests
+
+final class CorrelationEngineTests: XCTestCase {
+
+    func testBuildCorrelationDataWithSampleData() {
+        let tests = SampleData.bloodTests.sorted { $0.date < $1.date }
+        let metrics = SampleData.healthMetrics
+        let result = CorrelationEngine.buildCorrelationData(tests: tests, healthMetrics: metrics)
+
+        // Should produce data points for tests that have overlapping metrics
+        XCTAssertGreaterThan(result.count, 0)
+
+        for point in result {
+            XCTAssertGreaterThan(point.avgDailySteps, 0, "Steps should be positive")
+            XCTAssertFalse(point.markers.isEmpty, "Markers should be present")
+        }
+    }
+
+    func testBuildCorrelationDataNoOverlap() {
+        let test = BloodTest(date: "2020-01-01", markers: ["glucose": 90])
+        // Metrics from 2026 — no overlap with 2020 blood test
+        let metrics = [HealthMetricEntry(date: "2026-03-01", steps: 8000)]
+        let result = CorrelationEngine.buildCorrelationData(tests: [test], healthMetrics: metrics)
+        XCTAssertTrue(result.isEmpty, "No correlation when dates don't overlap")
+    }
+
+    func testBuildCorrelationDataAveragesCorrectly() {
+        let testDate = "2026-03-15"
+        let test = BloodTest(date: testDate, markers: ["ldl": 110])
+
+        // Create metrics for 3 days before the test
+        let metrics = (1...3).map { dayOffset -> HealthMetricEntry in
+            let day = Calendar.current.date(byAdding: .day, value: -dayOffset,
+                                             to: DateFormatting.dateFromString(testDate)!)!
+            return HealthMetricEntry(date: DateFormatting.dateString(day), steps: Double(dayOffset * 1000))
+        }
+
+        let result = CorrelationEngine.buildCorrelationData(tests: [test], healthMetrics: metrics)
+        XCTAssertEqual(result.count, 1)
+        // Average of 1000, 2000, 3000 = 2000
+        XCTAssertEqual(result.first?.avgDailySteps ?? 0, 2000, accuracy: 0.1)
+    }
+
+    func testBuildCorrelationDataCustomWindow() {
+        let testDate = "2026-03-15"
+        let test = BloodTest(date: testDate, markers: ["glucose": 90])
+
+        // Only 2 days of metrics, within a 5-day window
+        let metrics = (1...2).map { dayOffset -> HealthMetricEntry in
+            let day = Calendar.current.date(byAdding: .day, value: -dayOffset,
+                                             to: DateFormatting.dateFromString(testDate)!)!
+            return HealthMetricEntry(date: DateFormatting.dateString(day), steps: 5000)
+        }
+
+        let result5 = CorrelationEngine.buildCorrelationData(tests: [test], healthMetrics: metrics, windowDays: 5)
+        XCTAssertEqual(result5.count, 1)
+
+        let result1 = CorrelationEngine.buildCorrelationData(tests: [test], healthMetrics: [], windowDays: 1)
+        XCTAssertTrue(result1.isEmpty)
+    }
+
+    func testBuildCorrelationDataInvalidDate() {
+        let test = BloodTest(date: "not-a-date", markers: ["ldl": 100])
+        let result = CorrelationEngine.buildCorrelationData(tests: [test], healthMetrics: [])
+        XCTAssertTrue(result.isEmpty)
+    }
+
+    func testGoalMarkersFromSampleData() {
+        let profile = SampleData.profile
+        guard let birthDate = DeathClockEngine.dateFromString(profile.birthDate!) else {
+            XCTFail("Invalid birth date")
+            return
+        }
+        let dc = DeathClockEngine.calculate(
+            birthDateStr: profile.birthDate!, sex: profile.biologicalSex, lifestyle: profile.lifestyle
+        )
+        let cogDate = GoalEngine.cognitiveDeadline(from: dc)
+
+        let markers = CorrelationEngine.goalMarkers(
+            goals: SampleData.goals, birthDate: birthDate,
+            deathDate: dc?.deathDate, healthyCognitiveDate: cogDate
+        )
+
+        // Active goals with target dates should produce target markers
+        let targetMarkers = markers.filter { !$0.isProjected }
+        let projectedMarkers = markers.filter { $0.isProjected }
+        XCTAssertGreaterThan(targetMarkers.count, 0, "Should have target date markers")
+        XCTAssertGreaterThan(projectedMarkers.count, 0, "Should have projected completion markers")
+
+        for marker in markers {
+            XCTAssertFalse(marker.title.isEmpty)
+            XCTAssertGreaterThan(marker.weekIndex, 0)
+        }
+    }
+
+    func testGoalMarkersExcludesNonActive() {
+        let birthDate = Date()
+        let completedGoal = Goal(title: "Done", targetDate: "2027-01-01", status: .completed)
+        let pausedGoal = Goal(title: "Paused", targetDate: "2027-01-01", status: .paused)
+
+        let markers = CorrelationEngine.goalMarkers(
+            goals: [completedGoal, pausedGoal], birthDate: birthDate,
+            deathDate: nil, healthyCognitiveDate: nil
+        )
+        XCTAssertTrue(markers.isEmpty, "Non-active goals should not produce markers")
+    }
+
+    func testGoalMarkersNoTargetDate() {
+        let birthDate = Calendar.current.date(byAdding: .year, value: -30, to: Date())!
+        let created = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -30, to: Date())!)
+        var goal = Goal(title: "No target", createdDate: created)
+        goal.checkIns = [
+            GoalCheckIn(date: created, progressPct: 10),
+            GoalCheckIn(date: DateFormatting.todayString(), progressPct: 30),
+        ]
+
+        let markers = CorrelationEngine.goalMarkers(
+            goals: [goal], birthDate: birthDate, deathDate: nil, healthyCognitiveDate: nil
+        )
+
+        // No target date marker, but should have a projected marker
+        let targetMarkers = markers.filter { !$0.isProjected }
+        let projectedMarkers = markers.filter { $0.isProjected }
+        XCTAssertEqual(targetMarkers.count, 0)
+        XCTAssertEqual(projectedMarkers.count, 1)
+    }
+}
+
+// MARK: - HealthMetricEntry Tests
+
+final class HealthMetricMergeTests: XCTestCase {
+
+    func testMergeFieldsOverwritesNonNil() {
+        var target = HealthMetricEntry(date: "2026-03-15", heartRate: 72, steps: 8000)
+        let source = HealthMetricEntry(date: "2026-03-15", heartRate: 75, hrv: 45)
+
+        target.mergeFields(from: source)
+
+        XCTAssertEqual(target.heartRate, 75, "Non-nil source should overwrite")
+        XCTAssertEqual(target.hrv, 45, "Non-nil source should fill nil target")
+        XCTAssertEqual(target.steps, 8000, "Nil source should not clear target")
+    }
+
+    func testMergeFieldsPreservesWhenSourceNil() {
+        var target = HealthMetricEntry(date: "2026-03-15", heartRate: 72, restingHeartRate: 58,
+                                       hrv: 42, oxygenSaturation: 98, steps: 8000)
+        let emptySource = HealthMetricEntry(date: "2026-03-15")
+
+        target.mergeFields(from: emptySource)
+
+        XCTAssertEqual(target.heartRate, 72)
+        XCTAssertEqual(target.restingHeartRate, 58)
+        XCTAssertEqual(target.hrv, 42)
+        XCTAssertEqual(target.oxygenSaturation, 98)
+        XCTAssertEqual(target.steps, 8000)
+    }
+
+    func testMergeFieldsAllFields() {
+        var target = HealthMetricEntry(date: "2026-03-15")
+        let source = HealthMetricEntry(
+            date: "2026-03-15", heartRate: 72, restingHeartRate: 58,
+            hrv: 42, oxygenSaturation: 98, respiratoryRate: 16,
+            vo2Max: 45, steps: 8000, activeEnergy: 500,
+            exerciseMinutes: 30, flightsClimbed: 10
+        )
+
+        target.mergeFields(from: source)
+
+        XCTAssertEqual(target.heartRate, 72)
+        XCTAssertEqual(target.restingHeartRate, 58)
+        XCTAssertEqual(target.hrv, 42)
+        XCTAssertEqual(target.oxygenSaturation, 98)
+        XCTAssertEqual(target.respiratoryRate, 16)
+        XCTAssertEqual(target.vo2Max, 45)
+        XCTAssertEqual(target.steps, 8000)
+        XCTAssertEqual(target.activeEnergy, 500)
+        XCTAssertEqual(target.exerciseMinutes, 30)
+        XCTAssertEqual(target.flightsClimbed, 10)
     }
 }

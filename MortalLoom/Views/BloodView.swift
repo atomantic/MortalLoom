@@ -5,9 +5,17 @@ import Charts
 
 struct BloodView: View {
     @State private var bloodTests: [BloodTest] = []
-    @State private var healthMetrics: [HealthMetricEntry] = []
+    @State private var sortedTests: [BloodTest] = []
+    @State private var correlationData: [CorrelationDataPoint] = []
     @State private var showingAddForm = false
     @State private var isLoading = true
+
+    private static let trackedMarkers: [(key: String, label: String, color: Color)] = [
+        ("ldl", "LDL", .orange),
+        ("glucose", "Glucose", .purple),
+        ("triglycerides", "Triglycerides", .pink),
+        ("hba1c", "HbA1c", .red),
+    ]
 
     var body: some View {
         ScrollView {
@@ -66,19 +74,11 @@ struct BloodView: View {
 
     @ViewBuilder
     private var activityCorrelationChart: some View {
-        let sorted = bloodTests.sorted { $0.date < $1.date }
-        let correlationData = buildCorrelationData(tests: sorted)
-        let trackedMarkers: [(key: String, label: String, color: Color)] = [
-            ("ldl", "LDL", .orange),
-            ("glucose", "Glucose", .purple),
-            ("triglycerides", "Triglycerides", .pink),
-            ("hba1c", "HbA1c", .red),
-        ]
-        let availableMarkers = trackedMarkers.filter { marker in
-            correlationData.allSatisfy { $0.markers[marker.key] != nil }
+        let availableMarkers = Self.trackedMarkers.filter { marker in
+            correlationData.contains { $0.markers[marker.key] != nil }
         }
 
-        if sorted.count >= 2 && !correlationData.isEmpty && !availableMarkers.isEmpty {
+        if sortedTests.count >= 2 && !correlationData.isEmpty && !availableMarkers.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Activity + Blood Markers")
                     .font(.headline)
@@ -114,10 +114,10 @@ struct BloodView: View {
         .chartXAxis {
             AxisMarks { _ in
                 AxisGridLine()
-                AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                AxisValueLabel(format: .dateTime.month(.abbreviated).day(), centered: true)
             }
         }
-        .frame(height: 120)
+        .frame(height: Layout.chartFrameHeight)
     }
 
     private func markerTrendChart(_ data: [CorrelationDataPoint], markers: [(key: String, label: String, color: Color)]) -> some View {
@@ -147,59 +147,18 @@ struct BloodView: View {
         .chartXAxis {
             AxisMarks { _ in
                 AxisGridLine()
-                AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+                AxisValueLabel(format: .dateTime.month(.abbreviated).day(), centered: true)
             }
         }
-        .frame(height: 160)
-    }
-
-    private struct CorrelationDataPoint {
-        let testDate: Date
-        let avgDailySteps: Double
-        let avgExerciseMin: Double
-        let avgActiveEnergy: Double
-        let markers: [String: Double]
-    }
-
-    private func buildCorrelationData(tests: [BloodTest]) -> [CorrelationDataPoint] {
-        let metricsByDate = Dictionary(grouping: healthMetrics, by: \.date)
-
-        return tests.compactMap { test -> CorrelationDataPoint? in
-            guard let testDate = DateFormatting.dateFromString(test.date) else { return nil }
-
-            // Get health metrics from 30 days before test
-            var totalSteps = 0.0, totalExercise = 0.0, totalEnergy = 0.0, count = 0.0
-            for dayOffset in 1...30 {
-                guard let day = Calendar.current.date(byAdding: .day, value: -dayOffset, to: testDate) else { continue }
-                let dayStr = DateFormatting.dateString(day)
-                if let metrics = metricsByDate[dayStr]?.first {
-                    totalSteps += metrics.steps ?? 0
-                    totalExercise += metrics.exerciseMinutes ?? 0
-                    totalEnergy += metrics.activeEnergy ?? 0
-                    count += 1
-                }
-            }
-
-            guard count > 0 else { return nil }
-
-            return CorrelationDataPoint(
-                testDate: testDate,
-                avgDailySteps: totalSteps / count,
-                avgExerciseMin: totalExercise / count,
-                avgActiveEnergy: totalEnergy / count,
-                markers: test.markers
-            )
-        }
+        .frame(height: Layout.chartFrameHeight)
     }
 
     @ViewBuilder
     private func activitySummary(_ data: [CorrelationDataPoint], markers: [(key: String, label: String, color: Color)]) -> some View {
-        let first = data.first!
-        let last = data.last!
-        let stepsDelta = last.avgDailySteps - first.avgDailySteps
-        let stepsDir = stepsDelta > 0 ? "higher" : "lower"
+        if let first = data.first, let last = data.last {
+            let stepsDelta = last.avgDailySteps - first.avgDailySteps
+            let stepsDir = stepsDelta > 0 ? "higher" : "lower"
 
-        VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 16) {
                 VStack(spacing: 2) {
                     Text("Activity Trend")
@@ -230,7 +189,7 @@ struct BloodView: View {
     }
 
     private var testList: some View {
-        ForEach(bloodTests.sorted(by: { $0.date > $1.date })) { test in
+        ForEach(sortedTests.reversed()) { test in
             BloodTestCardView(test: test, onDelete: {
                 Task {
                     await DataStore.shared.removeBloodTest(id: test.id)
@@ -243,7 +202,9 @@ struct BloodView: View {
     private func loadData() async {
         let data = await DataStore.shared.getData()
         bloodTests = data.bloodTests
-        healthMetrics = data.healthMetrics
+        let sorted = data.bloodTests.sorted { $0.date < $1.date }
+        sortedTests = sorted
+        correlationData = CorrelationEngine.buildCorrelationData(tests: sorted, healthMetrics: data.healthMetrics)
         isLoading = false
     }
 }
