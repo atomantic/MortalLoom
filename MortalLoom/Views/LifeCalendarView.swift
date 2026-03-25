@@ -5,18 +5,13 @@ struct LifeCalendarView: View {
     @State private var deathClock: DeathClockEngine.DeathClockResult?
     @State private var viewMode: ViewMode = .weeks
     @State private var goalMarkers: [GoalMarker] = []
+    @State private var goalWeekSet: Set<Int> = []
+    @State private var projectedWeekSet: Set<Int> = []
 
     private enum ViewMode: String, CaseIterable {
         case years = "Years"
         case months = "Months"
         case weeks = "Weeks"
-    }
-
-    struct GoalMarker {
-        let title: String
-        let weekIndex: Int
-        let isProjected: Bool  // true = projected completion, false = target date
-        let priority: GoalPriority
     }
 
     private var birthDate: Date? {
@@ -84,12 +79,11 @@ struct LifeCalendarView: View {
 
     private static let milestoneAges = [0, 18, 30, 40, 50, 60, 70, 80, 90, 100]
 
-    // Pre-computed sets for fast lookup during canvas drawing
-    private var goalWeekIndices: Set<Int> {
-        Set(goalMarkers.filter { !$0.isProjected }.map(\.weekIndex))
+    private var goalMonthSet: Set<Int> {
+        Set(goalMarkers.filter { !$0.isProjected }.map { Int(Double($0.weekIndex) / 4.33) })
     }
-    private var projectedWeekIndices: Set<Int> {
-        Set(goalMarkers.filter { $0.isProjected }.map(\.weekIndex))
+    private var projectedMonthSet: Set<Int> {
+        Set(goalMarkers.filter { $0.isProjected }.map { Int(Double($0.weekIndex) / 4.33) })
     }
 
     var body: some View {
@@ -146,13 +140,13 @@ struct LifeCalendarView: View {
         }
 
         let cogDate = GoalEngine.cognitiveDeadline(from: dc)
-        let computed = CorrelationEngine.goalMarkers(
+        let markers = GoalEngine.goalMarkers(
             goals: data.goals, birthDate: birth,
             deathDate: dc?.deathDate, healthyCognitiveDate: cogDate
         )
-        goalMarkers = computed.map {
-            GoalMarker(title: $0.title, weekIndex: $0.weekIndex, isProjected: $0.isProjected, priority: $0.priority)
-        }
+        goalMarkers = markers
+        goalWeekSet = Set(markers.filter { !$0.isProjected }.map(\.weekIndex))
+        projectedWeekSet = Set(markers.filter { $0.isProjected }.map(\.weekIndex))
     }
 
     // MARK: - Empty State
@@ -249,8 +243,8 @@ struct LifeCalendarView: View {
     @ViewBuilder
     private var yearsGrid: some View {
         let cols = 10
-        let goalYears = Set(goalMarkers.filter { !$0.isProjected }.map { $0.weekIndex / 52 })
-        let projectedYears = Set(goalMarkers.filter { $0.isProjected }.map { $0.weekIndex / 52 })
+        let goalYears = Set(goalWeekSet.map { $0 / 52 })
+        let projectedYears = Set(projectedWeekSet.map { $0 / 52 })
 
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -380,8 +374,8 @@ struct LifeCalendarView: View {
 
         let milestoneMonths = Set(Self.milestoneAges.map { $0 * 12 })
         // Convert week indices to month indices (approximate: week / 4.33)
-        let goalMonthIndices = Set(goalMarkers.filter { !$0.isProjected }.map { Int(Double($0.weekIndex) / 4.33) })
-        let projectedMonthIndices = Set(goalMarkers.filter { $0.isProjected }.map { Int(Double($0.weekIndex) / 4.33) })
+        let goalMonthIndices = goalMonthSet
+        let projectedMonthIndices = projectedMonthSet
 
         for year in 0..<lifeExpectancyYears {
             let y = CGFloat(year) * (cellSize + spacing) + spacing
@@ -536,8 +530,8 @@ struct LifeCalendarView: View {
         let projectedShading: GraphicsContext.Shading = .color(.teal.opacity(0.5))
 
         let milestoneWeeks = Set(Self.milestoneAges.map { $0 * 52 })
-        let goalWeeks = goalWeekIndices
-        let projectedWeeks = projectedWeekIndices
+        let goalWeeks = goalWeekSet
+        let projectedWeeks = projectedWeekSet
 
         for year in 0..<lifeExpectancyYears {
             let y = CGFloat(year) * (cellSize + spacing) + spacing

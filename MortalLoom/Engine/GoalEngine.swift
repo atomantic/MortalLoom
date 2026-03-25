@@ -114,10 +114,42 @@ enum GoalEngine {
         )
     }
 
-    /// Calculate the date when healthy cognitive function is expected to decline.
     static func cognitiveDeadline(from deathClock: DeathClockEngine.DeathClockResult?, now: Date = Date()) -> Date? {
         guard let dc = deathClock else { return nil }
         let cognitiveYears = dc.healthyYearsRemaining
         return Calendar.current.date(byAdding: .day, value: Int(cognitiveYears * 365.25), to: now)
     }
+
+    /// Convert active goals into week-index markers relative to a birth date.
+    static func goalMarkers(
+        goals: [Goal],
+        birthDate: Date,
+        deathDate: Date?,
+        healthyCognitiveDate: Date?
+    ) -> [GoalMarker] {
+        var markers: [GoalMarker] = []
+
+        for goal in goals where goal.status == .active {
+            if let targetStr = goal.targetDate,
+               let targetDate = DateFormatting.dateFromString(targetStr) {
+                let days = Calendar.current.dateComponents([.day], from: birthDate, to: targetDate).day ?? 0
+                markers.append(GoalMarker(title: goal.title, weekIndex: max(0, days / 7), isProjected: false, priority: goal.priority))
+            }
+
+            let projection = project(goal: goal, deathDate: deathDate, healthyCognitiveDate: healthyCognitiveDate)
+            if let projDate = projection.projectedCompletionDate {
+                let days = Calendar.current.dateComponents([.day], from: birthDate, to: projDate).day ?? 0
+                markers.append(GoalMarker(title: goal.title, weekIndex: max(0, days / 7), isProjected: true, priority: goal.priority))
+            }
+        }
+
+        return markers
+    }
+}
+
+struct GoalMarker: Sendable {
+    let title: String
+    let weekIndex: Int
+    let isProjected: Bool
+    let priority: GoalPriority
 }

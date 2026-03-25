@@ -1317,7 +1317,7 @@ final class CorrelationEngineTests: XCTestCase {
         )
         let cogDate = GoalEngine.cognitiveDeadline(from: dc)
 
-        let markers = CorrelationEngine.goalMarkers(
+        let markers = GoalEngine.goalMarkers(
             goals: SampleData.goals, birthDate: birthDate,
             deathDate: dc?.deathDate, healthyCognitiveDate: cogDate
         )
@@ -1339,7 +1339,7 @@ final class CorrelationEngineTests: XCTestCase {
         let completedGoal = Goal(title: "Done", targetDate: "2027-01-01", status: .completed)
         let pausedGoal = Goal(title: "Paused", targetDate: "2027-01-01", status: .paused)
 
-        let markers = CorrelationEngine.goalMarkers(
+        let markers = GoalEngine.goalMarkers(
             goals: [completedGoal, pausedGoal], birthDate: birthDate,
             deathDate: nil, healthyCognitiveDate: nil
         )
@@ -1355,7 +1355,7 @@ final class CorrelationEngineTests: XCTestCase {
             GoalCheckIn(date: DateFormatting.todayString(), progressPct: 30),
         ]
 
-        let markers = CorrelationEngine.goalMarkers(
+        let markers = GoalEngine.goalMarkers(
             goals: [goal], birthDate: birthDate, deathDate: nil, healthyCognitiveDate: nil
         )
 
