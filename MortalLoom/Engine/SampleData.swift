@@ -372,6 +372,34 @@ enum SampleData {
         return [bookGoal, marathonGoal, pianoGoal, gardenGoal]
     }()
 
+    // MARK: - Genome Variants (sample 23andMe-format data)
+
+    static let genomeFileContent = """
+    # rsid\tchromosome\tposition\tgenotype
+    rs12913832\t15\t28365618\tGG
+    rs1805007\t16\t89919709\tCC
+    rs4988235\t2\t136608646\tAG
+    rs1799971\t6\t154360797\tAA
+    rs53576\t3\t8804371\tGG
+    rs1800497\t11\t113400106\tCT
+    rs7294919\t12\t97514060\tAG
+    i3003137\t7\t17284577\tAC
+    rs429358\t19\t45411941\tTT
+    rs7412\t19\t45412079\tCC
+    """
+
+    static let genomeVariants: [GenomeVariant] = GenomeParser.parse(genomeFileContent)
+
+    // MARK: - Ancestry DNA format sample
+
+    static let ancestryDNAFileContent = """
+    #AncestryDNA raw data download
+    #rsid,chromosome,position,allele1,allele2
+    rs12913832,15,28365618,G,G
+    rs1805007,16,89919709,C,C
+    rs4988235,2,136608646,A,G
+    """
+
     // MARK: - Full AppData
 
     static let fullAppData = AppData(

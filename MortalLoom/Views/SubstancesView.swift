@@ -22,13 +22,9 @@ private enum VolumeUnit: String, CaseIterable {
     }
 }
 
-// MARK: - NIAAA Risk Level
+// MARK: - NIAAA Risk Level Color
 
-private enum NIAAARiskLevel: String {
-    case low = "Low"
-    case moderate = "Moderate"
-    case high = "High"
-
+extension NIAAARiskLevel {
     var color: Color {
         switch self {
         case .low: .success
@@ -192,11 +188,11 @@ struct SubstancesView: View {
     private var alcoholStatsBar: some View {
         let today = todayString()
         let todayGrams = alcoholDrinks.filter { $0.date == today }.reduce(0.0) { $0 + $1.gramsAlcohol }
-        let avg7 = rollingAverageGrams(drinks: alcoholDrinks, days: 7)
-        let avg30 = rollingAverageGrams(drinks: alcoholDrinks, days: 30)
-        let weeklyTotal = weeklyTotalStandardDrinks(drinks: alcoholDrinks)
-        let allTimeAvg = allTimeAverageGrams(drinks: alcoholDrinks)
-        let risk = niaaaRiskLevel(drinks: alcoholDrinks, sex: biologicalSex)
+        let avg7 = SubstanceEngine.rollingAverageGrams(drinks: alcoholDrinks, days: 7)
+        let avg30 = SubstanceEngine.rollingAverageGrams(drinks: alcoholDrinks, days: 30)
+        let weeklyTotal = SubstanceEngine.weeklyTotalStandardDrinks(drinks: alcoholDrinks)
+        let allTimeAvg = SubstanceEngine.allTimeAverageGrams(drinks: alcoholDrinks)
+        let risk = SubstanceEngine.niaaaRiskLevel(drinks: alcoholDrinks, sex: biologicalSex)
         let weeklyThreshold: Double = (biologicalSex == .female) ? 7.0 : 14.0
 
         return VStack(spacing: 12) {
@@ -611,10 +607,10 @@ struct SubstancesView: View {
     private var nicotineStatsBar: some View {
         let today = todayString()
         let todayMg = nicotineEntries.filter { $0.date == today }.reduce(0.0) { $0 + $1.totalMg }
-        let avg7 = rollingAverageMg(entries: nicotineEntries, days: 7)
-        let avg30 = rollingAverageMg(entries: nicotineEntries, days: 30)
-        let weeklyTotal = weeklyTotalMg(entries: nicotineEntries)
-        let allTimeAvg = allTimeAverageMg(entries: nicotineEntries)
+        let avg7 = SubstanceEngine.rollingAverageMg(entries: nicotineEntries, days: 7)
+        let avg30 = SubstanceEngine.rollingAverageMg(entries: nicotineEntries, days: 30)
+        let weeklyTotal = SubstanceEngine.weeklyTotalMg(entries: nicotineEntries)
+        let allTimeAvg = SubstanceEngine.allTimeAverageMg(entries: nicotineEntries)
 
         return VStack(spacing: 12) {
             HStack(spacing: 0) {
@@ -1147,74 +1143,6 @@ struct SubstancesView: View {
         await loadData()
     }
 
-    // MARK: - Calculation Helpers
-
-    private func rollingAverageGrams(drinks: [AlcoholDrink], days: Int) -> Double {
-        let cutoff = dateString(daysAgo: days)
-        let filtered = drinks.filter { $0.date >= cutoff }
-        let total = filtered.reduce(0.0) { $0 + $1.gramsAlcohol }
-        return total / Double(days)
-    }
-
-    private func weeklyTotalStandardDrinks(drinks: [AlcoholDrink]) -> Double {
-        let cutoff = dateString(daysAgo: 7)
-        return drinks.filter { $0.date >= cutoff }.reduce(0.0) { $0 + $1.standardDrinks }
-    }
-
-    private func allTimeAverageGrams(drinks: [AlcoholDrink]) -> Double {
-        guard !drinks.isEmpty else { return 0 }
-        guard let earliest = drinks.map(\.date).min(),
-              let firstDate = DateFormatting.dateFromString( earliest) else { return 0 }
-        let dayCount = max(1, Calendar.current.dateComponents([.day], from: firstDate, to: Date()).day ?? 1)
-        let total = drinks.reduce(0.0) { $0 + $1.gramsAlcohol }
-        return total / Double(dayCount)
-    }
-
-    private func niaaaRiskLevel(drinks: [AlcoholDrink], sex: BiologicalSex?) -> NIAAARiskLevel {
-        let weeklyStd = weeklyTotalStandardDrinks(drinks: drinks)
-        let dailyMax = dailyMaxStandardDrinks(drinks: drinks, days: 7)
-
-        let isFemale = sex == .female
-        let dailyThreshold: Double = isFemale ? 1.0 : 2.0
-        let weeklyThreshold: Double = isFemale ? 7.0 : 14.0
-
-        if weeklyStd > weeklyThreshold || dailyMax > (dailyThreshold * 2) {
-            return .high
-        } else if weeklyStd > weeklyThreshold * 0.7 || dailyMax > dailyThreshold {
-            return .moderate
-        }
-        return .low
-    }
-
-    private func dailyMaxStandardDrinks(drinks: [AlcoholDrink], days: Int) -> Double {
-        let cutoff = dateString(daysAgo: days)
-        let recent = drinks.filter { $0.date >= cutoff }
-        let grouped = Dictionary(grouping: recent, by: \.date)
-        return grouped.values.map { dayDrinks in
-            dayDrinks.reduce(0.0) { $0 + $1.standardDrinks }
-        }.max() ?? 0
-    }
-
-    private func rollingAverageMg(entries: [NicotineEntry], days: Int) -> Double {
-        let cutoff = dateString(daysAgo: days)
-        let filtered = entries.filter { $0.date >= cutoff }
-        let total = filtered.reduce(0.0) { $0 + $1.totalMg }
-        return total / Double(days)
-    }
-
-    private func weeklyTotalMg(entries: [NicotineEntry]) -> Double {
-        let cutoff = dateString(daysAgo: 7)
-        return entries.filter { $0.date >= cutoff }.reduce(0.0) { $0 + $1.totalMg }
-    }
-
-    private func allTimeAverageMg(entries: [NicotineEntry]) -> Double {
-        guard !entries.isEmpty else { return 0 }
-        guard let earliest = entries.map(\.date).min(),
-              let firstDate = DateFormatting.dateFromString( earliest) else { return 0 }
-        let dayCount = max(1, Calendar.current.dateComponents([.day], from: firstDate, to: Date()).day ?? 1)
-        let total = entries.reduce(0.0) { $0 + $1.totalMg }
-        return total / Double(dayCount)
-    }
 }
 
 // MARK: - Alcohol Preset Manager

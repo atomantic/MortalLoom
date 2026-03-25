@@ -1,20 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-// MARK: - Genome Variant
-
-private struct GenomeVariant: Identifiable, Codable, Sendable {
-    let id: UUID
-    let rsID: String
-    let chromosome: String
-    let position: String
-    let genotype: String
-
-    init(id: UUID = UUID(), rsID: String, chromosome: String, position: String, genotype: String) {
-        self.id = id; self.rsID = rsID; self.chromosome = chromosome
-        self.position = position; self.genotype = genotype
-    }
-}
+// GenomeVariant is defined in Models/GenomeVariant.swift
 
 // MARK: - GenomeView
 
@@ -345,41 +332,7 @@ struct GenomeView: View {
                 return
             }
 
-            let lines = content.components(separatedBy: .newlines)
-            var variants: [GenomeVariant] = []
-
-            for line in lines {
-                let trimmed = line.trimmingCharacters(in: .whitespaces)
-                // Skip comments and empty lines
-                if trimmed.isEmpty || trimmed.hasPrefix("#") { continue }
-
-                // 23andMe format: rsid  chromosome  position  genotype (tab-separated)
-                // AncestryDNA format: rsid  chromosome  position  allele1  allele2 (tab or comma)
-                let parts: [String]
-                if trimmed.contains("\t") {
-                    parts = trimmed.components(separatedBy: "\t").map { $0.trimmingCharacters(in: .whitespaces) }
-                } else if trimmed.contains(",") {
-                    parts = trimmed.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
-                } else {
-                    parts = trimmed.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
-                }
-
-                guard parts.count >= 4 else { continue }
-                let rsID = parts[0]
-                guard rsID.hasPrefix("rs") || rsID.hasPrefix("i") else { continue }
-
-                let chromosome = parts[1]
-                let position = parts[2]
-                let genotype: String
-                if parts.count >= 5 {
-                    // AncestryDNA: allele1 + allele2
-                    genotype = parts[3] + parts[4]
-                } else {
-                    genotype = parts[3]
-                }
-
-                variants.append(GenomeVariant(rsID: rsID, chromosome: chromosome, position: position, genotype: genotype))
-            }
+            let variants = GenomeParser.parse(content)
 
             if variants.isEmpty {
                 importError = "No valid variants found in file. Expected 23andMe or AncestryDNA format."

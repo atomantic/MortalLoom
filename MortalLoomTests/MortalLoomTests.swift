@@ -1419,3 +1419,748 @@ final class HealthMetricMergeTests: XCTestCase {
         XCTAssertEqual(target.flightsClimbed, 10)
     }
 }
+
+// MARK: - SubstanceEngine Tests
+
+final class SubstanceEngineTests: XCTestCase {
+
+    // MARK: Alcohol Rolling Averages
+
+    func testRollingAverageGramsEmpty() {
+        XCTAssertEqual(SubstanceEngine.rollingAverageGrams(drinks: [], days: 7), 0)
+    }
+
+    func testRollingAverageGramsWithDrinks() {
+        let today = DateFormatting.todayString()
+        let drinks = [
+            AlcoholDrink(name: "Beer", oz: 12, abv: 5, count: 1, date: today),
+            AlcoholDrink(name: "Beer", oz: 12, abv: 5, count: 1, date: today),
+        ]
+        let avg = SubstanceEngine.rollingAverageGrams(drinks: drinks, days: 7)
+        // 2 beers * ~14g each / 7 days ≈ 4g/day
+        XCTAssertGreaterThan(avg, 3)
+        XCTAssertLessThan(avg, 5)
+    }
+
+    func testRollingAverageGramsExcludesOldDrinks() {
+        // Drink from 10 days ago should be excluded from 7-day rolling average
+        let oldDate = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -10, to: Date())!)
+        let drinks = [AlcoholDrink(name: "Beer", oz: 12, abv: 5, count: 1, date: oldDate)]
+        XCTAssertEqual(SubstanceEngine.rollingAverageGrams(drinks: drinks, days: 7), 0)
+    }
+
+    func testWeeklyTotalStandardDrinksEmpty() {
+        XCTAssertEqual(SubstanceEngine.weeklyTotalStandardDrinks(drinks: []), 0)
+    }
+
+    func testWeeklyTotalStandardDrinksWithDrinks() {
+        let today = DateFormatting.todayString()
+        let drinks = [
+            AlcoholDrink(name: "Beer", oz: 12, abv: 5, count: 3, date: today),
+        ]
+        XCTAssertEqual(SubstanceEngine.weeklyTotalStandardDrinks(drinks: drinks), 3.0, accuracy: 0.01)
+    }
+
+    func testAllTimeAverageGramsEmpty() {
+        XCTAssertEqual(SubstanceEngine.allTimeAverageGrams(drinks: []), 0)
+    }
+
+    func testAllTimeAverageGramsWithDrinks() {
+        let today = DateFormatting.todayString()
+        let weekAgo = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -7, to: Date())!)
+        let drinks = [
+            AlcoholDrink(name: "Beer", oz: 12, abv: 5, count: 1, date: weekAgo),
+            AlcoholDrink(name: "Beer", oz: 12, abv: 5, count: 1, date: today),
+        ]
+        let avg = SubstanceEngine.allTimeAverageGrams(drinks: drinks)
+        XCTAssertGreaterThan(avg, 0)
+    }
+
+    func testDailyMaxStandardDrinksEmpty() {
+        XCTAssertEqual(SubstanceEngine.dailyMaxStandardDrinks(drinks: [], days: 7), 0)
+    }
+
+    func testDailyMaxStandardDrinksMultipleDays() {
+        let today = DateFormatting.todayString()
+        let yesterday = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -1, to: Date())!)
+        let drinks = [
+            AlcoholDrink(name: "Beer", oz: 12, abv: 5, count: 1, date: yesterday),
+            AlcoholDrink(name: "Beer", oz: 12, abv: 5, count: 3, date: today),
+        ]
+        // Today has 3 std drinks, yesterday has 1 — max should be 3
+        XCTAssertEqual(SubstanceEngine.dailyMaxStandardDrinks(drinks: drinks, days: 7), 3.0, accuracy: 0.01)
+    }
+
+    // MARK: NIAAA Risk Level
+
+    func testNiaaaRiskLowMale() {
+        let today = DateFormatting.todayString()
+        let drinks = [AlcoholDrink(name: "Beer", oz: 12, abv: 5, count: 1, date: today)]
+        XCTAssertEqual(SubstanceEngine.niaaaRiskLevel(drinks: drinks, sex: .male), .low)
+    }
+
+    func testNiaaaRiskModerateMale() {
+        let today = DateFormatting.todayString()
+        // 3 standard drinks in one day (> 2 daily threshold)
+        let drinks = [AlcoholDrink(name: "Beer", oz: 12, abv: 5, count: 3, date: today)]
+        XCTAssertEqual(SubstanceEngine.niaaaRiskLevel(drinks: drinks, sex: .male), .moderate)
+    }
+
+    func testNiaaaRiskHighMale() {
+        let today = DateFormatting.todayString()
+        // 5 standard drinks in one day (> 2 * 2 = 4 daily threshold)
+        let drinks = [AlcoholDrink(name: "Beer", oz: 12, abv: 5, count: 5, date: today)]
+        XCTAssertEqual(SubstanceEngine.niaaaRiskLevel(drinks: drinks, sex: .male), .high)
+    }
+
+    func testNiaaaRiskFemaleLowerThresholds() {
+        let today = DateFormatting.todayString()
+        // 1 drink for female (> 1 daily threshold but not > 2) → moderate
+        let drinks = [
+            AlcoholDrink(name: "Beer", oz: 12, abv: 5, count: 1, date: today),
+            AlcoholDrink(name: "Light Beer", oz: 12, abv: 2.5, count: 1, date: today),
+        ]
+        XCTAssertEqual(SubstanceEngine.niaaaRiskLevel(drinks: drinks, sex: .female), .moderate)
+    }
+
+    func testNiaaaRiskHighFemale() {
+        let today = DateFormatting.todayString()
+        // 3 drinks for female (> 1 * 2 = 2 daily threshold) → high
+        let drinks = [AlcoholDrink(name: "Beer", oz: 12, abv: 5, count: 3, date: today)]
+        XCTAssertEqual(SubstanceEngine.niaaaRiskLevel(drinks: drinks, sex: .female), .high)
+    }
+
+    func testNiaaaRiskEmptyDrinks() {
+        XCTAssertEqual(SubstanceEngine.niaaaRiskLevel(drinks: [], sex: .male), .low)
+    }
+
+    func testNiaaaRiskNilSex() {
+        let today = DateFormatting.todayString()
+        // nil sex defaults to male thresholds
+        let drinks = [AlcoholDrink(name: "Beer", oz: 12, abv: 5, count: 1, date: today)]
+        XCTAssertEqual(SubstanceEngine.niaaaRiskLevel(drinks: drinks, sex: nil), .low)
+    }
+
+    // MARK: Nicotine Rolling Averages
+
+    func testRollingAverageMgEmpty() {
+        XCTAssertEqual(SubstanceEngine.rollingAverageMg(entries: [], days: 7), 0)
+    }
+
+    func testRollingAverageMgWithEntries() {
+        let today = DateFormatting.todayString()
+        let entries = [NicotineEntry(product: "Zyn 6mg", mgPerUnit: 6, count: 2, date: today)]
+        let avg = SubstanceEngine.rollingAverageMg(entries: entries, days: 7)
+        // 12mg / 7 days ≈ 1.7
+        XCTAssertEqual(avg, 12.0 / 7.0, accuracy: 0.01)
+    }
+
+    func testWeeklyTotalMgEmpty() {
+        XCTAssertEqual(SubstanceEngine.weeklyTotalMg(entries: []), 0)
+    }
+
+    func testWeeklyTotalMgWithEntries() {
+        let today = DateFormatting.todayString()
+        let yesterday = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -1, to: Date())!)
+        let entries = [
+            NicotineEntry(product: "Zyn 6mg", mgPerUnit: 6, count: 1, date: today),
+            NicotineEntry(product: "Zyn 6mg", mgPerUnit: 6, count: 2, date: yesterday),
+        ]
+        XCTAssertEqual(SubstanceEngine.weeklyTotalMg(entries: entries), 18.0, accuracy: 0.01)
+    }
+
+    func testAllTimeAverageMgEmpty() {
+        XCTAssertEqual(SubstanceEngine.allTimeAverageMg(entries: []), 0)
+    }
+
+    func testAllTimeAverageMgWithEntries() {
+        let weekAgo = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -7, to: Date())!)
+        let entries = [NicotineEntry(product: "Zyn 6mg", mgPerUnit: 6, count: 1, date: weekAgo)]
+        let avg = SubstanceEngine.allTimeAverageMg(entries: entries)
+        XCTAssertGreaterThan(avg, 0)
+    }
+
+    // MARK: With Sample Data
+
+    func testSubstanceEngineWithSampleAlcohol() {
+        let avg7 = SubstanceEngine.rollingAverageGrams(drinks: SampleData.alcoholDrinks, days: 7)
+        let avg30 = SubstanceEngine.rollingAverageGrams(drinks: SampleData.alcoholDrinks, days: 30)
+        let allTime = SubstanceEngine.allTimeAverageGrams(drinks: SampleData.alcoholDrinks)
+
+        // Sample data has active drinker, should have non-zero averages
+        XCTAssertGreaterThanOrEqual(avg7, 0)
+        XCTAssertGreaterThanOrEqual(avg30, 0)
+        XCTAssertGreaterThan(allTime, 0)
+    }
+
+    func testSubstanceEngineWithSampleNicotine() {
+        let avg7 = SubstanceEngine.rollingAverageMg(entries: SampleData.nicotineEntries, days: 7)
+        let avg30 = SubstanceEngine.rollingAverageMg(entries: SampleData.nicotineEntries, days: 30)
+        let allTime = SubstanceEngine.allTimeAverageMg(entries: SampleData.nicotineEntries)
+
+        XCTAssertGreaterThanOrEqual(avg7, 0)
+        XCTAssertGreaterThanOrEqual(avg30, 0)
+        XCTAssertGreaterThan(allTime, 0)
+    }
+}
+
+// MARK: - GenomeParser Tests
+
+final class GenomeParserTests: XCTestCase {
+
+    func testParse23andMeFormat() {
+        let content = """
+        # rsid\tchromosome\tposition\tgenotype
+        rs12913832\t15\t28365618\tGG
+        rs1805007\t16\t89919709\tCC
+        """
+        let variants = GenomeParser.parse(content)
+        XCTAssertEqual(variants.count, 2)
+        XCTAssertEqual(variants[0].rsID, "rs12913832")
+        XCTAssertEqual(variants[0].chromosome, "15")
+        XCTAssertEqual(variants[0].position, "28365618")
+        XCTAssertEqual(variants[0].genotype, "GG")
+    }
+
+    func testParseAncestryDNAFormat() {
+        let content = """
+        #AncestryDNA raw data download
+        #rsid,chromosome,position,allele1,allele2
+        rs12913832,15,28365618,G,G
+        rs4988235,2,136608646,A,G
+        """
+        let variants = GenomeParser.parse(content)
+        XCTAssertEqual(variants.count, 2)
+        XCTAssertEqual(variants[0].genotype, "GG")
+        XCTAssertEqual(variants[1].genotype, "AG")
+    }
+
+    func testParseSkipsComments() {
+        let content = """
+        # This is a comment
+        # Another comment
+        rs12913832\t15\t28365618\tGG
+        """
+        let variants = GenomeParser.parse(content)
+        XCTAssertEqual(variants.count, 1)
+    }
+
+    func testParseSkipsEmptyLines() {
+        let content = """
+        rs12913832\t15\t28365618\tGG
+
+        rs1805007\t16\t89919709\tCC
+
+        """
+        let variants = GenomeParser.parse(content)
+        XCTAssertEqual(variants.count, 2)
+    }
+
+    func testParseSkipsInvalidRsIDs() {
+        let content = """
+        INVALID\t15\t28365618\tGG
+        chr15\t15\t28365618\tGG
+        rs12913832\t15\t28365618\tGG
+        """
+        let variants = GenomeParser.parse(content)
+        XCTAssertEqual(variants.count, 1)
+    }
+
+    func testParseAcceptsIPrefix() {
+        let content = "i3003137\t7\t17284577\tAC"
+        let variants = GenomeParser.parse(content)
+        XCTAssertEqual(variants.count, 1)
+        XCTAssertEqual(variants[0].rsID, "i3003137")
+    }
+
+    func testParseSkipsShortLines() {
+        let content = "rs12913832\t15\t28365618"
+        let variants = GenomeParser.parse(content)
+        XCTAssertTrue(variants.isEmpty)
+    }
+
+    func testParseEmptyContent() {
+        XCTAssertTrue(GenomeParser.parse("").isEmpty)
+        XCTAssertTrue(GenomeParser.parse("# only comments").isEmpty)
+    }
+
+    func testParseSpaceSeparated() {
+        let content = "rs12913832 15 28365618 GG"
+        let variants = GenomeParser.parse(content)
+        XCTAssertEqual(variants.count, 1)
+        XCTAssertEqual(variants[0].genotype, "GG")
+    }
+
+    func testSampleGenomeData() {
+        let variants = SampleData.genomeVariants
+        XCTAssertGreaterThanOrEqual(variants.count, 8)
+
+        // Verify known variants are present
+        let rsIDs = Set(variants.map(\.rsID))
+        XCTAssertTrue(rsIDs.contains("rs12913832"))
+        XCTAssertTrue(rsIDs.contains("rs429358"))
+        XCTAssertTrue(rsIDs.contains("i3003137"))
+    }
+
+    func testSampleAncestryDNAParsing() {
+        let variants = GenomeParser.parse(SampleData.ancestryDNAFileContent)
+        XCTAssertEqual(variants.count, 3)
+        XCTAssertEqual(variants[0].genotype, "GG")
+        XCTAssertEqual(variants[1].genotype, "CC")
+        XCTAssertEqual(variants[2].genotype, "AG")
+    }
+
+    func testGenomeVariantCodable() {
+        let variant = GenomeVariant(rsID: "rs12913832", chromosome: "15", position: "28365618", genotype: "GG")
+        let data = try! JSONEncoder().encode(variant)
+        let decoded = try! JSONDecoder().decode(GenomeVariant.self, from: data)
+        XCTAssertEqual(decoded, variant)
+    }
+
+    func testGenomeVariantEquatable() {
+        let v1 = GenomeVariant(id: UUID(), rsID: "rs12913832", chromosome: "15", position: "28365618", genotype: "GG")
+        let v2 = GenomeVariant(id: v1.id, rsID: "rs12913832", chromosome: "15", position: "28365618", genotype: "GG")
+        XCTAssertEqual(v1, v2)
+    }
+}
+
+// MARK: - AppData Tests
+
+final class AppDataTests: XCTestCase {
+
+    func testAppDataEmpty() {
+        let empty = AppData.empty
+        XCTAssertNil(empty.profile.birthDate)
+        XCTAssertNil(empty.profile.biologicalSex)
+        XCTAssertTrue(empty.alcoholDrinks.isEmpty)
+        XCTAssertTrue(empty.nicotineEntries.isEmpty)
+        XCTAssertTrue(empty.bloodTests.isEmpty)
+        XCTAssertTrue(empty.eyeExams.isEmpty)
+        XCTAssertTrue(empty.epigeneticTests.isEmpty)
+        XCTAssertTrue(empty.bodyEntries.isEmpty)
+        XCTAssertTrue(empty.healthMetrics.isEmpty)
+        XCTAssertTrue(empty.goals.isEmpty)
+    }
+
+    func testAppDataEmptyHasDefaultLifestyle() {
+        let empty = AppData.empty
+        XCTAssertEqual(empty.profile.lifestyle.smokingStatus, .never)
+    }
+
+    func testAppDataEmptyPresetsNonEmpty() {
+        let empty = AppData.empty
+        // Presets should have defaults even for empty data
+        XCTAssertGreaterThan(empty.alcoholPresets.count, 0)
+    }
+}
+
+// MARK: - Edge Case Tests
+
+final class EdgeCaseTests: XCTestCase {
+
+    // MARK: AlcoholDrink Edge Cases
+
+    func testAlcoholDrinkZeroABV() {
+        let drink = AlcoholDrink(name: "Water", oz: 12, abv: 0, count: 1, date: "2026-01-01")
+        XCTAssertEqual(drink.standardDrinks, 0)
+        XCTAssertEqual(drink.gramsAlcohol, 0)
+    }
+
+    func testAlcoholDrinkZeroOz() {
+        let drink = AlcoholDrink(name: "Nothing", oz: 0, abv: 5, count: 1, date: "2026-01-01")
+        XCTAssertEqual(drink.standardDrinks, 0)
+        XCTAssertEqual(drink.gramsAlcohol, 0)
+    }
+
+    func testAlcoholDrinkZeroCount() {
+        let drink = AlcoholDrink(name: "Beer", oz: 12, abv: 5, count: 0, date: "2026-01-01")
+        XCTAssertEqual(drink.standardDrinks, 0)
+        XCTAssertEqual(drink.gramsAlcohol, 0)
+    }
+
+    func testAlcoholDrinkHighABV() {
+        // Everclear: 1.5oz at 95% ABV
+        let drink = AlcoholDrink(name: "Everclear", oz: 1.5, abv: 95, count: 1, date: "2026-01-01")
+        XCTAssertGreaterThan(drink.standardDrinks, 2)
+        XCTAssertGreaterThan(drink.gramsAlcohol, 20)
+    }
+
+    func testAlcoholDrinkEquatable() {
+        let d1 = AlcoholDrink(name: "Beer", oz: 12, abv: 5, count: 1, date: "2026-01-01")
+        let d2 = AlcoholDrink(id: d1.id, name: "Beer", oz: 12, abv: 5, count: 1, date: "2026-01-01")
+        XCTAssertEqual(d1, d2)
+    }
+
+    // MARK: NicotineEntry Edge Cases
+
+    func testNicotineEntryZeroMg() {
+        let entry = NicotineEntry(product: "Placebo", mgPerUnit: 0, count: 2, date: "2026-01-01")
+        XCTAssertEqual(entry.totalMg, 0)
+    }
+
+    func testNicotineEntryZeroCount() {
+        let entry = NicotineEntry(product: "Zyn", mgPerUnit: 6, count: 0, date: "2026-01-01")
+        XCTAssertEqual(entry.totalMg, 0)
+    }
+
+    func testNicotineEntryHighDose() {
+        let entry = NicotineEntry(product: "Extreme", mgPerUnit: 20, count: 5, date: "2026-01-01")
+        XCTAssertEqual(entry.totalMg, 100)
+    }
+
+    // MARK: BloodMarkerRef Edge Cases
+
+    func testBloodMarkerRefRange() {
+        let glucose = BloodMarkers.byKey["glucose"]!
+        XCTAssertEqual(glucose.range, glucose.min...glucose.max)
+    }
+
+    func testBloodMarkerStatusAtExactBoundaries() {
+        let glucose = BloodMarkers.byKey["glucose"]!
+        XCTAssertEqual(glucose.status(for: glucose.min), .normal)
+        XCTAssertEqual(glucose.status(for: glucose.max), .normal)
+        XCTAssertEqual(glucose.status(for: glucose.min - 0.1), .low)
+        XCTAssertEqual(glucose.status(for: glucose.max + 0.1), .high)
+    }
+
+    func testAllBloodMarkerCategories() {
+        // Should have metabolic, lipids, CBC, thyroid, and electrolytes/organ at minimum
+        XCTAssertGreaterThanOrEqual(BloodMarkers.categories.count, 5)
+    }
+
+    // MARK: Goal Edge Cases
+
+    func testGoalDaysSinceLastCheckInNoCheckIns() {
+        let created = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -15, to: Date())!)
+        let goal = Goal(title: "New", createdDate: created)
+        XCTAssertGreaterThanOrEqual(goal.daysSinceLastCheckIn, 14)
+    }
+
+    func testGoalDaysSinceLastCheckInWithCheckIn() {
+        let yesterday = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -1, to: Date())!)
+        var goal = Goal(title: "Recent")
+        goal.checkIns = [GoalCheckIn(date: yesterday, progressPct: 50)]
+        XCTAssertLessThanOrEqual(goal.daysSinceLastCheckIn, 2)
+    }
+
+    func testGoalProgressPercentEmpty() {
+        let goal = Goal(title: "Empty")
+        XCTAssertEqual(goal.progressPercent, 0)
+    }
+
+    func testGoalAbandonedNotOverdue() {
+        let pastDate = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -10, to: Date())!)
+        let goal = Goal(title: "Abandoned", targetDate: pastDate, status: .abandoned)
+        XCTAssertFalse(goal.isOverdue)
+    }
+
+    func testGoalAbandonedNoCheckInNeeded() {
+        let oldDate = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -30, to: Date())!)
+        var goal = Goal(title: "Abandoned", createdDate: oldDate, status: .abandoned)
+        goal.checkIns = [GoalCheckIn(date: oldDate, progressPct: 20)]
+        XCTAssertFalse(goal.needsCheckIn)
+    }
+
+    // MARK: DeathClockEngine Edge Cases
+
+    func testSSABaselineBoundaryAges() {
+        // Age 30: +0.5 bonus
+        XCTAssertEqual(DeathClockEngine.ssaBaseline(sex: .male, ageYears: 30), 76.5)
+        // Age 39: still +0.5
+        XCTAssertEqual(DeathClockEngine.ssaBaseline(sex: .male, ageYears: 39), 76.5)
+        // Age 40: +1.0
+        XCTAssertEqual(DeathClockEngine.ssaBaseline(sex: .male, ageYears: 40), 77.0)
+        // Age 50: +1.5
+        XCTAssertEqual(DeathClockEngine.ssaBaseline(sex: .male, ageYears: 50), 77.5)
+        // Age 60: +2.5
+        XCTAssertEqual(DeathClockEngine.ssaBaseline(sex: .male, ageYears: 60), 78.5)
+        // Age 80: +6.0
+        XCTAssertEqual(DeathClockEngine.ssaBaseline(sex: .male, ageYears: 80), 82.0)
+    }
+
+    func testBMIImpactEdgeCases() {
+        // Normal BMI range: 18.5-24.9
+        XCTAssertEqual(DeathClockEngine.bmiImpact(18.5), 0.5)
+        XCTAssertEqual(DeathClockEngine.bmiImpact(24.9), 0.5)
+        // Overweight: 25-29.9
+        XCTAssertEqual(DeathClockEngine.bmiImpact(25.0), -0.5)
+        XCTAssertEqual(DeathClockEngine.bmiImpact(29.9), -0.5)
+        // Obese: 30+
+        XCTAssertEqual(DeathClockEngine.bmiImpact(30.0), -3)
+    }
+
+    func testSleepImpactEdgeCases() {
+        // Optimal: 7-9
+        XCTAssertEqual(DeathClockEngine.sleepImpact(7.0), 1)
+        XCTAssertEqual(DeathClockEngine.sleepImpact(9.0), 1)
+        // Borderline: 6-7 or 9+
+        XCTAssertEqual(DeathClockEngine.sleepImpact(6.0), 0)
+    }
+
+    // MARK: EyeExam Edge Cases
+
+    func testEyeExamAllNilFields() {
+        let exam = EyeExam(date: "2026-03-15")
+        XCTAssertNil(exam.leftSphere)
+        XCTAssertNil(exam.rightSphere)
+        XCTAssertNil(exam.leftCylinder)
+        XCTAssertNil(exam.rightCylinder)
+        XCTAssertNil(exam.leftAxis)
+        XCTAssertNil(exam.rightAxis)
+
+        let data = try! JSONEncoder().encode(exam)
+        let decoded = try! JSONDecoder().decode(EyeExam.self, from: data)
+        XCTAssertEqual(decoded, exam)
+    }
+
+    // MARK: EpigeneticTest Edge Cases
+
+    func testEpigeneticTestNoOrganScores() {
+        let test = EpigeneticTest(date: "2026-03-15", chronologicalAge: 50, biologicalAge: 48)
+        XCTAssertNil(test.organScores)
+        XCTAssertNil(test.paceOfAging)
+
+        let data = try! JSONEncoder().encode(test)
+        let decoded = try! JSONDecoder().decode(EpigeneticTest.self, from: data)
+        XCTAssertEqual(decoded, test)
+    }
+
+    func testEpigeneticTestOlderBiologicalAge() {
+        let test = EpigeneticTest(date: "2026-03-15", chronologicalAge: 40, biologicalAge: 50, paceOfAging: 1.25)
+        XCTAssertGreaterThan(test.biologicalAge, test.chronologicalAge)
+        XCTAssertGreaterThan(test.paceOfAging ?? 0, 1.0)
+    }
+
+    // MARK: BodyEntry Edge Cases
+
+    func testBodyEntryNoWeight() {
+        let entry = BodyEntry(date: "2026-03-15")
+        XCTAssertNil(entry.weightLbs)
+        XCTAssertNil(entry.bodyFatPct)
+    }
+
+    func testBodyEntryOnlyBodyFat() {
+        let entry = BodyEntry(date: "2026-03-15", bodyFatPct: 15.5)
+        XCTAssertNil(entry.weightLbs)
+        XCTAssertEqual(entry.bodyFatPct, 15.5)
+    }
+
+    // MARK: LifestyleData Edge Cases
+
+    func testLifestyleDataExtremeSleepValues() {
+        XCTAssertEqual(DeathClockEngine.sleepImpact(3.0), -1.5)
+        XCTAssertEqual(DeathClockEngine.sleepImpact(12.0), 0) // Too much sleep counts as borderline
+    }
+
+    func testLifestyleDataExtremeExercise() {
+        XCTAssertEqual(DeathClockEngine.exerciseImpact(0), -2)
+        XCTAssertEqual(DeathClockEngine.exerciseImpact(300), 2) // Very high exercise
+    }
+}
+
+// MARK: - Enum Coverage Tests
+
+final class EnumCoverageTests: XCTestCase {
+
+    func testBiologicalSexAllCases() {
+        XCTAssertEqual(BiologicalSex.allCases.count, 2)
+        XCTAssertTrue(BiologicalSex.allCases.contains(.male))
+        XCTAssertTrue(BiologicalSex.allCases.contains(.female))
+    }
+
+    func testSmokingStatusAllCases() {
+        XCTAssertEqual(SmokingStatus.allCases.count, 3)
+    }
+
+    func testDietQualityAllCases() {
+        XCTAssertEqual(DietQuality.allCases.count, 4)
+    }
+
+    func testStressLevelAllCases() {
+        XCTAssertEqual(StressLevel.allCases.count, 3)
+    }
+
+    func testGoalPrioritySortOrder() {
+        let all: [GoalPriority] = [.low, .high, .medium, .low, .high]
+        let sorted = all.sorted()
+        XCTAssertEqual(sorted, [.high, .high, .medium, .low, .low])
+    }
+
+    func testGoalPriorityCodable() {
+        for priority in GoalPriority.allCases {
+            let data = try! JSONEncoder().encode(priority)
+            let decoded = try! JSONDecoder().decode(GoalPriority.self, from: data)
+            XCTAssertEqual(decoded, priority)
+        }
+    }
+
+    func testGoalStatusCodable() {
+        for status in GoalStatus.allCases {
+            let data = try! JSONEncoder().encode(status)
+            let decoded = try! JSONDecoder().decode(GoalStatus.self, from: data)
+            XCTAssertEqual(decoded, status)
+        }
+    }
+
+    func testMarkerStatusValues() {
+        XCTAssertEqual(MarkerStatus.normal.rawValue, "normal")
+        XCTAssertEqual(MarkerStatus.low.rawValue, "low")
+        XCTAssertEqual(MarkerStatus.high.rawValue, "high")
+        XCTAssertEqual(MarkerStatus.unknown.rawValue, "unknown")
+    }
+
+    func testNIAAARiskLevelValues() {
+        XCTAssertEqual(NIAAARiskLevel.low.rawValue, "Low")
+        XCTAssertEqual(NIAAARiskLevel.moderate.rawValue, "Moderate")
+        XCTAssertEqual(NIAAARiskLevel.high.rawValue, "High")
+    }
+}
+
+// MARK: - GoalEngine UrgencyLevel Tests
+
+final class GoalEngineUrgencyTests: XCTestCase {
+
+    func testOnTrackGoal() {
+        // 50% done in 30 days, target is 120 days away — comfortably on track
+        let created = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -30, to: Date())!)
+        let target = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: 120, to: Date())!)
+        var goal = Goal(title: "On Track", createdDate: created, targetDate: target)
+        goal.checkIns = [
+            GoalCheckIn(date: created, progressPct: 10),
+            GoalCheckIn(date: DateFormatting.todayString(), progressPct: 50),
+        ]
+        let projection = GoalEngine.project(goal: goal, deathDate: nil, healthyCognitiveDate: nil)
+        XCTAssertEqual(projection.urgencyLevel, .onTrack)
+        XCTAssertEqual(projection.slippageDays, 0)
+    }
+
+    func testCompletedGoalProjection() {
+        var goal = Goal(title: "Done", completedDate: DateFormatting.todayString(), status: .completed)
+        goal.checkIns = [GoalCheckIn(progressPct: 100)]
+        _ = GoalEngine.project(goal: goal, deathDate: nil, healthyCognitiveDate: nil)
+        XCTAssertEqual(goal.progressPercent, 100)
+    }
+}
+
+// MARK: - Sample Data Completeness Tests
+
+final class SampleDataCompletenessTests: XCTestCase {
+
+    func testSampleDataCoversAllFeatures() {
+        let data = SampleData.fullAppData
+
+        // Profile
+        XCTAssertNotNil(data.profile.birthDate)
+        XCTAssertNotNil(data.profile.biologicalSex)
+        XCTAssertNotNil(data.profile.lifestyle.bmi)
+
+        // Substances
+        XCTAssertFalse(data.alcoholDrinks.isEmpty)
+        XCTAssertFalse(data.nicotineEntries.isEmpty)
+        XCTAssertFalse(data.alcoholPresets.isEmpty)
+        XCTAssertFalse(data.nicotinePresets.isEmpty)
+
+        // Blood
+        XCTAssertFalse(data.bloodTests.isEmpty)
+
+        // Body
+        XCTAssertFalse(data.bodyEntries.isEmpty)
+
+        // Eyes
+        XCTAssertFalse(data.eyeExams.isEmpty)
+
+        // Epigenetic
+        XCTAssertFalse(data.epigeneticTests.isEmpty)
+
+        // Health metrics
+        XCTAssertFalse(data.healthMetrics.isEmpty)
+
+        // Goals
+        XCTAssertFalse(data.goals.isEmpty)
+    }
+
+    func testSampleDataGenomeVariantsExist() {
+        XCTAssertFalse(SampleData.genomeVariants.isEmpty)
+        XCTAssertGreaterThanOrEqual(SampleData.genomeVariants.count, 8)
+    }
+
+    func testSampleDataAllGoalStatusesRepresented() {
+        let statuses = Set(SampleData.goals.map(\.status))
+        XCTAssertTrue(statuses.contains(.active))
+        XCTAssertTrue(statuses.contains(.completed))
+    }
+
+    func testSampleDataAllGoalPrioritiesRepresented() {
+        let priorities = Set(SampleData.goals.map(\.priority))
+        XCTAssertTrue(priorities.contains(.high))
+        XCTAssertTrue(priorities.contains(.medium))
+        XCTAssertTrue(priorities.contains(.low))
+    }
+
+    func testSampleDataHasGoalsWithMilestones() {
+        let goalsWithMilestones = SampleData.goals.filter { !$0.milestones.isEmpty }
+        XCTAssertGreaterThanOrEqual(goalsWithMilestones.count, 3)
+    }
+
+    func testSampleDataHasGoalsWithCheckIns() {
+        let goalsWithCheckIns = SampleData.goals.filter { !$0.checkIns.isEmpty }
+        XCTAssertGreaterThanOrEqual(goalsWithCheckIns.count, 3)
+    }
+
+    func testSampleDataHasCompletedMilestones() {
+        let completedMilestones = SampleData.goals.flatMap(\.milestones).filter(\.completed)
+        XCTAssertGreaterThan(completedMilestones.count, 5)
+    }
+
+    func testSampleDataBodyFatMeasurementsExist() {
+        let withBodyFat = SampleData.bodyEntries.filter { $0.bodyFatPct != nil }
+        XCTAssertGreaterThan(withBodyFat.count, 0)
+    }
+
+    func testSampleDataVO2MaxMeasurementsExist() {
+        let withVO2 = SampleData.healthMetrics.filter { $0.vo2Max != nil }
+        XCTAssertGreaterThan(withVO2.count, 0)
+    }
+
+    func testSampleDataSpO2MeasurementsExist() {
+        let withSpO2 = SampleData.healthMetrics.filter { $0.oxygenSaturation != nil }
+        XCTAssertGreaterThan(withSpO2.count, 0)
+    }
+
+    func testSampleDataRespiratoryRateMeasurementsExist() {
+        let withResp = SampleData.healthMetrics.filter { $0.respiratoryRate != nil }
+        XCTAssertGreaterThan(withResp.count, 0)
+    }
+
+    func testSampleDataBloodTestsHaveAllCorrelationMarkers() {
+        let correlationMarkers = ["ldl", "glucose", "triglycerides", "hba1c", "cholesterol", "hdl", "apoB"]
+        for test in SampleData.bloodTests {
+            for marker in correlationMarkers {
+                XCTAssertNotNil(test.markers[marker], "Blood test \(test.date) missing \(marker)")
+            }
+        }
+    }
+
+    func testSampleDataEpigeneticTestsHaveOrganScores() {
+        for test in SampleData.epigeneticTests {
+            XCTAssertNotNil(test.organScores)
+            if let organs = test.organScores {
+                XCTAssertTrue(organs.keys.contains("Heart"))
+                XCTAssertTrue(organs.keys.contains("Brain"))
+                XCTAssertTrue(organs.keys.contains("Liver"))
+            }
+        }
+    }
+
+    func testSampleDataNicotinePresetsExist() {
+        XCTAssertGreaterThanOrEqual(SampleData.nicotinePresets.count, 2)
+        for preset in SampleData.nicotinePresets {
+            XCTAssertFalse(preset.name.isEmpty)
+            XCTAssertGreaterThan(preset.mgPerUnit, 0)
+        }
+    }
+
+    func testSampleDataAlcoholPresetsHaveNAOption() {
+        XCTAssertTrue(SampleData.alcoholPresets.contains { $0.abv < 1.0 })
+    }
+}
