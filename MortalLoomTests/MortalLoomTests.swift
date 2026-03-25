@@ -1493,52 +1493,52 @@ final class SubstanceEngineTests: XCTestCase {
 
     // MARK: NIAAA Risk Level
 
-    func testNiaaaRiskLowMale() {
+    func testAlcoholRiskLowMale() {
         let today = DateFormatting.todayString()
         let drinks = [AlcoholDrink(name: "Beer", oz: 12, abv: 5, count: 1, date: today)]
-        XCTAssertEqual(SubstanceEngine.niaaaRiskLevel(drinks: drinks, sex: .male), .low)
+        XCTAssertEqual(SubstanceEngine.alcoholRisk(drinks: drinks, sex: .male), .low)
     }
 
-    func testNiaaaRiskModerateMale() {
+    func testAlcoholRiskModerateMale() {
         let today = DateFormatting.todayString()
         // 3 standard drinks in one day (> 2 daily threshold)
         let drinks = [AlcoholDrink(name: "Beer", oz: 12, abv: 5, count: 3, date: today)]
-        XCTAssertEqual(SubstanceEngine.niaaaRiskLevel(drinks: drinks, sex: .male), .moderate)
+        XCTAssertEqual(SubstanceEngine.alcoholRisk(drinks: drinks, sex: .male), .moderate)
     }
 
-    func testNiaaaRiskHighMale() {
+    func testAlcoholRiskHighMale() {
         let today = DateFormatting.todayString()
         // 5 standard drinks in one day (> 2 * 2 = 4 daily threshold)
         let drinks = [AlcoholDrink(name: "Beer", oz: 12, abv: 5, count: 5, date: today)]
-        XCTAssertEqual(SubstanceEngine.niaaaRiskLevel(drinks: drinks, sex: .male), .high)
+        XCTAssertEqual(SubstanceEngine.alcoholRisk(drinks: drinks, sex: .male), .high)
     }
 
-    func testNiaaaRiskFemaleLowerThresholds() {
+    func testAlcoholRiskFemaleLowerThresholds() {
         let today = DateFormatting.todayString()
         // 1 drink for female (> 1 daily threshold but not > 2) → moderate
         let drinks = [
             AlcoholDrink(name: "Beer", oz: 12, abv: 5, count: 1, date: today),
             AlcoholDrink(name: "Light Beer", oz: 12, abv: 2.5, count: 1, date: today),
         ]
-        XCTAssertEqual(SubstanceEngine.niaaaRiskLevel(drinks: drinks, sex: .female), .moderate)
+        XCTAssertEqual(SubstanceEngine.alcoholRisk(drinks: drinks, sex: .female), .moderate)
     }
 
-    func testNiaaaRiskHighFemale() {
+    func testAlcoholRiskHighFemale() {
         let today = DateFormatting.todayString()
         // 3 drinks for female (> 1 * 2 = 2 daily threshold) → high
         let drinks = [AlcoholDrink(name: "Beer", oz: 12, abv: 5, count: 3, date: today)]
-        XCTAssertEqual(SubstanceEngine.niaaaRiskLevel(drinks: drinks, sex: .female), .high)
+        XCTAssertEqual(SubstanceEngine.alcoholRisk(drinks: drinks, sex: .female), .high)
     }
 
-    func testNiaaaRiskEmptyDrinks() {
-        XCTAssertEqual(SubstanceEngine.niaaaRiskLevel(drinks: [], sex: .male), .low)
+    func testAlcoholRiskEmptyDrinks() {
+        XCTAssertEqual(SubstanceEngine.alcoholRisk(drinks: [], sex: .male), .low)
     }
 
-    func testNiaaaRiskNilSex() {
+    func testAlcoholRiskNilSex() {
         let today = DateFormatting.todayString()
         // nil sex defaults to male thresholds
         let drinks = [AlcoholDrink(name: "Beer", oz: 12, abv: 5, count: 1, date: today)]
-        XCTAssertEqual(SubstanceEngine.niaaaRiskLevel(drinks: drinks, sex: nil), .low)
+        XCTAssertEqual(SubstanceEngine.alcoholRisk(drinks: drinks, sex: nil), .low)
     }
 
     // MARK: Nicotine Rolling Averages
@@ -2009,10 +2009,10 @@ final class EnumCoverageTests: XCTestCase {
         XCTAssertEqual(MarkerStatus.unknown.rawValue, "unknown")
     }
 
-    func testNIAAARiskLevelValues() {
-        XCTAssertEqual(NIAAARiskLevel.low.rawValue, "Low")
-        XCTAssertEqual(NIAAARiskLevel.moderate.rawValue, "Moderate")
-        XCTAssertEqual(NIAAARiskLevel.high.rawValue, "High")
+    func testAlcoholRiskValues() {
+        XCTAssertEqual(AlcoholRisk.low.rawValue, "low")
+        XCTAssertEqual(AlcoholRisk.moderate.rawValue, "moderate")
+        XCTAssertEqual(AlcoholRisk.high.rawValue, "high")
     }
 }
 

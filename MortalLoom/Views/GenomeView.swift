@@ -1,8 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-// GenomeVariant is defined in Models/GenomeVariant.swift
-
 // MARK: - GenomeView
 
 struct GenomeView: View {

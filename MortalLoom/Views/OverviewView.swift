@@ -10,13 +10,13 @@ struct OverviewView: View {
     @State private var timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     @State private var isVisible = false
     @State private var todayStr: String = DateFormatting.todayString()
-    @State private var weekAgoStr: String = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date())
+    @State private var weekAgoStr: String = DateFormatting.dateString(daysAgo: 7)
     // Pre-sorted arrays to avoid sorting in render path
     @State private var sortedBloodTests: [BloodTest] = []
     @State private var sortedEpigeneticTests: [EpigeneticTest] = []
     @State private var sortedEyeExams: [EyeExam] = []
     // Cached chart data — recomputed in recalculate(), not on every render
-    @State private var cachedAlcoholRisk: DeathClockEngine.AlcoholRisk = .low
+    @State private var cachedAlcoholRisk: AlcoholRisk = .low
     @State private var cachedHealthScore: Double = 0
     @State private var cachedNormalPoints: [TrajectoryPoint] = []
     @State private var cachedLevPoints: [TrajectoryPoint] = []
@@ -57,7 +57,7 @@ struct OverviewView: View {
 
     private func recalculate() {
         todayStr = DateFormatting.todayString()
-        weekAgoStr = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date())
+        weekAgoStr = DateFormatting.dateString(daysAgo: 7)
 
         guard let birthDate = data.profile.birthDate else {
             deathClock = nil
@@ -653,7 +653,7 @@ struct OverviewView: View {
         let weeklyGrams = weekDrinks.reduce(0.0) { $0 + $1.gramsAlcohol }
         let dailyAvg7d = weekDrinks.isEmpty ? 0 : weeklyGrams / 7.0
 
-        let riskColor = riskColor(cachedAlcoholRisk)
+        let riskColor = cachedAlcoholRisk.color
 
         Button { navigateTo(.habits) } label: {
             VStack(alignment: .leading, spacing: 8) {
@@ -871,11 +871,4 @@ struct OverviewView: View {
         selectedTab = page.rawValue
     }
 
-    private func riskColor(_ risk: DeathClockEngine.AlcoholRisk) -> Color {
-        switch risk {
-        case .low: .success
-        case .moderate: .warning
-        case .high: .danger
-        }
-    }
 }

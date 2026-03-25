@@ -20,8 +20,7 @@ enum SampleData {
     // MARK: - Date Helpers
 
     private static func dateStr(daysAgo: Int) -> String {
-        let date = Calendar.current.date(byAdding: .day, value: -daysAgo, to: Date()) ?? Date()
-        return DateFormatting.dateString(date)
+        DateFormatting.dateString(daysAgo: daysAgo)
     }
 
     private static func seededRandom(_ seed: Int, min: Double, max: Double) -> Double {

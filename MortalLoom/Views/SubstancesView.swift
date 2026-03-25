@@ -22,9 +22,9 @@ private enum VolumeUnit: String, CaseIterable {
     }
 }
 
-// MARK: - NIAAA Risk Level Color
+// MARK: - Alcohol Risk Color
 
-extension NIAAARiskLevel {
+extension AlcoholRisk {
     var color: Color {
         switch self {
         case .low: .success
@@ -41,7 +41,7 @@ private func todayString() -> String {
 }
 
 private func dateString(daysAgo: Int) -> String {
-    DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -daysAgo, to: Date()) ?? Date())
+    DateFormatting.dateString(daysAgo: daysAgo)
 }
 
 private func displayDate(_ dateStr: String) -> String {
@@ -192,7 +192,7 @@ struct SubstancesView: View {
         let avg30 = SubstanceEngine.rollingAverageGrams(drinks: alcoholDrinks, days: 30)
         let weeklyTotal = SubstanceEngine.weeklyTotalStandardDrinks(drinks: alcoholDrinks)
         let allTimeAvg = SubstanceEngine.allTimeAverageGrams(drinks: alcoholDrinks)
-        let risk = SubstanceEngine.niaaaRiskLevel(drinks: alcoholDrinks, sex: biologicalSex)
+        let risk = SubstanceEngine.alcoholRisk(drinks: alcoholDrinks, sex: biologicalSex)
         let weeklyThreshold: Double = (biologicalSex == .female) ? 7.0 : 14.0
 
         return VStack(spacing: 12) {
@@ -217,7 +217,7 @@ struct SubstancesView: View {
                     Text("Risk")
                         .font(.caption2)
                         .foregroundColor(.textMuted)
-                    Text(risk.rawValue)
+                    Text(risk.rawValue.capitalized)
                         .font(.subheadline.bold())
                         .foregroundColor(risk.color)
                 }

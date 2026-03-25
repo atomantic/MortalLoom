@@ -56,6 +56,10 @@ enum DateFormatting {
         isoFormatter.string(from: date)
     }
 
+    static func dateString(daysAgo: Int, from now: Date = Date()) -> String {
+        dateString(Calendar.current.date(byAdding: .day, value: -daysAgo, to: now) ?? now)
+    }
+
     static func dateFromString(_ str: String) -> Date? {
         isoFormatter.date(from: str)
     }

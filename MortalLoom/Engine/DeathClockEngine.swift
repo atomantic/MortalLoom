@@ -169,29 +169,10 @@ enum DeathClockEngine {
         )
     }
 
-    // MARK: - Alcohol Risk
-
-    enum AlcoholRisk: String, Sendable {
-        case low, moderate, high
-    }
+    // MARK: - Alcohol Risk (delegates to SubstanceEngine)
 
     static func alcoholRisk(drinks: [AlcoholDrink], sex: BiologicalSex?) -> AlcoholRisk {
-        let today = todayString()
-        let todayDrinks = drinks.filter { $0.date == today }
-        let todayStd = todayDrinks.reduce(0.0) { $0 + $1.standardDrinks }
-
-        let dailyMax: Double = (sex == .female) ? 1 : 2
-        let weeklyMax: Double = (sex == .female) ? 7 : 14
-
-        // Weekly total
-        let weekAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
-        let weekStr = dateString(weekAgo)
-        let weekDrinks = drinks.filter { $0.date >= weekStr }
-        let weeklyStd = weekDrinks.reduce(0.0) { $0 + $1.standardDrinks }
-
-        if todayStd > dailyMax * 2 || weeklyStd > weeklyMax * 1.5 { return .high }
-        if todayStd > dailyMax || weeklyStd > weeklyMax { return .moderate }
-        return .low
+        SubstanceEngine.alcoholRisk(drinks: drinks, sex: sex)
     }
 
     // MARK: - Helpers (delegate to shared DateFormatting)
