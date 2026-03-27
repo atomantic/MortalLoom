@@ -11,6 +11,33 @@ struct WidgetSnapshot: Codable, Sendable {
     let ageYears: Int
     let lifeExpectancy: Double
     let updatedAt: Date
+    let countdownMode: String?
+    let levDeathDate: Date?
+    let levYearsRemaining: Double?
+    let levLifeExpectancy: Double?
+    let levPercentComplete: Double?
+
+    var isLEVMode: Bool { countdownMode == "LEV" }
+
+    var activeDeathDate: Date {
+        if isLEVMode, let levDate = levDeathDate { return levDate }
+        return deathDate
+    }
+
+    var activePercentComplete: Double {
+        if isLEVMode, let levPct = levPercentComplete { return levPct }
+        return percentComplete
+    }
+
+    var activeYearsRemaining: Double {
+        if isLEVMode, let levYears = levYearsRemaining { return levYears }
+        return yearsRemaining
+    }
+
+    var activeLifeExpectancy: Double {
+        if isLEVMode, let levLE = levLifeExpectancy { return levLE }
+        return lifeExpectancy
+    }
 }
 
 // MARK: - Data Loading
@@ -45,7 +72,12 @@ struct MortalLoomEntry: TimelineEntry {
             healthScore: 82.0,
             ageYears: 43,
             lifeExpectancy: 78.2,
-            updatedAt: Date()
+            updatedAt: Date(),
+            countdownMode: nil,
+            levDeathDate: nil,
+            levYearsRemaining: nil,
+            levLifeExpectancy: nil,
+            levPercentComplete: nil
         )
     )
 }
@@ -154,21 +186,22 @@ struct SmallWidgetView: View {
 
     var body: some View {
         if let snapshot = entry.snapshot {
-            let cd = CountdownComponents(from: entry.date, to: snapshot.deathDate)
+            let cd = CountdownComponents(from: entry.date, to: snapshot.activeDeathDate)
+            let pct = snapshot.activePercentComplete
             VStack(spacing: 4) {
                 ZStack {
                     Circle()
                         .stroke(Color.gray.opacity(0.2), lineWidth: 5)
                     Circle()
-                        .trim(from: 0, to: min(1, snapshot.percentComplete / 100))
-                        .stroke(progressColor(snapshot.percentComplete),
+                        .trim(from: 0, to: min(1, pct / 100))
+                        .stroke(progressColor(pct),
                                 style: StrokeStyle(lineWidth: 5, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                     VStack(spacing: 0) {
-                        Text(String(format: "%.1f%%", snapshot.percentComplete))
+                        Text(String(format: "%.1f%%", pct))
                             .font(.system(size: 14, weight: .bold, design: .rounded))
                             .monospacedDigit()
-                        Text("lived")
+                        Text(snapshot.isLEVMode ? "LEV" : "lived")
                             .font(.system(size: 9))
                             .foregroundStyle(.secondary)
                     }
@@ -187,7 +220,7 @@ struct SmallWidgetView: View {
                         pill(cd.days, "D", .green)
                     }
 
-                    Text("\(String(format: "%.1f", snapshot.yearsRemaining)) years left")
+                    Text("\(String(format: "%.1f", snapshot.activeYearsRemaining)) years left")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
@@ -232,21 +265,22 @@ struct MediumWidgetView: View {
 
     var body: some View {
         if let snapshot = entry.snapshot {
-            let cd = CountdownComponents(from: entry.date, to: snapshot.deathDate)
+            let cd = CountdownComponents(from: entry.date, to: snapshot.activeDeathDate)
+            let pct = snapshot.activePercentComplete
             HStack(spacing: 12) {
                 ZStack {
                     Circle()
                         .stroke(Color.gray.opacity(0.2), lineWidth: 6)
                     Circle()
-                        .trim(from: 0, to: min(1, snapshot.percentComplete / 100))
-                        .stroke(progressColor(snapshot.percentComplete),
+                        .trim(from: 0, to: min(1, pct / 100))
+                        .stroke(progressColor(pct),
                                 style: StrokeStyle(lineWidth: 6, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                     VStack(spacing: 1) {
-                        Text(String(format: "%.1f%%", snapshot.percentComplete))
+                        Text(String(format: "%.1f%%", pct))
                             .font(.system(size: 17, weight: .bold, design: .rounded))
                             .monospacedDigit()
-                        Text("lived")
+                        Text(snapshot.isLEVMode ? "LEV" : "lived")
                             .font(.system(size: 10))
                             .foregroundStyle(.secondary)
                     }
@@ -254,7 +288,7 @@ struct MediumWidgetView: View {
                 .frame(width: 88, height: 88)
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Time Remaining")
+                    Text(snapshot.isLEVMode ? "LEV Time Remaining" : "Time Remaining")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(.secondary)
 
@@ -280,7 +314,7 @@ struct MediumWidgetView: View {
 
                     HStack(spacing: 16) {
                         stat("Health", String(format: "%.0f", snapshot.healthScore), .green)
-                        stat("LE", String(format: "%.1fy", snapshot.lifeExpectancy), .blue)
+                        stat("LE", String(format: "%.1fy", snapshot.activeLifeExpectancy), .blue)
                         stat("Age", "\(snapshot.ageYears)", .purple)
                     }
                 }
@@ -338,10 +372,11 @@ struct CircularWidgetView: View {
 
     var body: some View {
         if let snapshot = entry.snapshot {
-            Gauge(value: min(1, snapshot.percentComplete / 100)) {
-                Image(systemName: "clock.fill")
+            let pct = snapshot.activePercentComplete
+            Gauge(value: min(1, pct / 100)) {
+                Image(systemName: snapshot.isLEVMode ? "bolt.shield.fill" : "clock.fill")
             } currentValueLabel: {
-                Text(String(format: "%.0f%%", snapshot.percentComplete))
+                Text(String(format: "%.0f%%", pct))
                     .font(.system(size: 12, weight: .bold))
             }
             .gaugeStyle(.accessoryCircular)
@@ -360,12 +395,12 @@ struct RectangularWidgetView: View {
 
     var body: some View {
         if let snapshot = entry.snapshot {
-            let cd = CountdownComponents(from: entry.date, to: snapshot.deathDate)
+            let cd = CountdownComponents(from: entry.date, to: snapshot.activeDeathDate)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
-                    Image(systemName: "clock.fill")
+                    Image(systemName: snapshot.isLEVMode ? "bolt.shield.fill" : "clock.fill")
                         .font(.caption2)
-                    Text("MortalLoom")
+                    Text(snapshot.isLEVMode ? "MortalLoom LEV" : "MortalLoom")
                         .font(.caption2).bold()
                 }
 
@@ -376,7 +411,7 @@ struct RectangularWidgetView: View {
                     Text("\(cd.years)Y \(cd.months)Mo \(cd.weeks)W \(cd.days)D")
                         .font(.system(.body, design: .rounded, weight: .bold))
                         .monospacedDigit()
-                    Text(String(format: "%.1f years remaining", snapshot.yearsRemaining))
+                    Text(String(format: "%.1f years remaining", snapshot.activeYearsRemaining))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
@@ -397,11 +432,12 @@ struct InlineWidgetView: View {
 
     var body: some View {
         if let snapshot = entry.snapshot {
-            let cd = CountdownComponents(from: entry.date, to: snapshot.deathDate)
+            let cd = CountdownComponents(from: entry.date, to: snapshot.activeDeathDate)
             if cd.expired {
                 Text("MortalLoom: Time's up")
             } else {
-                Text("\(cd.years)y \(cd.months)mo \(cd.weeks)w remaining")
+                let prefix = snapshot.isLEVMode ? "LEV " : ""
+                Text("\(prefix)\(cd.years)y \(cd.months)mo \(cd.weeks)w remaining")
             }
         } else {
             Text("MortalLoom")

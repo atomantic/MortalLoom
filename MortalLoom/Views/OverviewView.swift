@@ -5,8 +5,10 @@ struct OverviewView: View {
     @Binding var selectedTab: Int
     @State private var data: AppData = .empty
     @State private var deathClock: DeathClockEngine.DeathClockResult?
+    @State private var levDeathClock: DeathClockEngine.DeathClockResult?
     @State private var lev: DeathClockEngine.LEVResult?
     @State private var countdown: DeathClockEngine.Countdown?
+    @State private var countdownMode: CountdownMode = .standard
     @State private var timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     @State private var isVisible = false
     @State private var todayStr: String = DateFormatting.todayString()
@@ -61,10 +63,12 @@ struct OverviewView: View {
 
         guard let birthDate = data.profile.birthDate else {
             deathClock = nil
+            levDeathClock = nil
             lev = nil
             countdown = nil
             return
         }
+        countdownMode = data.profile.countdownMode
         deathClock = DeathClockEngine.calculate(
             birthDateStr: birthDate,
             sex: data.profile.biologicalSex,
@@ -72,11 +76,12 @@ struct OverviewView: View {
         )
         cachedAlcoholRisk = DeathClockEngine.alcoholRisk(drinks: data.alcoholDrinks, sex: data.profile.biologicalSex)
         if let dc = deathClock {
+            levDeathClock = DeathClockEngine.calculateLEVResult(standardResult: dc, birthDateStr: birthDate)
             lev = DeathClockEngine.calculateLEV(
                 birthDateStr: birthDate,
                 lifeExpectancy: dc.lifeExpectancy.total
             )
-            countdown = DeathClockEngine.countdown(to: dc.deathDate)
+            countdown = DeathClockEngine.countdown(to: activeDC?.deathDate ?? dc.deathDate)
             recomputeChartData(dc)
         }
     }
@@ -100,7 +105,7 @@ struct OverviewView: View {
     }
 
     private func updateCountdown() {
-        guard let dc = deathClock else { return }
+        guard let dc = activeDC else { return }
         let newCountdown = DeathClockEngine.countdown(to: dc.deathDate)
         if newCountdown != countdown {
             countdown = newCountdown
@@ -109,14 +114,19 @@ struct OverviewView: View {
 
     // MARK: - Death Clock Hero Card
 
+    private var activeDC: DeathClockEngine.DeathClockResult? {
+        if countdownMode == .lev, let levDC = levDeathClock { return levDC }
+        return deathClock
+    }
+
     @ViewBuilder
     private var deathClockCard: some View {
         VStack(spacing: 16) {
-            if let dc = deathClock, let cd = countdown {
+            if let dc = activeDC, let cd = countdown {
                 // Header
                 HStack {
-                    Image(systemName: "clock.fill")
-                        .foregroundColor(.accentColor)
+                    Image(systemName: countdownMode == .lev ? "bolt.shield.fill" : "clock.fill")
+                        .foregroundColor(countdownMode == .lev ? .success : .accentColor)
                         .font(.title3)
                     Text("Time Remaining")
                         .font(.title3).fontWeight(.bold)
@@ -125,6 +135,10 @@ struct OverviewView: View {
                     Text(dc.deathDate.formatted(date: .abbreviated, time: .omitted))
                         .font(.caption)
                         .foregroundColor(.textSecondary)
+                }
+
+                if levDeathClock != nil {
+                    countdownModePicker
                 }
 
                 // Countdown
@@ -140,14 +154,21 @@ struct OverviewView: View {
 
                 // Life expectancy breakdown
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Life Expectancy Breakdown")
+                    Text(countdownMode == .lev ? "LEV Life Expectancy" : "Life Expectancy Breakdown")
                         .font(.caption).fontWeight(.semibold)
                         .foregroundColor(.textSecondary)
-                    leBreakdownRow("SSA Baseline", value: dc.lifeExpectancy.baseline, unit: "yr")
-                    leBreakdownRow("Genome Adjusted", value: dc.lifeExpectancy.genomeAdjusted, unit: "yr")
-                    leBreakdownRow("Lifestyle Adj.", value: dc.lifeExpectancy.lifestyleAdjustment, unit: "yr", signed: true)
-                    Divider().background(Color.cardBorder)
+                    if countdownMode == .standard {
+                        leBreakdownRow("SSA Baseline", value: dc.lifeExpectancy.baseline, unit: "yr")
+                        leBreakdownRow("Genome Adjusted", value: dc.lifeExpectancy.genomeAdjusted, unit: "yr")
+                        leBreakdownRow("Lifestyle Adj.", value: dc.lifeExpectancy.lifestyleAdjustment, unit: "yr", signed: true)
+                        Divider().background(Color.cardBorder)
+                    }
                     leBreakdownRow("Total LE", value: dc.lifeExpectancy.total, unit: "yr", bold: true)
+                    if countdownMode == .lev {
+                        Text("Assumes longevity therapies extend healthy lifespan after 2045")
+                            .font(.system(size: 10))
+                            .foregroundColor(.textMuted)
+                    }
                 }
 
                 Divider().background(Color.cardBorder)
@@ -194,6 +215,24 @@ struct OverviewView: View {
         .padding()
         .frame(maxWidth: .infinity)
         .cardStyle()
+    }
+
+    @ViewBuilder
+    private var countdownModePicker: some View {
+        Picker("Countdown", selection: $countdownMode) {
+            ForEach(CountdownMode.allCases, id: \.self) { mode in
+                Text(mode.pickerLabel).tag(mode)
+            }
+        }
+        .pickerStyle(.segmented)
+        .onChange(of: countdownMode) { _, newMode in
+            data.profile.countdownMode = newMode
+            Task { await DataStore.shared.save(data) }
+            NotificationCenter.default.post(name: .profileDidChange, object: nil)
+            if let dc = activeDC {
+                countdown = DeathClockEngine.countdown(to: dc.deathDate)
+            }
+        }
     }
 
     @ViewBuilder
@@ -578,22 +617,23 @@ struct OverviewView: View {
 
     @ViewBuilder
     private var vitalStatsRow: some View {
+        let dc = activeDC
         HStack(spacing: 12) {
             vitalStatCard(
                 title: "Current Age",
-                value: deathClock.map { "\($0.ageYears)" } ?? "--",
+                value: dc.map { "\($0.ageYears)" } ?? "--",
                 icon: "person.fill",
                 color: .blue
             )
             vitalStatCard(
                 title: "Years Left",
-                value: deathClock.map { String(format: "%.1f", $0.yearsRemaining) } ?? "--",
+                value: dc.map { String(format: "%.1f", $0.yearsRemaining) } ?? "--",
                 icon: "hourglass",
-                color: .accentColor
+                color: countdownMode == .lev ? .success : .accentColor
             )
             vitalStatCard(
                 title: "Healthy Years",
-                value: deathClock.map { String(format: "%.1f", $0.healthyYearsRemaining) } ?? "--",
+                value: dc.map { String(format: "%.1f", $0.healthyYearsRemaining) } ?? "--",
                 icon: "heart.fill",
                 color: .success
             )

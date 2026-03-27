@@ -169,6 +169,40 @@ enum DeathClockEngine {
         )
     }
 
+    /// Calculate a LEV-extended death clock result (age 120 if on track for LEV).
+    /// Accepts a pre-computed standard result to avoid duplicate calculation.
+    static func calculateLEVResult(standardResult: DeathClockResult, birthDateStr: String, now: Date = Date()) -> DeathClockResult? {
+        guard let birthDate = dateFromString(birthDateStr) else { return nil }
+
+        let birthYear = Calendar.current.component(.year, from: birthDate)
+        let ageAtLEV = 2045 - birthYear
+
+        guard standardResult.lifeExpectancy.total >= Double(ageAtLEV) else { return nil }
+
+        let levLE = 120.0
+        let ageFraction = now.timeIntervalSince(birthDate) / (365.25 * 24 * 3600)
+        let levDeathDate = Calendar.current.date(byAdding: .day, value: Int((levLE - ageFraction) * 365.25), to: now) ?? now
+        let yearsRemaining = max(0, levLE - ageFraction)
+        let healthyYearsRemaining = max(0, yearsRemaining - 5)
+        let percentComplete = min(100, (ageFraction / levLE) * 100)
+
+        let le = LifeExpectancy(
+            baseline: standardResult.lifeExpectancy.baseline,
+            genomeAdjusted: standardResult.lifeExpectancy.genomeAdjusted,
+            lifestyleAdjustment: standardResult.lifeExpectancy.lifestyleAdjustment,
+            total: levLE
+        )
+
+        return DeathClockResult(
+            deathDate: levDeathDate,
+            lifeExpectancy: le,
+            ageYears: standardResult.ageYears,
+            yearsRemaining: (yearsRemaining * 10).rounded() / 10,
+            healthyYearsRemaining: (healthyYearsRemaining * 10).rounded() / 10,
+            percentComplete: (percentComplete * 10).rounded() / 10
+        )
+    }
+
     // MARK: - Alcohol Risk (delegates to SubstanceEngine)
 
     static func alcoholRisk(drinks: [AlcoholDrink], sex: BiologicalSex?) -> AlcoholRisk {

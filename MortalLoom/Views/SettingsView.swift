@@ -14,10 +14,13 @@ struct SettingsView: View {
     @State private var importMessage: String? = nil
     @State private var importSuccess = false
 
+    @State private var countdownMode: CountdownMode = .standard
+
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
                 appearanceSection
+                countdownSection
                 healthKitSection
                 dataExportSection
                 dataImportSection
@@ -28,6 +31,10 @@ struct SettingsView: View {
             .padding()
         }
         .background(Color.bg)
+        .task { await loadCountdownMode() }
+        .onReceive(NotificationCenter.default.publisher(for: .profileDidChange)) { _ in
+            Task { await loadCountdownMode() }
+        }
         .fileImporter(
             isPresented: $showImporter,
             allowedContentTypes: [.json],
@@ -58,6 +65,56 @@ struct SettingsView: View {
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
+    }
+
+    // MARK: - Countdown Mode
+
+    @ViewBuilder
+    private var countdownSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionLabel(text: "DEFAULT COUNTDOWN")
+
+            Text("Choose which countdown to display by default on the Overview and Calendar.")
+                .font(.caption)
+                .foregroundColor(.textSecondary)
+
+            Picker("Countdown Mode", selection: $countdownMode) {
+                ForEach(CountdownMode.allCases, id: \.self) { mode in
+                    Text(mode.pickerLabel).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .onChange(of: countdownMode) { _, newMode in
+                Task {
+                    var data = await DataStore.shared.getData()
+                    data.profile.countdownMode = newMode
+                    await DataStore.shared.save(data)
+                    NotificationCenter.default.post(name: .profileDidChange, object: nil)
+                }
+            }
+
+            HStack(spacing: 8) {
+                Image(systemName: "info.circle")
+                    .foregroundColor(.textMuted)
+                    .font(.caption)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Standard: SSA actuarial life expectancy + lifestyle adjustments")
+                        .font(.system(size: 10))
+                        .foregroundColor(.textMuted)
+                    Text("LEV: Assumes longevity escape velocity therapies extend lifespan to ~120yr (requires LE past 2045)")
+                        .font(.system(size: 10))
+                        .foregroundColor(.textMuted)
+                }
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle()
+    }
+
+    private func loadCountdownMode() async {
+        let data = await DataStore.shared.getData()
+        countdownMode = data.profile.countdownMode
     }
 
     // MARK: - Apple Health

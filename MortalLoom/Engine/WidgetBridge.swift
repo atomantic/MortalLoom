@@ -12,6 +12,11 @@ enum WidgetBridge: Sendable {
         let ageYears: Int
         let lifeExpectancy: Double
         let updatedAt: Date
+        let countdownMode: String?
+        let levDeathDate: Date?
+        let levYearsRemaining: Double?
+        let levLifeExpectancy: Double?
+        let levPercentComplete: Double?
     }
 
     static func update(data: AppData) {
@@ -32,6 +37,8 @@ enum WidgetBridge: Sendable {
             alcoholRisk: alcoholRisk
         )
 
+        let levResult = DeathClockEngine.calculateLEVResult(standardResult: result, birthDateStr: birthDate)
+
         let snapshot = Snapshot(
             deathDate: result.deathDate,
             percentComplete: result.percentComplete,
@@ -39,7 +46,12 @@ enum WidgetBridge: Sendable {
             healthScore: healthScore,
             ageYears: result.ageYears,
             lifeExpectancy: result.lifeExpectancy.total,
-            updatedAt: Date()
+            updatedAt: Date(),
+            countdownMode: data.profile.countdownMode.rawValue,
+            levDeathDate: levResult?.deathDate,
+            levYearsRemaining: levResult?.yearsRemaining,
+            levLifeExpectancy: levResult?.lifeExpectancy.total,
+            levPercentComplete: levResult?.percentComplete
         )
 
         guard let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID)?

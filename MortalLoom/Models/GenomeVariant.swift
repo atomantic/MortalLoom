@@ -25,7 +25,7 @@ struct GenomeParseResult: Sendable {
 
 enum GenomeParser {
 
-    private static let csvTrimChars = CharacterSet(charactersIn: " \"")
+    private static let csvTrimSet: Set<Character> = [" ", "\""]
 
     /// Parse genome file content (23andMe or AncestryDNA format) into variants.
     /// 23andMe format: rsid\tchromosome\tposition\tgenotype (4 tab-separated columns)
@@ -52,7 +52,12 @@ enum GenomeParser {
                 parts = trimmed.split(separator: "\t", omittingEmptySubsequences: false)
             } else if trimmed.contains(",") {
                 parts = trimmed.split(separator: ",", omittingEmptySubsequences: false)
-                    .map { Substring(String($0).trimmingCharacters(in: csvTrimChars)) }
+                    .map { sub in
+                        var s = sub
+                        while let first = s.first, csvTrimSet.contains(first) { s = s.dropFirst() }
+                        while let last = s.last, csvTrimSet.contains(last) { s = s.dropLast() }
+                        return s
+                    }
             } else {
                 parts = trimmed.split(whereSeparator: { $0 == " " })
             }

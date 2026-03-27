@@ -3,6 +3,8 @@ import SwiftUI
 struct LifeCalendarView: View {
     @State private var data: AppData = .empty
     @State private var deathClock: DeathClockEngine.DeathClockResult?
+    @State private var levDeathClock: DeathClockEngine.DeathClockResult?
+    @State private var countdownMode: CountdownMode = .standard
     @State private var viewMode: ViewMode = .weeks
     @State private var goalMarkers: [GoalMarker] = []
     @State private var goalWeekSet: Set<Int> = []
@@ -12,6 +14,11 @@ struct LifeCalendarView: View {
         case years = "Years"
         case months = "Months"
         case weeks = "Weeks"
+    }
+
+    private var activeDC: DeathClockEngine.DeathClockResult? {
+        if countdownMode == .lev, let levDC = levDeathClock { return levDC }
+        return deathClock
     }
 
     private var birthDate: Date? {
@@ -32,26 +39,26 @@ struct LifeCalendarView: View {
     }
 
     private var currentAgeYear: Int {
-        deathClock?.ageYears ?? 0
+        activeDC?.ageYears ?? 0
     }
 
     private var totalWeeks: Int {
-        guard let dc = deathClock else { return 80 * 52 }
+        guard let dc = activeDC else { return 80 * 52 }
         return Int(dc.lifeExpectancy.total * 52)
     }
 
     private var totalMonths: Int {
-        guard let dc = deathClock else { return 80 * 12 }
+        guard let dc = activeDC else { return 80 * 12 }
         return Int(dc.lifeExpectancy.total * 12)
     }
 
     private var lifeExpectancyYears: Int {
-        guard let dc = deathClock else { return 80 }
+        guard let dc = activeDC else { return 80 }
         return Int(dc.lifeExpectancy.total.rounded())
     }
 
     private var daysRemaining: Int {
-        guard let dc = deathClock else { return 0 }
+        guard let dc = activeDC else { return 0 }
         let diff = dc.deathDate.timeIntervalSince(Date())
         return max(0, Int(diff / 86400))
     }
@@ -61,12 +68,12 @@ struct LifeCalendarView: View {
     }
 
     private var monthsRemaining: Int {
-        guard let dc = deathClock else { return 0 }
+        guard let dc = activeDC else { return 0 }
         return max(0, Int(dc.yearsRemaining * 12))
     }
 
     private var yearsRemaining: Double {
-        deathClock?.yearsRemaining ?? 0
+        activeDC?.yearsRemaining ?? 0
     }
 
     private var saturdaysRemaining: Int {
@@ -124,15 +131,18 @@ struct LifeCalendarView: View {
     private func recalculate() {
         guard let birthDateStr = data.profile.birthDate else {
             deathClock = nil
+            levDeathClock = nil
             goalMarkers = []
             return
         }
+        countdownMode = data.profile.countdownMode
         let dc = DeathClockEngine.calculate(
             birthDateStr: birthDateStr,
             sex: data.profile.biologicalSex,
             lifestyle: data.profile.lifestyle
         )
         deathClock = dc
+        levDeathClock = dc.flatMap { DeathClockEngine.calculateLEVResult(standardResult: $0, birthDateStr: birthDateStr) }
 
         guard let birth = DeathClockEngine.dateFromString(birthDateStr) else {
             goalMarkers = []
@@ -175,13 +185,27 @@ struct LifeCalendarView: View {
     private var statsGrid: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Image(systemName: "hourglass")
-                    .foregroundColor(.accentColor)
+                Image(systemName: countdownMode == .lev ? "bolt.shield.fill" : "hourglass")
+                    .foregroundColor(countdownMode == .lev ? .success : .accentColor)
                     .font(.title3)
                 Text("Time Remaining")
                     .font(.title3).fontWeight(.bold)
                     .foregroundColor(.textPrimary)
                 Spacer()
+            }
+
+            if levDeathClock != nil {
+                Picker("Countdown", selection: $countdownMode) {
+                    ForEach(CountdownMode.allCases, id: \.self) { mode in
+                        Text(mode.pickerLabel).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .onChange(of: countdownMode) { _, newMode in
+                    data.profile.countdownMode = newMode
+                    Task { await DataStore.shared.save(data) }
+                    NotificationCenter.default.post(name: .profileDidChange, object: nil)
+                }
             }
 
             LazyVGrid(columns: [
