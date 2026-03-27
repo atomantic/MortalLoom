@@ -155,32 +155,32 @@ struct SmallWidgetView: View {
     var body: some View {
         if let snapshot = entry.snapshot {
             let cd = CountdownComponents(from: entry.date, to: snapshot.deathDate)
-            VStack(spacing: 6) {
+            VStack(spacing: 4) {
                 ZStack {
                     Circle()
-                        .stroke(Color.gray.opacity(0.2), lineWidth: 4)
+                        .stroke(Color.gray.opacity(0.2), lineWidth: 5)
                     Circle()
                         .trim(from: 0, to: min(1, snapshot.percentComplete / 100))
                         .stroke(progressColor(snapshot.percentComplete),
-                                style: StrokeStyle(lineWidth: 4, lineCap: .round))
+                                style: StrokeStyle(lineWidth: 5, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                     VStack(spacing: 0) {
                         Text(String(format: "%.1f%%", snapshot.percentComplete))
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .font(.system(size: 14, weight: .bold, design: .rounded))
                             .monospacedDigit()
                         Text("lived")
-                            .font(.system(size: 8))
+                            .font(.system(size: 9))
                             .foregroundStyle(.secondary)
                     }
                 }
-                .frame(width: 52, height: 52)
+                .frame(width: 70, height: 70)
 
                 if cd.expired {
                     Text("Time's up")
                         .font(.caption).bold()
                         .foregroundStyle(.red)
                 } else {
-                    HStack(spacing: 2) {
+                    HStack(spacing: 4) {
                         pill(cd.years, "Y", .blue)
                         pill(cd.months, "M", .purple)
                         pill(cd.weeks, "W", .teal)
@@ -188,7 +188,7 @@ struct SmallWidgetView: View {
                     }
 
                     Text("\(String(format: "%.1f", snapshot.yearsRemaining)) years left")
-                        .font(.system(size: 9))
+                        .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -201,14 +201,14 @@ struct SmallWidgetView: View {
     private func pill(_ value: Int, _ label: String, _ color: Color) -> some View {
         VStack(spacing: 0) {
             Text("\(value)")
-                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .font(.system(size: 22, weight: .bold, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(color)
             Text(label)
-                .font(.system(size: 7, weight: .medium))
+                .font(.system(size: 9, weight: .medium))
                 .foregroundStyle(.secondary)
         }
-        .frame(minWidth: 24)
+        .frame(minWidth: 30)
     }
 
     private var unconfiguredSmall: some View {
@@ -233,30 +233,29 @@ struct MediumWidgetView: View {
     var body: some View {
         if let snapshot = entry.snapshot {
             let cd = CountdownComponents(from: entry.date, to: snapshot.deathDate)
-            HStack(spacing: 16) {
-                // Progress ring
+            HStack(spacing: 12) {
                 ZStack {
                     Circle()
-                        .stroke(Color.gray.opacity(0.2), lineWidth: 5)
+                        .stroke(Color.gray.opacity(0.2), lineWidth: 6)
                     Circle()
                         .trim(from: 0, to: min(1, snapshot.percentComplete / 100))
                         .stroke(progressColor(snapshot.percentComplete),
-                                style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                                style: StrokeStyle(lineWidth: 6, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                     VStack(spacing: 1) {
                         Text(String(format: "%.1f%%", snapshot.percentComplete))
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .font(.system(size: 17, weight: .bold, design: .rounded))
                             .monospacedDigit()
                         Text("lived")
-                            .font(.system(size: 9))
+                            .font(.system(size: 10))
                             .foregroundStyle(.secondary)
                     }
                 }
-                .frame(width: 68, height: 68)
+                .frame(width: 88, height: 88)
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Time Remaining")
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(.secondary)
 
                     if cd.expired {
@@ -279,7 +278,7 @@ struct MediumWidgetView: View {
                         }
                     }
 
-                    HStack(spacing: 12) {
+                    HStack(spacing: 16) {
                         stat("Health", String(format: "%.0f", snapshot.healthScore), .green)
                         stat("LE", String(format: "%.1fy", snapshot.lifeExpectancy), .blue)
                         stat("Age", "\(snapshot.ageYears)", .purple)
@@ -303,30 +302,30 @@ struct MediumWidgetView: View {
     private func unit(_ value: Int, _ label: String, _ color: Color) -> some View {
         VStack(spacing: 0) {
             Text("\(value)")
-                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .font(.system(size: 20, weight: .bold, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(color)
             Text(label)
-                .font(.system(size: 7, weight: .medium))
+                .font(.system(size: 8, weight: .medium))
                 .foregroundStyle(.secondary)
         }
     }
 
     private var colon: some View {
         Text(":")
-            .font(.system(size: 12, weight: .bold))
+            .font(.system(size: 16, weight: .bold))
             .foregroundStyle(.tertiary)
-            .padding(.bottom, 8)
+            .padding(.bottom, 10)
     }
 
     private func stat(_ label: String, _ value: String, _ color: Color) -> some View {
         VStack(spacing: 1) {
             Text(value)
-                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .font(.system(size: 14, weight: .bold, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(color)
             Text(label)
-                .font(.system(size: 8))
+                .font(.system(size: 9))
                 .foregroundStyle(.secondary)
         }
     }
