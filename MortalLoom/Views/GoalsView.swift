@@ -30,7 +30,6 @@ struct GoalsView: View {
             .padding()
         }
         .background(Color.bg)
-        .navigationTitle("Goals")
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { showingAddGoal = true } label: {
