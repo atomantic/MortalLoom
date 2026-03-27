@@ -382,6 +382,8 @@ struct SettingsView: View {
         exportData = nil
         showResetConfirmation = false
         importMessage = nil
+        UserDefaults.standard.set(false, forKey: AppConstants.hasCompletedOnboardingKey)
+        NotificationCenter.default.post(name: .showOnboarding, object: nil)
     }
 }
 

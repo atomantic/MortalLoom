@@ -70,6 +70,8 @@ actor DataStore {
             try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             try? encoded.write(to: cloudURL, options: .atomic)
         }
+
+        Task.detached { WidgetBridge.update(data: newData) }
     }
 
     // Convenience accessors

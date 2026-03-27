@@ -12,7 +12,6 @@ For completed work, see [DONE.md](./DONE.md).
 ## Backlog
 
 - [ ] VoiceOver testing pass on iOS
-- [ ] Widgets — lock screen / home screen life countdown widget
 
 ## Not Porting (web-specific)
 

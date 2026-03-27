@@ -69,6 +69,37 @@ targets:
           - iCloud.net.shadowpuppet.MeatSpaceTracker
         com.apple.developer.icloud-services:
           - CloudDocuments
+        com.apple.security.application-groups:
+          - group.net.shadowpuppet.MeatSpaceTracker
+    dependencies:
+      - target: MortalLoomWidget
+        embed: true
+        platformFilter: iOS
+
+  MortalLoomWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - MortalLoomWidget
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: net.shadowpuppet.MeatSpaceTracker.widget
+        DEVELOPMENT_TEAM: TYQ32QCF6K
+        CODE_SIGN_STYLE: Automatic
+        SKIP_INSTALL: YES
+        INFOPLIST_KEY_CFBundleDisplayName: MortalLoom Widget
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
+    info:
+      path: MortalLoomWidget/Info.plist
+      properties:
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: MortalLoomWidget/MortalLoomWidget.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.application-groups:
+          - group.net.shadowpuppet.MeatSpaceTracker
 
   MortalLoomTests_iOS:
     type: bundle.unit-test
