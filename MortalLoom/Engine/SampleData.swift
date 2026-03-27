@@ -387,7 +387,7 @@ enum SampleData {
     rs7412\t19\t45412079\tCC
     """
 
-    static let genomeVariants: [GenomeVariant] = GenomeParser.parse(genomeFileContent)
+    static let genomeVariants: [GenomeVariant] = GenomeParser.parse(genomeFileContent).variants
 
     // MARK: - Ancestry DNA format sample
 

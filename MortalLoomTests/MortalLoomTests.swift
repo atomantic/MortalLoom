@@ -1614,7 +1614,7 @@ final class GenomeParserTests: XCTestCase {
         rs12913832\t15\t28365618\tGG
         rs1805007\t16\t89919709\tCC
         """
-        let variants = GenomeParser.parse(content)
+        let variants = GenomeParser.parse(content).variants
         XCTAssertEqual(variants.count, 2)
         XCTAssertEqual(variants[0].rsID, "rs12913832")
         XCTAssertEqual(variants[0].chromosome, "15")
@@ -1629,7 +1629,7 @@ final class GenomeParserTests: XCTestCase {
         rs12913832,15,28365618,G,G
         rs4988235,2,136608646,A,G
         """
-        let variants = GenomeParser.parse(content)
+        let variants = GenomeParser.parse(content).variants
         XCTAssertEqual(variants.count, 2)
         XCTAssertEqual(variants[0].genotype, "GG")
         XCTAssertEqual(variants[1].genotype, "AG")
@@ -1641,7 +1641,7 @@ final class GenomeParserTests: XCTestCase {
         # Another comment
         rs12913832\t15\t28365618\tGG
         """
-        let variants = GenomeParser.parse(content)
+        let variants = GenomeParser.parse(content).variants
         XCTAssertEqual(variants.count, 1)
     }
 
@@ -1652,7 +1652,7 @@ final class GenomeParserTests: XCTestCase {
         rs1805007\t16\t89919709\tCC
 
         """
-        let variants = GenomeParser.parse(content)
+        let variants = GenomeParser.parse(content).variants
         XCTAssertEqual(variants.count, 2)
     }
 
@@ -1662,31 +1662,31 @@ final class GenomeParserTests: XCTestCase {
         chr15\t15\t28365618\tGG
         rs12913832\t15\t28365618\tGG
         """
-        let variants = GenomeParser.parse(content)
+        let variants = GenomeParser.parse(content).variants
         XCTAssertEqual(variants.count, 1)
     }
 
     func testParseAcceptsIPrefix() {
         let content = "i3003137\t7\t17284577\tAC"
-        let variants = GenomeParser.parse(content)
+        let variants = GenomeParser.parse(content).variants
         XCTAssertEqual(variants.count, 1)
         XCTAssertEqual(variants[0].rsID, "i3003137")
     }
 
     func testParseSkipsShortLines() {
         let content = "rs12913832\t15\t28365618"
-        let variants = GenomeParser.parse(content)
+        let variants = GenomeParser.parse(content).variants
         XCTAssertTrue(variants.isEmpty)
     }
 
     func testParseEmptyContent() {
-        XCTAssertTrue(GenomeParser.parse("").isEmpty)
-        XCTAssertTrue(GenomeParser.parse("# only comments").isEmpty)
+        XCTAssertTrue(GenomeParser.parse("").variants.isEmpty)
+        XCTAssertTrue(GenomeParser.parse("# only comments").variants.isEmpty)
     }
 
     func testParseSpaceSeparated() {
         let content = "rs12913832 15 28365618 GG"
-        let variants = GenomeParser.parse(content)
+        let variants = GenomeParser.parse(content).variants
         XCTAssertEqual(variants.count, 1)
         XCTAssertEqual(variants[0].genotype, "GG")
     }
@@ -1703,7 +1703,7 @@ final class GenomeParserTests: XCTestCase {
     }
 
     func testSampleAncestryDNAParsing() {
-        let variants = GenomeParser.parse(SampleData.ancestryDNAFileContent)
+        let variants = GenomeParser.parse(SampleData.ancestryDNAFileContent).variants
         XCTAssertEqual(variants.count, 3)
         XCTAssertEqual(variants[0].genotype, "GG")
         XCTAssertEqual(variants[1].genotype, "CC")
@@ -2328,13 +2328,13 @@ final class CorrelationEngineEdgeCaseTests: XCTestCase {
 final class GenomeParserEdgeCaseTests: XCTestCase {
 
     func testParseLargeWhitespace() {
-        let variants = GenomeParser.parse("   rs12913832\t15\t28365618\tGG   ")
+        let variants = GenomeParser.parse("   rs12913832\t15\t28365618\tGG   ").variants
         XCTAssertEqual(variants.count, 1)
         XCTAssertEqual(variants.first?.rsID, "rs12913832")
     }
 
     func testParseTabsWithExtraSpaces() {
-        XCTAssertEqual(GenomeParser.parse("rs12913832\t  15  \t  28365618  \t  GG  ").count, 1)
+        XCTAssertEqual(GenomeParser.parse("rs12913832\t  15  \t  28365618  \t  GG  ").variants.count, 1)
     }
 
     func testParseMixedValidAndInvalid() {
@@ -2346,7 +2346,7 @@ final class GenomeParserEdgeCaseTests: XCTestCase {
         rs1805007\t16\t89919709\tCC
         not_rs\t1\t100\tAA
         """
-        XCTAssertEqual(GenomeParser.parse(content).count, 2)
+        XCTAssertEqual(GenomeParser.parse(content).variants.count, 2)
     }
 
     func testParseRealWorld23andMeHeader() {
@@ -2359,15 +2359,15 @@ final class GenomeParserEdgeCaseTests: XCTestCase {
         rs12913832\t15\t28365618\tGG
         rs1805007\t16\t89919709\tCC
         """
-        XCTAssertEqual(GenomeParser.parse(content).count, 2)
+        XCTAssertEqual(GenomeParser.parse(content).variants.count, 2)
     }
 
     func testParseSingleVariant() {
-        XCTAssertEqual(GenomeParser.parse("rs12913832\t15\t28365618\tGG").count, 1)
+        XCTAssertEqual(GenomeParser.parse("rs12913832\t15\t28365618\tGG").variants.count, 1)
     }
 
     func testParseAncestryDNA5Columns() {
-        let variants = GenomeParser.parse("rs12913832\t15\t28365618\tA\tG")
+        let variants = GenomeParser.parse("rs12913832\t15\t28365618\tA\tG").variants
         XCTAssertEqual(variants.count, 1)
         XCTAssertEqual(variants.first?.genotype, "AG")
     }

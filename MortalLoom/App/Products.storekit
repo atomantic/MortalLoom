@@ -1,0 +1,85 @@
+{
+  "identifier" : "net.shadowpuppet.MeatSpaceTracker.products",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "9.99",
+      "familyShareable" : true,
+      "internalID" : "1",
+      "localizations" : [
+        {
+          "description" : "Unlock all MortalLoom features with a one-time purchase. Blood tests, genome analysis, substance tracking, epigenetic age, eye prescriptions, full body composition, and data export.",
+          "displayName" : "MortalLoom Pro",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "net.shadowpuppet.MeatSpaceTracker.pro",
+      "referenceName" : "MortalLoom Pro",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "6760883701",
+    "_developerTeamID" : "TYQ32QCF6K",
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 733363200,
+    "_locale" : "en_US",
+    "_storefront" : "USA",
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Transaction"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Manage Subscriptions Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Refund Request Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Offer Code Redeem Sheet"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

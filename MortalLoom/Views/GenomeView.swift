@@ -12,6 +12,7 @@ struct GenomeView: View {
     // Genome upload
     @State private var genomeVariants: [GenomeVariant] = []
     @State private var totalVariantCount: Int = 0
+    @State private var genomeBuild: String?
     @State private var showingFileImporter = false
     @State private var importError: String?
 
@@ -34,7 +35,7 @@ struct GenomeView: View {
         }
         .fileImporter(
             isPresented: $showingFileImporter,
-            allowedContentTypes: [.plainText],
+            allowedContentTypes: [.plainText, .commaSeparatedText, .tabSeparatedText, .data],
             allowsMultipleSelection: false
         ) { result in
             handleFileImport(result)
@@ -244,12 +245,19 @@ struct GenomeView: View {
                     HStack {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.success)
-                        Text(totalVariantCount > genomeVariants.count
-                            ? "Showing \(genomeVariants.count) of \(totalVariantCount) total variants"
-                            : "\(genomeVariants.count) variants loaded")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.textPrimary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(totalVariantCount > genomeVariants.count
+                                ? "Showing \(genomeVariants.count) of \(totalVariantCount) total variants"
+                                : "\(genomeVariants.count) variants loaded")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.textPrimary)
+                            if let build = genomeBuild {
+                                Text("Reference: \(build)")
+                                    .font(.caption)
+                                    .foregroundColor(.textMuted)
+                            }
+                        }
                         Spacer()
                         Button(action: { showingFileImporter = true }) {
                             Text("Re-import")
@@ -320,28 +328,46 @@ struct GenomeView: View {
         case .success(let urls):
             guard let url = urls.first else { return }
             guard url.startAccessingSecurityScopedResource() else {
-                importError = "Could not access the selected file."
+                importError = "Could not access the selected file. Check file permissions."
                 return
             }
             defer { url.stopAccessingSecurityScopedResource() }
 
-            guard let content = String(data: (try? Data(contentsOf: url)) ?? Data(), encoding: .utf8) else {
-                importError = "Could not read file contents."
+            let data: Data
+            do {
+                data = try Data(contentsOf: url)
+            } catch {
+                importError = "Could not read file: \(error.localizedDescription)"
                 return
             }
 
-            let variants = GenomeParser.parse(content)
+            if GenomeParser.isZipFile(data) {
+                importError = "This appears to be a .zip file. Please extract it first, then import the .txt file inside."
+                return
+            }
 
-            if variants.isEmpty {
-                importError = "No valid variants found in file. Expected 23andMe or AncestryDNA format."
+            guard let content = String(data: data, encoding: .utf8)
+                    ?? String(data: data, encoding: .ascii) else {
+                importError = "Could not decode file contents. Expected a UTF-8 text file."
+                return
+            }
+
+            // Strip BOM if present
+            let cleaned = content.hasPrefix("\u{FEFF}") ? String(content.dropFirst()) : content
+
+            let parseResult = GenomeParser.parse(cleaned)
+
+            if parseResult.variants.isEmpty {
+                importError = "No valid variants found. Expected tab-separated 23andMe or AncestryDNA format with rsID, chromosome, position, and genotype columns."
             } else {
-                totalVariantCount = variants.count
-                genomeVariants = Array(variants.prefix(1000))
+                totalVariantCount = parseResult.variants.count
+                genomeBuild = parseResult.build
+                genomeVariants = Array(parseResult.variants.prefix(1000))
                 importError = nil
             }
 
-        case .failure:
-            importError = "Failed to select file."
+        case .failure(let error):
+            importError = "Failed to select file: \(error.localizedDescription)"
         }
     }
 

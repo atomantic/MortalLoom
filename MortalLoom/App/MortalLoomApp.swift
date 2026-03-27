@@ -35,6 +35,7 @@ struct MortalLoomApp: App {
 
 struct ContentView: View {
     @State private var appearance = AppearanceManager.shared
+    @State private var store = StoreManager.shared
     @State private var selectedPage: AppPage = .overview
     @State private var showSideMenu = false
     @State private var showOnboarding = !UserDefaults.standard.bool(forKey: AppConstants.hasCompletedOnboardingKey)
@@ -56,6 +57,7 @@ struct ContentView: View {
             #endif
         }
         .preferredColorScheme(appearance.mode.colorScheme)
+        .environment(store)
         #if os(iOS)
         .fullScreenCover(isPresented: $showOnboarding) {
             OnboardingView(isPresented: $showOnboarding)
