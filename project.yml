@@ -92,6 +92,7 @@ targets:
     info:
       path: MortalLoomWidget/Info.plist
       properties:
+        CFBundleDisplayName: MortalLoom Widget
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     entitlements:
