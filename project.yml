@@ -40,6 +40,8 @@ targets:
     info:
       path: MortalLoom/App/Info.plist
       properties:
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         CFBundleDisplayName: MortalLoom
         LSApplicationCategoryType: public.app-category.healthcare-fitness
         NSHealthShareUsageDescription: "MortalLoom reads your health data to display metrics, trends, and life expectancy calculations. Your data stays on your device."
@@ -92,6 +94,8 @@ targets:
     info:
       path: MortalLoomWidget/Info.plist
       properties:
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         CFBundleDisplayName: MortalLoom Widget
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
