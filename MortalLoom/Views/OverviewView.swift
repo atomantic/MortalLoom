@@ -148,8 +148,11 @@ struct OverviewView: View {
                     Text("Time's up.")
                         .font(.title).fontWeight(.bold)
                         .foregroundColor(.danger)
+                        .accessibilityLabel("Time remaining has expired")
                 } else {
                     countdownDisplay(cd)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("Time remaining: \(cd.years) years, \(cd.months) months, \(cd.weeks) weeks, \(cd.days) days, \(cd.hours) hours, \(cd.minutes) minutes, \(cd.seconds) seconds")
                 }
 
                 Divider().background(Color.cardBorder)
@@ -198,6 +201,9 @@ struct OverviewView: View {
                     }
                     .frame(height: 10)
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Life progress")
+                .accessibilityValue(String(format: "%.1f percent complete", dc.percentComplete))
             } else {
                 // Not configured
                 VStack(spacing: 8) {
@@ -388,6 +394,8 @@ struct OverviewView: View {
                 .foregroundColor(value > 0 ? .success : .danger)
                 .frame(width: 56, alignment: .trailing)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(name): \(String(format: "%+.1f", value)) years impact on life expectancy")
     }
 
     // MARK: - LEV Card
@@ -410,6 +418,7 @@ struct OverviewView: View {
                     .background(lev.onTrack ? Color.success.opacity(0.2) : Color.warning.opacity(0.2))
                     .foregroundColor(lev.onTrack ? .success : .warning)
                     .cornerRadius(6)
+                    .accessibilityLabel("LEV status: \(lev.onTrack ? "on track" : "at risk")")
             }
 
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
@@ -435,6 +444,8 @@ struct OverviewView: View {
                 .foregroundColor(.textSecondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label): \(value)")
     }
 
     // MARK: - Lifetime Health Chart
@@ -756,6 +767,8 @@ struct OverviewView: View {
         .padding(.vertical, 12)
         .padding(.horizontal, 8)
         .cardStyle()
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title): \(value)")
     }
 
     // MARK: - Health Summary Grid
@@ -822,6 +835,9 @@ struct OverviewView: View {
             .cardStyle()
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Alcohol: \(String(format: "%.0f grams today", todayGrams)), \(cachedAlcoholRisk.rawValue) risk")
+        .accessibilityHint("Opens habits tracking")
     }
 
     // MARK: - Body Tile
@@ -859,6 +875,9 @@ struct OverviewView: View {
             .cardStyle()
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Body: \(bmi.map { String(format: "BMI %.1f", $0) } ?? "no BMI data")")
+        .accessibilityHint("Opens body composition")
     }
 
     // MARK: - Blood Tile
@@ -891,6 +910,9 @@ struct OverviewView: View {
             .cardStyle()
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Blood: \(tests.count) test\(tests.count == 1 ? "" : "s")")
+        .accessibilityHint("Opens blood test tracking")
     }
 
     // MARK: - Epigenetic Tile
@@ -936,6 +958,9 @@ struct OverviewView: View {
             .cardStyle()
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Epigenetic age: \(latest.map { String(format: "biological %.1f years, chronological %.1f years", $0.biologicalAge, $0.chronologicalAge) } ?? "no tests")")
+        .accessibilityHint("Opens genome and epigenetic tracking")
     }
 
     // MARK: - Eyes Tile
@@ -968,6 +993,9 @@ struct OverviewView: View {
             .cardStyle()
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Eyes: \(exams.count) exam\(exams.count == 1 ? "" : "s")")
+        .accessibilityHint("Opens body and eye tracking")
     }
 
     // MARK: - Lifestyle Tile
@@ -1000,6 +1028,9 @@ struct OverviewView: View {
             .cardStyle()
         }
         .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Lifestyle: \(isConfigured ? "questionnaire complete" : "not configured")")
+        .accessibilityHint("Opens lifestyle questionnaire")
     }
 
     // MARK: - Helpers

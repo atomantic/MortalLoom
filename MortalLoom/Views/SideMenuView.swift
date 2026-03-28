@@ -77,6 +77,8 @@ struct SideMenuView: View {
             Color.black.opacity(0.4)
                 .ignoresSafeArea()
                 .onTapGesture { dismiss() }
+                .accessibilityLabel("Close menu")
+                .accessibilityAddTraits(.isButton)
 
             // Menu panel
             VStack(alignment: .leading, spacing: 0) {
@@ -111,6 +113,7 @@ struct SideMenuView: View {
                     .font(.body)
                     .foregroundColor(.textSecondary)
             }
+            .accessibilityLabel("Close menu")
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 20)
@@ -164,6 +167,8 @@ struct SideMenuView: View {
             .padding(.vertical, 10)
             .background(selectedPage == page ? Color.accentColor.opacity(0.1) : Color.clear)
         }
+        .accessibilityLabel(page.title)
+        .accessibilityAddTraits(selectedPage == page ? .isSelected : [])
     }
 
     private func dismiss() {
@@ -198,6 +203,8 @@ struct CustomTabBar: View {
                     .foregroundColor(selectedPage == page ? .accentColor : .textMuted)
                     .frame(maxWidth: .infinity)
                 }
+                .accessibilityLabel(page.title)
+                .accessibilityAddTraits(selectedPage == page ? .isSelected : [])
             }
         }
         .padding(.top, 8)

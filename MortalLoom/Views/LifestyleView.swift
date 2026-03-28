@@ -104,6 +104,8 @@ struct LifestyleView: View {
 
                 Slider(value: $exerciseMinutes, in: 0...600, step: 15)
                     .tint(.accentColor)
+                    .accessibilityLabel("Exercise minutes per week")
+                    .accessibilityValue("\(Int(exerciseMinutes)) minutes")
 
                 Text("WHO recommends 150+ min/week")
                     .font(.caption)
@@ -124,6 +126,8 @@ struct LifestyleView: View {
 
                 Slider(value: $sleepHours, in: 3...12, step: 0.5)
                     .tint(.accentColor)
+                    .accessibilityLabel("Sleep hours per night")
+                    .accessibilityValue(String(format: "%.1f hours", sleepHours))
 
                 Text("Optimal: 7-9 hours")
                     .font(.caption)
@@ -310,6 +314,8 @@ struct LifestyleView: View {
         .padding(10)
         .background(Color.bgInput)
         .cornerRadius(8)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title): \(detail), \(String(format: "%+.1f", value)) years impact")
     }
 
     // MARK: - Impact Calculations

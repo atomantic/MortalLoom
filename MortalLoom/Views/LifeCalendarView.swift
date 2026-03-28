@@ -249,6 +249,8 @@ struct LifeCalendarView: View {
         .padding(.horizontal, 4)
         .background(Color.bgInput.opacity(0.5))
         .cornerRadius(8)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(value) \(label) remaining")
     }
 
     // MARK: - View Mode Picker
@@ -320,6 +322,8 @@ struct LifeCalendarView: View {
         .padding()
         .frame(maxWidth: .infinity)
         .cardStyle()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Life in years grid: \(currentAgeYear) years lived, \(String(format: "%.1f", yearsRemaining)) remaining of \(lifeExpectancyYears) total")
     }
 
     private func yearCellColor(index: Int, isCurrent: Bool, isSpent: Bool, isMilestone: Bool, isGoalTarget: Bool, isProjected: Bool) -> Color {
@@ -373,6 +377,8 @@ struct LifeCalendarView: View {
         .padding()
         .frame(maxWidth: .infinity)
         .cardStyle()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Life in months grid: \(currentMonth) months lived, \(monthsRemaining) remaining")
     }
 
     private var monthGridHeight: CGFloat {
@@ -483,6 +489,8 @@ struct LifeCalendarView: View {
         .padding()
         .frame(maxWidth: .infinity)
         .cardStyle()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Life in weeks grid: \(currentWeek) weeks lived, \(weeksRemaining) remaining")
     }
 
     private var weeksGridHeight: CGFloat {

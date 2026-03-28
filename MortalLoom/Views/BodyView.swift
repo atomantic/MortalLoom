@@ -117,6 +117,7 @@ struct BodyView: View {
                 .font(.subheadline)
                 .foregroundColor(.accentColor)
             }
+            .accessibilityLabel(showingManualEntry ? "Hide manual weight entry form" : "Show manual weight entry form")
 
             if showingManualEntry {
                 manualEntryForm
@@ -142,6 +143,8 @@ struct BodyView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label): \(value)")
     }
 
     private var manualEntryForm: some View {
@@ -197,6 +200,7 @@ struct BodyView: View {
                         .font(.title2)
                         .foregroundColor(.accentColor)
                 }
+                .accessibilityLabel("Add eye exam")
             }
 
             if eyeExams.isEmpty {

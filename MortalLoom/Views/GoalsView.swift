@@ -338,6 +338,10 @@ struct GoalsView: View {
                 editingGoal = goal
             }
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(goal.title), priority \(goal.priority.rawValue), \(goal.status.rawValue), \(Int(goal.progressPercent))% complete")
+        .accessibilityHint(goal.status == .active ? "Tap to check in" : "Tap to edit")
+        .accessibilityAddTraits(.isButton)
     }
 
     // MARK: - Status Mutations
@@ -379,6 +383,9 @@ struct GoalsView: View {
                 .foregroundColor(.textSecondary)
                 .frame(width: 30, alignment: .trailing)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Progress: \(Int(pct)) percent")
+        .accessibilityValue("\(Int(pct)) percent")
     }
 
     private func priorityDot(_ priority: GoalPriority) -> some View {

@@ -56,6 +56,7 @@ struct BloodView: View {
                     .font(.title2)
                     .foregroundColor(.accentColor)
             }
+            .accessibilityLabel("Add blood test")
         }
         .padding()
         .cardStyle()
@@ -231,6 +232,7 @@ private struct BloodTestCardView: View {
                         .font(.caption)
                         .foregroundColor(.danger)
                 }
+                .accessibilityLabel("Delete blood test from \(DateFormatting.displayDate(test.date))")
             }
 
             let filledCategories = BloodMarkers.categories.filter { category in
@@ -305,6 +307,8 @@ private struct BloodTestCardView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(statusColor.opacity(0.1))
         .cornerRadius(6)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(ref.label): \(formatMarkerValue(value)) \(ref.unit), \(status == .normal ? "normal" : status == .low ? "low" : status == .high ? "high" : "unknown") range \(formatMarkerValue(ref.min)) to \(formatMarkerValue(ref.max))")
     }
 
     private func formatMarkerValue(_ value: Double) -> String {

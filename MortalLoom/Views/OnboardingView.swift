@@ -58,6 +58,8 @@ struct OnboardingView: View {
             }
         }
         .padding(.vertical, 8)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Step \(currentStep + 1) of \(totalSteps)")
     }
 
     // MARK: - Step 0: Welcome
@@ -245,6 +247,8 @@ struct OnboardingView: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .accessibilityAddTraits(biologicalSex == sex ? .isSelected : [])
     }
 
     // MARK: - Step 3: Smoking
@@ -298,6 +302,8 @@ struct OnboardingView: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(label) smoker, \(impact) years impact")
+        .accessibilityAddTraits(smokingStatus == status ? .isSelected : [])
     }
 
     // MARK: - Step 4: Exercise
@@ -327,6 +333,8 @@ struct OnboardingView: View {
                 .padding(.horizontal, 32)
                 .padding(.top, 8)
                 .tint(.accentColor)
+                .accessibilityLabel("Exercise minutes per week")
+                .accessibilityValue("\(Int(exerciseMinutes)) minutes")
 
             HStack {
                 Text("0 min")
@@ -374,6 +382,8 @@ struct OnboardingView: View {
                 .padding(.horizontal, 32)
                 .padding(.top, 8)
                 .tint(.accentColor)
+                .accessibilityLabel("Sleep hours per night")
+                .accessibilityValue(String(format: "%.1f hours", sleepHours))
 
             HStack {
                 Text("3 hrs")
@@ -585,6 +595,8 @@ struct OnboardingView: View {
                 .tracking(0.5)
         }
         .frame(minWidth: 50)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(value) \(label)")
     }
 
     // MARK: - Shared Components

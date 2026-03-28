@@ -85,6 +85,8 @@ struct PaywallView: View {
                 }
                 .padding(.vertical, 10)
                 .padding(.horizontal, 16)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("\(feature.title): \(feature.description)")
             }
         }
         .background(Color.bgInput)
@@ -118,10 +120,12 @@ struct PaywallView: View {
                     .cornerRadius(12)
                 }
                 .disabled(store.purchaseInProgress)
+                .accessibilityLabel(store.purchaseInProgress ? "Purchase in progress" : "Unlock Pro for \(store.proProduct?.displayPrice ?? "")")
             } else {
                 ProgressView("Loading...")
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
+                    .accessibilityLabel("Loading purchase options")
             }
 
             Button("Restore Purchase") {

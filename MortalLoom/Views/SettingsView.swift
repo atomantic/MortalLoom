@@ -149,10 +149,13 @@ struct SettingsView: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(.accentColor)
+                    .accessibilityLabel("Connect Apple Health")
+                    .accessibilityHint("Request permission to read health data")
                 } else {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(.success)
                         .font(.title3)
+                        .accessibilityLabel("Apple Health connected")
                 }
             }
 
@@ -249,6 +252,8 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundColor(importSuccess ? .success : .danger)
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(importSuccess ? "Import succeeded: \(message)" : "Import failed: \(message)")
             }
         }
         .padding()
@@ -367,6 +372,8 @@ struct SettingsView: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(.danger)
+                        .accessibilityLabel("Confirm delete all data")
+                        .accessibilityHint("This will permanently delete all your MortalLoom data")
                     }
                 }
             } else {

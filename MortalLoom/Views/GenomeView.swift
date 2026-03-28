@@ -84,6 +84,7 @@ struct GenomeView: View {
                         .font(.title2)
                         .foregroundColor(.accentColor)
                 }
+                .accessibilityLabel("Add epigenetic age test")
             }
 
             if epigeneticTests.isEmpty {
@@ -164,6 +165,8 @@ struct GenomeView: View {
                                 .frame(maxWidth: .infinity)
                                 .background(Color.bgInput)
                                 .cornerRadius(6)
+                                .accessibilityElement(children: .combine)
+                                .accessibilityLabel("\(organ) age: \(String(format: "%.1f", age)) years, \(age < latest.chronologicalAge ? "younger than chronological" : "older than chronological")")
                             }
                         }
                     }
@@ -188,6 +191,8 @@ struct GenomeView: View {
                 .font(.caption2)
                 .foregroundColor(.textMuted)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label) age: \(String(format: "%.1f", age)) years")
     }
 
     @ViewBuilder
@@ -264,6 +269,8 @@ struct GenomeView: View {
                         .background(Color.accentColor)
                         .cornerRadius(8)
                     }
+                    .accessibilityLabel("Import genome file")
+                    .accessibilityHint("Upload raw genome data from 23andMe or AncestryDNA")
                 }
                 .padding(24)
                 .frame(maxWidth: .infinity)

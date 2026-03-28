@@ -16,6 +16,7 @@ struct ProBadge: View {
                 )
             )
             .cornerRadius(4)
+            .accessibilityLabel("Pro feature")
     }
 }
 
@@ -39,6 +40,9 @@ struct ProGateModifier: ViewModifier {
                             }
                         }
                         .onTapGesture { showingPaywall = true }
+                        .accessibilityLabel("Unlock with Pro")
+                        .accessibilityHint("Tap to view Pro upgrade options")
+                        .accessibilityAddTraits(.isButton)
                 }
             }
             .sheet(isPresented: $showingPaywall) {

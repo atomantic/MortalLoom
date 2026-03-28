@@ -399,6 +399,8 @@ struct SubstancesView: View {
                                     )
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel("Quick add \(preset.name)")
+                            .accessibilityHint("Logs one \(preset.name) drink")
                         }
                     }
                 }
@@ -799,6 +801,8 @@ struct SubstancesView: View {
                                     )
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel("Quick add \(preset.name)")
+                            .accessibilityHint("Logs one \(preset.name) nicotine entry")
                         }
                     }
                 }
@@ -982,6 +986,8 @@ struct SubstancesView: View {
                 .minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label): \(value)")
     }
 
     // MARK: - Edit Sheets
