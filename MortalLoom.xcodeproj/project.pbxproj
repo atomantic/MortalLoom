@@ -50,6 +50,7 @@
 		5A3E8008092B76059EE64CB5 /* GoalEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 118A5A1BB8FDFBEDDACD2E0C /* GoalEngine.swift */; };
 		5A899756D6699F992ED25C16 /* GoalsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F9ADA70E28A5E28CA55C63F /* GoalsView.swift */; };
 		5B1DCBE74E160B66EDF8B433 /* StoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9A69DB778D8C239A47B3325 /* StoreManager.swift */; };
+		5B8D85CE47286826BA6E6AC7 /* BloodTrendEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1EEC8E756E144273D6BC24A /* BloodTrendEngine.swift */; };
 		64B0B5357DF80CDAEB3370A1 /* DeathClockEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4C6F3F7D27B38D804FA5B61 /* DeathClockEngine.swift */; };
 		6B55E49F18136F5F6D016FAC /* AppearanceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 765271B94F125643F18F3646 /* AppearanceManager.swift */; };
 		6BF9BE408C71949F1E582340 /* HealthProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FCF31AF121B47E7C7DF22B1 /* HealthProfile.swift */; };
@@ -59,6 +60,7 @@
 		74DDF95780AC8638A23077D4 /* CorrelationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98CE91B429B04C112C38D411 /* CorrelationEngine.swift */; };
 		7D38505891F5B07AC8858FDD /* MortalLoomWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30EE7BA4A05136BEC466F9B5 /* MortalLoomWidget.swift */; };
 		8054925D9DFCF64D9F30523A /* HealthKitSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66616D81AC46D85C5D584F4F /* HealthKitSync.swift */; };
+		82CC4290606C361863AABCDA /* BloodTrendEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1EEC8E756E144273D6BC24A /* BloodTrendEngine.swift */; };
 		8511F3B807C1BD9B498818D4 /* HealthMetricEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44962B353191269E702D9756 /* HealthMetricEntry.swift */; };
 		884893922D3689B12DC1E4C6 /* CuratedMarkers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69B73CEA0F3655CDD11A007C /* CuratedMarkers.swift */; };
 		89C3332067D295F52E472691 /* EyeExam.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6800ABC07A07655F56FA658 /* EyeExam.swift */; };
@@ -222,6 +224,7 @@
 		D9A69DB778D8C239A47B3325 /* StoreManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreManager.swift; sourceTree = "<group>"; };
 		DFAFEF1D1D8E89AA3E949F4F /* LifestyleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifestyleView.swift; sourceTree = "<group>"; };
 		E07FD891E4CD098ECED55779 /* GenomeVariant.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenomeVariant.swift; sourceTree = "<group>"; };
+		E1EEC8E756E144273D6BC24A /* BloodTrendEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BloodTrendEngine.swift; sourceTree = "<group>"; };
 		F01753DF921942BEA30C5DD4 /* WidgetBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetBridge.swift; sourceTree = "<group>"; };
 		F8BFDBF027486BC4AC7BF9D1 /* GenomeScanRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenomeScanRecord.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -280,6 +283,7 @@
 		6C378C2253BD9DD74E5BC23F /* Engine */ = {
 			isa = PBXGroup;
 			children = (
+				E1EEC8E756E144273D6BC24A /* BloodTrendEngine.swift */,
 				46F952015050D53948006274 /* ClinVarService.swift */,
 				98CE91B429B04C112C38D411 /* CorrelationEngine.swift */,
 				69B73CEA0F3655CDD11A007C /* CuratedMarkers.swift */,
@@ -602,6 +606,7 @@
 				3842F700657CFF9D845E179E /* AppData.swift in Sources */,
 				050980359F1180012E9D3CBC /* AppearanceManager.swift in Sources */,
 				3784D4A41C14139EA74E88B0 /* BloodTest.swift in Sources */,
+				5B8D85CE47286826BA6E6AC7 /* BloodTrendEngine.swift in Sources */,
 				C27099DAB0C46C3647878607 /* BloodView.swift in Sources */,
 				3C18B8B01E742711B45066D0 /* BodyEntry.swift in Sources */,
 				29AFDFA8BC814239784F41DC /* BodyView.swift in Sources */,
@@ -659,6 +664,7 @@
 				53B90A52CDA6CC6EAEF56C54 /* AppData.swift in Sources */,
 				6B55E49F18136F5F6D016FAC /* AppearanceManager.swift in Sources */,
 				C505D8C48C08E5ECEAE8215B /* BloodTest.swift in Sources */,
+				82CC4290606C361863AABCDA /* BloodTrendEngine.swift in Sources */,
 				3F2F2D1B90AB3A95141A9988 /* BloodView.swift in Sources */,
 				9D54A8470E4B66EA28F7DBE9 /* BodyEntry.swift in Sources */,
 				576B5647EBFAD63011F04625 /* BodyView.swift in Sources */,

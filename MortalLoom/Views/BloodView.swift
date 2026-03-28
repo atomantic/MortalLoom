@@ -7,6 +7,7 @@ struct BloodView: View {
     @State private var bloodTests: [BloodTest] = []
     @State private var sortedTests: [BloodTest] = []
     @State private var correlationData: [CorrelationDataPoint] = []
+    @State private var trendAlerts: [BloodTrendEngine.MarkerTrend] = []
     @State private var showingAddForm = false
     @State private var isLoading = true
 
@@ -27,6 +28,7 @@ struct BloodView: View {
                 } else if bloodTests.isEmpty {
                     emptyState
                 } else {
+                    if !trendAlerts.isEmpty { trendAlertsCard }
                     activityCorrelationChart
                     testList
                 }
@@ -189,6 +191,99 @@ struct BloodView: View {
         }
     }
 
+    // MARK: - Trend Alerts
+
+    private var trendAlertsCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .foregroundColor(.warning)
+                Text("Trend Alerts")
+                    .font(.headline)
+                    .foregroundColor(.textPrimary)
+            }
+
+            Text("Markers trending in a concerning direction")
+                .font(.caption)
+                .foregroundColor(.textSecondary)
+
+            ForEach(trendAlerts) { trend in
+                trendAlertRow(trend)
+            }
+        }
+        .padding()
+        .cardStyle()
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Trend alerts: \(trendAlerts.count) markers need attention")
+    }
+
+    private func trendAlertRow(_ trend: BloodTrendEngine.MarkerTrend) -> some View {
+        let (icon, color) = trendVisuals(trend)
+        return HStack(spacing: 10) {
+            Image(systemName: icon)
+                .font(.body)
+                .foregroundColor(color)
+                .frame(width: 24)
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    Text(trend.label)
+                        .font(.subheadline).fontWeight(.semibold)
+                        .foregroundColor(.textPrimary)
+                    Text(trendBadge(trend.severity))
+                        .font(.caption2).fontWeight(.medium)
+                        .foregroundColor(color)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 1)
+                        .background(color.opacity(0.15))
+                        .cornerRadius(4)
+                }
+                Text(trend.detail)
+                    .font(.caption)
+                    .foregroundColor(.textSecondary)
+                    .lineLimit(2)
+            }
+
+            Spacer()
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(DateFormatting.formatMarkerValue(trend.latestValue))
+                    .font(.subheadline).fontWeight(.semibold)
+                    .foregroundColor(color)
+                Text("\(trend.changePercent > 0 ? "+" : "")\(String(format: "%.1f", trend.changePercent))%")
+                    .font(.caption2)
+                    .foregroundColor(.textMuted)
+            }
+        }
+        .padding(8)
+        .background(color.opacity(0.05))
+        .cornerRadius(8)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(trend.detail)
+    }
+
+    private func trendVisuals(_ trend: BloodTrendEngine.MarkerTrend) -> (String, Color) {
+        switch trend.severity {
+        case .worsening:
+            return (trend.direction == .rising ? "arrow.up.circle.fill" : "arrow.down.circle.fill", .danger)
+        case .approaching:
+            return ("exclamationmark.triangle.fill", .warning)
+        case .improving:
+            return ("arrow.uturn.up.circle.fill", .success)
+        case .stable:
+            return ("equal.circle.fill", .textMuted)
+        }
+    }
+
+    private func trendBadge(_ severity: BloodTrendEngine.TrendSeverity) -> String {
+        switch severity {
+        case .worsening: "Worsening"
+        case .approaching: "Watch"
+        case .improving: "Improving"
+        case .stable: "Stable"
+        }
+    }
+
     private var testList: some View {
         ForEach(sortedTests.reversed()) { test in
             BloodTestCardView(test: test, onDelete: {
@@ -206,6 +301,7 @@ struct BloodView: View {
         let sorted = data.bloodTests.sorted { $0.date < $1.date }
         sortedTests = sorted
         correlationData = CorrelationEngine.buildCorrelationData(tests: sorted, healthMetrics: data.healthMetrics)
+        trendAlerts = BloodTrendEngine.alerts(tests: sorted)
         isLoading = false
     }
 }

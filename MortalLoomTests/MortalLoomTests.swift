@@ -2900,3 +2900,277 @@ final class RecommendationEngineTests: XCTestCase {
         XCTAssertEqual(ids.count, Set(ids).count, "All recommendation IDs should be unique")
     }
 }
+
+// MARK: - BloodTrendEngine Tests
+
+final class BloodTrendEngineTests: XCTestCase {
+
+    // MARK: - Helpers
+
+    private func makeTest(date: String, markers: [String: Double]) -> BloodTest {
+        BloodTest(date: date, markers: markers)
+    }
+
+    // MARK: - Basic Analysis
+
+    func testEmptyTestsReturnsNoTrends() {
+        let trends = BloodTrendEngine.analyze(tests: [])
+        XCTAssertTrue(trends.isEmpty)
+    }
+
+    func testSingleTestReturnsNoTrends() {
+        let tests = [makeTest(date: "2026-01-01", markers: ["ldl": 95])]
+        let trends = BloodTrendEngine.analyze(tests: tests)
+        XCTAssertTrue(trends.isEmpty)
+    }
+
+    func testTwoTestsWithSameMarkerReturnsTrend() {
+        let tests = [
+            makeTest(date: "2026-01-01", markers: ["ldl": 90]),
+            makeTest(date: "2026-02-01", markers: ["ldl": 95]),
+        ]
+        let trends = BloodTrendEngine.analyze(tests: tests)
+        XCTAssertEqual(trends.count, 1)
+        XCTAssertEqual(trends[0].id, "ldl")
+    }
+
+    func testMarkerAppearingInOnlyOneTestIsExcluded() {
+        let tests = [
+            makeTest(date: "2026-01-01", markers: ["ldl": 90]),
+            makeTest(date: "2026-02-01", markers: ["glucose": 85]),
+        ]
+        let trends = BloodTrendEngine.analyze(tests: tests)
+        XCTAssertTrue(trends.isEmpty)
+    }
+
+    // MARK: - Direction Detection
+
+    func testRisingDirection() {
+        let tests = [
+            makeTest(date: "2026-01-01", markers: ["ldl": 80]),
+            makeTest(date: "2026-02-01", markers: ["ldl": 95]),
+        ]
+        let trends = BloodTrendEngine.analyze(tests: tests)
+        XCTAssertEqual(trends[0].direction, .rising)
+    }
+
+    func testFallingDirection() {
+        let tests = [
+            makeTest(date: "2026-01-01", markers: ["ldl": 95]),
+            makeTest(date: "2026-02-01", markers: ["ldl": 80]),
+        ]
+        let trends = BloodTrendEngine.analyze(tests: tests)
+        XCTAssertEqual(trends[0].direction, .falling)
+    }
+
+    func testStableDirection() {
+        // Less than 2% change = stable
+        let tests = [
+            makeTest(date: "2026-01-01", markers: ["ldl": 90]),
+            makeTest(date: "2026-02-01", markers: ["ldl": 91]),
+        ]
+        let trends = BloodTrendEngine.analyze(tests: tests)
+        XCTAssertEqual(trends[0].direction, .stable)
+    }
+
+    // MARK: - Severity Classification
+
+    func testWorseningSeverityHighMarkerRising() {
+        // LDL above max (100) and rising
+        let tests = [
+            makeTest(date: "2026-01-01", markers: ["ldl": 105]),
+            makeTest(date: "2026-02-01", markers: ["ldl": 115]),
+        ]
+        let trends = BloodTrendEngine.analyze(tests: tests)
+        XCTAssertEqual(trends[0].severity, .worsening)
+    }
+
+    func testWorseningSeverityLowMarkerFalling() {
+        // HDL below min (40) and falling
+        let tests = [
+            makeTest(date: "2026-01-01", markers: ["hdl": 38]),
+            makeTest(date: "2026-02-01", markers: ["hdl": 35]),
+        ]
+        let trends = BloodTrendEngine.analyze(tests: tests)
+        XCTAssertEqual(trends[0].severity, .worsening)
+    }
+
+    func testImprovingSeverityReturningToRange() {
+        // LDL was high, now back in range
+        let tests = [
+            makeTest(date: "2026-01-01", markers: ["ldl": 105]),
+            makeTest(date: "2026-02-01", markers: ["ldl": 95]),
+        ]
+        let trends = BloodTrendEngine.analyze(tests: tests)
+        XCTAssertEqual(trends[0].severity, .improving)
+    }
+
+    func testImprovingSeverityHighMarkerFalling() {
+        // LDL above max but falling toward range
+        let tests = [
+            makeTest(date: "2026-01-01", markers: ["ldl": 120]),
+            makeTest(date: "2026-02-01", markers: ["ldl": 110]),
+        ]
+        let trends = BloodTrendEngine.analyze(tests: tests)
+        XCTAssertEqual(trends[0].severity, .improving)
+    }
+
+    func testApproachingSeverityNearBoundary() {
+        // LDL range is 0-100. Value at 97 (within 15% of boundary) and rising
+        let tests = [
+            makeTest(date: "2026-01-01", markers: ["ldl": 90]),
+            makeTest(date: "2026-02-01", markers: ["ldl": 97]),
+        ]
+        let trends = BloodTrendEngine.analyze(tests: tests)
+        XCTAssertEqual(trends[0].severity, .approaching)
+    }
+
+    func testStableSeverityMidRange() {
+        // LDL well within range and stable
+        let tests = [
+            makeTest(date: "2026-01-01", markers: ["ldl": 50]),
+            makeTest(date: "2026-02-01", markers: ["ldl": 51]),
+        ]
+        let trends = BloodTrendEngine.analyze(tests: tests)
+        XCTAssertEqual(trends[0].severity, .stable)
+    }
+
+    // MARK: - Alerts Filter
+
+    func testAlertsReturnsOnlyConcerning() {
+        let tests = [
+            makeTest(date: "2026-01-01", markers: ["ldl": 50, "glucose": 95]),
+            makeTest(date: "2026-02-01", markers: ["ldl": 51, "glucose": 105]),
+        ]
+        let alerts = BloodTrendEngine.alerts(tests: tests)
+        // glucose went from in-range to above max (99) = worsening
+        XCTAssertTrue(alerts.contains { $0.id == "glucose" })
+        // ldl stable mid-range = not in alerts
+        XCTAssertFalse(alerts.contains { $0.id == "ldl" })
+    }
+
+    // MARK: - Sorting
+
+    func testSortedBySeverityThenMagnitude() {
+        let tests = [
+            makeTest(date: "2026-01-01", markers: ["ldl": 105, "glucose": 95, "triglycerides": 50]),
+            makeTest(date: "2026-02-01", markers: ["ldl": 115, "glucose": 97, "triglycerides": 51]),
+        ]
+        let trends = BloodTrendEngine.analyze(tests: tests)
+        // ldl: worsening (highest severity) should be first
+        XCTAssertEqual(trends[0].id, "ldl")
+    }
+
+    // MARK: - Change Percent
+
+    func testChangePercentCalculation() {
+        let tests = [
+            makeTest(date: "2026-01-01", markers: ["ldl": 80]),
+            makeTest(date: "2026-02-01", markers: ["ldl": 88]),
+        ]
+        let trends = BloodTrendEngine.analyze(tests: tests)
+        // (88-80)/80 * 100 = 10%
+        XCTAssertEqual(trends[0].changePercent, 10.0)
+    }
+
+    // MARK: - Uses Latest Two Values
+
+    func testUsesLatestTwoValues() {
+        let tests = [
+            makeTest(date: "2026-01-01", markers: ["ldl": 110]),
+            makeTest(date: "2026-02-01", markers: ["ldl": 90]),
+            makeTest(date: "2026-03-01", markers: ["ldl": 95]),
+        ]
+        let trends = BloodTrendEngine.analyze(tests: tests)
+        XCTAssertEqual(trends[0].latestValue, 95)
+        XCTAssertEqual(trends[0].previousValue, 90)
+    }
+
+    // MARK: - Boundary Distance
+
+    func testBoundaryDistanceInRange() {
+        let tests = [
+            makeTest(date: "2026-01-01", markers: ["ldl": 50]),
+            makeTest(date: "2026-02-01", markers: ["ldl": 50]),
+        ]
+        let trends = BloodTrendEngine.analyze(tests: tests)
+        // LDL range 0-100, value at 50 → distance to nearest boundary is 50/100 = 0.5
+        XCTAssertNotNil(trends[0].distanceToBoundary)
+        XCTAssertEqual(trends[0].distanceToBoundary!, 0.5, accuracy: 0.01)
+    }
+
+    func testBoundaryDistanceOutOfRange() {
+        let tests = [
+            makeTest(date: "2026-01-01", markers: ["ldl": 110]),
+            makeTest(date: "2026-02-01", markers: ["ldl": 120]),
+        ]
+        let trends = BloodTrendEngine.analyze(tests: tests)
+        XCTAssertNil(trends[0].distanceToBoundary)
+    }
+
+    // MARK: - Multiple Markers
+
+    func testMultipleMarkersTracked() {
+        let tests = [
+            makeTest(date: "2026-01-01", markers: ["ldl": 90, "hdl": 55, "glucose": 85]),
+            makeTest(date: "2026-02-01", markers: ["ldl": 95, "hdl": 50, "glucose": 88]),
+        ]
+        let trends = BloodTrendEngine.analyze(tests: tests)
+        XCTAssertEqual(trends.count, 3)
+    }
+
+    // MARK: - Detail String
+
+    func testDetailContainsMarkerLabel() {
+        let tests = [
+            makeTest(date: "2026-01-01", markers: ["ldl": 90]),
+            makeTest(date: "2026-02-01", markers: ["ldl": 95]),
+        ]
+        let trends = BloodTrendEngine.analyze(tests: tests)
+        XCTAssertTrue(trends[0].detail.contains("LDL"))
+    }
+
+    func testDetailContainsUnit() {
+        let tests = [
+            makeTest(date: "2026-01-01", markers: ["ldl": 90]),
+            makeTest(date: "2026-02-01", markers: ["ldl": 95]),
+        ]
+        let trends = BloodTrendEngine.analyze(tests: tests)
+        XCTAssertTrue(trends[0].detail.contains("mg/dL"))
+    }
+
+    // MARK: - Current Status
+
+    func testCurrentStatusNormal() {
+        let tests = [
+            makeTest(date: "2026-01-01", markers: ["ldl": 50]),
+            makeTest(date: "2026-02-01", markers: ["ldl": 55]),
+        ]
+        let trends = BloodTrendEngine.analyze(tests: tests)
+        XCTAssertEqual(trends[0].currentStatus, .normal)
+    }
+
+    func testCurrentStatusHigh() {
+        let tests = [
+            makeTest(date: "2026-01-01", markers: ["ldl": 105]),
+            makeTest(date: "2026-02-01", markers: ["ldl": 110]),
+        ]
+        let trends = BloodTrendEngine.analyze(tests: tests)
+        XCTAssertEqual(trends[0].currentStatus, .high)
+    }
+
+    // MARK: - Unsorted Input
+
+    func testHandlesUnsortedTests() {
+        // Tests in reverse chronological order — engine should sort
+        let tests = [
+            makeTest(date: "2026-03-01", markers: ["ldl": 95]),
+            makeTest(date: "2026-01-01", markers: ["ldl": 80]),
+            makeTest(date: "2026-02-01", markers: ["ldl": 90]),
+        ]
+        let trends = BloodTrendEngine.analyze(tests: tests)
+        // Should use Feb→Mar as latest pair
+        XCTAssertEqual(trends[0].latestValue, 95)
+        XCTAssertEqual(trends[0].previousValue, 90)
+    }
+}
