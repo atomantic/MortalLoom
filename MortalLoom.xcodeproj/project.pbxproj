@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		050980359F1180012E9D3CBC /* AppearanceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 765271B94F125643F18F3646 /* AppearanceManager.swift */; };
+		0A491EA766254514F8C2D373 /* CuratedMarkers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69B73CEA0F3655CDD11A007C /* CuratedMarkers.swift */; };
 		0A4B66907EB40284D5CBECD4 /* Products.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 223CD2E2AB78B4665CCC4255 /* Products.storekit */; };
 		0C79D35D1C1B65C542D61330 /* Goal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13547F14B9304DE2AE925ED2 /* Goal.swift */; };
 		0D87387D9625A5E0D6645E02 /* ICloudMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29D32D124C715340FD2DC350 /* ICloudMonitor.swift */; };
@@ -27,6 +28,7 @@
 		3784D4A41C14139EA74E88B0 /* BloodTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92F50631566FFE40D88FAD5C /* BloodTest.swift */; };
 		3842F700657CFF9D845E179E /* AppData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76AFC65F04DD19B1C921A47F /* AppData.swift */; };
 		3C18B8B01E742711B45066D0 /* BodyEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DE6F91C7E33B0F86F79570E /* BodyEntry.swift */; };
+		3E53DBF674A96AD78DA3869B /* GenomeEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7F21F5108C9F766D56DE2AE /* GenomeEngine.swift */; };
 		3EB4BFEEC7B0A7546C3AA212 /* MortalLoomApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25A938EE48931E1A7D80455D /* MortalLoomApp.swift */; };
 		3ED7DB9F890E096685B588FA /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5C2474BC3DD2C321255F1AB /* OnboardingView.swift */; };
 		3F2F2D1B90AB3A95141A9988 /* BloodView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BB3FF2B8EF635AAE437983D /* BloodView.swift */; };
@@ -58,9 +60,12 @@
 		7D38505891F5B07AC8858FDD /* MortalLoomWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30EE7BA4A05136BEC466F9B5 /* MortalLoomWidget.swift */; };
 		8054925D9DFCF64D9F30523A /* HealthKitSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66616D81AC46D85C5D584F4F /* HealthKitSync.swift */; };
 		8511F3B807C1BD9B498818D4 /* HealthMetricEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44962B353191269E702D9756 /* HealthMetricEntry.swift */; };
+		884893922D3689B12DC1E4C6 /* CuratedMarkers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69B73CEA0F3655CDD11A007C /* CuratedMarkers.swift */; };
 		89C3332067D295F52E472691 /* EyeExam.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6800ABC07A07655F56FA658 /* EyeExam.swift */; };
+		8A866D3F9F28D1004F1D6A92 /* ClinVarService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46F952015050D53948006274 /* ClinVarService.swift */; };
 		8D3F0148D6280967FB75B579 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC7FF09623E4F8E66F45E59F /* PaywallView.swift */; };
 		95980F1A20C4AD1E940663E0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8DFE4C5B3F84209835BAB96B /* Assets.xcassets */; };
+		9AC808701F50F51226019C84 /* ClinVarService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46F952015050D53948006274 /* ClinVarService.swift */; };
 		9D54A8470E4B66EA28F7DBE9 /* BodyEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DE6F91C7E33B0F86F79570E /* BodyEntry.swift */; };
 		A17140154ACE65029AA7C02B /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C111B7B3DAB461735C8004F /* HealthKitService.swift */; };
 		A73CD34088229F306FF7618D /* SubstanceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C204F5FE0B519C1DEDB7AF47 /* SubstanceEngine.swift */; };
@@ -71,6 +76,7 @@
 		B9C3E940ECEF8AACF05AB138 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC7FF09623E4F8E66F45E59F /* PaywallView.swift */; };
 		B9CD04929700DA3CFF13A92E /* SubstanceEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14643E58DFCB5BCF7D13DC86 /* SubstanceEntry.swift */; };
 		BB734E45988022F6F6C80BF3 /* SubstanceEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14643E58DFCB5BCF7D13DC86 /* SubstanceEntry.swift */; };
+		BC9F06AB8669B7D311190D1B /* GenomeEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7F21F5108C9F766D56DE2AE /* GenomeEngine.swift */; };
 		C27099DAB0C46C3647878607 /* BloodView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BB3FF2B8EF635AAE437983D /* BloodView.swift */; };
 		C505D8C48C08E5ECEAE8215B /* BloodTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92F50631566FFE40D88FAD5C /* BloodTest.swift */; };
 		C7A81B14FF7FBF1AC44A8087 /* Goal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13547F14B9304DE2AE925ED2 /* Goal.swift */; };
@@ -173,6 +179,7 @@
 		3C111B7B3DAB461735C8004F /* HealthKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitService.swift; sourceTree = "<group>"; };
 		3DE6F91C7E33B0F86F79570E /* BodyEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyEntry.swift; sourceTree = "<group>"; };
 		44962B353191269E702D9756 /* HealthMetricEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthMetricEntry.swift; sourceTree = "<group>"; };
+		46F952015050D53948006274 /* ClinVarService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClinVarService.swift; sourceTree = "<group>"; };
 		4711239695D8FA36364CFC90 /* BodyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyView.swift; sourceTree = "<group>"; };
 		4FCF31AF121B47E7C7DF22B1 /* HealthProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthProfile.swift; sourceTree = "<group>"; };
 		50C5058BFC45EAA680969317 /* SideMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideMenuView.swift; sourceTree = "<group>"; };
@@ -182,6 +189,7 @@
 		5C8ED8531BC086732C92DA9B /* MortalLoomTests_macOS.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MortalLoomTests_macOS.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		63EFA7304632982F7F2C834D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		66616D81AC46D85C5D584F4F /* HealthKitSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitSync.swift; sourceTree = "<group>"; };
+		69B73CEA0F3655CDD11A007C /* CuratedMarkers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CuratedMarkers.swift; sourceTree = "<group>"; };
 		6BB3FF2B8EF635AAE437983D /* BloodView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BloodView.swift; sourceTree = "<group>"; };
 		6DE7B02859718A26B4B9906E /* EpigeneticTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpigeneticTest.swift; sourceTree = "<group>"; };
 		71A0187A10BAA3CC7819A176 /* GenomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenomeView.swift; sourceTree = "<group>"; };
@@ -203,6 +211,7 @@
 		BEB68C77C3325AF758E23E9D /* MortalLoomTests_iOS.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MortalLoomTests_iOS.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C204F5FE0B519C1DEDB7AF47 /* SubstanceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubstanceEngine.swift; sourceTree = "<group>"; };
 		C6800ABC07A07655F56FA658 /* EyeExam.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EyeExam.swift; sourceTree = "<group>"; };
+		C7F21F5108C9F766D56DE2AE /* GenomeEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenomeEngine.swift; sourceTree = "<group>"; };
 		CB2E368CC2CD70A93D9E7BAE /* DataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataStore.swift; sourceTree = "<group>"; };
 		D5C2474BC3DD2C321255F1AB /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		D9A69DB778D8C239A47B3325 /* StoreManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreManager.swift; sourceTree = "<group>"; };
@@ -264,8 +273,11 @@
 		6C378C2253BD9DD74E5BC23F /* Engine */ = {
 			isa = PBXGroup;
 			children = (
+				46F952015050D53948006274 /* ClinVarService.swift */,
 				98CE91B429B04C112C38D411 /* CorrelationEngine.swift */,
+				69B73CEA0F3655CDD11A007C /* CuratedMarkers.swift */,
 				B4C6F3F7D27B38D804FA5B61 /* DeathClockEngine.swift */,
+				C7F21F5108C9F766D56DE2AE /* GenomeEngine.swift */,
 				118A5A1BB8FDFBEDDACD2E0C /* GoalEngine.swift */,
 				3C111B7B3DAB461735C8004F /* HealthKitService.swift */,
 				66616D81AC46D85C5D584F4F /* HealthKitSync.swift */,
@@ -585,11 +597,14 @@
 				C27099DAB0C46C3647878607 /* BloodView.swift in Sources */,
 				3C18B8B01E742711B45066D0 /* BodyEntry.swift in Sources */,
 				29AFDFA8BC814239784F41DC /* BodyView.swift in Sources */,
+				9AC808701F50F51226019C84 /* ClinVarService.swift in Sources */,
 				C880829A818791EC492E79A8 /* CorrelationEngine.swift in Sources */,
+				0A491EA766254514F8C2D373 /* CuratedMarkers.swift in Sources */,
 				4C31E78A1FDAC239E647CB2D /* DataStore.swift in Sources */,
 				47E4013FF9139533AA44FC4D /* DeathClockEngine.swift in Sources */,
 				285C3B38D82FDF5C57FDAA1E /* EpigeneticTest.swift in Sources */,
 				DE453F18D91452A344184BB6 /* EyeExam.swift in Sources */,
+				3E53DBF674A96AD78DA3869B /* GenomeEngine.swift in Sources */,
 				5856806DFBD48F39BDC89F9B /* GenomeVariant.swift in Sources */,
 				6EF9106333950CF8212C2EA0 /* GenomeView.swift in Sources */,
 				C7A81B14FF7FBF1AC44A8087 /* Goal.swift in Sources */,
@@ -637,11 +652,14 @@
 				3F2F2D1B90AB3A95141A9988 /* BloodView.swift in Sources */,
 				9D54A8470E4B66EA28F7DBE9 /* BodyEntry.swift in Sources */,
 				576B5647EBFAD63011F04625 /* BodyView.swift in Sources */,
+				8A866D3F9F28D1004F1D6A92 /* ClinVarService.swift in Sources */,
 				74DDF95780AC8638A23077D4 /* CorrelationEngine.swift in Sources */,
+				884893922D3689B12DC1E4C6 /* CuratedMarkers.swift in Sources */,
 				4E21F7279130B3025E25A8EA /* DataStore.swift in Sources */,
 				64B0B5357DF80CDAEB3370A1 /* DeathClockEngine.swift in Sources */,
 				706C426B98DE5CF39A715C7E /* EpigeneticTest.swift in Sources */,
 				89C3332067D295F52E472691 /* EyeExam.swift in Sources */,
+				BC9F06AB8669B7D311190D1B /* GenomeEngine.swift in Sources */,
 				59FA49AE381843566B3539B2 /* GenomeVariant.swift in Sources */,
 				259AA046172B3216F2A26D31 /* GenomeView.swift in Sources */,
 				0C79D35D1C1B65C542D61330 /* Goal.swift in Sources */,
@@ -738,7 +756,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 15;
+				CURRENT_PROJECT_VERSION = 16;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = TYQ32QCF6K;
@@ -936,7 +954,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 15;
+				CURRENT_PROJECT_VERSION = 16;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = TYQ32QCF6K;
