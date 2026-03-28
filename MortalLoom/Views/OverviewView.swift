@@ -22,6 +22,7 @@ struct OverviewView: View {
     @State private var cachedHealthScore: Double = 0
     @State private var cachedNormalPoints: [TrajectoryPoint] = []
     @State private var cachedLevPoints: [TrajectoryPoint] = []
+    @State private var cachedRecommendations: [RecommendationEngine.Recommendation] = []
 
     var body: some View {
         ScrollView {
@@ -32,6 +33,7 @@ struct OverviewView: View {
                 if let dc = deathClock { lifetimeHealthChart(dc) }
                 vitalStatsRow
                 healthGrid
+                if !cachedRecommendations.isEmpty { recommendationsCard }
             }
             .padding()
         }
@@ -77,6 +79,13 @@ struct OverviewView: View {
             genome: data.genomeScanRecord
         )
         cachedAlcoholRisk = DeathClockEngine.alcoholRisk(drinks: data.alcoholDrinks, sex: data.profile.biologicalSex)
+        cachedRecommendations = RecommendationEngine.generate(
+            lifestyle: data.profile.lifestyle,
+            alcoholRisk: cachedAlcoholRisk,
+            hasGenomeData: data.genomeScanRecord != nil,
+            hasEpigeneticData: !data.epigeneticTests.isEmpty,
+            hasBloodTests: !data.bloodTests.isEmpty
+        )
         if let dc = deathClock {
             levDeathClock = DeathClockEngine.calculateLEVResult(standardResult: dc, birthDateStr: birthDate)
             lev = DeathClockEngine.calculateLEV(
@@ -1031,6 +1040,129 @@ struct OverviewView: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Lifestyle: \(isConfigured ? "questionnaire complete" : "not configured")")
         .accessibilityHint("Opens lifestyle questionnaire")
+    }
+
+    // MARK: - Recommendations Card
+
+    @ViewBuilder
+    private var recommendationsCard: some View {
+        let actionable = cachedRecommendations.filter { $0.yearsGained > 0 }
+        let dataGaps = cachedRecommendations.filter { $0.yearsGained == 0 }
+        let totalGainable = actionable.reduce(0.0) { $0 + $1.yearsGained }
+
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "lightbulb.fill")
+                    .foregroundColor(.yellow)
+                    .font(.title3)
+                Text("Recommendations")
+                    .font(.title3).fontWeight(.bold)
+                    .foregroundColor(.textPrimary)
+                Spacer()
+                if totalGainable > 0 {
+                    Text(String(format: "+%.1f yr possible", totalGainable))
+                        .font(.caption).fontWeight(.semibold)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.success.opacity(0.2))
+                        .foregroundColor(.success)
+                        .cornerRadius(6)
+                }
+            }
+
+            if !actionable.isEmpty {
+                Text("Changes that could extend your life")
+                    .font(.caption)
+                    .foregroundColor(.textMuted)
+
+                ForEach(actionable) { rec in
+                    recommendationRow(rec)
+                }
+            }
+
+            if !dataGaps.isEmpty {
+                if !actionable.isEmpty {
+                    Divider().background(Color.cardBorder)
+                }
+
+                Text("Track more for better estimates")
+                    .font(.caption)
+                    .foregroundColor(.textMuted)
+
+                ForEach(dataGaps) { rec in
+                    dataGapRow(rec)
+                }
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle()
+    }
+
+    @ViewBuilder
+    private func recommendationRow(_ rec: RecommendationEngine.Recommendation) -> some View {
+        Button { navigateTo(AppPage(rawValue: rec.targetPage) ?? .lifestyle) } label: {
+            HStack(spacing: 12) {
+                Image(systemName: rec.icon)
+                    .foregroundColor(.success)
+                    .font(.body)
+                    .frame(width: 24)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(rec.title)
+                        .font(.subheadline).fontWeight(.semibold)
+                        .foregroundColor(.textPrimary)
+                    Text(rec.detail)
+                        .font(.caption)
+                        .foregroundColor(.textSecondary)
+                        .lineLimit(2)
+                }
+
+                Spacer()
+
+                Text(String(format: "+%.1f yr", rec.yearsGained))
+                    .font(.subheadline).fontWeight(.bold).monospacedDigit()
+                    .foregroundColor(.success)
+            }
+            .padding(.vertical, 6)
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(rec.title): \(rec.detail). Could gain \(String(format: "%.1f", rec.yearsGained)) years.")
+        .accessibilityHint("Tap to open related section")
+    }
+
+    @ViewBuilder
+    private func dataGapRow(_ rec: RecommendationEngine.Recommendation) -> some View {
+        Button { navigateTo(AppPage(rawValue: rec.targetPage) ?? .overview) } label: {
+            HStack(spacing: 12) {
+                Image(systemName: rec.icon)
+                    .foregroundColor(.textMuted)
+                    .font(.body)
+                    .frame(width: 24)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(rec.title)
+                        .font(.subheadline).fontWeight(.medium)
+                        .foregroundColor(.textSecondary)
+                    Text(rec.detail)
+                        .font(.caption)
+                        .foregroundColor(.textMuted)
+                        .lineLimit(2)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .foregroundColor(.textMuted)
+                    .font(.caption)
+            }
+            .padding(.vertical, 4)
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(rec.title): \(rec.detail)")
+        .accessibilityHint("Tap to open related section")
     }
 
     // MARK: - Helpers

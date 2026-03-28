@@ -72,6 +72,7 @@
 		A99F77F33CA23F911825433B /* MortalLoomWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9C75EBA8B78FFDE7A1FC5925 /* MortalLoomWidget.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		AA6C2E9E92FDD28CC9446059 /* SideMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50C5058BFC45EAA680969317 /* SideMenuView.swift */; };
 		AD7F1DCB8D68FC9792B1F154 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8DFE4C5B3F84209835BAB96B /* Assets.xcassets */; };
+		B3659A5C2BA5BA416D41B210 /* RecommendationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12327161D8F5EC268793ADF5 /* RecommendationEngine.swift */; };
 		B7F6281A505841E019DE76FA /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 581A48FA229D5FCAD176458F /* SampleData.swift */; };
 		B9C3E940ECEF8AACF05AB138 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC7FF09623E4F8E66F45E59F /* PaywallView.swift */; };
 		B9CD04929700DA3CFF13A92E /* SubstanceEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14643E58DFCB5BCF7D13DC86 /* SubstanceEntry.swift */; };
@@ -89,6 +90,7 @@
 		DD7B9C9787A28BAD1712D040 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A430A6D6F069A9C484A8BB2 /* Theme.swift */; };
 		DE453F18D91452A344184BB6 /* EyeExam.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6800ABC07A07655F56FA658 /* EyeExam.swift */; };
 		E118CBAF40777154C639267F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37A71E4A0A8F1CD94F8E00BB /* SettingsView.swift */; };
+		E373A1B3BD5FBCA02184189E /* RecommendationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12327161D8F5EC268793ADF5 /* RecommendationEngine.swift */; };
 		E7899B9BBD38F6820A45779D /* SubstancesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04C1C61D4BD2F3E4B50538F2 /* SubstancesView.swift */; };
 		E9CAFBE806754A59E91B2DBF /* ProBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17554F4F50A7084DE0587FE8 /* ProBadge.swift */; };
 		E9E92C07377B4F5069A8646E /* GoalsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F9ADA70E28A5E28CA55C63F /* GoalsView.swift */; };
@@ -168,6 +170,7 @@
 		04C1C61D4BD2F3E4B50538F2 /* SubstancesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubstancesView.swift; sourceTree = "<group>"; };
 		060756B48008BEC8E34A98B9 /* MortalLoomWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MortalLoomWidget.entitlements; sourceTree = "<group>"; };
 		118A5A1BB8FDFBEDDACD2E0C /* GoalEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalEngine.swift; sourceTree = "<group>"; };
+		12327161D8F5EC268793ADF5 /* RecommendationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationEngine.swift; sourceTree = "<group>"; };
 		13547F14B9304DE2AE925ED2 /* Goal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Goal.swift; sourceTree = "<group>"; };
 		14643E58DFCB5BCF7D13DC86 /* SubstanceEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubstanceEntry.swift; sourceTree = "<group>"; };
 		17554F4F50A7084DE0587FE8 /* ProBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProBadge.swift; sourceTree = "<group>"; };
@@ -285,6 +288,7 @@
 				118A5A1BB8FDFBEDDACD2E0C /* GoalEngine.swift */,
 				3C111B7B3DAB461735C8004F /* HealthKitService.swift */,
 				66616D81AC46D85C5D584F4F /* HealthKitSync.swift */,
+				12327161D8F5EC268793ADF5 /* RecommendationEngine.swift */,
 				581A48FA229D5FCAD176458F /* SampleData.swift */,
 				D9A69DB778D8C239A47B3325 /* StoreManager.swift */,
 				C204F5FE0B519C1DEDB7AF47 /* SubstanceEngine.swift */,
@@ -627,6 +631,7 @@
 				F693696AC5E6CC72FC037C48 /* OverviewView.swift in Sources */,
 				B9C3E940ECEF8AACF05AB138 /* PaywallView.swift in Sources */,
 				E9CAFBE806754A59E91B2DBF /* ProBadge.swift in Sources */,
+				B3659A5C2BA5BA416D41B210 /* RecommendationEngine.swift in Sources */,
 				528323E013ED0AE7CB0D781A /* SampleData.swift in Sources */,
 				E118CBAF40777154C639267F /* SettingsView.swift in Sources */,
 				32B20B696284DEE2E3ED3ED6 /* SideMenuView.swift in Sources */,
@@ -683,6 +688,7 @@
 				F70C90E5AEE5A80B621DDA0A /* OverviewView.swift in Sources */,
 				8D3F0148D6280967FB75B579 /* PaywallView.swift in Sources */,
 				CD491375649F5117BA797FD4 /* ProBadge.swift in Sources */,
+				E373A1B3BD5FBCA02184189E /* RecommendationEngine.swift in Sources */,
 				B7F6281A505841E019DE76FA /* SampleData.swift in Sources */,
 				CAE4E3026BDDD0FF4A4CBBA1 /* SettingsView.swift in Sources */,
 				AA6C2E9E92FDD28CC9446059 /* SideMenuView.swift in Sources */,

@@ -2593,3 +2593,310 @@ final class LEVEngineEdgeCaseTests: XCTestCase {
         XCTAssertEqual(record.categoryRisks["cardiovascular"]?.concern, 0)
     }
 }
+
+// MARK: - RecommendationEngine Tests
+
+final class RecommendationEngineTests: XCTestCase {
+
+    private let optimalLifestyle = LifestyleData(
+        smokingStatus: .never,
+        exerciseMinutesPerWeek: 200,
+        sleepHoursPerNight: 7.5,
+        dietQuality: .excellent,
+        stressLevel: .low,
+        bmi: 22.0
+    )
+
+    private let poorLifestyle = LifestyleData(
+        smokingStatus: .current,
+        exerciseMinutesPerWeek: 30,
+        sleepHoursPerNight: 5.0,
+        dietQuality: .poor,
+        stressLevel: .high,
+        bmi: 32.0
+    )
+
+    func testOptimalLifestyleNoActionableRecs() {
+        let recs = RecommendationEngine.generate(
+            lifestyle: optimalLifestyle,
+            alcoholRisk: .low,
+            hasGenomeData: true,
+            hasEpigeneticData: true,
+            hasBloodTests: true
+        )
+        let actionable = recs.filter { $0.yearsGained > 0 }
+        XCTAssertTrue(actionable.isEmpty, "Optimal lifestyle should produce no actionable recommendations")
+    }
+
+    func testPoorLifestyleGeneratesMultipleRecs() {
+        let recs = RecommendationEngine.generate(
+            lifestyle: poorLifestyle,
+            alcoholRisk: .high,
+            hasGenomeData: false,
+            hasEpigeneticData: false,
+            hasBloodTests: false
+        )
+        let actionable = recs.filter { $0.yearsGained > 0 }
+        XCTAssertGreaterThanOrEqual(actionable.count, 5, "Poor lifestyle should generate many recommendations")
+    }
+
+    func testSmokingRecommendationHighestPriority() {
+        let recs = RecommendationEngine.generate(
+            lifestyle: poorLifestyle,
+            alcoholRisk: .low,
+            hasGenomeData: true,
+            hasEpigeneticData: true,
+            hasBloodTests: true
+        )
+        let actionable = recs.filter { $0.yearsGained > 0 }
+        XCTAssertFalse(actionable.isEmpty)
+        XCTAssertEqual(actionable.first?.id, "quit-smoking", "Quitting smoking should be the top recommendation")
+        XCTAssertEqual(actionable.first?.yearsGained, 10.0)
+    }
+
+    func testSortedByYearsGainedDescending() {
+        let recs = RecommendationEngine.generate(
+            lifestyle: poorLifestyle,
+            alcoholRisk: .high,
+            hasGenomeData: true,
+            hasEpigeneticData: true,
+            hasBloodTests: true
+        )
+        let actionable = recs.filter { $0.yearsGained > 0 }
+        for i in 0..<(actionable.count - 1) {
+            XCTAssertGreaterThanOrEqual(actionable[i].yearsGained, actionable[i + 1].yearsGained,
+                "Recommendations should be sorted by years gained descending")
+        }
+    }
+
+    func testMissingDataGeneratesDataGapRecs() {
+        let recs = RecommendationEngine.generate(
+            lifestyle: optimalLifestyle,
+            alcoholRisk: .low,
+            hasGenomeData: false,
+            hasEpigeneticData: false,
+            hasBloodTests: false
+        )
+        let dataGaps = recs.filter { $0.yearsGained == 0 }
+        XCTAssertEqual(dataGaps.count, 3, "Missing genome, epigenetic, and blood data should generate 3 data gap recs")
+        let ids = Set(dataGaps.map(\.id))
+        XCTAssertTrue(ids.contains("upload-genome"))
+        XCTAssertTrue(ids.contains("add-epigenetic"))
+        XCTAssertTrue(ids.contains("add-blood-test"))
+    }
+
+    func testAllDataPresentNoDataGapRecs() {
+        let recs = RecommendationEngine.generate(
+            lifestyle: optimalLifestyle,
+            alcoholRisk: .low,
+            hasGenomeData: true,
+            hasEpigeneticData: true,
+            hasBloodTests: true
+        )
+        let dataGaps = recs.filter { $0.yearsGained == 0 }
+        XCTAssertTrue(dataGaps.isEmpty, "Complete data should produce no data gap recommendations")
+    }
+
+    func testExerciseRecommendationBelow75() {
+        let lifestyle = LifestyleData(
+            smokingStatus: .never,
+            exerciseMinutesPerWeek: 30,
+            sleepHoursPerNight: 7.5,
+            dietQuality: .excellent,
+            stressLevel: .low,
+            bmi: 22.0
+        )
+        let recs = RecommendationEngine.generate(
+            lifestyle: lifestyle,
+            alcoholRisk: .low,
+            hasGenomeData: true,
+            hasEpigeneticData: true,
+            hasBloodTests: true
+        )
+        let exerciseRec = recs.first(where: { $0.id == "increase-exercise" })
+        XCTAssertNotNil(exerciseRec)
+        XCTAssertEqual(exerciseRec?.yearsGained, 4.0) // from -2 (below 75) to +2 (above 150)
+    }
+
+    func testExerciseRecommendation75to150() {
+        let lifestyle = LifestyleData(
+            smokingStatus: .never,
+            exerciseMinutesPerWeek: 100,
+            sleepHoursPerNight: 7.5,
+            dietQuality: .excellent,
+            stressLevel: .low,
+            bmi: 22.0
+        )
+        let recs = RecommendationEngine.generate(
+            lifestyle: lifestyle,
+            alcoholRisk: .low,
+            hasGenomeData: true,
+            hasEpigeneticData: true,
+            hasBloodTests: true
+        )
+        let exerciseRec = recs.first(where: { $0.id == "increase-exercise" })
+        XCTAssertNotNil(exerciseRec)
+        XCTAssertEqual(exerciseRec?.yearsGained, 1.5) // from +0.5 (75-150) to +2 (above 150)
+    }
+
+    func testAlcoholHighRiskRecommendation() {
+        let recs = RecommendationEngine.generate(
+            lifestyle: optimalLifestyle,
+            alcoholRisk: .high,
+            hasGenomeData: true,
+            hasEpigeneticData: true,
+            hasBloodTests: true
+        )
+        let alcoholRec = recs.first(where: { $0.id == "reduce-alcohol" })
+        XCTAssertNotNil(alcoholRec)
+        XCTAssertEqual(alcoholRec?.yearsGained, 2.0)
+    }
+
+    func testAlcoholModerateRiskRecommendation() {
+        let recs = RecommendationEngine.generate(
+            lifestyle: optimalLifestyle,
+            alcoholRisk: .moderate,
+            hasGenomeData: true,
+            hasEpigeneticData: true,
+            hasBloodTests: true
+        )
+        let alcoholRec = recs.first(where: { $0.id == "reduce-alcohol" })
+        XCTAssertNotNil(alcoholRec)
+        XCTAssertEqual(alcoholRec?.yearsGained, 1.0)
+    }
+
+    func testBMIObeseRecommendation() {
+        let lifestyle = LifestyleData(
+            smokingStatus: .never,
+            exerciseMinutesPerWeek: 200,
+            sleepHoursPerNight: 7.5,
+            dietQuality: .excellent,
+            stressLevel: .low,
+            bmi: 35.0
+        )
+        let recs = RecommendationEngine.generate(
+            lifestyle: lifestyle,
+            alcoholRisk: .low,
+            hasGenomeData: true,
+            hasEpigeneticData: true,
+            hasBloodTests: true
+        )
+        let bmiRec = recs.first(where: { $0.id == "improve-bmi" })
+        XCTAssertNotNil(bmiRec)
+        XCTAssertEqual(bmiRec?.yearsGained, 3.5) // from -3 to +0.5
+    }
+
+    func testNormalBMINoRecommendation() {
+        let recs = RecommendationEngine.generate(
+            lifestyle: optimalLifestyle,
+            alcoholRisk: .low,
+            hasGenomeData: true,
+            hasEpigeneticData: true,
+            hasBloodTests: true
+        )
+        let bmiRec = recs.first(where: { $0.id == "improve-bmi" })
+        XCTAssertNil(bmiRec, "Normal BMI should not generate a recommendation")
+    }
+
+    func testSleepTooLowRecommendation() {
+        let lifestyle = LifestyleData(
+            smokingStatus: .never,
+            exerciseMinutesPerWeek: 200,
+            sleepHoursPerNight: 5.0,
+            dietQuality: .excellent,
+            stressLevel: .low,
+            bmi: 22.0
+        )
+        let recs = RecommendationEngine.generate(
+            lifestyle: lifestyle,
+            alcoholRisk: .low,
+            hasGenomeData: true,
+            hasEpigeneticData: true,
+            hasBloodTests: true
+        )
+        let sleepRec = recs.first(where: { $0.id == "optimize-sleep" })
+        XCTAssertNotNil(sleepRec)
+        XCTAssertEqual(sleepRec?.yearsGained, 2.5) // from -1.5 to +1
+    }
+
+    func testOptimalSleepNoRecommendation() {
+        let recs = RecommendationEngine.generate(
+            lifestyle: optimalLifestyle,
+            alcoholRisk: .low,
+            hasGenomeData: true,
+            hasEpigeneticData: true,
+            hasBloodTests: true
+        )
+        let sleepRec = recs.first(where: { $0.id == "optimize-sleep" })
+        XCTAssertNil(sleepRec, "Optimal sleep should not generate a recommendation")
+    }
+
+    func testDietPoorToGoodRecommendation() {
+        let lifestyle = LifestyleData(
+            smokingStatus: .never,
+            exerciseMinutesPerWeek: 200,
+            sleepHoursPerNight: 7.5,
+            dietQuality: .poor,
+            stressLevel: .low,
+            bmi: 22.0
+        )
+        let recs = RecommendationEngine.generate(
+            lifestyle: lifestyle,
+            alcoholRisk: .low,
+            hasGenomeData: true,
+            hasEpigeneticData: true,
+            hasBloodTests: true
+        )
+        let dietRec = recs.first(where: { $0.id == "improve-diet" })
+        XCTAssertNotNil(dietRec)
+        XCTAssertEqual(dietRec?.yearsGained, 3.5) // from -3 to +0.5
+    }
+
+    func testStressHighRecommendation() {
+        let lifestyle = LifestyleData(
+            smokingStatus: .never,
+            exerciseMinutesPerWeek: 200,
+            sleepHoursPerNight: 7.5,
+            dietQuality: .excellent,
+            stressLevel: .high,
+            bmi: 22.0
+        )
+        let recs = RecommendationEngine.generate(
+            lifestyle: lifestyle,
+            alcoholRisk: .low,
+            hasGenomeData: true,
+            hasEpigeneticData: true,
+            hasBloodTests: true
+        )
+        let stressRec = recs.first(where: { $0.id == "reduce-stress" })
+        XCTAssertNotNil(stressRec)
+        XCTAssertEqual(stressRec?.yearsGained, 3.0) // from -2 to +1
+    }
+
+    func testRecommendationTargetPages() {
+        let recs = RecommendationEngine.generate(
+            lifestyle: poorLifestyle,
+            alcoholRisk: .high,
+            hasGenomeData: false,
+            hasEpigeneticData: false,
+            hasBloodTests: false
+        )
+        // Verify target pages are valid AppPage rawValues
+        for rec in recs {
+            XCTAssertTrue((0...8).contains(rec.targetPage),
+                "Recommendation \(rec.id) has invalid target page \(rec.targetPage)")
+        }
+    }
+
+    func testAllRecommendationsHaveUniqueIds() {
+        let recs = RecommendationEngine.generate(
+            lifestyle: poorLifestyle,
+            alcoholRisk: .high,
+            hasGenomeData: false,
+            hasEpigeneticData: false,
+            hasBloodTests: false
+        )
+        let ids = recs.map(\.id)
+        XCTAssertEqual(ids.count, Set(ids).count, "All recommendation IDs should be unique")
+    }
+}
