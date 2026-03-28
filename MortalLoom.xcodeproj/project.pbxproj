@@ -25,6 +25,7 @@
 		30B68822C19248773D62696A /* LifeCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ABFE2DBE2C3A4FAFEE5EE6E /* LifeCalendarView.swift */; };
 		32B20B696284DEE2E3ED3ED6 /* SideMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50C5058BFC45EAA680969317 /* SideMenuView.swift */; };
 		3765ED39C36AEB475A71D25C /* MortalLoomTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93CDAC363DF57A04037AECCA /* MortalLoomTests.swift */; };
+		3784846CDE64B64804D199F5 /* CardioFitnessEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = F70D7D3B99416A3F8E976C2B /* CardioFitnessEngine.swift */; };
 		3784D4A41C14139EA74E88B0 /* BloodTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92F50631566FFE40D88FAD5C /* BloodTest.swift */; };
 		3842F700657CFF9D845E179E /* AppData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76AFC65F04DD19B1C921A47F /* AppData.swift */; };
 		3C18B8B01E742711B45066D0 /* BodyEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DE6F91C7E33B0F86F79570E /* BodyEntry.swift */; };
@@ -93,6 +94,7 @@
 		DE453F18D91452A344184BB6 /* EyeExam.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6800ABC07A07655F56FA658 /* EyeExam.swift */; };
 		E118CBAF40777154C639267F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37A71E4A0A8F1CD94F8E00BB /* SettingsView.swift */; };
 		E373A1B3BD5FBCA02184189E /* RecommendationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12327161D8F5EC268793ADF5 /* RecommendationEngine.swift */; };
+		E6954E8140C1420504BE3057 /* CardioFitnessEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = F70D7D3B99416A3F8E976C2B /* CardioFitnessEngine.swift */; };
 		E7899B9BBD38F6820A45779D /* SubstancesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04C1C61D4BD2F3E4B50538F2 /* SubstancesView.swift */; };
 		E9CAFBE806754A59E91B2DBF /* ProBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17554F4F50A7084DE0587FE8 /* ProBadge.swift */; };
 		E9E92C07377B4F5069A8646E /* GoalsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F9ADA70E28A5E28CA55C63F /* GoalsView.swift */; };
@@ -226,6 +228,7 @@
 		E07FD891E4CD098ECED55779 /* GenomeVariant.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenomeVariant.swift; sourceTree = "<group>"; };
 		E1EEC8E756E144273D6BC24A /* BloodTrendEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BloodTrendEngine.swift; sourceTree = "<group>"; };
 		F01753DF921942BEA30C5DD4 /* WidgetBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetBridge.swift; sourceTree = "<group>"; };
+		F70D7D3B99416A3F8E976C2B /* CardioFitnessEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardioFitnessEngine.swift; sourceTree = "<group>"; };
 		F8BFDBF027486BC4AC7BF9D1 /* GenomeScanRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenomeScanRecord.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -284,6 +287,7 @@
 			isa = PBXGroup;
 			children = (
 				E1EEC8E756E144273D6BC24A /* BloodTrendEngine.swift */,
+				F70D7D3B99416A3F8E976C2B /* CardioFitnessEngine.swift */,
 				46F952015050D53948006274 /* ClinVarService.swift */,
 				98CE91B429B04C112C38D411 /* CorrelationEngine.swift */,
 				69B73CEA0F3655CDD11A007C /* CuratedMarkers.swift */,
@@ -610,6 +614,7 @@
 				C27099DAB0C46C3647878607 /* BloodView.swift in Sources */,
 				3C18B8B01E742711B45066D0 /* BodyEntry.swift in Sources */,
 				29AFDFA8BC814239784F41DC /* BodyView.swift in Sources */,
+				E6954E8140C1420504BE3057 /* CardioFitnessEngine.swift in Sources */,
 				9AC808701F50F51226019C84 /* ClinVarService.swift in Sources */,
 				C880829A818791EC492E79A8 /* CorrelationEngine.swift in Sources */,
 				0A491EA766254514F8C2D373 /* CuratedMarkers.swift in Sources */,
@@ -668,6 +673,7 @@
 				3F2F2D1B90AB3A95141A9988 /* BloodView.swift in Sources */,
 				9D54A8470E4B66EA28F7DBE9 /* BodyEntry.swift in Sources */,
 				576B5647EBFAD63011F04625 /* BodyView.swift in Sources */,
+				3784846CDE64B64804D199F5 /* CardioFitnessEngine.swift in Sources */,
 				8A866D3F9F28D1004F1D6A92 /* ClinVarService.swift in Sources */,
 				74DDF95780AC8638A23077D4 /* CorrelationEngine.swift in Sources */,
 				884893922D3689B12DC1E4C6 /* CuratedMarkers.swift in Sources */,

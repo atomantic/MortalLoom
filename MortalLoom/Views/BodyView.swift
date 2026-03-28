@@ -10,6 +10,14 @@ private struct WeightPoint: Identifiable {
     let value: Double
 }
 
+// MARK: - Cardio Data Point
+
+private struct CardioPoint: Identifiable {
+    let id = UUID()
+    let date: Date
+    let value: Double
+}
+
 // MARK: - BodyView
 
 struct BodyView: View {
@@ -27,6 +35,17 @@ struct BodyView: View {
     @State private var weightDate: Date?
     @State private var bodyFatDate: Date?
 
+    // Cardio fitness
+    @State private var latestVO2Max: Double?
+    @State private var vo2MaxDate: Date?
+    @State private var vo2MaxHistory: [CardioPoint] = []
+    @State private var latestRestingHR: Double?
+    @State private var restingHRDate: Date?
+    @State private var latestHRV: Double?
+    @State private var hrvDate: Date?
+    @State private var userAge: Int = 0
+    @State private var userSex: BiologicalSex?
+
     // Manual entry
     @State private var showingManualEntry = false
     @State private var manualWeight = ""
@@ -38,6 +57,7 @@ struct BodyView: View {
         ScrollView {
             VStack(spacing: 16) {
                 bodyCompositionSection
+                cardioFitnessSection
                 eyePrescriptionSection
             }
             .padding()
@@ -186,6 +206,139 @@ struct BodyView: View {
         .cornerRadius(8)
     }
 
+    // MARK: - Cardio Fitness Section
+
+    @ViewBuilder
+    private var cardioFitnessSection: some View {
+        if latestVO2Max != nil || latestRestingHR != nil || latestHRV != nil {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Cardio Fitness")
+                    .font(.headline)
+                    .foregroundColor(.textPrimary)
+
+                // VO2 Max chart
+                if !vo2MaxHistory.isEmpty {
+                    Chart(vo2MaxHistory) { point in
+                        LineMark(
+                            x: .value("Date", point.date),
+                            y: .value("VO2 Max", point.value)
+                        )
+                        .foregroundStyle(Color.accentColor)
+                        .interpolationMethod(.catmullRom)
+                        PointMark(
+                            x: .value("Date", point.date),
+                            y: .value("VO2 Max", point.value)
+                        )
+                        .foregroundStyle(Color.accentColor)
+                        .symbolSize(20)
+                    }
+                    .chartYAxisLabel("mL/kg/min")
+                    .frame(height: Layout.chartFrameHeight)
+                    .padding(.vertical, 4)
+                }
+
+                // Metric cards
+                HStack(spacing: 12) {
+                    if let vo2 = latestVO2Max {
+                        cardioMetricCard(
+                            label: "VO2 Max",
+                            value: String(format: "%.1f", vo2),
+                            unit: "mL/kg/min",
+                            date: vo2MaxDate,
+                            classification: CardioFitnessEngine.classifyVO2Max(vo2, age: userAge, sex: userSex).rawValue,
+                            classificationColor: colorForName(CardioFitnessEngine.classifyVO2Max(vo2, age: userAge, sex: userSex).color),
+                            icon: CardioFitnessEngine.classifyVO2Max(vo2, age: userAge, sex: userSex).systemImage
+                        )
+                    }
+                    if let rhr = latestRestingHR {
+                        let zone = CardioFitnessEngine.classifyRestingHR(rhr)
+                        cardioMetricCard(
+                            label: "Resting HR",
+                            value: String(format: "%.0f", rhr),
+                            unit: "bpm",
+                            date: restingHRDate,
+                            classification: zone.rawValue,
+                            classificationColor: colorForName(zone.color),
+                            icon: "heart.fill"
+                        )
+                    }
+                    if let hrv = latestHRV {
+                        let level = CardioFitnessEngine.classifyHRV(hrv, age: userAge)
+                        cardioMetricCard(
+                            label: "HRV",
+                            value: String(format: "%.0f", hrv),
+                            unit: "ms",
+                            date: hrvDate,
+                            classification: level.rawValue,
+                            classificationColor: colorForName(level.color),
+                            icon: "waveform.path.ecg"
+                        )
+                    }
+                }
+
+                // Longevity impact
+                if let vo2 = latestVO2Max {
+                    let impact = CardioFitnessEngine.vo2MaxLongevityImpact(vo2, age: userAge, sex: userSex)
+                    HStack(spacing: 6) {
+                        Image(systemName: impact >= 0 ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
+                            .foregroundColor(impact >= 0 ? .success : .danger)
+                            .font(.caption)
+                        Text("VO2 Max fitness level: \(impact >= 0 ? "+" : "")\(String(format: "%.1f", impact)) years estimated life expectancy impact")
+                            .font(.caption)
+                            .foregroundColor(.textSecondary)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("VO2 Max fitness impact: \(impact >= 0 ? "plus" : "minus") \(String(format: "%.1f", abs(impact))) years on life expectancy")
+                }
+            }
+            .padding()
+            .cardStyle()
+        }
+    }
+
+    private func cardioMetricCard(label: String, value: String, unit: String, date: Date?, classification: String, classificationColor: Color, icon: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.caption2)
+                    .foregroundColor(classificationColor)
+                Text(label)
+                    .font(.caption)
+                    .foregroundColor(.textMuted)
+            }
+            Text(value)
+                .font(.title3)
+                .fontWeight(.bold)
+                .foregroundColor(.textPrimary)
+            Text(unit)
+                .font(.caption2)
+                .foregroundColor(.textMuted)
+            Text(classification)
+                .font(.caption2)
+                .fontWeight(.semibold)
+                .foregroundColor(classificationColor)
+            if let date {
+                Text(date.formatted(date: .abbreviated, time: .omitted))
+                    .font(.caption2)
+                    .foregroundColor(.textMuted)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label): \(value) \(unit), \(classification)")
+    }
+
+    private func colorForName(_ name: String) -> Color {
+        switch name {
+        case "green": return .success
+        case "blue": return .accentColor
+        case "yellow": return .warning
+        case "orange": return .orange
+        case "red": return .danger
+        default: return .textSecondary
+        }
+    }
+
     // MARK: - Eye Prescriptions Section
 
     private var eyePrescriptionSection: some View {
@@ -299,6 +452,11 @@ struct BodyView: View {
         let data = await DataStore.shared.getData()
         eyeExams = data.eyeExams
         sortedEyeExams = data.eyeExams.sorted(by: { $0.date > $1.date })
+        userSex = data.profile.biologicalSex
+        if let birthStr = data.profile.birthDate,
+           let birthDate = DateFormatting.dateFromString(birthStr) {
+            userAge = Calendar.current.dateComponents([.year], from: birthDate, to: Date()).year ?? 0
+        }
         isLoading = false
     }
 
@@ -319,7 +477,19 @@ struct BodyView: View {
         async let latestFatResult = healthKit.latestValue(for: .bodyFatPercentage, unit: .percent())
         async let latestLeanResult = healthKit.latestValue(for: .leanBodyMass, unit: .pound())
 
-        let (wd, lw, lf, ll) = await (weightData, latestWeightResult, latestFatResult, latestLeanResult)
+        // Cardio fitness queries
+        async let vo2Result = healthKit.latestValue(for: .vo2Max, unit: HKUnit(from: "ml/kg*min"))
+        async let rhrResult = healthKit.latestValue(for: .restingHeartRate, unit: HKUnit.count().unitDivided(by: .minute()))
+        async let hrvResult = healthKit.latestValue(for: .heartRateVariabilitySDNN, unit: .secondUnit(with: .milli))
+        async let vo2History = healthKit.dailyStats(
+            for: .vo2Max,
+            unit: HKUnit(from: "ml/kg*min"),
+            aggregation: .average,
+            from: start,
+            to: end
+        )
+
+        let (wd, lw, lf, ll, vo2, rhr, hrv, vo2h) = await (weightData, latestWeightResult, latestFatResult, latestLeanResult, vo2Result, rhrResult, hrvResult, vo2History)
 
         weightPoints = wd.map { WeightPoint(date: $0.date, value: $0.value) }
 
@@ -339,6 +509,21 @@ struct BodyView: View {
         if latestLeanMass == nil, let w = latestWeight, let bf = latestBodyFat {
             latestLeanMass = w * (1 - bf / 100)
         }
+
+        // Cardio fitness
+        if let v = vo2 {
+            latestVO2Max = v.value
+            vo2MaxDate = v.date
+        }
+        if let r = rhr {
+            latestRestingHR = r.value
+            restingHRDate = r.date
+        }
+        if let h = hrv {
+            latestHRV = h.value
+            hrvDate = h.date
+        }
+        vo2MaxHistory = vo2h.map { CardioPoint(date: $0.date, value: $0.value) }
     }
 
     private func saveManualEntry() {
