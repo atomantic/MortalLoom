@@ -27,6 +27,7 @@ struct OverviewView: View {
         ScrollView {
             VStack(spacing: 16) {
                 deathClockCard
+                if deathClock != nil { lifeExpectancyFactorsCard }
                 if let lev { levCard(lev) }
                 if let dc = deathClock { lifetimeHealthChart(dc) }
                 vitalStatsRow
@@ -292,6 +293,101 @@ struct OverviewView: View {
         if percent >= 80 { return .danger }
         if percent >= 60 { return .warning }
         return .blue
+    }
+
+    // MARK: - Life Expectancy Factors Card
+
+    @ViewBuilder
+    private var lifeExpectancyFactorsCard: some View {
+        let lifestyle = data.profile.lifestyle
+        let allFactors: [(name: String, icon: String, value: Double)] = [
+            ("Genome", "dna", DeathClockEngine.genomeAdjustment(data.genomeScanRecord)),
+            ("Smoking", "nosign", DeathClockEngine.smokingImpact(lifestyle.smokingStatus)),
+            ("Exercise", "figure.run", DeathClockEngine.exerciseImpact(lifestyle.exerciseMinutesPerWeek)),
+            ("Sleep", "bed.double.fill", DeathClockEngine.sleepImpact(lifestyle.sleepHoursPerNight)),
+            ("Diet", "fork.knife", DeathClockEngine.dietImpact(lifestyle.dietQuality)),
+            ("Stress", "brain.head.profile", DeathClockEngine.stressImpact(lifestyle.stressLevel)),
+            ("BMI", "scalemass.fill", DeathClockEngine.bmiImpact(lifestyle.bmi)),
+        ]
+        let factors = allFactors.filter { $0.value != 0 }
+
+        if !factors.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Image(systemName: "chart.bar.fill")
+                        .foregroundColor(.accentColor)
+                        .font(.title3)
+                    Text("Life Expectancy Factors")
+                        .font(.title3).fontWeight(.bold)
+                        .foregroundColor(.textPrimary)
+                }
+
+                Text("How each factor affects your lifespan")
+                    .font(.caption)
+                    .foregroundColor(.textMuted)
+
+                ForEach(factors, id: \.name) { factor in
+                    factorRow(name: factor.name, icon: factor.icon, value: factor.value)
+                }
+
+                Divider().background(Color.cardBorder)
+
+                let net = factors.reduce(0.0) { $0 + $1.value }
+                HStack {
+                    Image(systemName: "sum")
+                        .foregroundColor(.textSecondary)
+                        .font(.caption)
+                        .frame(width: 20)
+                    Text("Net Impact")
+                        .font(.subheadline).fontWeight(.semibold)
+                        .foregroundColor(.textPrimary)
+                    Spacer()
+                    Text(String(format: "%+.1f yr", net))
+                        .font(.subheadline).fontWeight(.bold).monospacedDigit()
+                        .foregroundColor(net > 0 ? .success : net < 0 ? .danger : .textSecondary)
+                }
+
+                if factors.count < allFactors.count {
+                    Text("\(allFactors.count - factors.count) neutral factor\(allFactors.count - factors.count == 1 ? "" : "s") not shown")
+                        .font(.system(size: 10))
+                        .foregroundColor(.textMuted)
+                }
+            }
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .cardStyle()
+        }
+    }
+
+    @ViewBuilder
+    private func factorRow(name: String, icon: String, value: Double) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .foregroundColor(value > 0 ? .success : .danger)
+                .font(.caption)
+                .frame(width: 20)
+            Text(name)
+                .font(.subheadline)
+                .foregroundColor(.textPrimary)
+                .frame(width: 70, alignment: .leading)
+            GeometryReader { geo in
+                let maxAbsValue = 10.0 // scale: max |-10| for smoking
+                let barWidth = abs(value) / maxAbsValue * geo.size.width * 0.7
+                let isPositive = value > 0
+                ZStack(alignment: isPositive ? .leading : .trailing) {
+                    Color.clear
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(isPositive ? Color.success : Color.danger)
+                        .frame(width: max(4, barWidth), height: 16)
+                        .offset(x: isPositive ? geo.size.width * 0.35 : geo.size.width * 0.35 - barWidth)
+                }
+            }
+            .frame(height: 16)
+            Text(String(format: "%+.1f yr", value))
+                .font(.caption).fontWeight(.bold).monospacedDigit()
+                .foregroundColor(value > 0 ? .success : .danger)
+                .frame(width: 56, alignment: .trailing)
+        }
     }
 
     // MARK: - LEV Card
