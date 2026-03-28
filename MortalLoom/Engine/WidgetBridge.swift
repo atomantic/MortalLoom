@@ -24,7 +24,8 @@ enum WidgetBridge: Sendable {
               let result = DeathClockEngine.calculate(
                   birthDateStr: birthDate,
                   sex: data.profile.biologicalSex,
-                  lifestyle: data.profile.lifestyle
+                  lifestyle: data.profile.lifestyle,
+                  genome: data.genomeScanRecord
               ) else { return }
 
         let alcoholRisk = DeathClockEngine.alcoholRisk(

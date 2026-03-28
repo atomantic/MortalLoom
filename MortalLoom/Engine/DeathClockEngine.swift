@@ -58,6 +58,74 @@ enum DeathClockEngine {
         return base + bonus
     }
 
+    // MARK: - Genome Adjustment
+
+    /// Category impact tiers for mortality-relevant genome markers.
+    /// High-impact categories directly affect leading causes of death.
+    /// Medium-impact categories contribute indirectly to mortality.
+    /// Low-impact categories affect quality of life but have minimal mortality signal.
+    private enum CategoryImpact {
+        case high, medium, low
+
+        static func forCategory(_ raw: String) -> CategoryImpact {
+            switch raw {
+            case "cardiovascular", "longevity", "diabetes",
+                 "cognitive_decline", "tumor_suppression",
+                 "cancer_breast", "cancer_prostate", "cancer_colorectal",
+                 "cancer_lung", "cancer_melanoma", "cancer_bladder", "cancer_digestive":
+                return .high
+            case "inflammation", "autoimmune", "thyroid",
+                 "methylation", "iron", "cognitive":
+                return .medium
+            default:
+                return .low
+            }
+        }
+
+        var beneficialWeight: Double {
+            switch self { case .high: 0.15; case .medium: 0.1; case .low: 0.05 }
+        }
+        var concernWeight: Double {
+            switch self { case .high: -0.2; case .medium: -0.15; case .low: -0.1 }
+        }
+        var majorConcernWeight: Double {
+            switch self { case .high: -0.5; case .medium: -0.3; case .low: -0.15 }
+        }
+    }
+
+    /// APOE-specific life expectancy adjustment (years).
+    /// Based on published associations between APOE variants and all-cause mortality.
+    private static func apoeAdjustment(haplotype: String?, status: GenomeMarkerStatus?) -> Double {
+        guard let status else { return 0 }
+        switch status {
+        case .beneficial:    return 0.5   // ε2 carriers: modest longevity advantage
+        case .typical:       return 0     // ε3/ε3: baseline
+        case .concern:       return -1.5  // single ε4: elevated Alzheimer's + CVD risk
+        case .majorConcern:  return -3.0  // ε4/ε4: substantial mortality impact
+        case .notFound:      return 0
+        }
+    }
+
+    /// Compute total genome-based life expectancy adjustment from a persisted scan record.
+    /// Returns 0 when no genome data is available. Clamped to [-8, +4] years.
+    static func genomeAdjustment(_ record: GenomeScanRecord?) -> Double {
+        guard let record else { return 0 }
+
+        var adjustment = 0.0
+
+        for (category, risk) in record.categoryRisks {
+            let impact = CategoryImpact.forCategory(category)
+            adjustment += Double(risk.beneficial) * impact.beneficialWeight
+            adjustment += Double(risk.concern) * impact.concernWeight
+            adjustment += Double(risk.majorConcern) * impact.majorConcernWeight
+            // typical markers contribute 0
+        }
+
+        adjustment += apoeAdjustment(haplotype: record.apoeHaplotype, status: record.apoeStatus)
+
+        return min(4, max(-8, (adjustment * 10).rounded() / 10))
+    }
+
     // Lifestyle adjustments (match PortOS constants.js exactly)
     static func lifestyleAdjustment(_ lifestyle: LifestyleData) -> Double {
         smokingImpact(lifestyle.smokingStatus)
@@ -68,19 +136,20 @@ enum DeathClockEngine {
         + bmiImpact(lifestyle.bmi)
     }
 
-    static func calculate(birthDateStr: String, sex: BiologicalSex?, lifestyle: LifestyleData, now: Date = Date()) -> DeathClockResult? {
+    static func calculate(birthDateStr: String, sex: BiologicalSex?, lifestyle: LifestyleData, genome: GenomeScanRecord? = nil, now: Date = Date()) -> DeathClockResult? {
         guard let birthDate = dateFromString(birthDateStr) else { return nil }
 
         let ageYears = Calendar.current.dateComponents([.year], from: birthDate, to: now).year ?? 0
         let ageFraction = now.timeIntervalSince(birthDate) / (365.25 * 24 * 3600)
 
         let baseline = ssaBaseline(sex: sex, ageYears: ageYears)
+        let genomeAdj = genomeAdjustment(genome)
         let lifestyleAdj = lifestyleAdjustment(lifestyle)
-        let total = baseline + lifestyleAdj
+        let total = baseline + genomeAdj + lifestyleAdj
 
         let le = LifeExpectancy(
             baseline: baseline,
-            genomeAdjusted: baseline, // TODO: add genome adjustment
+            genomeAdjusted: baseline + genomeAdj,
             lifestyleAdjustment: lifestyleAdj,
             total: total
         )

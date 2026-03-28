@@ -139,7 +139,8 @@ struct LifeCalendarView: View {
         let dc = DeathClockEngine.calculate(
             birthDateStr: birthDateStr,
             sex: data.profile.biologicalSex,
-            lifestyle: data.profile.lifestyle
+            lifestyle: data.profile.lifestyle,
+            genome: data.genomeScanRecord
         )
         deathClock = dc
         levDeathClock = dc.flatMap { DeathClockEngine.calculateLEVResult(standardResult: $0, birthDateStr: birthDateStr) }

@@ -922,6 +922,8 @@ struct GenomeView: View {
         let markers = GenomeEngine.allCuratedMarkers
         Task.detached(priority: .userInitiated) {
             let summary = GenomeEngine.fullScan(variants: variants, markers: markers)
+            let record = GenomeScanRecord.from(summary)
+            await DataStore.shared.saveGenomeScanRecord(record)
             await MainActor.run {
                 withAnimation(.easeInOut(duration: 0.3)) {
                     scanSummary = summary

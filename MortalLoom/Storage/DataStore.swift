@@ -245,6 +245,12 @@ actor DataStore {
         }
     }
 
+    func saveGenomeScanRecord(_ record: GenomeScanRecord) {
+        var d = load()
+        d.genomeScanRecord = record
+        save(d)
+    }
+
     func removeGoal(id: UUID) {
         var d = load()
         d.goals.removeAll { $0.id == id }

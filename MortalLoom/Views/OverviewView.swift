@@ -72,7 +72,8 @@ struct OverviewView: View {
         deathClock = DeathClockEngine.calculate(
             birthDateStr: birthDate,
             sex: data.profile.biologicalSex,
-            lifestyle: data.profile.lifestyle
+            lifestyle: data.profile.lifestyle,
+            genome: data.genomeScanRecord
         )
         cachedAlcoholRisk = DeathClockEngine.alcoholRisk(drinks: data.alcoholDrinks, sex: data.profile.biologicalSex)
         if let dc = deathClock {

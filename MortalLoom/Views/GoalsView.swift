@@ -70,7 +70,8 @@ struct GoalsView: View {
         let dc = DeathClockEngine.calculate(
             birthDateStr: data.profile.birthDate ?? "",
             sex: data.profile.biologicalSex,
-            lifestyle: data.profile.lifestyle
+            lifestyle: data.profile.lifestyle,
+            genome: data.genomeScanRecord
         )
         let cogDate = GoalEngine.cognitiveDeadline(from: dc)
 

@@ -12,6 +12,7 @@ struct AppData: Codable, Sendable {
     var bodyEntries: [BodyEntry]
     var healthMetrics: [HealthMetricEntry]
     var goals: [Goal]
+    var genomeScanRecord: GenomeScanRecord?
 
     static let empty = AppData(
         profile: HealthProfile(birthDate: nil, biologicalSex: nil, lifestyle: .default),
@@ -24,14 +25,15 @@ struct AppData: Codable, Sendable {
         epigeneticTests: [],
         bodyEntries: [],
         healthMetrics: [],
-        goals: []
+        goals: [],
+        genomeScanRecord: nil
     )
 
     init(profile: HealthProfile, alcoholDrinks: [AlcoholDrink], alcoholPresets: [AlcoholPreset],
          nicotineEntries: [NicotineEntry], nicotinePresets: [NicotinePreset],
          bloodTests: [BloodTest], eyeExams: [EyeExam], epigeneticTests: [EpigeneticTest],
          bodyEntries: [BodyEntry] = [], healthMetrics: [HealthMetricEntry] = [],
-         goals: [Goal] = []) {
+         goals: [Goal] = [], genomeScanRecord: GenomeScanRecord? = nil) {
         self.profile = profile
         self.alcoholDrinks = alcoholDrinks
         self.alcoholPresets = alcoholPresets
@@ -43,12 +45,14 @@ struct AppData: Codable, Sendable {
         self.bodyEntries = bodyEntries
         self.healthMetrics = healthMetrics
         self.goals = goals
+        self.genomeScanRecord = genomeScanRecord
     }
 
     // Support decoding files saved before newer fields were added
     enum CodingKeys: String, CodingKey {
         case profile, alcoholDrinks, alcoholPresets, nicotineEntries, nicotinePresets
         case bloodTests, eyeExams, epigeneticTests, bodyEntries, healthMetrics, goals
+        case genomeScanRecord
     }
 
     init(from decoder: Decoder) throws {
@@ -64,5 +68,6 @@ struct AppData: Codable, Sendable {
         bodyEntries = try c.decodeIfPresent([BodyEntry].self, forKey: .bodyEntries) ?? []
         healthMetrics = try c.decodeIfPresent([HealthMetricEntry].self, forKey: .healthMetrics) ?? []
         goals = try c.decodeIfPresent([Goal].self, forKey: .goals) ?? []
+        genomeScanRecord = try c.decodeIfPresent(GenomeScanRecord.self, forKey: .genomeScanRecord)
     }
 }

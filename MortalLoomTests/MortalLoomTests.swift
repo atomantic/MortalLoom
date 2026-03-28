@@ -2419,4 +2419,177 @@ final class LEVEngineEdgeCaseTests: XCTestCase {
         XCTAssertGreaterThan(lev.researchProgress, 50)
         XCTAssertLessThan(lev.researchProgress, 70)
     }
+
+    // MARK: - Genome Adjustment Tests
+
+    func testGenomeAdjustmentNilReturnsZero() {
+        XCTAssertEqual(DeathClockEngine.genomeAdjustment(nil), 0)
+    }
+
+    func testGenomeAdjustmentBeneficialMarkersPositive() {
+        let record = GenomeScanRecord(
+            scannedAt: Date(),
+            apoeHaplotype: nil,
+            apoeStatus: nil,
+            categoryRisks: [
+                "cardiovascular": .init(beneficial: 3, typical: 1, concern: 0, majorConcern: 0),
+                "longevity": .init(beneficial: 2, typical: 0, concern: 0, majorConcern: 0)
+            ]
+        )
+        let adj = DeathClockEngine.genomeAdjustment(record)
+        // 3*0.15 + 2*0.15 = 0.75
+        XCTAssertEqual(adj, 0.8) // rounded to 1 decimal
+    }
+
+    func testGenomeAdjustmentConcernMarkersNegative() {
+        let record = GenomeScanRecord(
+            scannedAt: Date(),
+            apoeHaplotype: nil,
+            apoeStatus: nil,
+            categoryRisks: [
+                "cardiovascular": .init(beneficial: 0, typical: 0, concern: 2, majorConcern: 1),
+                "cancer_lung": .init(beneficial: 0, typical: 0, concern: 1, majorConcern: 0)
+            ]
+        )
+        let adj = DeathClockEngine.genomeAdjustment(record)
+        // cardio: 2*(-0.2) + 1*(-0.5) = -0.9, lung: 1*(-0.2) = -0.2, total = -1.1
+        XCTAssertEqual(adj, -1.1)
+    }
+
+    func testGenomeAdjustmentAPOEBeneficial() {
+        let record = GenomeScanRecord(
+            scannedAt: Date(),
+            apoeHaplotype: "\u{03B5}2/\u{03B5}3",
+            apoeStatus: .beneficial,
+            categoryRisks: [:]
+        )
+        XCTAssertEqual(DeathClockEngine.genomeAdjustment(record), 0.5)
+    }
+
+    func testGenomeAdjustmentAPOEMajorConcern() {
+        let record = GenomeScanRecord(
+            scannedAt: Date(),
+            apoeHaplotype: "\u{03B5}4/\u{03B5}4",
+            apoeStatus: .majorConcern,
+            categoryRisks: [:]
+        )
+        XCTAssertEqual(DeathClockEngine.genomeAdjustment(record), -3.0)
+    }
+
+    func testGenomeAdjustmentClampedToRange() {
+        // Create extreme negative case
+        var risks: [String: GenomeScanRecord.CategoryRisk] = [:]
+        for cat in ["cardiovascular", "longevity", "diabetes", "cancer_breast", "cancer_lung", "cancer_colorectal"] {
+            risks[cat] = .init(beneficial: 0, typical: 0, concern: 0, majorConcern: 10)
+        }
+        let record = GenomeScanRecord(
+            scannedAt: Date(),
+            apoeHaplotype: "\u{03B5}4/\u{03B5}4",
+            apoeStatus: .majorConcern,
+            categoryRisks: risks
+        )
+        let adj = DeathClockEngine.genomeAdjustment(record)
+        XCTAssertGreaterThanOrEqual(adj, -8.0)
+        XCTAssertLessThanOrEqual(adj, 4.0)
+    }
+
+    func testGenomeAdjustmentLowImpactCategories() {
+        let record = GenomeScanRecord(
+            scannedAt: Date(),
+            apoeHaplotype: nil,
+            apoeStatus: nil,
+            categoryRisks: [
+                "hair": .init(beneficial: 0, typical: 0, concern: 2, majorConcern: 0),
+                "skin": .init(beneficial: 1, typical: 0, concern: 0, majorConcern: 0)
+            ]
+        )
+        let adj = DeathClockEngine.genomeAdjustment(record)
+        // hair: 2*(-0.1) = -0.2, skin: 1*0.05 = 0.05, total = -0.15 → rounded -0.2
+        XCTAssertEqual(adj, -0.2)
+    }
+
+    func testGenomeAdjustmentMediumImpactCategories() {
+        let record = GenomeScanRecord(
+            scannedAt: Date(),
+            apoeHaplotype: nil,
+            apoeStatus: nil,
+            categoryRisks: [
+                "inflammation": .init(beneficial: 0, typical: 0, concern: 1, majorConcern: 1),
+                "methylation": .init(beneficial: 2, typical: 0, concern: 0, majorConcern: 0)
+            ]
+        )
+        let adj = DeathClockEngine.genomeAdjustment(record)
+        // inflammation: 1*(-0.15) + 1*(-0.3) = -0.45, methylation: 2*0.1 = 0.2, total = -0.25 → -0.2 (banker's rounding)
+        XCTAssertEqual(adj, -0.2)
+    }
+
+    func testCalculateWithGenomeAdjustment() {
+        let genome = GenomeScanRecord(
+            scannedAt: Date(),
+            apoeHaplotype: "\u{03B5}3/\u{03B5}4",
+            apoeStatus: .concern,
+            categoryRisks: [
+                "cardiovascular": .init(beneficial: 0, typical: 1, concern: 2, majorConcern: 0)
+            ]
+        )
+        let result = DeathClockEngine.calculate(
+            birthDateStr: "1980-03-15",
+            sex: .male,
+            lifestyle: LifestyleData(
+                smokingStatus: .never,
+                exerciseMinutesPerWeek: 180,
+                sleepHoursPerNight: 7.5,
+                dietQuality: .good,
+                stressLevel: .moderate,
+                bmi: 23.4
+            ),
+            genome: genome
+        )
+        guard let r = result else { XCTFail("Expected result"); return }
+        let le = r.lifeExpectancy
+
+        // Baseline 77.0 (male, 45-ish)
+        XCTAssertEqual(le.baseline, 77.0)
+        // Genome: cardio concern 2*(-0.2) = -0.4, APOE concern = -1.5, total = -1.9
+        XCTAssertEqual(le.genomeAdjusted, 75.1)
+        // Lifestyle: exercise(180)=2 + sleep(7.5)=1 + diet(good)=0.5 + stress(moderate)=0 + bmi(23.4)=0.5 = 4.0
+        XCTAssertEqual(le.lifestyleAdjustment, 4.0)
+        // Total = 77.0 + (-1.9) + 4.0 = 79.1
+        XCTAssertEqual(le.total, 79.1)
+    }
+
+    func testGenomeScanRecordFromSummary() {
+        let marker = CuratedMarker(
+            rsid: "rs123",
+            gene: "TEST",
+            name: "Test Marker",
+            category: .cardiovascular,
+            description: "Test",
+            implications: [.beneficial: "Good", .concern: "Bad"],
+            rules: [MarkerRule(genotypes: ["A/G"], status: .beneficial)]
+        )
+        let results = [
+            MarkerResult(marker: marker, genotype: "A/G", status: .beneficial, implication: "Good"),
+            MarkerResult(marker: marker, genotype: "G/G", status: .typical, implication: "Normal")
+        ]
+        let summary = GenomeScanSummary(
+            markerResults: results,
+            apoeResult: APOEResult(
+                haplotype: "\u{03B5}3/\u{03B5}3",
+                frequency: "~60%",
+                riskMultiplier: "1x (baseline)",
+                status: .typical,
+                implication: "Baseline"
+            ),
+            scannedAt: Date(),
+            statusCounts: [.beneficial: 1, .typical: 1]
+        )
+        let record = GenomeScanRecord.from(summary)
+
+        XCTAssertEqual(record.apoeHaplotype, "\u{03B5}3/\u{03B5}3")
+        XCTAssertEqual(record.apoeStatus, .typical)
+        XCTAssertEqual(record.categoryRisks["cardiovascular"]?.beneficial, 1)
+        XCTAssertEqual(record.categoryRisks["cardiovascular"]?.typical, 1)
+        XCTAssertEqual(record.categoryRisks["cardiovascular"]?.concern, 0)
+    }
 }
