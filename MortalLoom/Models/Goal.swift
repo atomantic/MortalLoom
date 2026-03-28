@@ -14,6 +14,10 @@ struct Goal: Codable, Identifiable, Sendable, Equatable {
     var checkInIntervalDays: Int
     var status: GoalStatus
     var priority: GoalPriority
+    var parentId: UUID?
+    var horizon: GoalHorizon?
+    var category: GoalCategory?
+    var goalType: GoalType?
 
     init(
         id: UUID = UUID(),
@@ -26,7 +30,11 @@ struct Goal: Codable, Identifiable, Sendable, Equatable {
         milestones: [GoalMilestone] = [],
         checkInIntervalDays: Int = 7,
         status: GoalStatus = .active,
-        priority: GoalPriority = .medium
+        priority: GoalPriority = .medium,
+        parentId: UUID? = nil,
+        horizon: GoalHorizon? = nil,
+        category: GoalCategory? = nil,
+        goalType: GoalType? = nil
     ) {
         self.id = id
         self.title = title
@@ -39,6 +47,10 @@ struct Goal: Codable, Identifiable, Sendable, Equatable {
         self.checkInIntervalDays = checkInIntervalDays
         self.status = status
         self.priority = priority
+        self.parentId = parentId
+        self.horizon = horizon
+        self.category = category
+        self.goalType = goalType
     }
 
     var progressPercent: Double {
@@ -110,5 +122,84 @@ enum GoalPriority: String, Codable, Sendable, CaseIterable, Comparable {
         let lhsIdx = order.firstIndex(of: lhs) ?? 0
         let rhsIdx = order.firstIndex(of: rhs) ?? 0
         return lhsIdx < rhsIdx
+    }
+}
+
+// MARK: - Goal Hierarchy Enums
+
+enum GoalHorizon: String, Codable, Sendable, CaseIterable, Equatable {
+    case oneYear = "1-year"
+    case threeYear = "3-year"
+    case fiveYear = "5-year"
+    case tenYear = "10-year"
+    case twentyYear = "20-year"
+    case lifetime = "lifetime"
+
+    var label: String {
+        switch self {
+        case .oneYear: "1 Year"
+        case .threeYear: "3 Years"
+        case .fiveYear: "5 Years"
+        case .tenYear: "10 Years"
+        case .twentyYear: "20 Years"
+        case .lifetime: "Lifetime"
+        }
+    }
+}
+
+enum GoalCategory: String, Codable, Sendable, CaseIterable, Equatable {
+    case health, creative, family, financial, legacy, mastery
+
+    var label: String {
+        switch self {
+        case .health: "Health"
+        case .creative: "Creative"
+        case .family: "Family"
+        case .financial: "Financial"
+        case .legacy: "Legacy"
+        case .mastery: "Mastery"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .health: "heart.fill"
+        case .creative: "lightbulb.fill"
+        case .family: "person.2.fill"
+        case .financial: "dollarsign.circle.fill"
+        case .legacy: "flame.fill"
+        case .mastery: "target"
+        }
+    }
+
+    var color: String {
+        switch self {
+        case .health: "green"
+        case .creative: "purple"
+        case .family: "pink"
+        case .financial: "yellow"
+        case .legacy: "orange"
+        case .mastery: "blue"
+        }
+    }
+}
+
+enum GoalType: String, Codable, Sendable, CaseIterable, Equatable {
+    case apex, subApex, standard
+
+    var label: String {
+        switch self {
+        case .apex: "North Star"
+        case .subApex: "Life Pillar"
+        case .standard: "Goal"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .apex: "crown.fill"
+        case .subApex: "star.fill"
+        case .standard: "circle.fill"
+        }
     }
 }

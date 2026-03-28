@@ -38,12 +38,12 @@ struct GoalsView: View {
             }
         }
         .sheet(isPresented: $showingAddGoal) {
-            GoalEditSheet(goal: nil) { newGoal in
+            GoalEditSheet(goal: nil, allGoals: goals) { newGoal in
                 saveAndReload { await DataStore.shared.addGoal(newGoal) }
             }
         }
         .sheet(item: $editingGoal) { goal in
-            GoalEditSheet(goal: goal) { updated in
+            GoalEditSheet(goal: goal, allGoals: goals) { updated in
                 saveAndReload { await DataStore.shared.updateGoal(updated) }
             }
         }
@@ -164,9 +164,7 @@ struct GoalsView: View {
         if !attentionGoals.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 SectionLabel(text: "NEEDS ATTENTION")
-                ForEach(attentionGoals) { goal in
-                    goalCard(goal)
-                }
+                goalTreeSection(attentionGoals)
             }
         }
     }
@@ -176,18 +174,14 @@ struct GoalsView: View {
         if !onTrackGoals.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 SectionLabel(text: "ON TRACK")
-                ForEach(onTrackGoals) { goal in
-                    goalCard(goal)
-                }
+                goalTreeSection(onTrackGoals)
             }
         }
 
         if !pausedGoals.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 SectionLabel(text: "PAUSED")
-                ForEach(pausedGoals) { goal in
-                    goalCard(goal)
-                }
+                goalTreeSection(pausedGoals)
             }
         }
 
@@ -205,8 +199,24 @@ struct GoalsView: View {
         if !doneGoals.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 SectionLabel(text: "COMPLETED")
-                ForEach(doneGoals) { goal in
-                    goalCard(goal)
+                goalTreeSection(doneGoals)
+            }
+        }
+    }
+
+    /// Render a section's goals as a tree: top-level goals with children nested underneath.
+    @ViewBuilder
+    private func goalTreeSection(_ sectionGoals: [Goal]) -> some View {
+        let sectionIds = Set(sectionGoals.map(\.id))
+        let topLevel = sectionGoals.filter { $0.parentId == nil || !sectionIds.contains($0.parentId!) }
+        let childrenByParent = Dictionary(grouping: sectionGoals.filter { $0.parentId != nil && sectionIds.contains($0.parentId!) }, by: { $0.parentId! })
+
+        ForEach(topLevel) { parent in
+            goalCard(parent)
+            if let children = childrenByParent[parent.id] {
+                ForEach(children) { child in
+                    goalCard(child)
+                        .padding(.leading, 24)
                 }
             }
         }
@@ -222,12 +232,24 @@ struct GoalsView: View {
         return VStack(alignment: .leading, spacing: 10) {
             HStack {
                 priorityDot(goal.priority)
+                goalTypeBadge(goal.goalType)
                 Text(goal.title)
                     .font(.headline)
                     .foregroundColor(.textPrimary)
                     .lineLimit(1)
                 Spacer()
                 urgencyBadge(projection.urgencyLevel, status: goal.status)
+            }
+
+            if goal.category != nil || goal.horizon != nil {
+                HStack(spacing: 6) {
+                    if let cat = goal.category {
+                        categoryChip(cat)
+                    }
+                    if let hz = goal.horizon {
+                        horizonChip(hz)
+                    }
+                }
             }
 
             if goal.status == .active || goal.status == .paused {
@@ -403,6 +425,50 @@ struct GoalsView: View {
         .foregroundColor(color)
     }
 
+    @ViewBuilder
+    private func goalTypeBadge(_ goalType: GoalType?) -> some View {
+        if let gt = goalType, gt != .standard {
+            Image(systemName: gt.icon)
+                .font(.caption2)
+                .foregroundColor(gt == .apex ? .warning : .accentColor)
+        }
+    }
+
+    private func categoryChip(_ cat: GoalCategory) -> some View {
+        HStack(spacing: 3) {
+            Image(systemName: cat.icon)
+                .font(.system(size: 9))
+            Text(cat.label)
+                .font(.system(size: 10))
+        }
+        .foregroundColor(categorySwiftUIColor(cat))
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(categorySwiftUIColor(cat).opacity(0.15))
+        .cornerRadius(4)
+    }
+
+    private func horizonChip(_ hz: GoalHorizon) -> some View {
+        Text(hz.label)
+            .font(.system(size: 10))
+            .foregroundColor(.textSecondary)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Color.textSecondary.opacity(0.12))
+            .cornerRadius(4)
+    }
+
+    private func categorySwiftUIColor(_ cat: GoalCategory) -> Color {
+        switch cat {
+        case .health: .green
+        case .creative: .purple
+        case .family: .pink
+        case .financial: .yellow
+        case .legacy: .orange
+        case .mastery: .blue
+        }
+    }
+
     private func lifespanWarning(_ message: String) -> some View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill")
@@ -422,6 +488,7 @@ struct GoalsView: View {
 
 private struct GoalEditSheet: View {
     let goal: Goal?
+    let allGoals: [Goal]
     let onSave: (Goal) -> Void
     @Environment(\.dismiss) private var dismiss
 
@@ -432,6 +499,10 @@ private struct GoalEditSheet: View {
     @State private var priority: GoalPriority
     @State private var checkInInterval: Int
     @State private var milestoneTexts: [MilestoneRow]
+    @State private var parentId: UUID?
+    @State private var horizon: GoalHorizon?
+    @State private var category: GoalCategory?
+    @State private var goalType: GoalType?
 
     private struct MilestoneRow: Identifiable {
         let id: UUID
@@ -439,8 +510,9 @@ private struct GoalEditSheet: View {
         var completed: Bool
     }
 
-    init(goal: Goal?, onSave: @escaping (Goal) -> Void) {
+    init(goal: Goal?, allGoals: [Goal] = [], onSave: @escaping (Goal) -> Void) {
         self.goal = goal
+        self.allGoals = allGoals
         self.onSave = onSave
         let g = goal
         _title = State(initialValue: g?.title ?? "")
@@ -455,6 +527,10 @@ private struct GoalEditSheet: View {
         _milestoneTexts = State(initialValue: g?.milestones.map {
             MilestoneRow(id: $0.id, text: $0.title, completed: $0.completed)
         } ?? [])
+        _parentId = State(initialValue: g?.parentId)
+        _horizon = State(initialValue: g?.horizon)
+        _category = State(initialValue: g?.category)
+        _goalType = State(initialValue: g?.goalType)
     }
 
     var body: some View {
@@ -464,6 +540,36 @@ private struct GoalEditSheet: View {
                     TextField("What do you want to achieve?", text: $title)
                     TextField("Notes (optional)", text: $notes, axis: .vertical)
                         .lineLimit(3...6)
+                }
+
+                Section("Classification") {
+                    Picker("Type", selection: $goalType) {
+                        Text("None").tag(GoalType?.none)
+                        ForEach(GoalType.allCases, id: \.self) { t in
+                            Label(t.label, systemImage: t.icon).tag(GoalType?.some(t))
+                        }
+                    }
+
+                    Picker("Category", selection: $category) {
+                        Text("None").tag(GoalCategory?.none)
+                        ForEach(GoalCategory.allCases, id: \.self) { c in
+                            Label(c.label, systemImage: c.icon).tag(GoalCategory?.some(c))
+                        }
+                    }
+
+                    Picker("Horizon", selection: $horizon) {
+                        Text("None").tag(GoalHorizon?.none)
+                        ForEach(GoalHorizon.allCases, id: \.self) { h in
+                            Text(h.label).tag(GoalHorizon?.some(h))
+                        }
+                    }
+
+                    Picker("Parent Goal", selection: $parentId) {
+                        Text("None (top-level)").tag(UUID?.none)
+                        ForEach(parentCandidates, id: \.id) { g in
+                            Text(g.title).tag(UUID?.some(g.id))
+                        }
+                    }
                 }
 
                 Section("Priority") {
@@ -532,6 +638,22 @@ private struct GoalEditSheet: View {
         }
     }
 
+    /// Goals that can be selected as parent — excludes self and own descendants to prevent cycles.
+    private var parentCandidates: [Goal] {
+        guard let currentId = goal?.id else { return allGoals }
+        var excludeIds: Set<UUID> = [currentId]
+        // Walk descendants to prevent circular references
+        var queue = [currentId]
+        while !queue.isEmpty {
+            let id = queue.removeFirst()
+            for g in allGoals where g.parentId == id && !excludeIds.contains(g.id) {
+                excludeIds.insert(g.id)
+                queue.append(g.id)
+            }
+        }
+        return allGoals.filter { !excludeIds.contains($0.id) }
+    }
+
     private func save() {
         let milestones = milestoneTexts
             .filter { !$0.text.trimmingCharacters(in: .whitespaces).isEmpty }
@@ -555,6 +677,10 @@ private struct GoalEditSheet: View {
         result.priority = priority
         result.checkInIntervalDays = checkInInterval
         result.milestones = milestones
+        result.parentId = parentId
+        result.horizon = horizon
+        result.category = category
+        result.goalType = goalType
 
         if !milestones.isEmpty, let lastCheckIn = result.checkIns.last {
             let milestonePct = Double(milestones.filter(\.completed).count) / Double(milestones.count) * 100
