@@ -35,7 +35,7 @@ struct GenomeView: View {
         }
         .fileImporter(
             isPresented: $showingFileImporter,
-            allowedContentTypes: [.plainText, .commaSeparatedText, .tabSeparatedText, .data],
+            allowedContentTypes: [.plainText, .commaSeparatedText, .tabSeparatedText, .text, .data, .item],
             allowsMultipleSelection: false
         ) { result in
             handleFileImport(result)
