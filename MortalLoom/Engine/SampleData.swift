@@ -188,6 +188,10 @@ enum SampleData {
                 ? (15.0 + seededRandom(day * 107, min: -2, max: 2)).rounded(to: 1)
                 : nil
 
+            // Sleep: baseline ~7.5h, worse after drinking (~6.5h), better on clean days (~7.8h)
+            let sleepBase: Double = isDrinkingDay ? 6.3 : 7.6
+            let sleepHrs = (sleepBase + seededRandom(day * 109, min: -0.8, max: 0.8)).rounded(to: 1)
+
             metrics.append(HealthMetricEntry(
                 date: date,
                 heartRate: hr,
@@ -199,7 +203,8 @@ enum SampleData {
                 steps: steps,
                 activeEnergy: energy,
                 exerciseMinutes: exercise,
-                flightsClimbed: flights
+                flightsClimbed: flights,
+                sleepHours: sleepHrs
             ))
         }
         return metrics

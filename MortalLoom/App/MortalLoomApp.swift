@@ -137,6 +137,8 @@ struct ContentView: View {
             SettingsView()
         case .goals:
             GoalsView()
+        case .sleep:
+            SleepView()
         }
     }
     #endif
@@ -169,7 +171,7 @@ struct MacContentView: View {
                 .padding(.vertical, 4)
 
                 Section("Health") {
-                    ForEach([AppPage.overview, .body, .blood, .calendar, .genome], id: \.self) { page in
+                    ForEach([AppPage.overview, .body, .sleep, .blood, .calendar, .genome], id: \.self) { page in
                         Label(page.title, systemImage: page.icon).tag(page)
                     }
                 }
@@ -207,6 +209,8 @@ struct MacContentView: View {
                     LifestyleView()
                 case .goals:
                     GoalsView()
+                case .sleep:
+                    SleepView()
                 case .settings:
                     SettingsView()
                 }

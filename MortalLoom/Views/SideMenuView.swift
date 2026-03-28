@@ -12,6 +12,7 @@ enum AppPage: Int, CaseIterable, Hashable {
     case genome = 6
     case settings = 7
     case goals = 8
+    case sleep = 9
 
     var icon: String {
         switch self {
@@ -24,6 +25,7 @@ enum AppPage: Int, CaseIterable, Hashable {
         case .genome: "allergens"
         case .settings: "gear"
         case .goals: "target"
+        case .sleep: "bed.double.fill"
         }
     }
 
@@ -38,6 +40,7 @@ enum AppPage: Int, CaseIterable, Hashable {
         case .genome: "Genome"
         case .settings: "Settings"
         case .goals: "Goals"
+        case .sleep: "Sleep"
         }
     }
 
@@ -57,7 +60,7 @@ private struct MenuSection {
 }
 
 private let menuSections: [MenuSection] = [
-    MenuSection(title: "Health", pages: [.overview, .body, .blood, .calendar, .genome]),
+    MenuSection(title: "Health", pages: [.overview, .body, .sleep, .blood, .calendar, .genome]),
     MenuSection(title: "Tracking", pages: [.goals, .habits, .lifestyle]),
     MenuSection(title: "App", pages: [.settings]),
 ]

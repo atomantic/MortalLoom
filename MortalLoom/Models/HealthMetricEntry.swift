@@ -22,6 +22,9 @@ struct HealthMetricEntry: Codable, Sendable, Equatable, Identifiable {
     var exerciseMinutes: Double?    // minutes (daily sum)
     var flightsClimbed: Double?     // count (daily sum)
 
+    // Sleep
+    var sleepHours: Double?         // total asleep hours (daily)
+
     init(
         id: UUID = UUID(),
         date: String,
@@ -34,7 +37,8 @@ struct HealthMetricEntry: Codable, Sendable, Equatable, Identifiable {
         steps: Double? = nil,
         activeEnergy: Double? = nil,
         exerciseMinutes: Double? = nil,
-        flightsClimbed: Double? = nil
+        flightsClimbed: Double? = nil,
+        sleepHours: Double? = nil
     ) {
         self.id = id
         self.date = date
@@ -48,6 +52,7 @@ struct HealthMetricEntry: Codable, Sendable, Equatable, Identifiable {
         self.activeEnergy = activeEnergy
         self.exerciseMinutes = exerciseMinutes
         self.flightsClimbed = flightsClimbed
+        self.sleepHours = sleepHours
     }
 
     /// Merge non-nil fields from another entry into this one.
@@ -62,5 +67,6 @@ struct HealthMetricEntry: Codable, Sendable, Equatable, Identifiable {
         if let v = source.activeEnergy { activeEnergy = v }
         if let v = source.exerciseMinutes { exerciseMinutes = v }
         if let v = source.flightsClimbed { flightsClimbed = v }
+        if let v = source.sleepHours { sleepHours = v }
     }
 }

@@ -108,6 +108,7 @@ final class HealthKitSync {
         async let vo2Data = hk.dailyStats(for: .vo2Max, unit: HKUnit(from: "mL/min*kg"), aggregation: .average, from: from, to: to)
         async let spo2Data = hk.dailyStats(for: .oxygenSaturation, unit: .percent(), aggregation: .average, from: from, to: to)
         async let respData = hk.dailyStats(for: .respiratoryRate, unit: .count().unitDivided(by: .minute()), aggregation: .average, from: from, to: to)
+        async let sleepData = hk.dailySleepHours(from: from, to: to)
 
         // Collect all results
         let hrv = await hrvData
@@ -120,6 +121,7 @@ final class HealthKitSync {
         let vo2 = await vo2Data
         let spo2 = await spo2Data
         let resp = await respData
+        let sleep = await sleepData
 
         // Build a date-keyed dictionary of all metrics
         var byDate: [String: HealthMetricEntry] = [:]
@@ -142,6 +144,7 @@ final class HealthKitSync {
         merge(flights, into: \.flightsClimbed)
         merge(vo2, into: \.vo2Max)
         merge(resp, into: \.respiratoryRate)
+        merge(sleep, into: \.sleepHours)
 
         // SpO2 comes as 0-1, convert to 0-100
         for item in spo2 {

@@ -102,6 +102,46 @@ final class HealthKitService: ObservableObject {
         }
     }
 
+    // Query daily total sleep hours for a date range.
+    // Sums all asleep sample durations (core + deep + REM + unspecified) per calendar day.
+    func dailySleepHours(from: Date, to: Date) async -> [(date: Date, value: Double)] {
+        guard let sleepType = HKCategoryType.categoryType(forIdentifier: .sleepAnalysis) else { return [] }
+
+        return await withCheckedContinuation { continuation in
+            let predicate = HKQuery.predicateForSamples(withStart: from, end: to, options: .strictStartDate)
+            let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+            let query = HKSampleQuery(sampleType: sleepType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [sort]) { _, samples, _ in
+                guard let samples = samples as? [HKCategorySample] else {
+                    continuation.resume(returning: [])
+                    return
+                }
+
+                // Filter to asleep samples only (not inBed or awake)
+                let asleepValues: Set<Int> = [
+                    HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue,
+                    HKCategoryValueSleepAnalysis.asleepCore.rawValue,
+                    HKCategoryValueSleepAnalysis.asleepDeep.rawValue,
+                    HKCategoryValueSleepAnalysis.asleepREM.rawValue,
+                ]
+                let asleepSamples = samples.filter { asleepValues.contains($0.value) }
+
+                // Group by the calendar day of the sample's END date (sleep ends in morning)
+                var dailySeconds: [Date: Double] = [:]
+                let calendar = Calendar.current
+                for sample in asleepSamples {
+                    let dayStart = calendar.startOfDay(for: sample.endDate)
+                    let duration = sample.endDate.timeIntervalSince(sample.startDate)
+                    dailySeconds[dayStart, default: 0] += duration
+                }
+
+                let result = dailySeconds.map { (date: $0.key, value: $0.value / 3600.0) }
+                    .sorted { $0.date < $1.date }
+                continuation.resume(returning: result)
+            }
+            store.execute(query)
+        }
+    }
+
     enum StatAggregation {
         case sum, average
     }
