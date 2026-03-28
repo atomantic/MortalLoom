@@ -1042,12 +1042,16 @@ struct GenomeView: View {
         }
     }
 
+    private static let isoFormatter = ISO8601DateFormatter()
+    private static let displayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        return f
+    }()
+
     private func formatClinVarDate(_ iso: String) -> String {
-        let formatter = ISO8601DateFormatter()
-        guard let date = formatter.date(from: iso) else { return iso }
-        let display = DateFormatter()
-        display.dateStyle = .medium
-        return display.string(from: date)
+        guard let date = Self.isoFormatter.date(from: iso) else { return iso }
+        return Self.displayFormatter.string(from: date)
     }
 
     // MARK: - Data Loading

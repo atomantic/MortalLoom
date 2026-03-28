@@ -208,8 +208,10 @@ struct GoalsView: View {
     @ViewBuilder
     private func goalTreeSection(_ sectionGoals: [Goal]) -> some View {
         let sectionIds = Set(sectionGoals.map(\.id))
-        let topLevel = sectionGoals.filter { $0.parentId == nil || !sectionIds.contains($0.parentId!) }
-        let childrenByParent = Dictionary(grouping: sectionGoals.filter { $0.parentId != nil && sectionIds.contains($0.parentId!) }, by: { $0.parentId! })
+        let topLevel = sectionGoals.filter { g in g.parentId.map { sectionIds.contains($0) } != true }
+        let childrenByParent = Dictionary(grouping: sectionGoals.filter { g in
+            g.parentId.map { sectionIds.contains($0) } == true
+        }, by: { $0.parentId ?? UUID() })
 
         ForEach(topLevel) { parent in
             goalCard(parent)
