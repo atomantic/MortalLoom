@@ -153,37 +153,3 @@ struct GoalMarker: Sendable {
     let isProjected: Bool
     let priority: GoalPriority
 }
-
-// MARK: - Goal Tree
-
-struct GoalTreeNode: Sendable {
-    let goal: Goal
-    var children: [GoalTreeNode]
-}
-
-extension GoalEngine {
-
-    /// Build a tree of goals from a flat list.
-    /// Top-level nodes are goals with no parentId or whose parentId doesn't match any goal in the list.
-    /// Children are sorted by priority then creation date.
-    static func buildTree(from goals: [Goal]) -> [GoalTreeNode] {
-        let idSet = Set(goals.map(\.id))
-        var childrenMap: [UUID: [Goal]] = [:]
-
-        for goal in goals {
-            if let pid = goal.parentId, idSet.contains(pid) {
-                childrenMap[pid, default: []].append(goal)
-            }
-        }
-
-        func buildNode(_ goal: Goal) -> GoalTreeNode {
-            let kids = (childrenMap[goal.id] ?? [])
-                .sorted { ($0.priority, $0.createdDate) < ($1.priority, $1.createdDate) }
-                .map { buildNode($0) }
-            return GoalTreeNode(goal: goal, children: kids)
-        }
-
-        let topLevel = goals.filter { $0.parentId == nil || !idSet.contains($0.parentId!) }
-        return topLevel.map { buildNode($0) }
-    }
-}

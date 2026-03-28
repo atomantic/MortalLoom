@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 // MARK: - Goal
 
@@ -172,14 +173,14 @@ enum GoalCategory: String, Codable, Sendable, CaseIterable, Equatable {
         }
     }
 
-    var color: String {
+    var swiftUIColor: Color {
         switch self {
-        case .health: "green"
-        case .creative: "purple"
-        case .family: "pink"
-        case .financial: "yellow"
-        case .legacy: "orange"
-        case .mastery: "blue"
+        case .health: .green
+        case .creative: .purple
+        case .family: .pink
+        case .financial: .yellow
+        case .legacy: .orange
+        case .mastery: .blue
         }
     }
 }

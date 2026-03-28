@@ -153,13 +153,13 @@ enum GenomeEngine {
     /// Scan uploaded genome variants against curated markers.
     /// Builds an rsid->genotype lookup, classifies each marker, returns sorted results.
     static func scanMarkers(variants: [GenomeVariant], markers: [CuratedMarker]) -> [MarkerResult] {
-        // Build rsid -> genotype lookup dictionary
         var lookup: [String: String] = [:]
         lookup.reserveCapacity(variants.count)
-        for variant in variants {
-            lookup[variant.rsID] = variant.genotype
-        }
+        for variant in variants { lookup[variant.rsID] = variant.genotype }
+        return scanMarkersWithLookup(lookup: lookup, markers: markers)
+    }
 
+    static func scanMarkersWithLookup(lookup: [String: String], markers: [CuratedMarker]) -> [MarkerResult] {
         var results: [MarkerResult] = []
         results.reserveCapacity(markers.count)
 
@@ -172,17 +172,14 @@ enum GenomeEngine {
             } else {
                 status = .notFound
             }
-            let implication = marker.implications[status] ?? ""
-
             results.append(MarkerResult(
                 marker: marker,
                 genotype: genotype,
                 status: status,
-                implication: implication
+                implication: marker.implications[status] ?? ""
             ))
         }
 
-        // Sort by category for grouped display
         return results.sorted { $0.marker.category < $1.marker.category }
     }
 
@@ -190,13 +187,13 @@ enum GenomeEngine {
 
     /// Perform a full genome scan: curated markers + APOE haplotype resolution.
     static func fullScan(variants: [GenomeVariant], markers: [CuratedMarker]) -> GenomeScanSummary {
-        let markerResults = scanMarkers(variants: variants, markers: markers)
-
-        // Build lookup for APOE resolution
+        // Build lookup once, reuse for both marker scan and APOE resolution
         var lookup: [String: String] = [:]
-        for variant in variants {
-            lookup[variant.rsID] = variant.genotype
-        }
+        lookup.reserveCapacity(variants.count)
+        for variant in variants { lookup[variant.rsID] = variant.genotype }
+
+        let markerResults = scanMarkersWithLookup(lookup: lookup, markers: markers)
+
         let apoeResult: APOEResult?
         if let rs429358 = lookup["rs429358"], let rs7412 = lookup["rs7412"] {
             apoeResult = resolveAPOEHaplotype(rs429358raw: rs429358, rs7412raw: rs7412)

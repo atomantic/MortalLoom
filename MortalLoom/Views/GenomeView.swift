@@ -555,9 +555,10 @@ struct GenomeView: View {
 
     private func categoryCard(category: MarkerCategory, results: [MarkerResult], displayResults: [MarkerResult]) -> some View {
         let isExpanded = expandedCategories.contains(category)
-        let worstStatus = worstStatusIn(results.filter { $0.status != .notFound })
-        let foundCount = results.filter { $0.status != .notFound }.count
-        let concernCount = results.filter { $0.status == .concern || $0.status == .majorConcern }.count
+        let foundResults = results.filter { $0.status != .notFound }
+        let worstStatus = worstStatusIn(foundResults)
+        let foundCount = foundResults.count
+        let concernCount = foundResults.filter { $0.status == .concern || $0.status == .majorConcern }.count
 
         return VStack(spacing: 0) {
             // Category header

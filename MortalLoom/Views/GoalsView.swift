@@ -441,10 +441,10 @@ struct GoalsView: View {
             Text(cat.label)
                 .font(.system(size: 10))
         }
-        .foregroundColor(categorySwiftUIColor(cat))
+        .foregroundColor(cat.swiftUIColor)
         .padding(.horizontal, 6)
         .padding(.vertical, 2)
-        .background(categorySwiftUIColor(cat).opacity(0.15))
+        .background(cat.swiftUIColor.opacity(0.15))
         .cornerRadius(4)
     }
 
@@ -458,16 +458,6 @@ struct GoalsView: View {
             .cornerRadius(4)
     }
 
-    private func categorySwiftUIColor(_ cat: GoalCategory) -> Color {
-        switch cat {
-        case .health: .green
-        case .creative: .purple
-        case .family: .pink
-        case .financial: .yellow
-        case .legacy: .orange
-        case .mastery: .blue
-        }
-    }
 
     private func lifespanWarning(_ message: String) -> some View {
         HStack(alignment: .top, spacing: 8) {
