@@ -34,8 +34,8 @@ enum GenomeParser {
         var variants: [GenomeVariant] = []
         var build: String?
 
-        // Split on any line ending in a single pass (handles \r\n, \r, \n)
-        for line in content.split(omittingEmptySubsequences: false, whereSeparator: { $0 == "\n" || $0 == "\r" }) {
+        for line in content.components(separatedBy: .newlines) {
+            let line = line[...]
             let trimmed = line.drop(while: { $0 == " " || $0 == "\t" })
             if trimmed.isEmpty { continue }
 
