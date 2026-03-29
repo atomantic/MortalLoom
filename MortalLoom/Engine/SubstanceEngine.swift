@@ -92,4 +92,35 @@ enum SubstanceEngine {
         let dayCount = max(1, Calendar.current.dateComponents([.day], from: firstDate, to: now).day ?? 1)
         return total / Double(dayCount)
     }
+
+    // MARK: - Sauna
+
+    static func rollingAverageMinutes(sessions: [SaunaSession], days: Int, now: Date = Date()) -> Double {
+        let cutoff = DateFormatting.dateString(daysAgo: days, from: now)
+        let total = sessions.filter { $0.date >= cutoff }.reduce(0) { $0 + $1.durationMinutes }
+        return Double(total) / Double(max(1, days))
+    }
+
+    static func weeklyTotalMinutes(sessions: [SaunaSession], now: Date = Date()) -> Int {
+        let cutoff = DateFormatting.dateString(daysAgo: 7, from: now)
+        return sessions.filter { $0.date >= cutoff }.reduce(0) { $0 + $1.durationMinutes }
+    }
+
+    static func weeklySessionCount(sessions: [SaunaSession], now: Date = Date()) -> Int {
+        let cutoff = DateFormatting.dateString(daysAgo: 7, from: now)
+        return sessions.filter { $0.date >= cutoff }.count
+    }
+
+    static func allTimeAverageMinutes(sessions: [SaunaSession], now: Date = Date()) -> Double {
+        guard !sessions.isEmpty else { return 0 }
+        var earliest = sessions[0].date
+        var total = 0
+        for session in sessions {
+            total += session.durationMinutes
+            if session.date < earliest { earliest = session.date }
+        }
+        guard let firstDate = DateFormatting.dateFromString(earliest) else { return 0 }
+        let dayCount = max(1, Calendar.current.dateComponents([.day], from: firstDate, to: now).day ?? 1)
+        return Double(total) / Double(dayCount)
+    }
 }

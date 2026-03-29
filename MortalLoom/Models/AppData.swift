@@ -13,6 +13,8 @@ struct AppData: Codable, Sendable {
     var healthMetrics: [HealthMetricEntry]
     var goals: [Goal]
     var genomeScanRecord: GenomeScanRecord?
+    var saunaSessions: [SaunaSession]
+    var saunaPresets: [SaunaPreset]
 
     static let empty = AppData(
         profile: HealthProfile(birthDate: nil, biologicalSex: nil, lifestyle: .default),
@@ -26,14 +28,17 @@ struct AppData: Codable, Sendable {
         bodyEntries: [],
         healthMetrics: [],
         goals: [],
-        genomeScanRecord: nil
+        genomeScanRecord: nil,
+        saunaSessions: [],
+        saunaPresets: SaunaPreset.defaults
     )
 
     init(profile: HealthProfile, alcoholDrinks: [AlcoholDrink], alcoholPresets: [AlcoholPreset],
          nicotineEntries: [NicotineEntry], nicotinePresets: [NicotinePreset],
          bloodTests: [BloodTest], eyeExams: [EyeExam], epigeneticTests: [EpigeneticTest],
          bodyEntries: [BodyEntry] = [], healthMetrics: [HealthMetricEntry] = [],
-         goals: [Goal] = [], genomeScanRecord: GenomeScanRecord? = nil) {
+         goals: [Goal] = [], genomeScanRecord: GenomeScanRecord? = nil,
+         saunaSessions: [SaunaSession] = [], saunaPresets: [SaunaPreset] = SaunaPreset.defaults) {
         self.profile = profile
         self.alcoholDrinks = alcoholDrinks
         self.alcoholPresets = alcoholPresets
@@ -46,13 +51,15 @@ struct AppData: Codable, Sendable {
         self.healthMetrics = healthMetrics
         self.goals = goals
         self.genomeScanRecord = genomeScanRecord
+        self.saunaSessions = saunaSessions
+        self.saunaPresets = saunaPresets
     }
 
     // Support decoding files saved before newer fields were added
     enum CodingKeys: String, CodingKey {
         case profile, alcoholDrinks, alcoholPresets, nicotineEntries, nicotinePresets
         case bloodTests, eyeExams, epigeneticTests, bodyEntries, healthMetrics, goals
-        case genomeScanRecord
+        case genomeScanRecord, saunaSessions, saunaPresets
     }
 
     init(from decoder: Decoder) throws {
@@ -69,5 +76,7 @@ struct AppData: Codable, Sendable {
         healthMetrics = try c.decodeIfPresent([HealthMetricEntry].self, forKey: .healthMetrics) ?? []
         goals = try c.decodeIfPresent([Goal].self, forKey: .goals) ?? []
         genomeScanRecord = try c.decodeIfPresent(GenomeScanRecord.self, forKey: .genomeScanRecord)
+        saunaSessions = try c.decodeIfPresent([SaunaSession].self, forKey: .saunaSessions) ?? []
+        saunaPresets = try c.decodeIfPresent([SaunaPreset].self, forKey: .saunaPresets) ?? SaunaPreset.defaults
     }
 }

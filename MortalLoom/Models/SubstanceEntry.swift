@@ -63,3 +63,55 @@ struct NicotinePreset: Codable, Sendable, Equatable, Identifiable {
         self.id = id; self.name = name; self.mgPerUnit = mgPerUnit
     }
 }
+
+// MARK: - Sauna
+
+enum SaunaType: String, Codable, Sendable, CaseIterable, Equatable {
+    case infrared = "Infrared"
+    case steam = "Steam"
+
+    var defaultTempF: Int {
+        switch self {
+        case .infrared: 140
+        case .steam: 175
+        }
+    }
+
+    var defaultMinutes: Int {
+        switch self {
+        case .infrared: 25
+        case .steam: 15
+        }
+    }
+}
+
+struct SaunaSession: Codable, Sendable, Equatable, Identifiable {
+    let id: UUID
+    var saunaType: SaunaType
+    var temperatureF: Int
+    var durationMinutes: Int
+    var date: String // "YYYY-MM-DD"
+
+    init(id: UUID = UUID(), saunaType: SaunaType, temperatureF: Int, durationMinutes: Int, date: String) {
+        self.id = id; self.saunaType = saunaType; self.temperatureF = temperatureF
+        self.durationMinutes = durationMinutes; self.date = date
+    }
+}
+
+struct SaunaPreset: Codable, Sendable, Equatable, Identifiable {
+    let id: UUID
+    var name: String
+    var saunaType: SaunaType
+    var temperatureF: Int
+    var durationMinutes: Int
+
+    init(id: UUID = UUID(), name: String, saunaType: SaunaType, temperatureF: Int, durationMinutes: Int) {
+        self.id = id; self.name = name; self.saunaType = saunaType
+        self.temperatureF = temperatureF; self.durationMinutes = durationMinutes
+    }
+
+    static let defaults: [SaunaPreset] = [
+        SaunaPreset(name: "Infrared (140\u{00B0}F, 25 min)", saunaType: .infrared, temperatureF: 140, durationMinutes: 25),
+        SaunaPreset(name: "Steam (175\u{00B0}F, 15 min)", saunaType: .steam, temperatureF: 175, durationMinutes: 15),
+    ]
+}

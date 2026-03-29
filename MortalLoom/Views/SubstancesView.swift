@@ -6,6 +6,7 @@ import Charts
 private enum SubstanceTab: String, CaseIterable {
     case alcohol = "Alcohol"
     case nicotine = "Nicotine"
+    case sauna = "Sauna"
 }
 
 // MARK: - Volume Unit
@@ -80,6 +81,10 @@ struct SubstancesView: View {
     @State private var nicotineEntries: [NicotineEntry] = []
     @State private var nicotinePresets: [NicotinePreset] = []
 
+    // Sauna state
+    @State private var saunaSessions: [SaunaSession] = []
+    @State private var saunaPresets: [SaunaPreset] = []
+
     // Health metrics for correlation charts
     @State private var healthMetrics: [HealthMetricEntry] = []
     private var metricsByDate: [String: HealthMetricEntry] {
@@ -100,11 +105,19 @@ struct SubstancesView: View {
     @State private var nicoCount = "1"
     @State private var nicoDate = Date()
 
+    // Sauna form
+    @State private var saunaType: SaunaType = .infrared
+    @State private var saunaTemp = "140"
+    @State private var saunaDuration = "25"
+    @State private var saunaDate = Date()
+
     // Edit sheets
     @State private var editingDrink: AlcoholDrink?
     @State private var editingNicotine: NicotineEntry?
+    @State private var editingSauna: SaunaSession?
     @State private var showAlcoholPresetManager = false
     @State private var showNicotinePresetManager = false
+    @State private var showSaunaPresetManager = false
 
     // Edit form state
     @State private var editAlcoName = ""
@@ -117,6 +130,11 @@ struct SubstancesView: View {
     @State private var editNicoMg = ""
     @State private var editNicoCount = ""
     @State private var editNicoDate = ""
+
+    @State private var editSaunaType: SaunaType = .infrared
+    @State private var editSaunaTemp = ""
+    @State private var editSaunaDuration = ""
+    @State private var editSaunaDate = ""
 
     var body: some View {
         ScrollView {
@@ -134,6 +152,8 @@ struct SubstancesView: View {
                     alcoholSection
                 case .nicotine:
                     nicotineSection
+                case .sauna:
+                    saunaSection
                 }
             }
             .padding()
@@ -156,6 +176,14 @@ struct SubstancesView: View {
                 Task { await DataStore.shared.setNicotinePresets(newPresets) }
             })
         }
+        .sheet(item: $editingSauna) { session in
+            saunaEditSheet(session)
+        }
+        .sheet(isPresented: $showSaunaPresetManager) {
+            SaunaPresetManagerView(presets: $saunaPresets, onSave: { newPresets in
+                Task { await DataStore.shared.setSaunaPresets(newPresets) }
+            })
+        }
     }
 
     // MARK: - Data Loading
@@ -168,6 +196,8 @@ struct SubstancesView: View {
         nicotinePresets = data.nicotinePresets
         biologicalSex = data.profile.biologicalSex
         healthMetrics = data.healthMetrics
+        saunaSessions = data.saunaSessions
+        saunaPresets = data.saunaPresets
     }
 
     // MARK: - Alcohol Section
@@ -570,25 +600,7 @@ struct SubstancesView: View {
     }
 
     private var manageAlcoholPresetsButton: some View {
-        Button {
-            showAlcoholPresetManager = true
-        } label: {
-            HStack {
-                Image(systemName: "slider.horizontal.3")
-                Text("Manage Presets")
-            }
-            .font(.subheadline)
-            .foregroundColor(.accentColor)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
-            .background(Color.bgInput)
-            .cornerRadius(8)
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.cardBorder, lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
+        managePresetsButton { showAlcoholPresetManager = true }
     }
 
     // MARK: - Nicotine Section
@@ -951,15 +963,314 @@ struct SubstancesView: View {
     }
 
     private var manageNicotinePresetsButton: some View {
-        Button {
-            showNicotinePresetManager = true
-        } label: {
+        managePresetsButton { showNicotinePresetManager = true }
+    }
+
+    // MARK: - Sauna Section
+
+    @ViewBuilder
+    private var saunaSection: some View {
+        saunaStatsBar
+        saunaChart
+        saunaQuickAdd
+        saunaCustomForm
+        saunaHistory
+        manageSaunaPresetsButton
+    }
+
+    // MARK: Sauna Stats
+
+    private var saunaStatsBar: some View {
+        let today = todayString()
+        let todayMin = saunaSessions.filter { $0.date == today }.reduce(0) { $0 + $1.durationMinutes }
+        let avg7 = SubstanceEngine.rollingAverageMinutes(sessions: saunaSessions, days: 7)
+        let avg30 = SubstanceEngine.rollingAverageMinutes(sessions: saunaSessions, days: 30)
+        let weeklyCount = SubstanceEngine.weeklySessionCount(sessions: saunaSessions)
+        let weeklyMin = SubstanceEngine.weeklyTotalMinutes(sessions: saunaSessions)
+
+        return VStack(spacing: 12) {
+            HStack(spacing: 0) {
+                statItem(label: "Today", value: "\(todayMin)m")
+                Divider().frame(height: 40)
+                statItem(label: "7d Avg", value: String(format: "%.0fm", avg7))
+                Divider().frame(height: 40)
+                statItem(label: "30d Avg", value: String(format: "%.0fm", avg30))
+            }
+            HStack(spacing: 0) {
+                statItem(label: "This Week", value: "\(weeklyMin)m")
+                Divider().frame(height: 40)
+                statItem(label: "Sessions/Wk", value: "\(weeklyCount)")
+            }
+        }
+        .padding()
+        .cardStyle()
+    }
+
+    // MARK: Sauna Chart
+
+    private var saunaChart: some View {
+        let days = last30DayStrings()
+        let grouped = Dictionary(grouping: saunaSessions, by: \.date)
+        let points = days.map { day in
+            DailyAmount(date: day, amount: Double(grouped[day]?.reduce(0) { $0 + $1.durationMinutes } ?? 0))
+        }
+
+        return VStack(alignment: .leading, spacing: 8) {
+            Text("Daily Sauna (30 days)")
+                .font(.headline)
+                .foregroundColor(.textPrimary)
+
+            Chart(points) { point in
+                BarMark(
+                    x: .value("Date", point.date),
+                    y: .value("Minutes", point.amount)
+                )
+                .foregroundStyle(Color.orange.gradient)
+                .cornerRadius(2)
+            }
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .day, count: 7)) { _ in
+                    AxisGridLine()
+                    AxisValueLabel(format: .dateTime.month(.abbreviated).day(), centered: true)
+                }
+            }
+            .chartYAxisLabel("minutes")
+            .frame(height: Layout.chartFrameHeight)
+        }
+        .padding()
+        .cardStyle()
+    }
+
+    // MARK: Sauna Quick Add
+
+    private var saunaQuickAdd: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel(text: "QUICK ADD")
+            if saunaPresets.isEmpty {
+                Text("No presets. Tap Manage Presets to add some.")
+                    .font(.caption)
+                    .foregroundColor(.textMuted)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(saunaPresets) { preset in
+                            Button {
+                                Task { await quickAddSauna(preset) }
+                            } label: {
+                                VStack(spacing: 4) {
+                                    Image(systemName: preset.saunaType == .infrared ? "light.max" : "cloud.fill")
+                                        .font(.title3)
+                                    Text(preset.name)
+                                        .font(.caption2)
+                                        .lineLimit(2)
+                                        .multilineTextAlignment(.center)
+                                }
+                                .frame(width: 100, height: 70)
+                                .foregroundColor(.textPrimary)
+                                .background(Color.bgInput)
+                                .cornerRadius(10)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .stroke(Color.cardBorder, lineWidth: 1)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Quick add \(preset.name)")
+                        }
+                    }
+                }
+            }
+        }
+        .padding()
+        .cardStyle()
+    }
+
+    // MARK: Sauna Custom Form
+
+    private var saunaCustomForm: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel(text: "LOG SESSION")
+
+            VStack(spacing: 10) {
+                Picker("Type", selection: $saunaType) {
+                    ForEach(SaunaType.allCases, id: \.self) { type in
+                        Text(type.rawValue).tag(type)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .onChange(of: saunaType) { _, newType in
+                    saunaTemp = "\(newType.defaultTempF)"
+                    saunaDuration = "\(newType.defaultMinutes)"
+                }
+
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Temp (\u{00B0}F)")
+                            .font(.caption2)
+                            .foregroundColor(.textMuted)
+                        TextField("Temp", text: $saunaTemp)
+                            .textFieldStyle(.roundedBorder)
+                            #if os(iOS)
+                            .keyboardType(.numberPad)
+                            #endif
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Minutes")
+                            .font(.caption2)
+                            .foregroundColor(.textMuted)
+                        TextField("Duration", text: $saunaDuration)
+                            .textFieldStyle(.roundedBorder)
+                            #if os(iOS)
+                            .keyboardType(.numberPad)
+                            #endif
+                    }
+                }
+
+                DatePicker("Date", selection: $saunaDate, displayedComponents: .date)
+                    .font(.subheadline)
+
+                Button {
+                    Task { await addCustomSauna() }
+                } label: {
+                    Text("Log Session")
+                        .font(.subheadline).fontWeight(.medium)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.accentColor)
+                .disabled(saunaTemp.isEmpty || saunaDuration.isEmpty)
+            }
+            .padding()
+            .cardStyle()
+        }
+    }
+
+    // MARK: Sauna History
+
+    @ViewBuilder
+    private var saunaHistory: some View {
+        let grouped = Dictionary(grouping: saunaSessions, by: \.date)
+        let sortedDates = grouped.keys.sorted(by: >)
+
+        if !sortedDates.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                SectionLabel(text: "HISTORY")
+                ForEach(sortedDates.prefix(30), id: \.self) { date in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(displayDate(date))
+                            .font(.caption).fontWeight(.medium)
+                            .foregroundColor(.textSecondary)
+                        ForEach(grouped[date] ?? []) { session in
+                            HStack {
+                                Image(systemName: session.saunaType == .infrared ? "light.max" : "cloud.fill")
+                                    .font(.caption)
+                                    .foregroundColor(.orange)
+                                Text(session.saunaType.rawValue)
+                                    .font(.subheadline)
+                                    .foregroundColor(.textPrimary)
+                                Spacer()
+                                Text("\(session.temperatureF)\u{00B0}F")
+                                    .font(.subheadline)
+                                    .foregroundColor(.textSecondary)
+                                Text("\(session.durationMinutes) min")
+                                    .font(.subheadline)
+                                    .foregroundColor(.textPrimary)
+                            }
+                            .padding(.vertical, 6)
+                            .padding(.horizontal, 12)
+                            .background(Color.bgInput)
+                            .cornerRadius(8)
+                            .contextMenu {
+                                Button {
+                                    editSaunaType = session.saunaType
+                                    editSaunaTemp = "\(session.temperatureF)"
+                                    editSaunaDuration = "\(session.durationMinutes)"
+                                    editSaunaDate = session.date
+                                    editingSauna = session
+                                } label: {
+                                    Label("Edit", systemImage: "pencil")
+                                }
+                                Button(role: .destructive) {
+                                    Task {
+                                        await DataStore.shared.removeSaunaSession(id: session.id)
+                                        await loadData()
+                                    }
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var manageSaunaPresetsButton: some View {
+        managePresetsButton { showSaunaPresetManager = true }
+    }
+
+    // MARK: Sauna Edit Sheet
+
+    private func saunaEditSheet(_ session: SaunaSession) -> some View {
+        NavigationStack {
+            Form {
+                Picker("Type", selection: $editSaunaType) {
+                    ForEach(SaunaType.allCases, id: \.self) { type in
+                        Text(type.rawValue).tag(type)
+                    }
+                }
+                TextField("Temperature (\u{00B0}F)", text: $editSaunaTemp)
+                    #if os(iOS)
+                    .keyboardType(.numberPad)
+                    #endif
+                TextField("Duration (minutes)", text: $editSaunaDuration)
+                    #if os(iOS)
+                    .keyboardType(.numberPad)
+                    #endif
+                TextField("Date (YYYY-MM-DD)", text: $editSaunaDate)
+            }
+            .navigationTitle("Edit Session")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { editingSauna = nil }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        guard let temp = Int(editSaunaTemp),
+                              let dur = Int(editSaunaDuration) else { return }
+                        let updated = SaunaSession(
+                            id: session.id,
+                            saunaType: editSaunaType,
+                            temperatureF: temp,
+                            durationMinutes: dur,
+                            date: editSaunaDate
+                        )
+                        Task {
+                            await DataStore.shared.updateSaunaSession(updated)
+                            await loadData()
+                        }
+                        editingSauna = nil
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Shared UI Components
+
+    private func managePresetsButton(action: @escaping () -> Void) -> some View {
+        Button(action: action) {
             HStack {
                 Image(systemName: "slider.horizontal.3")
                 Text("Manage Presets")
             }
             .font(.subheadline)
-            .foregroundColor(.warning)
+            .foregroundColor(.accentColor)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 10)
             .background(Color.bgInput)
@@ -971,8 +1282,6 @@ struct SubstancesView: View {
         }
         .buttonStyle(.plain)
     }
-
-    // MARK: - Shared UI Components
 
     private func statItem(label: String, value: String, valueColor: Color = .textPrimary) -> some View {
         VStack(spacing: 2) {
@@ -1089,14 +1398,14 @@ struct SubstancesView: View {
     // MARK: - Actions
 
     private func quickAddAlcohol(_ preset: AlcoholPreset) async {
-        let drink = AlcoholDrink(
-            name: preset.name,
-            oz: preset.oz,
-            abv: preset.abv,
-            count: 1,
-            date: todayString()
-        )
-        await DataStore.shared.addAlcoholDrink(drink)
+        let today = todayString()
+        if var existing = alcoholDrinks.first(where: { $0.name == preset.name && $0.oz == preset.oz && $0.abv == preset.abv && $0.date == today }) {
+            existing.count += 1
+            await DataStore.shared.updateAlcoholDrink(existing)
+        } else {
+            let drink = AlcoholDrink(name: preset.name, oz: preset.oz, abv: preset.abv, count: 1, date: today)
+            await DataStore.shared.addAlcoholDrink(drink)
+        }
         await loadData()
     }
 
@@ -1122,13 +1431,14 @@ struct SubstancesView: View {
     }
 
     private func quickAddNicotine(_ preset: NicotinePreset) async {
-        let entry = NicotineEntry(
-            product: preset.name,
-            mgPerUnit: preset.mgPerUnit,
-            count: 1,
-            date: todayString()
-        )
-        await DataStore.shared.addNicotineEntry(entry)
+        let today = todayString()
+        if var existing = nicotineEntries.first(where: { $0.product == preset.name && $0.mgPerUnit == preset.mgPerUnit && $0.date == today }) {
+            existing.count += 1
+            await DataStore.shared.updateNicotineEntry(existing)
+        } else {
+            let entry = NicotineEntry(product: preset.name, mgPerUnit: preset.mgPerUnit, count: 1, date: today)
+            await DataStore.shared.addNicotineEntry(entry)
+        }
         await loadData()
     }
 
@@ -1146,6 +1456,33 @@ struct SubstancesView: View {
         nicoMgPerUnit = ""
         nicoCount = "1"
         nicoDate = Date()
+        await loadData()
+    }
+
+    private func quickAddSauna(_ preset: SaunaPreset) async {
+        let session = SaunaSession(
+            saunaType: preset.saunaType,
+            temperatureF: preset.temperatureF,
+            durationMinutes: preset.durationMinutes,
+            date: todayString()
+        )
+        await DataStore.shared.addSaunaSession(session)
+        await loadData()
+    }
+
+    private func addCustomSauna() async {
+        guard let temp = Int(saunaTemp),
+              let dur = Int(saunaDuration) else { return }
+        let session = SaunaSession(
+            saunaType: saunaType,
+            temperatureF: temp,
+            durationMinutes: dur,
+            date: DateFormatting.dateString(saunaDate)
+        )
+        await DataStore.shared.addSaunaSession(session)
+        saunaTemp = "\(saunaType.defaultTempF)"
+        saunaDuration = "\(saunaType.defaultMinutes)"
+        saunaDate = Date()
         await loadData()
     }
 
@@ -1287,6 +1624,102 @@ struct NicotinePresetManagerView: View {
                 }
             }
             .navigationTitle("Nicotine Presets")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        onSave(presets)
+                        dismiss()
+                    }
+                }
+                #if os(iOS)
+                ToolbarItem(placement: .topBarLeading) {
+                    EditButton()
+                }
+                #endif
+            }
+        }
+    }
+}
+
+// MARK: - Sauna Preset Manager
+
+struct SaunaPresetManagerView: View {
+    @Binding var presets: [SaunaPreset]
+    let onSave: ([SaunaPreset]) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var newName = ""
+    @State private var newType: SaunaType = .infrared
+    @State private var newTemp = "140"
+    @State private var newDuration = "25"
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Existing Presets") {
+                    ForEach(presets) { preset in
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text(preset.name)
+                                    .font(.subheadline)
+                                Text("\(preset.saunaType.rawValue) \u{2022} \(preset.temperatureF)\u{00B0}F \u{2022} \(preset.durationMinutes) min")
+                                    .font(.caption)
+                                    .foregroundColor(.textMuted)
+                            }
+                            Spacer()
+                        }
+                    }
+                    .onDelete { indexSet in
+                        presets.remove(atOffsets: indexSet)
+                    }
+                    .onMove { from, to in
+                        presets.move(fromOffsets: from, toOffset: to)
+                    }
+                }
+
+                Section("Add Preset") {
+                    TextField("Name", text: $newName)
+                    Picker("Type", selection: $newType) {
+                        ForEach(SaunaType.allCases, id: \.self) { type in
+                            Text(type.rawValue).tag(type)
+                        }
+                    }
+                    .onChange(of: newType) { _, type in
+                        newTemp = "\(type.defaultTempF)"
+                        newDuration = "\(type.defaultMinutes)"
+                    }
+                    TextField("Temperature (\u{00B0}F)", text: $newTemp)
+                        #if os(iOS)
+                        .keyboardType(.numberPad)
+                        #endif
+                    TextField("Duration (min)", text: $newDuration)
+                        #if os(iOS)
+                        .keyboardType(.numberPad)
+                        #endif
+                    Button("Add") {
+                        guard let temp = Int(newTemp), let dur = Int(newDuration), !newName.isEmpty else { return }
+                        presets.append(SaunaPreset(name: newName, saunaType: newType, temperatureF: temp, durationMinutes: dur))
+                        newName = ""
+                        newTemp = "\(newType.defaultTempF)"
+                        newDuration = "\(newType.defaultMinutes)"
+                    }
+                    .disabled(newName.isEmpty || newTemp.isEmpty || newDuration.isEmpty)
+                }
+
+                Section {
+                    Button("Reset to Defaults") {
+                        presets = SaunaPreset.defaults
+                    }
+                    .foregroundColor(.danger)
+                }
+            }
+            .navigationTitle("Sauna Presets")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif

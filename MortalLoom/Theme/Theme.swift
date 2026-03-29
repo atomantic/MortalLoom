@@ -137,20 +137,29 @@ enum Layout {
 // MARK: - Card Style Modifier
 
 struct CardStyle: ViewModifier {
+    let fill: Color
+    let border: Color
+    let radius: CGFloat
+
+    init(fill: Color = .bgCard, border: Color = .cardBorder, radius: CGFloat = 12) {
+        self.fill = fill
+        self.border = border
+        self.radius = radius
+    }
+
     func body(content: Content) -> some View {
         content
-            .background(Color.bgCard)
-            .cornerRadius(12)
+            .background(RoundedRectangle(cornerRadius: radius).fill(fill))
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.cardBorder, lineWidth: 1)
+                RoundedRectangle(cornerRadius: radius)
+                    .stroke(border, lineWidth: 1)
             )
     }
 }
 
 extension View {
-    func cardStyle() -> some View {
-        modifier(CardStyle())
+    func cardStyle(fill: Color = .bgCard, border: Color = .cardBorder, radius: CGFloat = 12) -> some View {
+        modifier(CardStyle(fill: fill, border: border, radius: radius))
     }
 }
 

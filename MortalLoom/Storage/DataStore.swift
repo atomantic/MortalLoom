@@ -135,6 +135,32 @@ actor DataStore {
         save(d)
     }
 
+    func addSaunaSession(_ session: SaunaSession) {
+        var d = load()
+        d.saunaSessions.append(session)
+        save(d)
+    }
+
+    func removeSaunaSession(id: UUID) {
+        var d = load()
+        d.saunaSessions.removeAll { $0.id == id }
+        save(d)
+    }
+
+    func updateSaunaSession(_ session: SaunaSession) {
+        var d = load()
+        if let idx = d.saunaSessions.firstIndex(where: { $0.id == session.id }) {
+            d.saunaSessions[idx] = session
+            save(d)
+        }
+    }
+
+    func setSaunaPresets(_ presets: [SaunaPreset]) {
+        var d = load()
+        d.saunaPresets = presets
+        save(d)
+    }
+
     func addBloodTest(_ test: BloodTest) {
         var d = load()
         d.bloodTests.append(test)

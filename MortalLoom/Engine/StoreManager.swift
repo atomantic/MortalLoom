@@ -13,7 +13,7 @@ final class StoreManager {
 
     static let proProductID = "net.shadowpuppet.MeatSpaceTracker.pro"
 
-    private nonisolated(unsafe) var transactionListener: Task<Void, Never>?
+    @ObservationIgnored private var transactionListener: Task<Void, Never>?
 
     private init() {
         transactionListener = listenForTransactions()

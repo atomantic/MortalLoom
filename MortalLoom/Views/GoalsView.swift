@@ -11,20 +11,26 @@ struct GoalsView: View {
     @State private var editingGoal: Goal?
     @State private var checkInGoal: Goal?
 
-    // Partitioned goal lists — computed once per data load
-    @State private var attentionGoals: [Goal] = []
-    @State private var onTrackGoals: [Goal] = []
-    @State private var pausedGoals: [Goal] = []
+    @State private var apexGoal: Goal?
+    @State private var hierarchyItems: [HierarchyItem] = []
+    @State private var childCounts: [UUID: Int] = [:]
     @State private var doneGoals: [Goal] = []
     @State private var activeCount = 0
     @State private var completedCount = 0
+    @State private var attentionCount = 0
+
+    private struct HierarchyItem: Identifiable {
+        let goal: Goal
+        let depth: Int
+        var id: UUID { goal.id }
+    }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
                 headerCard
-                needsAttentionSection
-                activeGoalsSection
+                apexSection
+                hierarchySection
                 completedGoalsSection
             }
             .padding()
@@ -75,7 +81,6 @@ struct GoalsView: View {
         )
         let cogDate = GoalEngine.cognitiveDeadline(from: dc)
 
-        // Compute all projections once
         var projs: [UUID: GoalEngine.GoalProjection] = [:]
         for goal in data.goals {
             projs[goal.id] = GoalEngine.project(
@@ -83,46 +88,74 @@ struct GoalsView: View {
             )
         }
 
-        // Partition goals into sections
-        var attention: [Goal] = []
-        var onTrack: [Goal] = []
-        var paused: [Goal] = []
-        var done: [Goal] = []
-        var activeN = 0
-        var completedN = 0
+        let activeGoals = data.goals.filter { $0.status == .active || $0.status == .paused }
+        let done = data.goals.filter { $0.status == .completed || $0.status == .abandoned }
+            .sorted { $0.completedDate ?? $0.createdDate > $1.completedDate ?? $1.createdDate }
 
+        let apex = activeGoals.first { $0.goalType == .apex }
+        let activeIds = Set(activeGoals.map(\.id))
+        let activeByParent = Dictionary(grouping: activeGoals, by: \.parentId)
+
+        // Precompute active child counts for all goals
+        var counts: [UUID: Int] = [:]
         for goal in data.goals {
-            switch goal.status {
-            case .active:
-                activeN += 1
-                if goal.needsCheckIn || goal.isOverdue {
-                    attention.append(goal)
-                } else {
-                    onTrack.append(goal)
-                }
-            case .paused:
-                paused.append(goal)
-            case .completed:
-                completedN += 1
-                done.append(goal)
-            case .abandoned:
-                done.append(goal)
-            }
+            counts[goal.id] = (activeByParent[goal.id] ?? []).count
         }
 
-        onTrack.sort { $0.priority < $1.priority }
-        done.sort { $0.completedDate ?? $0.createdDate > $1.completedDate ?? $1.createdDate }
+        var roots = activeGoals.filter { g in
+            g.id != apex?.id &&
+            (g.parentId == nil || !activeIds.contains(g.parentId!))
+        }
+
+        if let apex {
+            let apexChildren = (activeByParent[apex.id] ?? [])
+                .sorted { goalTypeOrder($0) < goalTypeOrder($1) }
+            let otherRoots = roots.filter { $0.parentId != apex.id }
+                .sorted { $0.priority < $1.priority }
+            roots = apexChildren + otherRoots
+        } else {
+            roots.sort { goalTypeOrder($0) < goalTypeOrder($1) }
+        }
+
+        var items: [HierarchyItem] = []
+        var visited = Set<UUID>()
+        func flatten(_ goal: Goal, depth: Int) {
+            guard visited.insert(goal.id).inserted else { return }
+            items.append(HierarchyItem(goal: goal, depth: depth))
+            let children = (activeByParent[goal.id] ?? [])
+                .sorted { $0.priority < $1.priority }
+            for child in children {
+                flatten(child, depth: depth + 1)
+            }
+        }
+        for root in roots {
+            flatten(root, depth: 0)
+        }
+
+        let activeN = activeGoals.count
+        let completedN = done.count { $0.status == .completed }
+        let attentionN = activeGoals.count { $0.needsCheckIn || $0.isOverdue }
 
         goals = data.goals
         deathClock = dc
         cognitiveDeadline = cogDate
         projections = projs
-        attentionGoals = attention
-        onTrackGoals = onTrack
-        pausedGoals = paused
+        apexGoal = apex
+        hierarchyItems = items
+        childCounts = counts
         doneGoals = done
         activeCount = activeN
         completedCount = completedN
+        attentionCount = attentionN
+    }
+
+    private func goalTypeOrder(_ goal: Goal) -> Int {
+        switch goal.goalType {
+        case .apex: 0
+        case .subApex: 1
+        case .standard: 2
+        case nil: 3
+        }
     }
 
     // MARK: - Header
@@ -146,8 +179,8 @@ struct GoalsView: View {
                         .font(.caption).foregroundColor(.textSecondary)
                     Text("\(completedCount) completed")
                         .font(.caption).foregroundColor(.success)
-                    if !attentionGoals.isEmpty {
-                        Text("\(attentionGoals.count) need attention")
+                    if attentionCount > 0 {
+                        Text("\(attentionCount) need attention")
                             .font(.caption).fontWeight(.medium)
                             .foregroundColor(.warning)
                     }
@@ -158,35 +191,73 @@ struct GoalsView: View {
         .cardStyle()
     }
 
-    // MARK: - Sections
+    // MARK: - Apex Section
 
     @ViewBuilder
-    private var needsAttentionSection: some View {
-        if !attentionGoals.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                SectionLabel(text: "NEEDS ATTENTION")
-                goalTreeSection(attentionGoals)
-            }
+    private var apexSection: some View {
+        if let apex = apexGoal {
+            apexCard(apex)
         }
     }
 
+    private func apexCard(_ goal: Goal) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "crown.fill")
+                    .font(.title3)
+                    .foregroundColor(.warning)
+                Text("North Star")
+                    .font(.caption).fontWeight(.bold)
+                    .foregroundColor(.warning)
+                    .textCase(.uppercase)
+                    .tracking(1)
+                Spacer()
+            }
+
+            Text(goal.title)
+                .font(.title3).fontWeight(.bold)
+                .foregroundColor(.textPrimary)
+
+            if !goal.notes.isEmpty {
+                Text(goal.notes)
+                    .font(.subheadline)
+                    .foregroundColor(.textSecondary)
+                    .lineLimit(3)
+            }
+
+            classificationChips(for: goal)
+
+            let count = childCounts[goal.id] ?? 0
+            if count > 0 {
+                Text("\(count) supporting goal\(count == 1 ? "" : "s")")
+                    .font(.caption)
+                    .foregroundColor(.textMuted)
+            }
+        }
+        .padding()
+        .cardStyle(fill: .warning.opacity(0.08), border: .warning.opacity(0.3), radius: 16)
+        .contextMenu { goalContextMenu(for: goal, isLifelong: true) }
+        .onTapGesture { editingGoal = goal }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("North Star goal: \(goal.title)")
+        .accessibilityHint("Tap to edit")
+        .accessibilityAddTraits(.isButton)
+    }
+
+    // MARK: - Hierarchy Section
+
     @ViewBuilder
-    private var activeGoalsSection: some View {
-        if !onTrackGoals.isEmpty {
+    private var hierarchySection: some View {
+        if !hierarchyItems.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
-                SectionLabel(text: "ON TRACK")
-                goalTreeSection(onTrackGoals)
+                ForEach(hierarchyItems) { item in
+                    goalCard(item.goal)
+                        .padding(.leading, CGFloat(item.depth) * 24)
+                }
             }
         }
 
-        if !pausedGoals.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                SectionLabel(text: "PAUSED")
-                goalTreeSection(pausedGoals)
-            }
-        }
-
-        if attentionGoals.isEmpty && onTrackGoals.isEmpty && pausedGoals.isEmpty {
+        if hierarchyItems.isEmpty && apexGoal == nil {
             EmptyStateView(
                 icon: "target",
                 title: "No goals yet",
@@ -195,31 +266,15 @@ struct GoalsView: View {
         }
     }
 
+    // MARK: - Completed
+
     @ViewBuilder
     private var completedGoalsSection: some View {
         if !doneGoals.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 SectionLabel(text: "COMPLETED")
-                goalTreeSection(doneGoals)
-            }
-        }
-    }
-
-    /// Render a section's goals as a tree: top-level goals with children nested underneath.
-    @ViewBuilder
-    private func goalTreeSection(_ sectionGoals: [Goal]) -> some View {
-        let sectionIds = Set(sectionGoals.map(\.id))
-        let topLevel = sectionGoals.filter { g in g.parentId.map { sectionIds.contains($0) } != true }
-        let childrenByParent = Dictionary(grouping: sectionGoals.filter { g in
-            g.parentId.map { sectionIds.contains($0) } == true
-        }, by: { $0.parentId ?? UUID() })
-
-        ForEach(topLevel) { parent in
-            goalCard(parent)
-            if let children = childrenByParent[parent.id] {
-                ForEach(children) { child in
-                    goalCard(child)
-                        .padding(.leading, 24)
+                ForEach(doneGoals) { goal in
+                    goalCard(goal)
                 }
             }
         }
@@ -228,39 +283,56 @@ struct GoalsView: View {
     // MARK: - Goal Card
 
     private func goalCard(_ goal: Goal) -> some View {
+        let isLifelong = goal.goalType == .subApex
         let projection = projections[goal.id] ?? GoalEngine.project(
             goal: goal, deathDate: deathClock?.deathDate, healthyCognitiveDate: cognitiveDeadline
         )
 
         return VStack(alignment: .leading, spacing: 10) {
             HStack {
-                priorityDot(goal.priority)
+                if !isLifelong {
+                    priorityDot(goal.priority)
+                }
                 goalTypeBadge(goal.goalType)
                 Text(goal.title)
                     .font(.headline)
                     .foregroundColor(.textPrimary)
                     .lineLimit(1)
                 Spacer()
-                urgencyBadge(projection.urgencyLevel, status: goal.status)
-            }
-
-            if goal.category != nil || goal.horizon != nil {
-                HStack(spacing: 6) {
-                    if let cat = goal.category {
-                        categoryChip(cat)
-                    }
-                    if let hz = goal.horizon {
-                        horizonChip(hz)
-                    }
+                if goal.needsCheckIn || goal.isOverdue {
+                    Image(systemName: "bell.badge.fill")
+                        .font(.caption)
+                        .foregroundColor(.warning)
+                }
+                if !isLifelong {
+                    urgencyBadge(projection.urgencyLevel, status: goal.status)
                 }
             }
 
-            if goal.status == .active || goal.status == .paused {
+            if isLifelong && !goal.notes.isEmpty {
+                Text(goal.notes)
+                    .font(.caption)
+                    .foregroundColor(.textSecondary)
+                    .lineLimit(2)
+            }
+
+            classificationChips(for: goal)
+
+            if !isLifelong && (goal.status == .active || goal.status == .paused) {
                 progressBar(goal.progressPercent)
             }
 
+            if isLifelong {
+                let count = childCounts[goal.id] ?? 0
+                if count > 0 {
+                    Text("\(count) sub-goal\(count == 1 ? "" : "s")")
+                        .font(.caption)
+                        .foregroundColor(.textMuted)
+                }
+            }
+
             HStack(spacing: 16) {
-                if goal.status == .active || goal.status == .paused {
+                if !isLifelong && (goal.status == .active || goal.status == .paused) {
                     if let days = projection.daysToCompletion {
                         infoChip(icon: "clock", text: DateFormatting.formatDuration(days))
                     }
@@ -278,8 +350,8 @@ struct GoalsView: View {
                     }
 
                     if !goal.milestones.isEmpty {
-                        let done = goal.milestones.filter(\.completed).count
-                        infoChip(icon: "checkmark.circle", text: "\(done)/\(goal.milestones.count)")
+                        let doneCount = goal.milestones.filter(\.completed).count
+                        infoChip(icon: "checkmark.circle", text: "\(doneCount)/\(goal.milestones.count)")
                     }
                 }
 
@@ -294,53 +366,30 @@ struct GoalsView: View {
                 Spacer()
             }
 
-            if projection.exceedsLifespan {
+            if !isLifelong && projection.exceedsLifespan {
                 lifespanWarning("At your current pace, this goal extends beyond your expected lifespan. Prioritize it now or accept it may not happen.")
-            } else if projection.exceedsCognitiveYears {
+            } else if !isLifelong && projection.exceedsCognitiveYears {
                 lifespanWarning("This goal's timeline extends past your estimated healthy cognitive years. Consider accelerating progress or breaking it into smaller achievable goals.")
             }
         }
         .padding()
-        .cardStyle()
-        .contextMenu {
-            if goal.status == .active {
-                Button { checkInGoal = goal } label: {
-                    Label("Check In", systemImage: "pencil.and.list.clipboard")
-                }
-            }
-            Button { editingGoal = goal } label: {
-                Label("Edit", systemImage: "pencil")
-            }
-            if goal.status == .active {
-                Button { updateGoalStatus(goal, to: .paused) } label: {
-                    Label("Pause", systemImage: "pause.circle")
-                }
-                Button { completeGoal(goal) } label: {
-                    Label("Mark Complete", systemImage: "checkmark.circle")
-                }
-            }
-            if goal.status == .paused {
-                Button { updateGoalStatus(goal, to: .active) } label: {
-                    Label("Resume", systemImage: "play.circle")
-                }
-            }
-            Divider()
-            Button(role: .destructive) {
-                saveAndReload { await DataStore.shared.removeGoal(id: goal.id) }
-            } label: {
-                Label("Delete", systemImage: "trash")
-            }
-        }
+        .cardStyle(
+            fill: isLifelong ? .accentColor.opacity(0.06) : .bgCard,
+            border: isLifelong ? .accentColor.opacity(0.2) : .cardBorder
+        )
+        .contextMenu { goalContextMenu(for: goal, isLifelong: isLifelong) }
         .onTapGesture {
-            if goal.status == .active {
+            if isLifelong {
+                editingGoal = goal
+            } else if goal.status == .active {
                 checkInGoal = goal
             } else {
                 editingGoal = goal
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(goal.title), priority \(goal.priority.rawValue), \(goal.status.rawValue), \(Int(goal.progressPercent))% complete")
-        .accessibilityHint(goal.status == .active ? "Tap to check in" : "Tap to edit")
+        .accessibilityLabel("\(isLifelong ? "Life pillar: " : "")\(goal.title), \(goal.status.rawValue)\(isLifelong ? "" : ", \(Int(goal.progressPercent))% complete")")
+        .accessibilityHint(isLifelong ? "Tap to edit" : (goal.status == .active ? "Tap to check in" : "Tap to edit"))
         .accessibilityAddTraits(.isButton)
     }
 
@@ -361,6 +410,49 @@ struct GoalsView: View {
             g.completedDate = DateFormatting.todayString()
             g.checkIns.append(GoalCheckIn(progressPct: 100, note: "Goal completed"))
             await DataStore.shared.updateGoal(g)
+        }
+    }
+
+    // MARK: - Shared Helpers
+
+    @ViewBuilder
+    private func classificationChips(for goal: Goal) -> some View {
+        if goal.category != nil || goal.horizon != nil {
+            HStack(spacing: 6) {
+                if let cat = goal.category { categoryChip(cat) }
+                if let hz = goal.horizon { horizonChip(hz) }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func goalContextMenu(for goal: Goal, isLifelong: Bool) -> some View {
+        if goal.status == .active && !isLifelong {
+            Button { checkInGoal = goal } label: {
+                Label("Check In", systemImage: "pencil.and.list.clipboard")
+            }
+        }
+        Button { editingGoal = goal } label: {
+            Label("Edit", systemImage: "pencil")
+        }
+        if goal.status == .active && !isLifelong {
+            Button { updateGoalStatus(goal, to: .paused) } label: {
+                Label("Pause", systemImage: "pause.circle")
+            }
+            Button { completeGoal(goal) } label: {
+                Label("Mark Complete", systemImage: "checkmark.circle")
+            }
+        }
+        if goal.status == .paused {
+            Button { updateGoalStatus(goal, to: .active) } label: {
+                Label("Resume", systemImage: "play.circle")
+            }
+        }
+        Divider()
+        Button(role: .destructive) {
+            saveAndReload { await DataStore.shared.removeGoal(id: goal.id) }
+        } label: {
+            Label("Delete", systemImage: "trash")
         }
     }
 
@@ -467,7 +559,6 @@ struct GoalsView: View {
             .background(Color.textSecondary.opacity(0.12))
             .cornerRadius(4)
     }
-
 
     private func lifespanWarning(_ message: String) -> some View {
         HStack(alignment: .top, spacing: 8) {

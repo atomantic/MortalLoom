@@ -252,7 +252,9 @@ enum ClinVarService {
         // Process in chunks to avoid memory issues
         var result = Data()
         let chunkSize = 65536
-        var sourceBuffer = Array(deflateData)
+        let srcBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: sourceSize)
+        defer { srcBuffer.deallocate() }
+        deflateData.copyBytes(to: srcBuffer, count: sourceSize)
 
         let streamPtr = UnsafeMutablePointer<compression_stream>.allocate(capacity: 1)
         defer { streamPtr.deallocate() }
@@ -262,7 +264,7 @@ enum ClinVarService {
         guard initStatus == COMPRESSION_STATUS_OK else { throw ClinVarError.parseError }
         defer { compression_stream_destroy(&stream) }
 
-        stream.src_ptr = UnsafePointer(sourceBuffer)
+        stream.src_ptr = UnsafePointer(srcBuffer)
         stream.src_size = sourceSize
 
         let dstBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: chunkSize)
