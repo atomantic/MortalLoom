@@ -413,6 +413,8 @@ struct BodyView: View {
                 .foregroundColor(.textPrimary)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 8)
+                .contentShape(Rectangle())
+                .onTapGesture { editingExam = exam }
                 .contextMenu {
                     Button(action: { editingExam = exam }) {
                         Label("Edit", systemImage: "pencil")
