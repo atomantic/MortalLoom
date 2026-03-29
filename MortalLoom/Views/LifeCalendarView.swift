@@ -9,6 +9,16 @@ struct LifeCalendarView: View {
     @State private var goalMarkers: [GoalMarker] = []
     @State private var goalWeekSet: Set<Int> = []
     @State private var projectedWeekSet: Set<Int> = []
+    @State private var tooltipInfo: CellTooltip?
+
+    private struct CellTooltip: Equatable {
+        let age: Int
+        let dateRange: String
+        let goals: [String]
+        let projectedGoals: [String]
+        let isMilestone: Bool
+        let isCurrentPeriod: Bool
+    }
 
     private enum ViewMode: String, CaseIterable {
         case years = "Years"
@@ -86,6 +96,10 @@ struct LifeCalendarView: View {
 
     private static let milestoneAges = [0, 18, 30, 40, 50, 60, 70, 80, 90, 100]
 
+    @State private var goalsByYear: [Int: [GoalMarker]] = [:]
+    @State private var goalsByMonth: [Int: [GoalMarker]] = [:]
+    @State private var goalsByWeek: [Int: [GoalMarker]] = [:]
+
     private var goalMonthSet: Set<Int> {
         Set(goalMarkers.filter { !$0.isProjected }.map { Int(Double($0.weekIndex) / 4.33) })
     }
@@ -158,6 +172,18 @@ struct LifeCalendarView: View {
         goalMarkers = markers
         goalWeekSet = Set(markers.filter { !$0.isProjected }.map(\.weekIndex))
         projectedWeekSet = Set(markers.filter { $0.isProjected }.map(\.weekIndex))
+
+        var byYear: [Int: [GoalMarker]] = [:]
+        var byMonth: [Int: [GoalMarker]] = [:]
+        var byWeek: [Int: [GoalMarker]] = [:]
+        for m in markers {
+            byYear[m.weekIndex / 52, default: []].append(m)
+            byMonth[Int(Double(m.weekIndex) / 4.33), default: []].append(m)
+            byWeek[m.weekIndex, default: []].append(m)
+        }
+        goalsByYear = byYear
+        goalsByMonth = byMonth
+        goalsByWeek = byWeek
     }
 
     // MARK: - Empty State
@@ -290,6 +316,8 @@ struct LifeCalendarView: View {
 
             yearMonthLegend
 
+            tooltipOverlay
+
             let rows = (lifeExpectancyYears + cols - 1) / cols
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: cols), spacing: 4) {
                 ForEach(0..<(rows * cols), id: \.self) { i in
@@ -313,6 +341,17 @@ struct LifeCalendarView: View {
                                         .foregroundColor(isCurrent ? .white : .textMuted)
                                 }
                             }
+                            .onTapGesture {
+                                withAnimation(.easeInOut(duration: 0.15)) {
+                                    let tip = tooltipForYear(i)
+                                    tooltipInfo = tooltipInfo == tip ? nil : tip
+                                }
+                            }
+                            #if os(macOS)
+                            .onHover { hovering in
+                                if hovering { tooltipInfo = tooltipForYear(i) }
+                            }
+                            #endif
                     } else {
                         Color.clear.frame(height: 24)
                     }
@@ -357,6 +396,8 @@ struct LifeCalendarView: View {
 
             yearMonthLegend
 
+            tooltipOverlay
+
             GeometryReader { geo in
                 let availableWidth = geo.size.width
                 let labelWidth: CGFloat = 28
@@ -370,6 +411,24 @@ struct LifeCalendarView: View {
                         drawMonthsGrid(context: &context, labelWidth: labelWidth, cellSize: cellSize, spacing: spacing)
                     }
                     .frame(width: availableWidth, height: totalHeight)
+                    .gesture(
+                        SpatialTapGesture()
+                            .onEnded { value in
+                                let y = value.location.y - spacing
+                                let x = value.location.x - labelWidth - 4
+                                let year = Int(y / (cellSize + spacing))
+                                let month = Int(x / (cellSize + spacing))
+                                guard year >= 0, year < lifeExpectancyYears, month >= 0, month < 12 else {
+                                    tooltipInfo = nil
+                                    return
+                                }
+                                let monthIndex = year * 12 + month
+                                withAnimation(.easeInOut(duration: 0.15)) {
+                                    let tip = tooltipForMonth(monthIndex)
+                                    tooltipInfo = tooltipInfo == tip ? nil : tip
+                                }
+                            }
+                    )
                 }
             }
             .frame(height: monthGridHeight)
@@ -469,6 +528,8 @@ struct LifeCalendarView: View {
 
             weeksLegend
 
+            tooltipOverlay
+
             GeometryReader { geo in
                 let availableWidth = geo.size.width
                 let labelWidth: CGFloat = 28
@@ -482,6 +543,24 @@ struct LifeCalendarView: View {
                         drawWeeksGrid(context: &context, labelWidth: labelWidth, cellSize: cellSize, spacing: spacing)
                     }
                     .frame(width: availableWidth, height: totalHeight)
+                    .gesture(
+                        SpatialTapGesture()
+                            .onEnded { value in
+                                let y = value.location.y - spacing
+                                let x = value.location.x - labelWidth - 4
+                                let year = Int(y / (cellSize + spacing))
+                                let week = Int(x / (cellSize + spacing))
+                                guard year >= 0, year < lifeExpectancyYears, week >= 0, week < 52 else {
+                                    tooltipInfo = nil
+                                    return
+                                }
+                                let weekIndex = year * 52 + week
+                                withAnimation(.easeInOut(duration: 0.15)) {
+                                    let tip = tooltipForWeek(weekIndex)
+                                    tooltipInfo = tooltipInfo == tip ? nil : tip
+                                }
+                            }
+                    )
                 }
             }
             .frame(height: weeksGridHeight)
@@ -642,6 +721,128 @@ struct LifeCalendarView: View {
         }
         .padding()
         .cardStyle()
+    }
+
+    // MARK: - Tooltip
+
+    @ViewBuilder
+    private var tooltipOverlay: some View {
+        if let tip = tooltipInfo {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text(tip.isCurrentPeriod ? "You are here" : "Age \(tip.age)")
+                        .font(.caption).fontWeight(.bold)
+                        .foregroundColor(tip.isCurrentPeriod ? .accentColor : .textPrimary)
+                    Spacer()
+                    Text(tip.dateRange)
+                        .font(.caption2).monospacedDigit()
+                        .foregroundColor(.textSecondary)
+                    Button { tooltipInfo = nil } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.caption)
+                            .foregroundColor(.textMuted)
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                if tip.isMilestone {
+                    Text("Milestone Age")
+                        .font(.caption2)
+                        .foregroundColor(.purple)
+                }
+
+                if !tip.goals.isEmpty {
+                    ForEach(tip.goals, id: \.self) { g in
+                        HStack(spacing: 4) {
+                            Circle().fill(Color.teal).frame(width: 6, height: 6)
+                            Text(g).font(.caption2).foregroundColor(.textPrimary).lineLimit(1)
+                            Text("target").font(.system(size: 8)).foregroundColor(.textMuted)
+                        }
+                    }
+                }
+
+                if !tip.projectedGoals.isEmpty {
+                    ForEach(tip.projectedGoals, id: \.self) { g in
+                        HStack(spacing: 4) {
+                            Circle().fill(Color.teal.opacity(0.5)).frame(width: 6, height: 6)
+                            Text(g).font(.caption2).foregroundColor(.textPrimary).lineLimit(1)
+                            Text("projected").font(.system(size: 8)).foregroundColor(.textMuted)
+                        }
+                    }
+                }
+
+                if tip.goals.isEmpty && tip.projectedGoals.isEmpty && !tip.isMilestone && !tip.isCurrentPeriod {
+                    Text("No goals in this period")
+                        .font(.caption2)
+                        .foregroundColor(.textMuted)
+                }
+            }
+            .padding(10)
+            .cardStyle(fill: .bgCard, border: .accentColor.opacity(0.3))
+            .transition(.opacity.combined(with: .scale(scale: 0.95)))
+        }
+    }
+
+    private func tooltipForYear(_ year: Int) -> CellTooltip {
+        let markers = goalsByYear[year] ?? []
+        let dateRange = yearDateRange(year)
+        return CellTooltip(
+            age: year,
+            dateRange: dateRange,
+            goals: markers.filter { !$0.isProjected }.map(\.title),
+            projectedGoals: markers.filter { $0.isProjected }.map(\.title),
+            isMilestone: Self.milestoneAges.contains(year),
+            isCurrentPeriod: year == currentAgeYear
+        )
+    }
+
+    private func tooltipForMonth(_ monthIndex: Int) -> CellTooltip {
+        let year = monthIndex / 12
+        let month = monthIndex % 12
+        let markers = goalsByMonth[monthIndex] ?? []
+        let monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+        let monthLabel = monthNames[month]
+        let dateRange: String
+        if let birth = birthDate {
+            let date = Calendar.current.date(byAdding: .month, value: monthIndex, to: birth) ?? Date()
+            dateRange = "\(monthLabel) (age \(year)) \u{2022} \(DateFormatting.dateString(date))"
+        } else {
+            dateRange = "\(monthLabel), age \(year)"
+        }
+        return CellTooltip(
+            age: year,
+            dateRange: dateRange,
+            goals: markers.filter { !$0.isProjected }.map(\.title),
+            projectedGoals: markers.filter { $0.isProjected }.map(\.title),
+            isMilestone: Self.milestoneAges.contains(year) && month == 0,
+            isCurrentPeriod: monthIndex == currentMonth
+        )
+    }
+
+    private func tooltipForWeek(_ weekIndex: Int) -> CellTooltip {
+        let year = weekIndex / 52
+        let markers = goalsByWeek[weekIndex] ?? []
+        let dateRange: String
+        if let birth = birthDate {
+            let date = Calendar.current.date(byAdding: .day, value: weekIndex * 7, to: birth) ?? Date()
+            dateRange = "Week \(weekIndex % 52 + 1), age \(year) \u{2022} \(DateFormatting.dateString(date))"
+        } else {
+            dateRange = "Week \(weekIndex % 52 + 1), age \(year)"
+        }
+        return CellTooltip(
+            age: year,
+            dateRange: dateRange,
+            goals: markers.filter { !$0.isProjected }.map(\.title),
+            projectedGoals: markers.filter { $0.isProjected }.map(\.title),
+            isMilestone: Self.milestoneAges.contains(year) && weekIndex % 52 == 0,
+            isCurrentPeriod: weekIndex == currentWeek
+        )
+    }
+
+    private func yearDateRange(_ year: Int) -> String {
+        guard let birth = birthDate else { return "Age \(year)" }
+        let start = Calendar.current.date(byAdding: .year, value: year, to: birth) ?? Date()
+        return DateFormatting.dateString(start)
     }
 
     // MARK: - Helpers
