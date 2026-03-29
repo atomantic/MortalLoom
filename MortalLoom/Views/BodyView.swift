@@ -89,6 +89,11 @@ struct BodyView: View {
                     await DataStore.shared.updateEyeExam(updated)
                     await loadData()
                 }
+            }, onDelete: {
+                Task {
+                    await DataStore.shared.removeEyeExam(id: exam.id)
+                    await loadData()
+                }
             })
         }
         .task {
@@ -808,6 +813,7 @@ struct BodyView: View {
 private struct EyeExamFormView: View {
     let existing: EyeExam?
     let onSave: (EyeExam) -> Void
+    let onDelete: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
 
     @State private var examDate: Date
@@ -817,10 +823,12 @@ private struct EyeExamFormView: View {
     @State private var rightSphere: String
     @State private var rightCylinder: String
     @State private var rightAxis: String
+    @State private var showDeleteConfirm = false
 
-    init(existing: EyeExam? = nil, onSave: @escaping (EyeExam) -> Void) {
+    init(existing: EyeExam? = nil, onSave: @escaping (EyeExam) -> Void, onDelete: (() -> Void)? = nil) {
         self.existing = existing
         self.onSave = onSave
+        self.onDelete = onDelete
 
         let date: Date
         if let existing, let d = DateFormatting.dateFromString( existing.date) {
@@ -857,6 +865,17 @@ private struct EyeExamFormView: View {
                     fieldRow("CYL (Cylinder)", text: $rightCylinder)
                     fieldRow("AXIS", text: $rightAxis, isAxis: true)
                 }
+
+                if onDelete != nil {
+                    Section {
+                        Button(role: .destructive) {
+                            showDeleteConfirm = true
+                        } label: {
+                            Label("Delete Eye Exam", systemImage: "trash")
+                                .frame(maxWidth: .infinity)
+                        }
+                    }
+                }
             }
             .navigationTitle(existing == nil ? "Add Eye Exam" : "Edit Eye Exam")
             #if os(iOS)
@@ -869,6 +888,15 @@ private struct EyeExamFormView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { saveExam() }
                 }
+            }
+            .alert("Delete Eye Exam", isPresented: $showDeleteConfirm) {
+                Button("Delete", role: .destructive) {
+                    onDelete?()
+                    dismiss()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Are you sure you want to delete this eye exam?")
             }
         }
     }

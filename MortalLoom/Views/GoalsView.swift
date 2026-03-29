@@ -49,9 +49,11 @@ struct GoalsView: View {
             }
         }
         .sheet(item: $editingGoal) { goal in
-            GoalEditSheet(goal: goal, allGoals: goals) { updated in
+            GoalEditSheet(goal: goal, allGoals: goals, onSave: { updated in
                 saveAndReload { await DataStore.shared.updateGoal(updated) }
-            }
+            }, onDelete: {
+                saveAndReload { await DataStore.shared.removeGoal(id: goal.id) }
+            })
         }
         .sheet(item: $checkInGoal) { goal in
             CheckInSheet(goal: goal) { updated in
@@ -581,6 +583,7 @@ private struct GoalEditSheet: View {
     let goal: Goal?
     let allGoals: [Goal]
     let onSave: (Goal) -> Void
+    let onDelete: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
 
     @State private var title: String
@@ -594,6 +597,7 @@ private struct GoalEditSheet: View {
     @State private var horizon: GoalHorizon?
     @State private var category: GoalCategory?
     @State private var goalType: GoalType?
+    @State private var showDeleteConfirm = false
 
     private struct MilestoneRow: Identifiable {
         let id: UUID
@@ -601,10 +605,11 @@ private struct GoalEditSheet: View {
         var completed: Bool
     }
 
-    init(goal: Goal?, allGoals: [Goal] = [], onSave: @escaping (Goal) -> Void) {
+    init(goal: Goal?, allGoals: [Goal] = [], onSave: @escaping (Goal) -> Void, onDelete: (() -> Void)? = nil) {
         self.goal = goal
         self.allGoals = allGoals
         self.onSave = onSave
+        self.onDelete = onDelete
         let g = goal
         _title = State(initialValue: g?.title ?? "")
         _notes = State(initialValue: g?.notes ?? "")
@@ -712,6 +717,17 @@ private struct GoalEditSheet: View {
                         Label("Add milestone", systemImage: "plus")
                     }
                 }
+
+                if onDelete != nil {
+                    Section {
+                        Button(role: .destructive) {
+                            showDeleteConfirm = true
+                        } label: {
+                            Label("Delete Goal", systemImage: "trash")
+                                .frame(maxWidth: .infinity)
+                        }
+                    }
+                }
             }
             .navigationTitle(goal == nil ? "New Goal" : "Edit Goal")
             #if os(iOS)
@@ -725,6 +741,15 @@ private struct GoalEditSheet: View {
                     Button("Save") { save() }
                         .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
+            }
+            .alert("Delete Goal", isPresented: $showDeleteConfirm) {
+                Button("Delete", role: .destructive) {
+                    onDelete?()
+                    dismiss()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Are you sure you want to delete this goal?")
             }
         }
     }

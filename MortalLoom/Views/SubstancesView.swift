@@ -115,6 +115,7 @@ struct SubstancesView: View {
     @State private var editingDrink: AlcoholDrink?
     @State private var editingNicotine: NicotineEntry?
     @State private var editingSauna: SaunaSession?
+    @State private var showDeleteConfirm = false
     @State private var showAlcoholPresetManager = false
     @State private var showNicotinePresetManager = false
     @State private var showSaunaPresetManager = false
@@ -1244,6 +1245,15 @@ struct SubstancesView: View {
                     .keyboardType(.numberPad)
                     #endif
                 TextField("Date (YYYY-MM-DD)", text: $editSaunaDate)
+
+                Section {
+                    Button(role: .destructive) {
+                        showDeleteConfirm = true
+                    } label: {
+                        Label("Delete Session", systemImage: "trash")
+                            .frame(maxWidth: .infinity)
+                    }
+                }
             }
             .navigationTitle("Edit Session")
             #if os(iOS)
@@ -1271,6 +1281,18 @@ struct SubstancesView: View {
                         editingSauna = nil
                     }
                 }
+            }
+            .alert("Delete Session", isPresented: $showDeleteConfirm) {
+                Button("Delete", role: .destructive) {
+                    Task {
+                        await DataStore.shared.removeSaunaSession(id: session.id)
+                        await loadData()
+                    }
+                    editingSauna = nil
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Are you sure you want to delete this sauna session?")
             }
         }
     }
@@ -1332,6 +1354,15 @@ struct SubstancesView: View {
                     .keyboardType(.numberPad)
                     #endif
                 TextField("Date (YYYY-MM-DD)", text: $editAlcoDate)
+
+                Section {
+                    Button(role: .destructive) {
+                        showDeleteConfirm = true
+                    } label: {
+                        Label("Delete Drink", systemImage: "trash")
+                            .frame(maxWidth: .infinity)
+                    }
+                }
             }
             .navigationTitle("Edit Drink")
             #if os(iOS)
@@ -1362,6 +1393,18 @@ struct SubstancesView: View {
                     }
                 }
             }
+            .alert("Delete Drink", isPresented: $showDeleteConfirm) {
+                Button("Delete", role: .destructive) {
+                    Task {
+                        await DataStore.shared.removeAlcoholDrink(id: drink.id)
+                        await loadData()
+                    }
+                    editingDrink = nil
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Are you sure you want to delete this drink?")
+            }
         }
     }
 
@@ -1378,6 +1421,15 @@ struct SubstancesView: View {
                     .keyboardType(.numberPad)
                     #endif
                 TextField("Date (YYYY-MM-DD)", text: $editNicoDate)
+
+                Section {
+                    Button(role: .destructive) {
+                        showDeleteConfirm = true
+                    } label: {
+                        Label("Delete Entry", systemImage: "trash")
+                            .frame(maxWidth: .infinity)
+                    }
+                }
             }
             .navigationTitle("Edit Entry")
             #if os(iOS)
@@ -1405,6 +1457,18 @@ struct SubstancesView: View {
                         editingNicotine = nil
                     }
                 }
+            }
+            .alert("Delete Entry", isPresented: $showDeleteConfirm) {
+                Button("Delete", role: .destructive) {
+                    Task {
+                        await DataStore.shared.removeNicotineEntry(id: entry.id)
+                        await loadData()
+                    }
+                    editingNicotine = nil
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Are you sure you want to delete this nicotine entry?")
             }
         }
     }
