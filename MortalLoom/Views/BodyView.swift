@@ -46,6 +46,16 @@ struct BodyView: View {
     @State private var userAge: Int = 0
     @State private var userSex: BiologicalSex?
 
+    // Cardio recovery
+    @State private var latestCardioRecovery: Double?
+    @State private var cardioRecoveryDate: Date?
+
+    // Gait & activity
+    @State private var gaitSummary: GaitEngine.GaitSummary?
+    @State private var latestDaylightMinutes: Double?
+    @State private var latestStandMinutes: Double?
+    @State private var latestBasalEnergy: Double?
+
     // Manual entry
     @State private var showingManualEntry = false
     @State private var manualWeight = ""
@@ -58,6 +68,8 @@ struct BodyView: View {
             VStack(spacing: 16) {
                 bodyCompositionSection
                 cardioFitnessSection
+                gaitSection
+                activitySection
                 eyePrescriptionSection
             }
             .padding()
@@ -276,6 +288,20 @@ struct BodyView: View {
                     }
                 }
 
+                // HR Recovery card
+                if let rec = latestCardioRecovery {
+                    let level = CardioFitnessEngine.classifyRecovery(rec)
+                    cardioMetricCard(
+                        label: "HR Recovery",
+                        value: String(format: "%.0f", rec),
+                        unit: "bpm drop/1min",
+                        date: cardioRecoveryDate,
+                        classification: level.rawValue,
+                        classificationColor: colorForName(level.color),
+                        icon: level.systemImage
+                    )
+                }
+
                 // Longevity impact
                 if let vo2 = latestVO2Max {
                     let impact = CardioFitnessEngine.vo2MaxLongevityImpact(vo2, age: userAge, sex: userSex)
@@ -289,6 +315,18 @@ struct BodyView: View {
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel("VO2 Max fitness impact: \(impact >= 0 ? "plus" : "minus") \(String(format: "%.1f", abs(impact))) years on life expectancy")
+                }
+
+                if let rec = latestCardioRecovery {
+                    let recImpact = CardioFitnessEngine.recoveryLongevityImpact(rec)
+                    HStack(spacing: 6) {
+                        Image(systemName: recImpact >= 0 ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
+                            .foregroundColor(recImpact >= 0 ? .success : .danger)
+                            .font(.caption)
+                        Text("HR recovery \(String(format: "%.0f", rec)) bpm: \(recImpact >= 0 ? "+" : "")\(String(format: "%.1f", recImpact)) years estimated life expectancy impact")
+                            .font(.caption)
+                            .foregroundColor(.textSecondary)
+                    }
                 }
             }
             .padding()
@@ -336,6 +374,192 @@ struct BodyView: View {
         case "orange": return .orange
         case "red": return .danger
         default: return .textSecondary
+        }
+    }
+
+    // MARK: - Gait & Mobility Section
+
+    @ViewBuilder
+    private var gaitSection: some View {
+        if let gait = gaitSummary, (gait.avgWalkingSpeed != nil || gait.avgWalkingDistance != nil) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Gait & Mobility")
+                    .font(.headline)
+                    .foregroundColor(.textPrimary)
+
+                HStack(spacing: 12) {
+                    if let speed = gait.avgWalkingSpeed, let level = gait.speedLevel {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 4) {
+                                Image(systemName: level.systemImage)
+                                    .font(.caption2)
+                                    .foregroundColor(colorForName(level.color))
+                                Text("Walk Speed")
+                                    .font(.caption)
+                                    .foregroundColor(.textMuted)
+                            }
+                            Text(String(format: "%.2f", speed))
+                                .font(.title3)
+                                .fontWeight(.bold)
+                                .foregroundColor(.textPrimary)
+                            Text("m/s")
+                                .font(.caption2)
+                                .foregroundColor(.textMuted)
+                            Text(level.rawValue)
+                                .font(.caption2)
+                                .fontWeight(.semibold)
+                                .foregroundColor(colorForName(level.color))
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    if let dist = gait.avgWalkingDistance {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "figure.walk")
+                                    .font(.caption2)
+                                    .foregroundColor(.accentColor)
+                                Text("Daily Distance")
+                                    .font(.caption)
+                                    .foregroundColor(.textMuted)
+                            }
+                            Text(String(format: "%.1f", dist))
+                                .font(.title3)
+                                .fontWeight(.bold)
+                                .foregroundColor(.textPrimary)
+                            Text("km avg")
+                                .font(.caption2)
+                                .foregroundColor(.textMuted)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "exclamationmark.shield")
+                                .font(.caption2)
+                                .foregroundColor(colorForName(gait.fallRisk.color))
+                            Text("Fall Risk")
+                                .font(.caption)
+                                .foregroundColor(.textMuted)
+                        }
+                        Text(gait.fallRisk.rawValue)
+                            .font(.title3)
+                            .fontWeight(.bold)
+                            .foregroundColor(colorForName(gait.fallRisk.color))
+                        if let asym = gait.avgAsymmetry {
+                            Text(String(format: "%.1f%% asym", asym))
+                                .font(.caption2)
+                                .foregroundColor(.textMuted)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                // Longevity impact
+                if let years = gait.longevityYears {
+                    HStack(spacing: 6) {
+                        Image(systemName: years >= 0 ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
+                            .foregroundColor(years >= 0 ? .success : .danger)
+                            .font(.caption)
+                        Text("Walking speed: \(years >= 0 ? "+" : "")\(String(format: "%.1f", years)) years estimated life expectancy impact")
+                            .font(.caption)
+                            .foregroundColor(.textSecondary)
+                    }
+
+                    Text("Source: Studenski et al., JAMA 2011 — walking speed as predictor of survival")
+                        .font(.caption2)
+                        .foregroundColor(.textMuted)
+                }
+            }
+            .padding()
+            .cardStyle()
+        }
+    }
+
+    // MARK: - Activity Metrics Section
+
+    @ViewBuilder
+    private var activitySection: some View {
+        if latestStandMinutes != nil || latestBasalEnergy != nil || latestDaylightMinutes != nil {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Activity & Environment")
+                    .font(.headline)
+                    .foregroundColor(.textPrimary)
+
+                HStack(spacing: 12) {
+                    if let stand = latestStandMinutes {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "figure.stand")
+                                    .font(.caption2)
+                                    .foregroundColor(.accentColor)
+                                Text("Stand Time")
+                                    .font(.caption)
+                                    .foregroundColor(.textMuted)
+                            }
+                            Text(String(format: "%.0f", stand))
+                                .font(.title3)
+                                .fontWeight(.bold)
+                                .foregroundColor(.textPrimary)
+                            Text("min/day avg")
+                                .font(.caption2)
+                                .foregroundColor(.textMuted)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    if let basal = latestBasalEnergy {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "flame")
+                                    .font(.caption2)
+                                    .foregroundColor(.orange)
+                                Text("Basal Energy")
+                                    .font(.caption)
+                                    .foregroundColor(.textMuted)
+                            }
+                            Text(String(format: "%.0f", basal))
+                                .font(.title3)
+                                .fontWeight(.bold)
+                                .foregroundColor(.textPrimary)
+                            Text("kcal/day")
+                                .font(.caption2)
+                                .foregroundColor(.textMuted)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    if let daylight = latestDaylightMinutes {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "sun.max.fill")
+                                    .font(.caption2)
+                                    .foregroundColor(.yellow)
+                                Text("Daylight")
+                                    .font(.caption)
+                                    .foregroundColor(.textMuted)
+                            }
+                            Text(String(format: "%.0f", daylight))
+                                .font(.title3)
+                                .fontWeight(.bold)
+                                .foregroundColor(daylight >= 30 ? .success : .warning)
+                            Text("min/day avg")
+                                .font(.caption2)
+                                .foregroundColor(.textMuted)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+
+                if latestDaylightMinutes != nil {
+                    Text("Aim for 30+ minutes of outdoor daylight daily for circadian regulation, vitamin D synthesis, and mood support.")
+                        .font(.caption2)
+                        .foregroundColor(.textMuted)
+                }
+            }
+            .padding()
+            .cardStyle()
         }
     }
 
@@ -526,6 +750,29 @@ struct BodyView: View {
             hrvDate = h.date
         }
         vo2MaxHistory = vo2h.map { CardioPoint(date: $0.date, value: $0.value) }
+
+        // Cardio recovery
+        if let rec = await healthKit.latestValue(for: .heartRateRecoveryOneMinute, unit: .count().unitDivided(by: .minute())) {
+            latestCardioRecovery = rec.value
+            cardioRecoveryDate = rec.date
+        }
+
+        // Gait & activity from stored health metrics
+        let data = await DataStore.shared.getData()
+        let recentMetrics = data.healthMetrics
+            .sorted { $0.date > $1.date }
+            .prefix(30)
+        gaitSummary = GaitEngine.summarize(metrics: Array(recentMetrics), age: userAge)
+
+        // Latest averages for activity section
+        let standValues = recentMetrics.compactMap(\.standMinutes)
+        latestStandMinutes = standValues.isEmpty ? nil : standValues.reduce(0, +) / Double(standValues.count)
+
+        let basalValues = recentMetrics.compactMap(\.basalEnergy)
+        latestBasalEnergy = basalValues.isEmpty ? nil : basalValues.reduce(0, +) / Double(basalValues.count)
+
+        let daylightValues = recentMetrics.compactMap(\.daylightMinutes)
+        latestDaylightMinutes = daylightValues.isEmpty ? nil : daylightValues.reduce(0, +) / Double(daylightValues.count)
     }
 
     private func saveManualEntry() {

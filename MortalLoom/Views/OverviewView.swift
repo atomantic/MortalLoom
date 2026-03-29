@@ -108,7 +108,8 @@ struct OverviewView: View {
             lifestyle: data.profile.lifestyle,
             ageYears: dc.ageYears,
             latestEpigeneticTest: sortedEpigeneticTests.first,
-            alcoholRisk: cachedAlcoholRisk
+            alcoholRisk: cachedAlcoholRisk,
+            healthMetrics: data.healthMetrics
         )
 
         cachedNormalPoints = normalTrajectory(currentYear: currentYear, deathYear: deathYear, currentHealth: cachedHealthScore)

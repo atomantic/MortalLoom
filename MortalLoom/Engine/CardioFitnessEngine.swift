@@ -151,6 +151,60 @@ enum CardioFitnessEngine {
         return .low
     }
 
+    // MARK: - Heart Rate Recovery Classification
+
+    /// HR recovery classification based on 1-minute post-exercise HR drop.
+    /// Cole et al., NEJM 1999: Abnormal recovery (<12 bpm drop) = 4x cardiovascular mortality.
+    enum RecoveryLevel: String, Sendable {
+        case excellent = "Excellent"
+        case good = "Good"
+        case normal = "Normal"
+        case belowNormal = "Below Normal"
+        case abnormal = "Abnormal"
+
+        var color: String {
+            switch self {
+            case .excellent: return "green"
+            case .good: return "blue"
+            case .normal: return "yellow"
+            case .belowNormal: return "orange"
+            case .abnormal: return "red"
+            }
+        }
+
+        var systemImage: String {
+            switch self {
+            case .excellent: return "heart.circle.fill"
+            case .good: return "heart.fill"
+            case .normal: return "heart"
+            case .belowNormal: return "heart.slash"
+            case .abnormal: return "heart.slash.fill"
+            }
+        }
+    }
+
+    /// Classify heart rate recovery (bpm drop in 1 minute after exercise).
+    /// >40 bpm: excellent, 25-40: good, 12-25: normal, 6-12: below normal, <6: abnormal
+    static func classifyRecovery(_ bpmDrop: Double) -> RecoveryLevel {
+        if bpmDrop >= 40 { return .excellent }
+        if bpmDrop >= 25 { return .good }
+        if bpmDrop >= 12 { return .normal }
+        if bpmDrop >= 6 { return .belowNormal }
+        return .abnormal
+    }
+
+    /// HR recovery longevity impact (years).
+    /// Abnormal recovery is one of the strongest single predictors of cardiac death.
+    static func recoveryLongevityImpact(_ bpmDrop: Double) -> Double {
+        switch classifyRecovery(bpmDrop) {
+        case .excellent: return 2.0
+        case .good: return 1.0
+        case .normal: return 0.0
+        case .belowNormal: return -1.0
+        case .abnormal: return -2.0
+        }
+    }
+
     // MARK: - Longevity Impact Summary
 
     /// Estimate the mortality impact of VO2 max based on published research.

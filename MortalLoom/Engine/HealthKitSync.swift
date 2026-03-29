@@ -108,7 +108,20 @@ final class HealthKitSync {
         async let vo2Data = hk.dailyStats(for: .vo2Max, unit: HKUnit(from: "mL/min*kg"), aggregation: .average, from: from, to: to)
         async let spo2Data = hk.dailyStats(for: .oxygenSaturation, unit: .percent(), aggregation: .average, from: from, to: to)
         async let respData = hk.dailyStats(for: .respiratoryRate, unit: .count().unitDivided(by: .minute()), aggregation: .average, from: from, to: to)
-        async let sleepData = hk.dailySleepHours(from: from, to: to)
+        async let sleepStageData = hk.dailySleepStages(from: from, to: to)
+
+        // New metrics: cardio recovery, gait, activity, environment
+        async let cardioRecoveryData = hk.dailyStats(for: .heartRateRecoveryOneMinute, unit: .count().unitDivided(by: .minute()), aggregation: .average, from: from, to: to)
+        async let walkingSpeedData = hk.dailyStats(for: .walkingSpeed, unit: HKUnit.meter().unitDivided(by: .second()), aggregation: .average, from: from, to: to)
+        async let walkingDistanceData = hk.dailyStats(for: .distanceWalkingRunning, unit: .meterUnit(with: .kilo), aggregation: .sum, from: from, to: to)
+        async let walkingAsymmetryData = hk.dailyStats(for: .walkingAsymmetryPercentage, unit: .percent(), aggregation: .average, from: from, to: to)
+        async let walkingDoubleSupportData = hk.dailyStats(for: .walkingDoubleSupportPercentage, unit: .percent(), aggregation: .average, from: from, to: to)
+        async let stairUpData = hk.dailyStats(for: .stairAscentSpeed, unit: HKUnit.meter().unitDivided(by: .second()), aggregation: .average, from: from, to: to)
+        async let stairDownData = hk.dailyStats(for: .stairDescentSpeed, unit: HKUnit.meter().unitDivided(by: .second()), aggregation: .average, from: from, to: to)
+        async let walkingHRData = hk.dailyStats(for: .walkingHeartRateAverage, unit: .count().unitDivided(by: .minute()), aggregation: .average, from: from, to: to)
+        async let standData = hk.dailyStats(for: .appleStandTime, unit: .minute(), aggregation: .sum, from: from, to: to)
+        async let basalEnergyData = hk.dailyStats(for: .basalEnergyBurned, unit: .kilocalorie(), aggregation: .sum, from: from, to: to)
+        async let daylightData = hk.dailyStats(for: .timeInDaylight, unit: .minute(), aggregation: .sum, from: from, to: to)
 
         // Collect all results
         let hrv = await hrvData
@@ -121,7 +134,19 @@ final class HealthKitSync {
         let vo2 = await vo2Data
         let spo2 = await spo2Data
         let resp = await respData
-        let sleep = await sleepData
+        let sleepStages = await sleepStageData
+
+        let cardioRecovery = await cardioRecoveryData
+        let walkSpeed = await walkingSpeedData
+        let walkDist = await walkingDistanceData
+        let walkAsym = await walkingAsymmetryData
+        let walkDS = await walkingDoubleSupportData
+        let stairUp = await stairUpData
+        let stairDown = await stairDownData
+        let walkHR = await walkingHRData
+        let stand = await standData
+        let basalE = await basalEnergyData
+        let daylight = await daylightData
 
         // Build a date-keyed dictionary of all metrics
         var byDate: [String: HealthMetricEntry] = [:]
@@ -144,7 +169,42 @@ final class HealthKitSync {
         merge(flights, into: \.flightsClimbed)
         merge(vo2, into: \.vo2Max)
         merge(resp, into: \.respiratoryRate)
-        merge(sleep, into: \.sleepHours)
+
+        // Sleep stages — merge total + breakdown
+        for stage in sleepStages {
+            let dateStr = DateFormatting.dateString(stage.date)
+            var entry = byDate[dateStr] ?? HealthMetricEntry(date: dateStr)
+            entry.sleepHours = stage.totalHours
+            entry.sleepDeepHours = stage.deepHours
+            entry.sleepRemHours = stage.remHours
+            entry.sleepCoreHours = stage.coreHours
+            byDate[dateStr] = entry
+        }
+
+        // Cardio recovery, gait, activity, environment
+        merge(cardioRecovery, into: \.cardioRecovery)
+        merge(walkSpeed, into: \.walkingSpeed)
+        merge(walkDist, into: \.walkingDistance)
+        merge(stairUp, into: \.stairSpeedUp)
+        merge(stairDown, into: \.stairSpeedDown)
+        merge(walkHR, into: \.walkingHRAverage)
+        merge(stand, into: \.standMinutes)
+        merge(basalE, into: \.basalEnergy)
+        merge(daylight, into: \.daylightMinutes)
+
+        // Walking asymmetry/double support come as 0-1, convert to 0-100
+        for item in walkAsym {
+            let dateStr = DateFormatting.dateString(item.date)
+            var entry = byDate[dateStr] ?? HealthMetricEntry(date: dateStr)
+            entry.walkingAsymmetry = item.value * 100
+            byDate[dateStr] = entry
+        }
+        for item in walkDS {
+            let dateStr = DateFormatting.dateString(item.date)
+            var entry = byDate[dateStr] ?? HealthMetricEntry(date: dateStr)
+            entry.walkingDoubleSupport = item.value * 100
+            byDate[dateStr] = entry
+        }
 
         // SpO2 comes as 0-1, convert to 0-100
         for item in spo2 {

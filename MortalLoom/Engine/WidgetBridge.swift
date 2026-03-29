@@ -35,7 +35,8 @@ enum WidgetBridge: Sendable {
             lifestyle: data.profile.lifestyle,
             ageYears: result.ageYears,
             latestEpigeneticTest: data.epigeneticTests.sorted(by: { $0.date > $1.date }).first,
-            alcoholRisk: alcoholRisk
+            alcoholRisk: alcoholRisk,
+            healthMetrics: data.healthMetrics
         )
 
         let levResult = DeathClockEngine.calculateLEVResult(standardResult: result, birthDateStr: birthDate)

@@ -9,10 +9,18 @@ private struct SleepPoint: Identifiable {
     let hours: Double
 }
 
+private struct SleepStagePoint: Identifiable {
+    let id = UUID()
+    let date: Date
+    let stage: String
+    let hours: Double
+}
+
 // MARK: - SleepView
 
 struct SleepView: View {
     @State private var sleepPoints: [SleepPoint] = []
+    @State private var stagePoints: [SleepStagePoint] = []
     @State private var summary: SleepEngine.SleepSummary?
     @State private var userAge: Int = 0
     @State private var isLoading = true
@@ -29,6 +37,13 @@ struct SleepView: View {
                     if let summary {
                         sleepScoreCard(summary)
                         sleepDurationChart
+                        if let stages = summary.stageBreakdown, stages.totalNights > 0 {
+                            sleepStageCard(stages)
+                            sleepStageChart
+                        }
+                        if let apnea = summary.apneaRisk {
+                            breathingCard(apnea: apnea, avgBD: summary.avgBreathingDisturbances)
+                        }
                         sleepStatsCard(summary)
                         longevityImpactCard(summary)
                     }
@@ -180,6 +195,159 @@ struct SleepView: View {
         return .danger
     }
 
+    // MARK: - Sleep Stage Breakdown Card
+
+    private func sleepStageCard(_ stages: SleepEngine.SleepStageBreakdown) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Sleep Stages")
+                .font(.headline)
+                .foregroundColor(.textPrimary)
+
+            HStack(spacing: 16) {
+                stageMetric(
+                    label: "Deep",
+                    hours: stages.avgDeepHours,
+                    pct: stages.deepPct,
+                    quality: stages.deepQuality,
+                    icon: "moon.zzz.fill"
+                )
+                stageMetric(
+                    label: "REM",
+                    hours: stages.avgRemHours,
+                    pct: stages.remPct,
+                    quality: stages.remQuality,
+                    icon: "brain.head.profile"
+                )
+                stageMetric(
+                    label: "Core",
+                    hours: stages.avgCoreHours,
+                    pct: stages.corePct,
+                    quality: nil,
+                    icon: "moon.fill"
+                )
+            }
+
+            Text("Deep sleep supports cognitive health and waste clearance. REM supports emotional regulation and cardiovascular health.")
+                .font(.caption2)
+                .foregroundColor(.textMuted)
+        }
+        .padding()
+        .cardStyle()
+    }
+
+    private func stageMetric(label: String, hours: Double, pct: Double, quality: SleepEngine.StageQuality?, icon: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.caption2)
+                    .foregroundColor(quality.map { colorForName($0.color) } ?? .textMuted)
+                Text(label)
+                    .font(.caption)
+                    .foregroundColor(.textMuted)
+            }
+            Text(String(format: "%.1fh", hours))
+                .font(.title3)
+                .fontWeight(.bold)
+                .foregroundColor(.textPrimary)
+            Text(String(format: "%.0f%%", pct))
+                .font(.caption2)
+                .foregroundColor(.textSecondary)
+            if let quality {
+                Text(quality.rawValue)
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(colorForName(quality.color))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label) sleep: \(String(format: "%.1f", hours)) hours, \(String(format: "%.0f", pct)) percent")
+    }
+
+    // MARK: - Sleep Stage Stacked Chart
+
+    private var sleepStageChart: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Sleep Stage Breakdown")
+                .font(.headline)
+                .foregroundColor(.textPrimary)
+
+            Chart(stagePoints) { point in
+                BarMark(
+                    x: .value("Date", point.date, unit: .day),
+                    y: .value("Hours", point.hours)
+                )
+                .foregroundStyle(by: .value("Stage", point.stage))
+                .cornerRadius(2)
+            }
+            .chartForegroundStyleScale([
+                "Deep": Color.indigo,
+                "REM": Color.cyan,
+                "Core": Color.accentColor,
+            ])
+            .chartYAxis {
+                AxisMarks(values: .stride(by: 2)) { value in
+                    AxisGridLine()
+                    AxisValueLabel {
+                        if let v = value.as(Double.self) {
+                            Text("\(Int(v))h")
+                        }
+                    }
+                }
+            }
+            .chartYScale(domain: 0...12)
+            .frame(height: Layout.chartFrameHeight)
+
+            HStack(spacing: 16) {
+                legendItem(color: .indigo, label: "Deep")
+                legendItem(color: .cyan, label: "REM")
+                legendItem(color: .accentColor, label: "Core")
+            }
+            .font(.caption2)
+        }
+        .padding()
+        .cardStyle()
+    }
+
+    // MARK: - Breathing Disturbances Card
+
+    private func breathingCard(apnea: SleepEngine.ApneaRisk, avgBD: Double?) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: apnea.systemImage)
+                    .font(.title2)
+                    .foregroundColor(colorForName(apnea.color))
+                Text("Breathing During Sleep")
+                    .font(.headline)
+                    .foregroundColor(.textPrimary)
+                Spacer()
+                Text(apnea.rawValue)
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(colorForName(apnea.color))
+            }
+
+            if let avgBD {
+                HStack(spacing: 6) {
+                    Text(String(format: "%.1f", avgBD))
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .foregroundColor(.textPrimary)
+                    Text("disturbances/hr avg")
+                        .font(.caption)
+                        .foregroundColor(.textMuted)
+                }
+            }
+
+            Text("AHI thresholds: <5 normal, 5-15 mild, 15-30 moderate, >30 severe. Untreated moderate-to-severe apnea increases cardiovascular mortality 2-3x.")
+                .font(.caption2)
+                .foregroundColor(.textMuted)
+        }
+        .padding()
+        .cardStyle()
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Breathing during sleep: \(apnea.rawValue) risk, \(avgBD.map { String(format: "%.1f", $0) } ?? "unknown") disturbances per hour")
+    }
+
     // MARK: - Sleep Stats Card
 
     private func sleepStatsCard(_ summary: SleepEngine.SleepSummary) -> some View {
@@ -289,17 +457,30 @@ struct SleepView: View {
 
         var points: [SleepPoint] = []
         var hours: [Double] = []
+        var stages: [SleepStagePoint] = []
 
         for metric in metrics {
             guard let sleep = metric.sleepHours,
                   let date = DateFormatting.dateFromString(metric.date) else { continue }
             points.append(SleepPoint(date: date, hours: sleep))
             hours.append(sleep)
+
+            // Build stacked stage chart data
+            if let deep = metric.sleepDeepHours {
+                stages.append(SleepStagePoint(date: date, stage: "Deep", hours: deep))
+            }
+            if let rem = metric.sleepRemHours {
+                stages.append(SleepStagePoint(date: date, stage: "REM", hours: rem))
+            }
+            if let core = metric.sleepCoreHours {
+                stages.append(SleepStagePoint(date: date, stage: "Core", hours: core))
+            }
         }
 
         sleepPoints = points
+        stagePoints = stages
         if !hours.isEmpty {
-            summary = SleepEngine.summarize(sleepHours: hours, age: userAge)
+            summary = SleepEngine.summarize(sleepHours: hours, age: userAge, metrics: metrics)
         }
         isLoading = false
     }

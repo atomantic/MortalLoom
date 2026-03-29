@@ -24,6 +24,31 @@ struct HealthMetricEntry: Codable, Sendable, Equatable, Identifiable {
 
     // Sleep
     var sleepHours: Double?         // total asleep hours (daily)
+    var sleepDeepHours: Double?     // deep (slow-wave) sleep hours
+    var sleepRemHours: Double?      // REM sleep hours
+    var sleepCoreHours: Double?     // core (N1+N2) sleep hours
+
+    // Cardio recovery
+    var cardioRecovery: Double?     // HR recovery bpm drop in 1 min post-exercise
+
+    // Gait & mobility
+    var walkingSpeed: Double?       // m/s (daily average)
+    var walkingDistance: Double?     // km (daily sum)
+    var walkingAsymmetry: Double?   // % asymmetry (lower is better)
+    var walkingDoubleSupport: Double? // % of gait cycle in double support
+    var stairSpeedUp: Double?       // m/s ascending stairs
+    var stairSpeedDown: Double?     // m/s descending stairs
+    var walkingHRAverage: Double?   // bpm average during walks
+
+    // Activity
+    var standMinutes: Double?       // daily stand time (minutes)
+    var basalEnergy: Double?        // basal metabolic rate (kcal/day)
+
+    // Respiratory
+    var breathingDisturbances: Double? // events per hour during sleep
+
+    // Environment
+    var daylightMinutes: Double?    // outdoor light exposure (minutes/day)
 
     init(
         id: UUID = UUID(),
@@ -38,7 +63,22 @@ struct HealthMetricEntry: Codable, Sendable, Equatable, Identifiable {
         activeEnergy: Double? = nil,
         exerciseMinutes: Double? = nil,
         flightsClimbed: Double? = nil,
-        sleepHours: Double? = nil
+        sleepHours: Double? = nil,
+        sleepDeepHours: Double? = nil,
+        sleepRemHours: Double? = nil,
+        sleepCoreHours: Double? = nil,
+        cardioRecovery: Double? = nil,
+        walkingSpeed: Double? = nil,
+        walkingDistance: Double? = nil,
+        walkingAsymmetry: Double? = nil,
+        walkingDoubleSupport: Double? = nil,
+        stairSpeedUp: Double? = nil,
+        stairSpeedDown: Double? = nil,
+        walkingHRAverage: Double? = nil,
+        standMinutes: Double? = nil,
+        basalEnergy: Double? = nil,
+        breathingDisturbances: Double? = nil,
+        daylightMinutes: Double? = nil
     ) {
         self.id = id
         self.date = date
@@ -53,6 +93,21 @@ struct HealthMetricEntry: Codable, Sendable, Equatable, Identifiable {
         self.exerciseMinutes = exerciseMinutes
         self.flightsClimbed = flightsClimbed
         self.sleepHours = sleepHours
+        self.sleepDeepHours = sleepDeepHours
+        self.sleepRemHours = sleepRemHours
+        self.sleepCoreHours = sleepCoreHours
+        self.cardioRecovery = cardioRecovery
+        self.walkingSpeed = walkingSpeed
+        self.walkingDistance = walkingDistance
+        self.walkingAsymmetry = walkingAsymmetry
+        self.walkingDoubleSupport = walkingDoubleSupport
+        self.stairSpeedUp = stairSpeedUp
+        self.stairSpeedDown = stairSpeedDown
+        self.walkingHRAverage = walkingHRAverage
+        self.standMinutes = standMinutes
+        self.basalEnergy = basalEnergy
+        self.breathingDisturbances = breathingDisturbances
+        self.daylightMinutes = daylightMinutes
     }
 
     /// Merge non-nil fields from another entry into this one.
@@ -68,5 +123,20 @@ struct HealthMetricEntry: Codable, Sendable, Equatable, Identifiable {
         if let v = source.exerciseMinutes { exerciseMinutes = v }
         if let v = source.flightsClimbed { flightsClimbed = v }
         if let v = source.sleepHours { sleepHours = v }
+        if let v = source.sleepDeepHours { sleepDeepHours = v }
+        if let v = source.sleepRemHours { sleepRemHours = v }
+        if let v = source.sleepCoreHours { sleepCoreHours = v }
+        if let v = source.cardioRecovery { cardioRecovery = v }
+        if let v = source.walkingSpeed { walkingSpeed = v }
+        if let v = source.walkingDistance { walkingDistance = v }
+        if let v = source.walkingAsymmetry { walkingAsymmetry = v }
+        if let v = source.walkingDoubleSupport { walkingDoubleSupport = v }
+        if let v = source.stairSpeedUp { stairSpeedUp = v }
+        if let v = source.stairSpeedDown { stairSpeedDown = v }
+        if let v = source.walkingHRAverage { walkingHRAverage = v }
+        if let v = source.standMinutes { standMinutes = v }
+        if let v = source.basalEnergy { basalEnergy = v }
+        if let v = source.breathingDisturbances { breathingDisturbances = v }
+        if let v = source.daylightMinutes { daylightMinutes = v }
     }
 }

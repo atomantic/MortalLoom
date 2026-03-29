@@ -314,6 +314,39 @@ enum DeathClockEngine {
         return 0
     }
 
+    // MARK: - Health Metrics Longevity Adjustment
+
+    /// Additional life expectancy adjustment from Apple Health metrics.
+    /// Returns years of life expectancy impact based on measured fitness data.
+    static func healthMetricsAdjustment(_ metrics: [HealthMetricEntry], age: Int, sex: BiologicalSex?) -> Double {
+        guard !metrics.isEmpty else { return 0 }
+        var adj = 0.0
+
+        // Cardio recovery impact
+        let recoveries = metrics.compactMap(\.cardioRecovery)
+        if !recoveries.isEmpty {
+            let avgRecovery = recoveries.reduce(0, +) / Double(recoveries.count)
+            adj += CardioFitnessEngine.recoveryLongevityImpact(avgRecovery)
+        }
+
+        // Walking speed / gait impact
+        let speeds = metrics.compactMap(\.walkingSpeed)
+        if !speeds.isEmpty {
+            let avgSpeed = speeds.reduce(0, +) / Double(speeds.count)
+            adj += GaitEngine.walkingSpeedLongevityImpact(avgSpeed, age: age)
+        }
+
+        // Breathing disturbances / apnea impact
+        let bds = metrics.compactMap(\.breathingDisturbances)
+        if !bds.isEmpty {
+            let avgBD = bds.reduce(0, +) / Double(bds.count)
+            adj += SleepEngine.apneaLongevityImpact(avgBD)
+        }
+
+        // Cap the total health metrics adjustment to reasonable bounds
+        return min(4, max(-6, (adj * 10).rounded() / 10))
+    }
+
     // MARK: - Health Score (0-100)
 
     /// Composite health score based on available metrics.
@@ -323,7 +356,8 @@ enum DeathClockEngine {
         lifestyle: LifestyleData,
         ageYears: Int,
         latestEpigeneticTest: EpigeneticTest?,
-        alcoholRisk: AlcoholRisk
+        alcoholRisk: AlcoholRisk,
+        healthMetrics: [HealthMetricEntry] = []
     ) -> Double {
         var score = 0.0
         var weight = 0.0
@@ -381,14 +415,27 @@ enum DeathClockEngine {
         if let latest = latestEpigeneticTest,
            let pace = latest.paceOfAging {
             weight += epiMax
-            // 1.0 = aging at normal rate (should be ~80% credit, not a harsh penalty)
-            // < 0.85 = excellent, 0.85-1.0 = great, 1.0-1.1 = normal, > 1.1 = concerning
             if pace < 0.85 { score += epiMax }
             else if pace <= 1.0 { score += epiMax * (0.95 - (pace - 0.85) * 0.5) }
             else if pace <= 1.15 { score += epiMax * (0.75 - (pace - 1.0) * 2.0) }
             else { score += epiMax * 0.3 }
         }
-        // No epigenetic data — just exclude from scoring
+
+        // Cardio recovery (max 10 pts) — when measured
+        let cardioMax = 10.0
+        let recoveries = healthMetrics.compactMap(\.cardioRecovery)
+        if !recoveries.isEmpty {
+            let avgRecovery = recoveries.reduce(0, +) / Double(recoveries.count)
+            weight += cardioMax
+            let level = CardioFitnessEngine.classifyRecovery(avgRecovery)
+            switch level {
+            case .excellent: score += cardioMax
+            case .good: score += cardioMax * 0.8
+            case .normal: score += cardioMax * 0.6
+            case .belowNormal: score += cardioMax * 0.3
+            case .abnormal: score += cardioMax * 0.1
+            }
+        }
 
         // Age-based natural decline — only penalize meaningfully after 60
         let agePenalty: Double

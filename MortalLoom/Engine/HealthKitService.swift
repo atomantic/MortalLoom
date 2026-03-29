@@ -19,6 +19,10 @@ final class HealthKitService: ObservableObject {
             .distanceWalkingRunning, .distanceCycling,
             .bodyMass, .bodyMassIndex, .bodyFatPercentage, .leanBodyMass,
             .walkingSpeed, .walkingStepLength,
+            .walkingAsymmetryPercentage, .walkingDoubleSupportPercentage,
+            .stairAscentSpeed, .stairDescentSpeed, .walkingHeartRateAverage,
+            .heartRateRecoveryOneMinute,
+            .timeInDaylight,
             .environmentalAudioExposure, .headphoneAudioExposure,
         ]
         for id in quantityTypes {
@@ -136,6 +140,73 @@ final class HealthKitService: ObservableObject {
 
                 let result = dailySeconds.map { (date: $0.key, value: $0.value / 3600.0) }
                     .sorted { $0.date < $1.date }
+                continuation.resume(returning: result)
+            }
+            store.execute(query)
+        }
+    }
+
+    /// Sleep stage breakdown per calendar day.
+    struct SleepStageDay: Sendable {
+        let date: Date
+        let totalHours: Double
+        let deepHours: Double
+        let remHours: Double
+        let coreHours: Double
+    }
+
+    /// Query daily sleep with stage breakdown (deep / REM / core).
+    func dailySleepStages(from: Date, to: Date) async -> [SleepStageDay] {
+        guard let sleepType = HKCategoryType.categoryType(forIdentifier: .sleepAnalysis) else { return [] }
+
+        return await withCheckedContinuation { continuation in
+            let predicate = HKQuery.predicateForSamples(withStart: from, end: to, options: .strictStartDate)
+            let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+            let query = HKSampleQuery(sampleType: sleepType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [sort]) { _, samples, _ in
+                guard let samples = samples as? [HKCategorySample] else {
+                    continuation.resume(returning: [])
+                    return
+                }
+
+                let calendar = Calendar.current
+                var dayDeep: [Date: Double] = [:]
+                var dayRem: [Date: Double] = [:]
+                var dayCore: [Date: Double] = [:]
+                var dayTotal: [Date: Double] = [:]
+
+                for sample in samples {
+                    let dayStart = calendar.startOfDay(for: sample.endDate)
+                    let duration = sample.endDate.timeIntervalSince(sample.startDate) / 3600.0
+
+                    switch sample.value {
+                    case HKCategoryValueSleepAnalysis.asleepDeep.rawValue:
+                        dayDeep[dayStart, default: 0] += duration
+                        dayTotal[dayStart, default: 0] += duration
+                    case HKCategoryValueSleepAnalysis.asleepREM.rawValue:
+                        dayRem[dayStart, default: 0] += duration
+                        dayTotal[dayStart, default: 0] += duration
+                    case HKCategoryValueSleepAnalysis.asleepCore.rawValue:
+                        dayCore[dayStart, default: 0] += duration
+                        dayTotal[dayStart, default: 0] += duration
+                    case HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue:
+                        dayCore[dayStart, default: 0] += duration
+                        dayTotal[dayStart, default: 0] += duration
+                    default:
+                        break // inBed, awake — don't count
+                    }
+                }
+
+                let allDates = Set(dayTotal.keys)
+                let result = allDates.map { date in
+                    SleepStageDay(
+                        date: date,
+                        totalHours: dayTotal[date] ?? 0,
+                        deepHours: dayDeep[date] ?? 0,
+                        remHours: dayRem[date] ?? 0,
+                        coreHours: dayCore[date] ?? 0
+                    )
+                }.sorted { $0.date < $1.date }
+
                 continuation.resume(returning: result)
             }
             store.execute(query)

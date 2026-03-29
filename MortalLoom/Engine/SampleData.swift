@@ -192,6 +192,65 @@ enum SampleData {
             let sleepBase: Double = isDrinkingDay ? 6.3 : 7.6
             let sleepHrs = (sleepBase + seededRandom(day * 109, min: -0.8, max: 0.8)).rounded(to: 1)
 
+            // Sleep stages: deep ~18%, REM ~22%, core ~60% of total
+            let deepPct = isDrinkingDay ? 0.12 : 0.20
+            let remPct = isDrinkingDay ? 0.15 : 0.23
+            let deepHrs = (sleepHrs * deepPct + seededRandom(day * 111, min: -0.2, max: 0.2)).rounded(to: 2)
+            let remHrs = (sleepHrs * remPct + seededRandom(day * 113, min: -0.2, max: 0.2)).rounded(to: 2)
+            let coreHrs = (sleepHrs - deepHrs - remHrs).rounded(to: 2)
+
+            // Cardio recovery: ~25 bpm drop, worse with nicotine
+            let recoveryBase: Double = isNicotineDay ? 20.0 : 28.0
+            let cardioRec: Double? = Int(seededRandom(day * 115, min: 0, max: 10)) % 5 == 0
+                ? (recoveryBase + seededRandom(day * 117, min: -5, max: 5)).rounded(to: 1)
+                : nil
+
+            // Walking speed: ~1.2 m/s average
+            let walkSpd: Double? = Int(seededRandom(day * 119, min: 0, max: 10)) % 2 == 0
+                ? (1.2 + seededRandom(day * 121, min: -0.15, max: 0.15)).rounded(to: 2)
+                : nil
+
+            // Walking distance: correlated with steps
+            let walkDist = (steps * 0.0007 + seededRandom(day * 123, min: -0.3, max: 0.3)).rounded(to: 2)
+
+            // Gait: asymmetry ~3%, double support ~25%
+            let walkAsym: Double? = Int(seededRandom(day * 125, min: 0, max: 10)) % 3 == 0
+                ? (3.0 + seededRandom(day * 127, min: -1.5, max: 1.5)).rounded(to: 1)
+                : nil
+            let walkDS: Double? = Int(seededRandom(day * 129, min: 0, max: 10)) % 3 == 0
+                ? (25.0 + seededRandom(day * 131, min: -3, max: 3)).rounded(to: 1)
+                : nil
+
+            // Stair speeds (m/s)
+            let stairUp: Double? = Int(seededRandom(day * 133, min: 0, max: 10)) % 4 == 0
+                ? (0.8 + seededRandom(day * 135, min: -0.1, max: 0.1)).rounded(to: 2)
+                : nil
+            let stairDn: Double? = Int(seededRandom(day * 137, min: 0, max: 10)) % 4 == 0
+                ? (0.9 + seededRandom(day * 139, min: -0.1, max: 0.1)).rounded(to: 2)
+                : nil
+
+            // Walking HR average
+            let walkHR: Double? = Int(seededRandom(day * 141, min: 0, max: 10)) % 2 == 0
+                ? (105.0 + seededRandom(day * 143, min: -8, max: 8)).rounded(to: 1)
+                : nil
+
+            // Stand time: 30-120 minutes
+            let standMins = (seededRandom(day * 145, min: 30, max: 120)).rounded(to: 0)
+
+            // Basal energy: ~1600-1800 kcal
+            let basalE = (seededRandom(day * 147, min: 1550, max: 1850)).rounded(to: 0)
+
+            // Breathing disturbances: mostly low (0-5/hr), higher after drinking
+            let bdBase: Double = isDrinkingDay ? 6.0 : 2.0
+            let bd: Double? = Int(seededRandom(day * 149, min: 0, max: 10)) % 3 == 0
+                ? (bdBase + seededRandom(day * 151, min: -1.5, max: 3)).rounded(to: 1)
+                : nil
+
+            // Daylight: 15-90 minutes
+            let daylight: Double? = Int(seededRandom(day * 153, min: 0, max: 10)) % 2 == 0
+                ? (seededRandom(day * 155, min: 10, max: 90)).rounded(to: 0)
+                : nil
+
             metrics.append(HealthMetricEntry(
                 date: date,
                 heartRate: hr,
@@ -204,7 +263,22 @@ enum SampleData {
                 activeEnergy: energy,
                 exerciseMinutes: exercise,
                 flightsClimbed: flights,
-                sleepHours: sleepHrs
+                sleepHours: sleepHrs,
+                sleepDeepHours: max(0, deepHrs),
+                sleepRemHours: max(0, remHrs),
+                sleepCoreHours: max(0, coreHrs),
+                cardioRecovery: cardioRec,
+                walkingSpeed: walkSpd,
+                walkingDistance: max(0, walkDist),
+                walkingAsymmetry: walkAsym,
+                walkingDoubleSupport: walkDS,
+                stairSpeedUp: stairUp,
+                stairSpeedDown: stairDn,
+                walkingHRAverage: walkHR,
+                standMinutes: standMins,
+                basalEnergy: basalE,
+                breathingDisturbances: bd,
+                daylightMinutes: daylight
             ))
         }
         return metrics
