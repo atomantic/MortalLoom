@@ -557,6 +557,15 @@ struct SubstancesView: View {
         .cardStyle()
     }
 
+    private func startEditingDrink(_ drink: AlcoholDrink) {
+        editAlcoName = drink.name
+        editAlcoOz = String(format: "%.1f", drink.oz)
+        editAlcoABV = String(format: "%.1f", drink.abv)
+        editAlcoCount = "\(drink.count)"
+        editAlcoDate = drink.date
+        editingDrink = drink
+    }
+
     private func alcoholRow(_ drink: AlcoholDrink) -> some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
@@ -579,15 +588,11 @@ struct SubstancesView: View {
         }
         .padding(.vertical, 6)
         .contentShape(Rectangle())
-        .onTapGesture {
-            editAlcoName = drink.name
-            editAlcoOz = String(format: "%.1f", drink.oz)
-            editAlcoABV = String(format: "%.1f", drink.abv)
-            editAlcoCount = "\(drink.count)"
-            editAlcoDate = drink.date
-            editingDrink = drink
-        }
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+        .onTapGesture { startEditingDrink(drink) }
+        .contextMenu {
+            Button { startEditingDrink(drink) } label: {
+                Label("Edit", systemImage: "pencil")
+            }
             Button(role: .destructive) {
                 Task {
                     await DataStore.shared.removeAlcoholDrink(id: drink.id)
@@ -926,6 +931,14 @@ struct SubstancesView: View {
         .cardStyle()
     }
 
+    private func startEditingNicotine(_ entry: NicotineEntry) {
+        editNicoProduct = entry.product
+        editNicoMg = String(format: "%.1f", entry.mgPerUnit)
+        editNicoCount = "\(entry.count)"
+        editNicoDate = entry.date
+        editingNicotine = entry
+    }
+
     private func nicotineRow(_ entry: NicotineEntry) -> some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
@@ -943,14 +956,11 @@ struct SubstancesView: View {
         }
         .padding(.vertical, 6)
         .contentShape(Rectangle())
-        .onTapGesture {
-            editNicoProduct = entry.product
-            editNicoMg = String(format: "%.1f", entry.mgPerUnit)
-            editNicoCount = "\(entry.count)"
-            editNicoDate = entry.date
-            editingNicotine = entry
-        }
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+        .onTapGesture { startEditingNicotine(entry) }
+        .contextMenu {
+            Button { startEditingNicotine(entry) } label: {
+                Label("Edit", systemImage: "pencil")
+            }
             Button(role: .destructive) {
                 Task {
                     await DataStore.shared.removeNicotineEntry(id: entry.id)
@@ -1146,6 +1156,14 @@ struct SubstancesView: View {
         }
     }
 
+    private func startEditingSauna(_ session: SaunaSession) {
+        editSaunaType = session.saunaType
+        editSaunaTemp = "\(session.temperatureF)"
+        editSaunaDuration = "\(session.durationMinutes)"
+        editSaunaDate = session.date
+        editingSauna = session
+    }
+
     // MARK: Sauna History
 
     @ViewBuilder
@@ -1181,14 +1199,10 @@ struct SubstancesView: View {
                             .padding(.horizontal, 12)
                             .background(Color.bgInput)
                             .cornerRadius(8)
+                            .contentShape(Rectangle())
+                            .onTapGesture { startEditingSauna(session) }
                             .contextMenu {
-                                Button {
-                                    editSaunaType = session.saunaType
-                                    editSaunaTemp = "\(session.temperatureF)"
-                                    editSaunaDuration = "\(session.durationMinutes)"
-                                    editSaunaDate = session.date
-                                    editingSauna = session
-                                } label: {
+                                Button { startEditingSauna(session) } label: {
                                     Label("Edit", systemImage: "pencil")
                                 }
                                 Button(role: .destructive) {
