@@ -5,6 +5,7 @@ import SwiftUI
 struct GoalsView: View {
     @State private var goals: [Goal] = []
     @State private var deathClock: DeathClockEngine.DeathClockResult?
+    @State private var levDeathClock: DeathClockEngine.DeathClockResult?
     @State private var projections: [UUID: GoalEngine.GoalProjection] = [:]
     @State private var cognitiveDeadline: Date?
     @State private var showingAddGoal = false
@@ -94,6 +95,12 @@ struct GoalsView: View {
             lifestyle: data.profile.lifestyle,
             genome: data.genomeScanRecord
         )
+        let levDc: DeathClockEngine.DeathClockResult? = dc.flatMap {
+            DeathClockEngine.calculateLEVResult(
+                standardResult: $0,
+                birthDateStr: data.profile.birthDate ?? ""
+            )
+        }
         let cogDate = GoalEngine.cognitiveDeadline(from: dc)
 
         var projs: [UUID: GoalEngine.GoalProjection] = [:]
@@ -134,6 +141,7 @@ struct GoalsView: View {
 
         goals = data.goals
         deathClock = dc
+        levDeathClock = levDc
         cognitiveDeadline = cogDate
         projections = projs
         apexGoal = apex
@@ -195,7 +203,13 @@ struct GoalsView: View {
                         .font(.title2).fontWeight(.bold)
                         .foregroundColor(.textPrimary)
                     if let dc = deathClock {
-                        Text("\(String(format: "%.1f", dc.healthyYearsRemaining)) healthy years remaining")
+                        let years = String(format: "%.1f", dc.healthyYearsRemaining)
+                        let label = if let lev = levDeathClock {
+                            "\(years) – \(String(format: "%.1f", lev.healthyYearsRemaining)) healthy years remaining"
+                        } else {
+                            "\(years) healthy years remaining"
+                        }
+                        Text(label)
                             .font(.caption)
                             .foregroundColor(.textSecondary)
                     }
