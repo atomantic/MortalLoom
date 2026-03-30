@@ -409,6 +409,9 @@ struct GenomeView: View {
                 allGenomeVariants = parseResult.variants
                 genomeVariants = Array(parseResult.variants.prefix(1000))
                 importError = nil
+                Task.detached(priority: .background) {
+                    await DataStore.shared.saveGenomeFile(cleaned)
+                }
                 runMarkerScan()
             }
 
@@ -1206,6 +1209,21 @@ struct GenomeView: View {
         let data = await DataStore.shared.getData()
         epigeneticTests = data.epigeneticTests
         sortedEpigeneticTests = data.epigeneticTests.sorted(by: { $0.date > $1.date })
+
+        // Restore genome variants from persisted file (survives app updates + syncs via iCloud)
+        if allGenomeVariants.isEmpty, let rawContent = await DataStore.shared.loadGenomeFile() {
+            let parseResult = await Task.detached(priority: .userInitiated) {
+                GenomeParser.parse(rawContent)
+            }.value
+            if !parseResult.variants.isEmpty {
+                totalVariantCount = parseResult.variants.count
+                genomeBuild = parseResult.build
+                allGenomeVariants = parseResult.variants
+                genomeVariants = Array(parseResult.variants.prefix(1000))
+                runMarkerScan()
+            }
+        }
+
         isLoading = false
     }
 }

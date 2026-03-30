@@ -4,6 +4,20 @@ extension Notification.Name {
     static let dataDidSync = Notification.Name("dataDidSync")
 }
 
+enum CloudConfig {
+    static let containerID = "iCloud.net.shadowpuppet.MeatSpaceTracker"
+}
+
+extension FileManager {
+    /// Returns the cloud URL if it exists and is newer than the local URL, otherwise the local URL.
+    func newerOf(cloud: URL?, local: URL) -> URL {
+        guard let cloud, fileExists(atPath: cloud.path) else { return local }
+        let cloudDate = (try? attributesOfItem(atPath: cloud.path)[.modificationDate] as? Date) ?? .distantPast
+        let localDate = (try? attributesOfItem(atPath: local.path)[.modificationDate] as? Date) ?? .distantPast
+        return cloudDate >= localDate ? cloud : local
+    }
+}
+
 actor DataStore {
     static let shared = DataStore()
 
@@ -18,8 +32,18 @@ actor DataStore {
     }
 
     private var iCloudURL: URL? {
-        FileManager.default.url(forUbiquityContainerIdentifier: "iCloud.net.shadowpuppet.MeatSpaceTracker")?
+        FileManager.default.url(forUbiquityContainerIdentifier: CloudConfig.containerID)?
             .appendingPathComponent("Documents/MortalLoom.json")
+    }
+
+    private var localGenomeURL: URL {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("genome-raw.txt")
+    }
+
+    private var iCloudGenomeURL: URL? {
+        FileManager.default.url(forUbiquityContainerIdentifier: CloudConfig.containerID)?
+            .appendingPathComponent("Documents/genome-raw.txt")
     }
 
     // Load from best available source
@@ -283,6 +307,34 @@ actor DataStore {
         save(d)
     }
 
+    // MARK: - Genome File
+
+    func saveGenomeFile(_ content: String) {
+        guard let data = content.data(using: .utf8) else { return }
+        try? data.write(to: localGenomeURL, options: .atomic)
+        if let cloudURL = iCloudGenomeURL {
+            let dir = cloudURL.deletingLastPathComponent()
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            try? data.write(to: cloudURL, options: .atomic)
+        }
+    }
+
+    func loadGenomeFile() -> String? {
+        let url = bestGenomeURL()
+        guard let data = try? Data(contentsOf: url),
+              let content = String(data: data, encoding: .utf8) else { return nil }
+        return content
+    }
+
+    func deleteGenomeFile() {
+        try? FileManager.default.removeItem(at: localGenomeURL)
+        if let url = iCloudGenomeURL { try? FileManager.default.removeItem(at: url) }
+    }
+
+    private func bestGenomeURL() -> URL {
+        FileManager.default.newerOf(cloud: iCloudGenomeURL, local: localGenomeURL)
+    }
+
     func exportData() -> Data? {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -298,13 +350,6 @@ actor DataStore {
     // MARK: - Private
 
     private func bestURL() -> URL {
-        if let cloudURL = iCloudURL,
-           FileManager.default.fileExists(atPath: cloudURL.path) {
-            // Use whichever is newer
-            let cloudDate = (try? FileManager.default.attributesOfItem(atPath: cloudURL.path)[.modificationDate] as? Date) ?? .distantPast
-            let localDate = (try? FileManager.default.attributesOfItem(atPath: localURL.path)[.modificationDate] as? Date) ?? .distantPast
-            return cloudDate >= localDate ? cloudURL : localURL
-        }
-        return localURL
+        FileManager.default.newerOf(cloud: iCloudURL, local: localURL)
     }
 }

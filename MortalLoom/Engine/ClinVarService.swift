@@ -26,12 +26,31 @@ enum ClinVarService {
 
     // MARK: - File Paths
 
-    private static var documentsDir: URL {
+    private static let indexFileName = "clinvar-index.json"
+    private static let metaFileName = "clinvar-meta.json"
+
+    private static var localDocumentsDir: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
 
-    static var indexFileURL: URL { documentsDir.appendingPathComponent("clinvar-index.json") }
-    static var metaFileURL: URL { documentsDir.appendingPathComponent("clinvar-meta.json") }
+    private static var iCloudDocumentsDir: URL? {
+        FileManager.default.url(forUbiquityContainerIdentifier: CloudConfig.containerID)?
+            .appendingPathComponent("Documents")
+    }
+
+    static var indexFileURL: URL {
+        FileManager.default.newerOf(
+            cloud: iCloudDocumentsDir?.appendingPathComponent(indexFileName),
+            local: localDocumentsDir.appendingPathComponent(indexFileName)
+        )
+    }
+
+    static var metaFileURL: URL {
+        FileManager.default.newerOf(
+            cloud: iCloudDocumentsDir?.appendingPathComponent(metaFileName),
+            local: localDocumentsDir.appendingPathComponent(metaFileName)
+        )
+    }
 
     // MARK: - Status
 
@@ -85,12 +104,8 @@ enum ClinVarService {
         let gzData = try Data(contentsOf: tempFileURL)
         let index = try streamDecompressAndBuildIndex(gzData, onProgress: onProgress)
 
-        // Save compact index
         let encoder = JSONEncoder()
         let indexData = try encoder.encode(index)
-        try indexData.write(to: indexFileURL)
-
-        // Save metadata
         let meta = SyncStatus(
             synced: true,
             variantCount: index.count,
@@ -98,7 +113,16 @@ enum ClinVarService {
             downloadSizeMB: sizeMB
         )
         let metaData = try JSONEncoder().encode(meta)
-        try metaData.write(to: metaFileURL)
+
+        let local = localDocumentsDir
+        try indexData.write(to: local.appendingPathComponent(indexFileName))
+        try metaData.write(to: local.appendingPathComponent(metaFileName))
+
+        if let cloud = iCloudDocumentsDir {
+            try? FileManager.default.createDirectory(at: cloud, withIntermediateDirectories: true)
+            try? indexData.write(to: cloud.appendingPathComponent(indexFileName))
+            try? metaData.write(to: cloud.appendingPathComponent(metaFileName))
+        }
 
         // Cleanup temp file
         try? FileManager.default.removeItem(at: tempFileURL)
@@ -303,8 +327,13 @@ enum ClinVarService {
     // MARK: - Delete
 
     static func deleteClinVar() {
-        try? FileManager.default.removeItem(at: indexFileURL)
-        try? FileManager.default.removeItem(at: metaFileURL)
+        let local = localDocumentsDir
+        try? FileManager.default.removeItem(at: local.appendingPathComponent(indexFileName))
+        try? FileManager.default.removeItem(at: local.appendingPathComponent(metaFileName))
+        if let cloud = iCloudDocumentsDir {
+            try? FileManager.default.removeItem(at: cloud.appendingPathComponent(indexFileName))
+            try? FileManager.default.removeItem(at: cloud.appendingPathComponent(metaFileName))
+        }
     }
 }
 

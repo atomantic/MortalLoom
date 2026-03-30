@@ -136,5 +136,4 @@ With the new data, `DeathClockEngine.lifestyleAdjustment()` and `healthScore()` 
 
 - Apple Health XML/JSON file import (replaced by native HealthKit)
 - Server-side API calls (all local/on-device)
-- ClinVar database sync (too large for on-device, defer to future)
 - WebSocket progress updates
