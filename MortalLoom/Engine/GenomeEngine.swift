@@ -304,7 +304,7 @@ enum GenomeEngine {
     // MARK: - ClinVar Scanning
 
     /// Severity sort order: pathogenic first, then drug_response, risk_factor, protective last.
-    private static let severityOrder: [String: Int] = [
+    static let severityOrder: [String: Int] = [
         "pathogenic": 0,
         "drug_response": 1,
         "risk_factor": 2,
@@ -370,6 +370,197 @@ enum GenomeEngine {
         case "risk_factor", "drug_response": return .concern
         case "protective": return .beneficial
         default: return .typical
+        }
+    }
+
+    // MARK: - ClinVar Health Theme Classification
+
+    /// Classify a ClinVar hit into a health theme based on gene name and condition keywords.
+    static func classifyTheme(_ hit: ClinVarHit) -> ClinVarTheme {
+        let gene = hit.entry.gene.lowercased()
+        let conds = hit.entry.conditions.joined(separator: " ").lowercased()
+        let text = gene + " " + conds
+
+        // Cancer — check specific cancer types first, then general
+        if text.contains("breast") || text.contains("ovarian") || ["brca1", "brca2"].contains(gene) {
+            return .cancerBreast
+        }
+        if text.contains("prostate") { return .cancerProstate }
+        if text.contains("colorectal") || text.contains("colon") || text.contains("lynch") { return .cancerColorectal }
+        if text.contains("lung") && (text.contains("cancer") || text.contains("carcinoma")) { return .cancerLung }
+        if text.contains("melanoma") { return .cancerMelanoma }
+        if text.contains("leukemia") || text.contains("lymphoma") || text.contains("myeloma") { return .cancerBlood }
+        if text.contains("cancer") || text.contains("carcinoma") || text.contains("neoplasm") || text.contains("tumor")
+            || text.contains("tumour") || text.contains("sarcoma") || text.contains("adenoma")
+            || text.contains("glioma") || text.contains("blastoma") || gene == "tp53" || gene == "apc" { return .cancerOther }
+
+        // Cardiovascular
+        if text.contains("cardio") || text.contains("heart") || text.contains("arrhythmia") || text.contains("cardiomyopathy")
+            || text.contains("atrial") || text.contains("ventricular") || text.contains("coronary") || text.contains("aortic")
+            || text.contains("hypertension") || text.contains("long qt") || text.contains("brugada")
+            || text.contains("marfan") || text.contains("thromb") || text.contains("factor v") { return .cardiovascular }
+
+        // Neurological / Cognitive
+        if text.contains("alzheimer") || text.contains("dementia") || text.contains("parkinson")
+            || text.contains("huntington") || text.contains("neurodegenerat") || text.contains("amyotrophic")
+            || text.contains("epilepsy") || text.contains("seizure") || text.contains("neuropathy")
+            || text.contains("ataxia") || text.contains("charcot") { return .neurological }
+
+        // Blood & Clotting
+        if text.contains("anemia") || text.contains("anaemia") || text.contains("thalassemia") || text.contains("sickle cell")
+            || text.contains("hemophilia") || text.contains("haemophilia") || text.contains("hemochromatosis")
+            || text.contains("iron overload") || text.contains("factor v leiden") || text.contains("von willebrand") { return .blood }
+
+        // Metabolic
+        if text.contains("diabetes") || text.contains("obesity") || text.contains("metabolic")
+            || text.contains("phenylketonuria") || text.contains("galactosemia") || text.contains("glycogen storage")
+            || text.contains("familial hypercholesterolemia") || text.contains("gaucher") || text.contains("fabry") { return .metabolic }
+
+        // Immune & Autoimmune
+        if text.contains("autoimmune") || text.contains("lupus") || text.contains("rheumatoid")
+            || text.contains("celiac") || text.contains("coeliac") || text.contains("crohn")
+            || text.contains("multiple sclerosis") || text.contains("psoriasis") || text.contains("immunodeficiency") { return .immune }
+
+        // Drug Response
+        if hit.entry.severity == "drug_response" || text.contains("drug response") || text.contains("pharmacogen")
+            || text.contains("warfarin") || text.contains("clopidogrel") || text.contains("statin")
+            || text.contains("codeine") || text.contains("metabolism of") { return .drugResponse }
+
+        // Vision
+        if text.contains("macular") || text.contains("retinitis") || text.contains("glaucoma")
+            || text.contains("retinal") || text.contains("blindness") || text.contains("leber") { return .vision }
+
+        // Respiratory
+        if text.contains("cystic fibrosis") || text.contains("asthma") || text.contains("pulmonary")
+            || text.contains("copd") || text.contains("lung") { return .respiratory }
+
+        // Connective Tissue & Musculoskeletal
+        if text.contains("osteoporosis") || text.contains("ehlers") || text.contains("muscular dystrophy")
+            || text.contains("skeletal") || text.contains("bone mineral") || text.contains("osteogenesis") { return .musculoskeletal }
+
+        // Hearing
+        if text.contains("hearing") || text.contains("deafness") || text.contains("connexin") { return .hearing }
+
+        // Skin (psoriasis handled under immune above)
+        if text.contains("skin") || text.contains("dermatitis") || text.contains("epidermolysis")
+            || text.contains("ichthyosis") { return .skin }
+
+        // Kidney
+        if text.contains("kidney") || text.contains("renal") || text.contains("polycystic kidney")
+            || text.contains("nephro") { return .kidney }
+
+        // Liver
+        if text.contains("liver") || text.contains("hepat") || text.contains("wilson disease")
+            || text.contains("cirrhosis") || text.contains("biliary") { return .liver }
+
+        // Endocrine
+        if text.contains("thyroid") || text.contains("adrenal") || text.contains("pituitary")
+            || text.contains("hormone") || text.contains("growth hormone") { return .endocrine }
+
+        // Protective factors
+        if hit.entry.severity == "protective" { return .protective }
+
+        return .other
+    }
+
+    /// Group ClinVar hits by health theme.
+    static func groupByTheme(_ hits: [ClinVarHit]) -> [(theme: ClinVarTheme, hits: [ClinVarHit])] {
+        var grouped: [ClinVarTheme: [ClinVarHit]] = [:]
+        var pathogenicCounts: [ClinVarTheme: Int] = [:]
+        for hit in hits {
+            let theme = classifyTheme(hit)
+            grouped[theme, default: []].append(hit)
+            if hit.entry.severity == "pathogenic" {
+                pathogenicCounts[theme, default: 0] += 1
+            }
+        }
+
+        return grouped.sorted { a, b in
+            let aPath = pathogenicCounts[a.key] ?? 0
+            let bPath = pathogenicCounts[b.key] ?? 0
+            if aPath != bPath { return aPath > bPath }
+            return a.value.count > b.value.count
+        }.map { (theme: $0.key, hits: $0.value) }
+    }
+}
+
+// MARK: - ClinVar Health Theme
+
+enum ClinVarTheme: String, Sendable, CaseIterable {
+    case cancerBreast = "cancer_breast"
+    case cancerProstate = "cancer_prostate"
+    case cancerColorectal = "cancer_colorectal"
+    case cancerLung = "cancer_lung"
+    case cancerMelanoma = "cancer_melanoma"
+    case cancerBlood = "cancer_blood"
+    case cancerOther = "cancer_other"
+    case cardiovascular
+    case neurological
+    case blood
+    case metabolic
+    case immune
+    case drugResponse = "drug_response"
+    case vision
+    case respiratory
+    case musculoskeletal
+    case hearing
+    case skin
+    case kidney
+    case liver
+    case endocrine
+    case protective
+    case other
+
+    var label: String {
+        switch self {
+        case .cancerBreast: "Breast & Ovarian Cancer"
+        case .cancerProstate: "Prostate Cancer"
+        case .cancerColorectal: "Colorectal Cancer"
+        case .cancerLung: "Lung Cancer"
+        case .cancerMelanoma: "Melanoma"
+        case .cancerBlood: "Blood Cancer"
+        case .cancerOther: "Other Cancer"
+        case .cardiovascular: "Cardiovascular"
+        case .neurological: "Neurological"
+        case .blood: "Blood & Clotting"
+        case .metabolic: "Metabolic"
+        case .immune: "Immune & Autoimmune"
+        case .drugResponse: "Drug Response"
+        case .vision: "Vision"
+        case .respiratory: "Respiratory"
+        case .musculoskeletal: "Musculoskeletal"
+        case .hearing: "Hearing"
+        case .skin: "Skin"
+        case .kidney: "Kidney"
+        case .liver: "Liver"
+        case .endocrine: "Endocrine"
+        case .protective: "Protective"
+        case .other: "Other"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .cancerBreast: "ribbon"
+        case .cancerProstate, .cancerColorectal, .cancerBlood, .cancerOther: "shield.checkmark.fill"
+        case .cancerLung: "wind"
+        case .cancerMelanoma: "sun.max.fill"
+        case .cardiovascular: "heart.fill"
+        case .neurological: "brain.head.profile"
+        case .blood: "drop.fill"
+        case .metabolic: "bolt.fill"
+        case .immune: "shield.trianglebadge.exclamationmark.fill"
+        case .drugResponse: "pills.fill"
+        case .vision: "eye"
+        case .respiratory: "lungs.fill"
+        case .musculoskeletal: "figure.walk"
+        case .hearing: "ear"
+        case .skin: "sun.max.fill"
+        case .kidney: "drop.triangle.fill"
+        case .liver: "cross.circle.fill"
+        case .endocrine: "waveform.path.ecg"
+        case .protective: "checkmark.shield.fill"
+        case .other: "questionmark.circle"
         }
     }
 }

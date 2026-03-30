@@ -30,6 +30,11 @@ struct GenomeView: View {
     @State private var isSyncingClinVar = false
     @State private var clinvarProgress: String = ""
     @State private var clinvarError: String?
+    @State private var expandedThemes: Set<ClinVarTheme> = []
+
+    private var clinvarGrouped: [(theme: ClinVarTheme, hits: [ClinVarHit])] {
+        GenomeEngine.groupByTheme(clinvarHits)
+    }
 
     var body: some View {
         ScrollView {
@@ -75,9 +80,14 @@ struct GenomeView: View {
     private var epigeneticAgeSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Epigenetic Age (\(epigeneticTests.count))")
+                Text("Epigenetic Age")
                     .font(.headline)
                     .foregroundColor(.textPrimary)
+                if epigeneticTests.count > 1 {
+                    Text("\(epigeneticTests.count) tests")
+                        .font(.caption)
+                        .foregroundColor(.textMuted)
+                }
                 Spacer()
                 Button(action: { showingAddTest = true }) {
                     Image(systemName: "plus.circle.fill")
@@ -748,44 +758,93 @@ struct GenomeView: View {
     // MARK: - ClinVar Section
 
     private var clinvarSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                Image(systemName: "building.columns.fill")
-                    .font(.headline)
-                    .foregroundColor(.accentColor)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("ClinVar Pathogenic Variants")
+        VStack(spacing: 12) {
+            // Header card
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    Image(systemName: "building.columns.fill")
                         .font(.headline)
-                        .foregroundColor(.textPrimary)
-                    if clinvarStatus.synced, let dateStr = clinvarStatus.syncedAt {
-                        let displayDate = formatClinVarDate(dateStr)
-                        Text("Last synced: \(displayDate) \u{2022} \(DateFormatting.formatLargeNumber(clinvarStatus.variantCount ?? 0)) variants")
-                            .font(.caption)
-                            .foregroundColor(.textMuted)
+                        .foregroundColor(.accentColor)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("ClinVar Database")
+                            .font(.headline)
+                            .foregroundColor(.textPrimary)
+                        if clinvarStatus.synced, let dateStr = clinvarStatus.syncedAt {
+                            let displayDate = formatClinVarDate(dateStr)
+                            Text("Synced: \(displayDate) \u{2022} \(DateFormatting.formatLargeNumber(clinvarStatus.variantCount ?? 0)) variants indexed")
+                                .font(.caption)
+                                .foregroundColor(.textMuted)
+                        }
                     }
+                    Spacer()
                 }
-                Spacer()
-            }
 
-            if !clinvarStatus.synced {
-                clinvarDownloadPrompt
-            } else if isSyncingClinVar {
-                clinvarSyncingView
-            } else if clinvarHits.isEmpty && clinvarStatus.synced {
-                clinvarNoHitsView
-            } else {
-                clinvarHitsList
-            }
+                if !clinvarStatus.synced {
+                    clinvarDownloadPrompt
+                } else if isSyncingClinVar {
+                    clinvarSyncingView
+                } else if clinvarHits.isEmpty && clinvarStatus.synced {
+                    clinvarNoHitsView
+                } else {
+                    clinvarSummaryBar
+                }
 
-            if let error = clinvarError {
-                Text(error)
-                    .font(.caption)
-                    .foregroundColor(.danger)
+                if let error = clinvarError {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundColor(.danger)
+                }
+            }
+            .padding()
+            .cardStyle()
+            .onAppear { loadClinVarStatus() }
+
+            // Theme cards (outside the header card)
+            if !clinvarGrouped.isEmpty {
+                ForEach(clinvarGrouped, id: \.theme) { group in
+                    clinvarThemeCard(theme: group.theme, hits: group.hits)
+                }
             }
         }
-        .padding()
-        .cardStyle()
-        .onAppear { loadClinVarStatus() }
+    }
+
+    private var clinvarSummaryBar: some View {
+        var pathogenic = 0, riskFactor = 0, drugResponse = 0, protective = 0
+        for hit in clinvarHits {
+            switch hit.entry.severity {
+            case "pathogenic": pathogenic += 1
+            case "risk_factor": riskFactor += 1
+            case "drug_response": drugResponse += 1
+            case "protective": protective += 1
+            default: break
+            }
+        }
+
+        return VStack(alignment: .leading, spacing: 8) {
+            Text("\(clinvarHits.count) variants matched your genome")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundColor(.textPrimary)
+
+            HStack(spacing: 12) {
+                if pathogenic > 0 {
+                    summaryPill(count: pathogenic, label: "Pathogenic", color: .red)
+                }
+                if riskFactor > 0 {
+                    summaryPill(count: riskFactor, label: "Risk", color: .orange)
+                }
+                if drugResponse > 0 {
+                    summaryPill(count: drugResponse, label: "Drug", color: .blue)
+                }
+                if protective > 0 {
+                    summaryPill(count: protective, label: "Protective", color: .green)
+                }
+            }
+
+            Text("Organized by health theme below. Tap a category to see details.")
+                .font(.caption)
+                .foregroundColor(.textMuted)
+        }
     }
 
     private var clinvarDownloadPrompt: some View {
@@ -836,51 +895,110 @@ struct GenomeView: View {
         }
     }
 
-    @ViewBuilder
-    private var clinvarHitsList: some View {
-        let grouped = Dictionary(grouping: clinvarHits, by: { $0.entry.severity })
-        let severityOrder = ["pathogenic", "drug_response", "risk_factor", "protective"]
-        let orderedKeys = severityOrder.filter { grouped[$0] != nil }
+    // MARK: - ClinVar Theme Card
 
-        ForEach(orderedKeys, id: \.self) { severity in
-            let hits = grouped[severity] ?? []
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 6) {
-                    Circle()
-                        .fill(clinvarSeverityColor(severity))
-                        .frame(width: 8, height: 8)
-                    Text(clinvarSeverityLabel(severity))
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.textSecondary)
-                        .textCase(.uppercase)
-                    Text("(\(hits.count))")
+    private func clinvarThemeCard(theme: ClinVarTheme, hits: [ClinVarHit]) -> some View {
+        let isExpanded = expandedThemes.contains(theme)
+        var pathogenicCount = 0
+        var worstOrder = 99
+        for hit in hits {
+            let order = GenomeEngine.severityOrder[hit.entry.severity] ?? 99
+            if order < worstOrder { worstOrder = order }
+            if hit.entry.severity == "pathogenic" { pathogenicCount += 1 }
+        }
+        let worstSeverity = GenomeEngine.severityOrder.first { $0.value == worstOrder }?.key ?? "protective"
+
+        return VStack(spacing: 0) {
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    if isExpanded {
+                        expandedThemes.remove(theme)
+                    } else {
+                        expandedThemes.insert(theme)
+                    }
+                }
+            }) {
+                HStack(spacing: 10) {
+                    Image(systemName: theme.icon)
+                        .font(.body)
+                        .foregroundColor(clinvarSeverityColor(worstSeverity))
+                        .frame(width: 28, height: 28)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(theme.label)
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.textPrimary)
+
+                        HStack(spacing: 6) {
+                            Text("\(hits.count) variant\(hits.count == 1 ? "" : "s")")
+                                .font(.caption)
+                                .foregroundColor(.textMuted)
+                            if pathogenicCount > 0 {
+                                Text("\(pathogenicCount) pathogenic")
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.red)
+                            }
+                        }
+                    }
+
+                    Spacer()
+
+                    // Severity dots summary
+                    HStack(spacing: 3) {
+                        ForEach(severityDots(hits), id: \.self) { color in
+                            Circle()
+                                .fill(color)
+                                .frame(width: 6, height: 6)
+                        }
+                    }
+
+                    Image(systemName: "chevron.right")
                         .font(.caption)
                         .foregroundColor(.textMuted)
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
                 }
+                .padding()
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
 
-                ForEach(hits.prefix(20), id: \.rsid) { hit in
-                    clinvarHitRow(hit)
-                }
+            if isExpanded {
+                Divider()
+                    .padding(.horizontal)
 
-                if hits.count > 20 {
-                    Text("... and \(hits.count - 20) more")
-                        .font(.caption)
-                        .foregroundColor(.textMuted)
-                        .padding(.leading, 18)
+                VStack(spacing: 0) {
+                    ForEach(0..<hits.count, id: \.self) { idx in
+                        clinvarHitRow(hits[idx])
+                        if idx < hits.count - 1 {
+                            Divider()
+                                .padding(.leading, 44)
+                        }
+                    }
                 }
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
+        .cardStyle()
+    }
+
+    private func severityDots(_ hits: [ClinVarHit]) -> [Color] {
+        let severities = Set(hits.map(\.entry.severity))
+        var dots: [Color] = []
+        if severities.contains("pathogenic") { dots.append(.red) }
+        if severities.contains("risk_factor") { dots.append(.orange) }
+        if severities.contains("drug_response") { dots.append(.blue) }
+        if severities.contains("protective") { dots.append(.green) }
+        return dots
     }
 
     private func clinvarHitRow(_ hit: ClinVarHit) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
-                Text(hit.rsid)
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .monospacedDigit()
-                    .foregroundColor(.textPrimary)
+                Circle()
+                    .fill(clinvarSeverityColor(hit.entry.severity))
+                    .frame(width: 8, height: 8)
 
                 if !hit.entry.gene.isEmpty {
                     Text(hit.entry.gene)
@@ -888,6 +1006,11 @@ struct GenomeView: View {
                         .fontWeight(.semibold)
                         .foregroundColor(.accentColor)
                 }
+
+                Text(hit.rsid)
+                    .font(.caption)
+                    .monospacedDigit()
+                    .foregroundColor(.textMuted)
 
                 Spacer()
 
@@ -899,12 +1022,26 @@ struct GenomeView: View {
             if !hit.entry.conditions.isEmpty {
                 Text(hit.entry.conditions.joined(separator: ", "))
                     .font(.caption2)
-                    .foregroundColor(.textMuted)
+                    .foregroundColor(.textSecondary)
                     .lineLimit(2)
+                    .padding(.leading, 18)
             }
+
+            HStack(spacing: 6) {
+                Text(clinvarSeverityLabel(hit.entry.severity))
+                    .font(.caption2)
+                    .fontWeight(.medium)
+                    .foregroundColor(clinvarSeverityColor(hit.entry.severity))
+                if hit.entry.submissions > 1 {
+                    Text("\(hit.entry.submissions) submissions")
+                        .font(.caption2)
+                        .foregroundColor(.textMuted)
+                }
+            }
+            .padding(.leading, 18)
         }
-        .padding(.vertical, 4)
-        .padding(.horizontal, 2)
+        .padding(.horizontal)
+        .padding(.vertical, 8)
     }
 
     private func reviewStars(_ count: Int) -> some View {
