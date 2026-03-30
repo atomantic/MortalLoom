@@ -19,11 +19,24 @@ struct GoalsView: View {
     @State private var completedCount = 0
     @State private var attentionCount = 0
 
+    // Cached for reflatten without full reload
+    @State private var cachedRoots: [Goal] = []
+    @State private var cachedActiveByParent: [UUID?: [Goal]] = [:]
+
+    private static let treeLineColor = Color.textMuted.opacity(0.4)
+    private static let treeLineWidth: CGFloat = 1.5
+    private static let treeColumnWidth: CGFloat = 24
+
     private struct HierarchyItem: Identifiable {
         let goal: Goal
         let depth: Int
+        let isLastChild: Bool
+        let continuingDepths: Set<Int>
+        let hasChildren: Bool
         var id: UUID { goal.id }
     }
+
+    @State private var collapsedIds: Set<UUID> = []
 
     var body: some View {
         ScrollView {
@@ -119,36 +132,48 @@ struct GoalsView: View {
             roots.sort { goalTypeOrder($0) < goalTypeOrder($1) }
         }
 
-        var items: [HierarchyItem] = []
-        var visited = Set<UUID>()
-        func flatten(_ goal: Goal, depth: Int) {
-            guard visited.insert(goal.id).inserted else { return }
-            items.append(HierarchyItem(goal: goal, depth: depth))
-            let children = (activeByParent[goal.id] ?? [])
-                .sorted { $0.priority < $1.priority }
-            for child in children {
-                flatten(child, depth: depth + 1)
-            }
-        }
-        for root in roots {
-            flatten(root, depth: 0)
-        }
-
-        let activeN = activeGoals.count
-        let completedN = done.count { $0.status == .completed }
-        let attentionN = activeGoals.count { $0.needsCheckIn || $0.isOverdue }
-
         goals = data.goals
         deathClock = dc
         cognitiveDeadline = cogDate
         projections = projs
         apexGoal = apex
-        hierarchyItems = items
         childCounts = counts
         doneGoals = done
-        activeCount = activeN
-        completedCount = completedN
-        attentionCount = attentionN
+        activeCount = activeGoals.count
+        completedCount = done.count { $0.status == .completed }
+        attentionCount = activeGoals.count { $0.needsCheckIn || $0.isOverdue }
+        cachedRoots = roots
+        cachedActiveByParent = activeByParent
+        hierarchyItems = buildHierarchy(roots: roots, activeByParent: activeByParent)
+    }
+
+    private func buildHierarchy(roots: [Goal], activeByParent: [UUID?: [Goal]]) -> [HierarchyItem] {
+        var items: [HierarchyItem] = []
+        var visited = Set<UUID>()
+        func flatten(_ goal: Goal, depth: Int, isLast: Bool, continuing: Set<Int>) {
+            guard visited.insert(goal.id).inserted else { return }
+            let children = (activeByParent[goal.id] ?? [])
+                .sorted { $0.priority < $1.priority }
+            items.append(HierarchyItem(
+                goal: goal, depth: depth, isLastChild: isLast,
+                continuingDepths: continuing, hasChildren: !children.isEmpty
+            ))
+            guard !collapsedIds.contains(goal.id) else { return }
+            for (i, child) in children.enumerated() {
+                let childIsLast = i == children.count - 1
+                var childContinuing = continuing
+                if childIsLast {
+                    childContinuing.remove(depth + 1)
+                } else {
+                    childContinuing.insert(depth + 1)
+                }
+                flatten(child, depth: depth + 1, isLast: childIsLast, continuing: childContinuing)
+            }
+        }
+        for (i, root) in roots.enumerated() {
+            flatten(root, depth: 0, isLast: i == roots.count - 1, continuing: i < roots.count - 1 ? [0] : [])
+        }
+        return items
     }
 
     private func goalTypeOrder(_ goal: Goal) -> Int {
@@ -251,10 +276,9 @@ struct GoalsView: View {
     @ViewBuilder
     private var hierarchySection: some View {
         if !hierarchyItems.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 6) {
                 ForEach(hierarchyItems) { item in
-                    goalCard(item.goal)
-                        .padding(.leading, CGFloat(item.depth) * 24)
+                    treeRow(item: item)
                 }
             }
         }
@@ -266,6 +290,98 @@ struct GoalsView: View {
                 subtitle: "Map your ambitions to the time you have left"
             )
         }
+    }
+
+    private func treeRow(item: HierarchyItem) -> some View {
+        HStack(alignment: .top, spacing: 0) {
+            if item.depth > 0 {
+                treeConnectors(item: item)
+            }
+            goalCard(item.goal)
+                .overlay(alignment: .topLeading) {
+                    if item.hasChildren {
+                        collapseToggle(for: item.goal.id)
+                            .offset(x: -6, y: -6)
+                    }
+                }
+        }
+    }
+
+    private func treeConnectors(item: HierarchyItem) -> some View {
+        HStack(alignment: .top, spacing: 0) {
+            ForEach(0..<item.depth, id: \.self) { level in
+                if level == item.depth - 1 {
+                    branchConnector(isLast: item.isLastChild)
+                } else {
+                    verticalLine(continues: item.continuingDepths.contains(level))
+                }
+            }
+        }
+    }
+
+    private func branchConnector(isLast: Bool) -> some View {
+        Canvas { context, size in
+            let midX = size.width / 2
+            let midY = Self.treeColumnWidth
+
+            var path = Path()
+            path.move(to: CGPoint(x: midX, y: 0))
+            path.addLine(to: CGPoint(x: midX, y: midY))
+            path.addLine(to: CGPoint(x: size.width, y: midY))
+
+            if !isLast {
+                path.move(to: CGPoint(x: midX, y: midY))
+                path.addLine(to: CGPoint(x: midX, y: size.height))
+            }
+
+            context.stroke(path, with: .color(Self.treeLineColor), lineWidth: Self.treeLineWidth)
+        }
+        .frame(width: Self.treeColumnWidth)
+    }
+
+    private func verticalLine(continues: Bool) -> some View {
+        Canvas { context, size in
+            guard continues else { return }
+            let midX = size.width / 2
+            var path = Path()
+            path.move(to: CGPoint(x: midX, y: 0))
+            path.addLine(to: CGPoint(x: midX, y: size.height))
+            context.stroke(path, with: .color(Self.treeLineColor), lineWidth: Self.treeLineWidth)
+        }
+        .frame(width: Self.treeColumnWidth)
+    }
+
+    private func collapseToggle(for id: UUID) -> some View {
+        let isCollapsed = collapsedIds.contains(id)
+        let count = childCounts[id] ?? 0
+        return Button {
+            if isCollapsed {
+                collapsedIds.remove(id)
+            } else {
+                collapsedIds.insert(id)
+            }
+            withAnimation(.easeInOut(duration: 0.2)) {
+                hierarchyItems = buildHierarchy(roots: cachedRoots, activeByParent: cachedActiveByParent)
+            }
+        } label: {
+            HStack(spacing: 2) {
+                Image(systemName: isCollapsed ? "chevron.right.circle.fill" : "chevron.down.circle.fill")
+                    .font(.system(size: 14))
+                    .foregroundColor(.textMuted)
+                if isCollapsed && count > 0 {
+                    Text("\(count)")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(.textMuted)
+                }
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.bgCard)
+                    .padding(-2)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(isCollapsed ? "Expand \(count) children" : "Collapse children")
     }
 
     // MARK: - Completed
