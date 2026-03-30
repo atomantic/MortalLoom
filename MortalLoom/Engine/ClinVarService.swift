@@ -65,6 +65,7 @@ enum ClinVarService {
 
     /// Download ClinVar from NCBI, parse, filter to actionable variants, and save compact index.
     /// Calls `onProgress` with status strings for UI updates.
+    /// Uses streaming decompression to avoid loading the full ~1GB TSV into memory.
     static func syncClinVar(onProgress: @Sendable @escaping (String) -> Void) async throws -> SyncStatus {
         onProgress("Downloading ClinVar database from NCBI...")
 
@@ -80,17 +81,9 @@ enum ClinVarService {
 
         onProgress("Parsing ClinVar data (\(String(format: "%.0f", sizeMB))MB)...")
 
-        // Decompress and parse
+        // Stream-decompress and build index without holding full TSV in memory
         let gzData = try Data(contentsOf: tempFileURL)
-        let decompressed = try decompressGzip(gzData)
-
-        guard let content = String(data: decompressed, encoding: .utf8) else {
-            throw ClinVarError.parseError
-        }
-
-        onProgress("Filtering actionable variants...")
-
-        let index = buildIndex(from: content, onProgress: onProgress)
+        let index = try streamDecompressAndBuildIndex(gzData, onProgress: onProgress)
 
         // Save compact index
         let encoder = JSONEncoder()
@@ -114,120 +107,18 @@ enum ClinVarService {
         return meta
     }
 
-    // MARK: - Build Index from TSV Content
+    // MARK: - Streaming Decompress + Index Build
+    //
+    // Decompresses gzip data in 64KB chunks, extracts lines from a rolling buffer,
+    // and feeds each line to the index builder — never holding the full ~1GB TSV in memory.
 
-    private static func buildIndex(from content: String, onProgress: @Sendable @escaping (String) -> Void) -> [String: ClinVarEntry] {
-        var index: [String: ClinVarEntry] = [:]
-        var headerColumns: [String: Int] = [:]
-        var lineCount = 0
+    private static func streamDecompressAndBuildIndex(
+        _ data: Data,
+        onProgress: @Sendable @escaping (String) -> Void
+    ) throws -> [String: ClinVarEntry] {
+        // Parse gzip header to find the deflate stream start
+        guard data.count > 18, data[0] == 0x1f, data[1] == 0x8b else { throw ClinVarError.parseError }
 
-        for line in content.components(separatedBy: .newlines) {
-            lineCount += 1
-
-            // Parse header
-            if lineCount == 1 {
-                let headerLine = line.hasPrefix("#") ? String(line.dropFirst()) : line
-                for (i, col) in headerLine.split(separator: "\t").enumerated() {
-                    headerColumns[col.trimmingCharacters(in: .whitespaces)] = i
-                }
-                continue
-            }
-
-            if lineCount % 500_000 == 0 {
-                onProgress("Processed \(lineCount / 1_000_000)M lines...")
-            }
-
-            let cols = line.split(separator: "\t", omittingEmptySubsequences: false).map { String($0) }
-
-            guard let rsCol = headerColumns["RS# (dbSNP)"],
-                  rsCol < cols.count else { continue }
-
-            let rawRsid = cols[rsCol].trimmingCharacters(in: .whitespaces)
-            if rawRsid.isEmpty || rawRsid == "-1" || rawRsid == "-" { continue }
-            let rsid = rawRsid.hasPrefix("rs") ? rawRsid : "rs\(rawRsid)"
-
-            // Must be single nucleotide variant
-            guard let typeCol = headerColumns["Type"],
-                  typeCol < cols.count,
-                  cols[typeCol].trimmingCharacters(in: .whitespaces).lowercased() == "single nucleotide variant" else { continue }
-
-            // Must be actionable significance
-            guard let sigCol = headerColumns["ClinicalSignificance"],
-                  sigCol < cols.count else { continue }
-            let rawSig = cols[sigCol].trimmingCharacters(in: .whitespaces)
-            let sigLower = rawSig.lowercased()
-            let isActionable = actionableSignificance.contains(where: { sigLower.contains($0) })
-            if !isActionable { continue }
-
-            // Assembly filter
-            if let asmCol = headerColumns["Assembly"], asmCol < cols.count {
-                let asm = cols[asmCol].trimmingCharacters(in: .whitespaces)
-                if !asm.isEmpty && asm != "GRCh37" && asm != "GRCh38" { continue }
-            }
-
-            // Origin filter
-            if let origCol = headerColumns["Origin"], origCol < cols.count {
-                let origin = cols[origCol].trimmingCharacters(in: .whitespaces)
-                if !origin.isEmpty && !origin.contains("germline") && origin != "not provided" { continue }
-            }
-
-            let gene = headerColumns["GeneSymbol"].flatMap { $0 < cols.count ? cols[$0].trimmingCharacters(in: .whitespaces) : nil } ?? ""
-            let phenotype = headerColumns["PhenotypeList"].flatMap { $0 < cols.count ? cols[$0].trimmingCharacters(in: .whitespaces) : nil } ?? ""
-            let reviewStatus = headerColumns["ReviewStatus"].flatMap { $0 < cols.count ? cols[$0].trimmingCharacters(in: .whitespaces) : nil } ?? ""
-            let stars = reviewStars[reviewStatus] ?? 0
-
-            // Determine severity
-            var severity = "risk_factor"
-            if sigLower.contains("pathogenic") { severity = "pathogenic" }
-            else if sigLower.contains("protective") { severity = "protective" }
-            else if sigLower.contains("drug response") { severity = "drug_response" }
-
-            // Clean conditions
-            let conditions = Array(Set(
-                phenotype.split(separator: ";").flatMap { $0.split(separator: "|") }
-                    .map { $0.trimmingCharacters(in: .whitespaces) }
-                    .filter { !$0.isEmpty && $0 != "not specified" && $0 != "not provided" }
-            ).prefix(5))
-
-            // Keep best entry per rsid (highest stars + pathogenic preference)
-            if let existing = index[rsid] {
-                let existingIsSevere = existing.severity == "pathogenic"
-                let newIsSevere = severity == "pathogenic"
-                if !newIsSevere && existingIsSevere { continue }
-                if stars < existing.reviewStars && !newIsSevere { continue }
-                // Merge conditions
-                let merged = Array(Set(existing.conditions + conditions).prefix(8))
-                index[rsid] = ClinVarEntry(
-                    gene: gene.isEmpty ? existing.gene : gene,
-                    severity: newIsSevere ? severity : existing.severity,
-                    conditions: merged,
-                    reviewStars: max(stars, existing.reviewStars),
-                    significance: rawSig,
-                    submissions: existing.submissions + 1
-                )
-            } else {
-                index[rsid] = ClinVarEntry(
-                    gene: gene,
-                    severity: severity,
-                    conditions: conditions,
-                    reviewStars: stars,
-                    significance: rawSig,
-                    submissions: 1
-                )
-            }
-        }
-
-        return index
-    }
-
-    // MARK: - Gzip Decompression
-
-    private static func decompressGzip(_ data: Data) throws -> Data {
-        // Strip gzip header (10 bytes minimum) to get raw deflate stream
-        guard data.count > 18 else { throw ClinVarError.parseError }
-        guard data[0] == 0x1f && data[1] == 0x8b else { throw ClinVarError.parseError }
-
-        // Find start of deflate data (skip gzip header)
         var offset = 10
         let flags = data[3]
         if flags & 0x04 != 0 { // FEXTRA
@@ -245,12 +136,8 @@ enum ClinVarService {
         if flags & 0x02 != 0 { offset += 2 } // FHCRC
 
         let deflateData = data[offset..<(data.count - 8)] // strip 8-byte gzip trailer
-
-        // Use Apple's Compression framework for raw DEFLATE
         let sourceSize = deflateData.count
-        // Allocate generous output buffer — ClinVar TSV decompresses to ~1GB
-        // Process in chunks to avoid memory issues
-        var result = Data()
+
         let chunkSize = 65536
         let srcBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: sourceSize)
         defer { srcBuffer.deallocate() }
@@ -258,17 +145,23 @@ enum ClinVarService {
 
         let streamPtr = UnsafeMutablePointer<compression_stream>.allocate(capacity: 1)
         defer { streamPtr.deallocate() }
-
-        var stream = streamPtr.pointee
-        let initStatus = compression_stream_init(&stream, COMPRESSION_STREAM_DECODE, COMPRESSION_ZLIB)
+        let initStatus = compression_stream_init(streamPtr, COMPRESSION_STREAM_DECODE, COMPRESSION_ZLIB)
         guard initStatus == COMPRESSION_STATUS_OK else { throw ClinVarError.parseError }
-        defer { compression_stream_destroy(&stream) }
+        defer { compression_stream_destroy(streamPtr) }
+        var stream = streamPtr.pointee
 
         stream.src_ptr = UnsafePointer(srcBuffer)
         stream.src_size = sourceSize
 
         let dstBuffer = UnsafeMutablePointer<UInt8>.allocate(capacity: chunkSize)
         defer { dstBuffer.deallocate() }
+
+        var index: [String: ClinVarEntry] = [:]
+        var headerColumns: [String: Int] = [:]
+        var lineCount = 0
+        var leftover = ""
+
+        onProgress("Filtering actionable variants...")
 
         repeat {
             stream.dst_ptr = dstBuffer
@@ -278,14 +171,133 @@ enum ClinVarService {
 
             let have = chunkSize - stream.dst_size
             if have > 0 {
-                result.append(dstBuffer, count: have)
+                let chunk = String(decoding: UnsafeBufferPointer(start: dstBuffer, count: have), as: UTF8.self)
+
+                let text = leftover + chunk
+                var lines = text.split(separator: "\n", omittingEmptySubsequences: false)
+
+                // Last element is incomplete unless chunk ended with newline
+                leftover = String(lines.removeLast())
+
+                for line in lines {
+                    lineCount += 1
+                    processLine(String(line), lineCount: lineCount, headerColumns: &headerColumns, index: &index)
+
+                    if lineCount % 500_000 == 0 {
+                        onProgress("Processed \(lineCount / 1_000_000)M lines...")
+                    }
+                }
             }
 
-            if status == COMPRESSION_STATUS_END { break }
+            if status == COMPRESSION_STATUS_END {
+                // Process any remaining leftover
+                if !leftover.isEmpty {
+                    lineCount += 1
+                    processLine(leftover, lineCount: lineCount, headerColumns: &headerColumns, index: &index)
+                }
+                break
+            }
             if status == COMPRESSION_STATUS_ERROR { throw ClinVarError.parseError }
         } while stream.src_size > 0 || stream.dst_size == 0
 
-        return result
+        return index
+    }
+
+    // MARK: - Process Single TSV Line
+
+    private static func processLine(
+        _ line: String,
+        lineCount: Int,
+        headerColumns: inout [String: Int],
+        index: inout [String: ClinVarEntry]
+    ) {
+        // Parse header
+        if lineCount == 1 {
+            let headerLine = line.hasPrefix("#") ? String(line.dropFirst()) : line
+            for (i, col) in headerLine.split(separator: "\t").enumerated() {
+                headerColumns[col.trimmingCharacters(in: .whitespaces)] = i
+            }
+            return
+        }
+
+        let cols = line.split(separator: "\t", omittingEmptySubsequences: false).map { String($0) }
+
+        guard let rsCol = headerColumns["RS# (dbSNP)"],
+              rsCol < cols.count else { return }
+
+        let rawRsid = cols[rsCol].trimmingCharacters(in: .whitespaces)
+        if rawRsid.isEmpty || rawRsid == "-1" || rawRsid == "-" { return }
+        let rsid = rawRsid.hasPrefix("rs") ? rawRsid : "rs\(rawRsid)"
+
+        // Must be single nucleotide variant
+        guard let typeCol = headerColumns["Type"],
+              typeCol < cols.count,
+              cols[typeCol].trimmingCharacters(in: .whitespaces).lowercased() == "single nucleotide variant" else { return }
+
+        // Must be actionable significance
+        guard let sigCol = headerColumns["ClinicalSignificance"],
+              sigCol < cols.count else { return }
+        let rawSig = cols[sigCol].trimmingCharacters(in: .whitespaces)
+        let sigLower = rawSig.lowercased()
+        let isActionable = actionableSignificance.contains(where: { sigLower.contains($0) })
+        if !isActionable { return }
+
+        // Assembly filter
+        if let asmCol = headerColumns["Assembly"], asmCol < cols.count {
+            let asm = cols[asmCol].trimmingCharacters(in: .whitespaces)
+            if !asm.isEmpty && asm != "GRCh37" && asm != "GRCh38" { return }
+        }
+
+        // Origin filter
+        if let origCol = headerColumns["Origin"], origCol < cols.count {
+            let origin = cols[origCol].trimmingCharacters(in: .whitespaces)
+            if !origin.isEmpty && !origin.contains("germline") && origin != "not provided" { return }
+        }
+
+        let gene = headerColumns["GeneSymbol"].flatMap { $0 < cols.count ? cols[$0].trimmingCharacters(in: .whitespaces) : nil } ?? ""
+        let phenotype = headerColumns["PhenotypeList"].flatMap { $0 < cols.count ? cols[$0].trimmingCharacters(in: .whitespaces) : nil } ?? ""
+        let reviewStatus = headerColumns["ReviewStatus"].flatMap { $0 < cols.count ? cols[$0].trimmingCharacters(in: .whitespaces) : nil } ?? ""
+        let stars = reviewStars[reviewStatus] ?? 0
+
+        // Determine severity
+        var severity = "risk_factor"
+        if sigLower.contains("pathogenic") { severity = "pathogenic" }
+        else if sigLower.contains("protective") { severity = "protective" }
+        else if sigLower.contains("drug response") { severity = "drug_response" }
+
+        // Clean conditions
+        let conditions = Array(Set(
+            phenotype.split(separator: ";").flatMap { $0.split(separator: "|") }
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty && $0 != "not specified" && $0 != "not provided" }
+        ).prefix(5))
+
+        // Keep best entry per rsid (highest stars + pathogenic preference)
+        if let existing = index[rsid] {
+            let existingIsSevere = existing.severity == "pathogenic"
+            let newIsSevere = severity == "pathogenic"
+            if !newIsSevere && existingIsSevere { return }
+            if stars < existing.reviewStars && !newIsSevere { return }
+            // Merge conditions
+            let merged = Array(Set(existing.conditions + conditions).prefix(8))
+            index[rsid] = ClinVarEntry(
+                gene: gene.isEmpty ? existing.gene : gene,
+                severity: newIsSevere ? severity : existing.severity,
+                conditions: merged,
+                reviewStars: max(stars, existing.reviewStars),
+                significance: rawSig,
+                submissions: existing.submissions + 1
+            )
+        } else {
+            index[rsid] = ClinVarEntry(
+                gene: gene,
+                severity: severity,
+                conditions: conditions,
+                reviewStars: stars,
+                significance: rawSig,
+                submissions: 1
+            )
+        }
     }
 
     // MARK: - Delete
