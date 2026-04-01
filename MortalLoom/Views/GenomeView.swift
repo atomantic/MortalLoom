@@ -3,7 +3,14 @@ import UniformTypeIdentifiers
 
 // MARK: - GenomeView
 
+private enum GenomeTab: String, CaseIterable {
+    case bioAge = "Bio Age"
+    case genome = "Genome"
+    case clinvar = "ClinVar"
+}
+
 struct GenomeView: View {
+    @State private var activeTab: GenomeTab = .bioAge
     @State private var epigeneticTests: [EpigeneticTest] = []
     @State private var sortedEpigeneticTests: [EpigeneticTest] = []
     @State private var showingAddTest = false
@@ -37,24 +44,38 @@ struct GenomeView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                epigeneticAgeSection
-                genomeUploadSection
+        VStack(spacing: 0) {
+            Picker("", selection: $activeTab) {
+                ForEach(GenomeTab.allCases, id: \.self) { tab in
+                    Text(tab.rawValue).tag(tab)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(Color.bgCard)
 
-                if !genomeVariants.isEmpty {
-                    if isScanning {
-                        scanningIndicator
-                    }
-                    if let summary = scanSummary {
-                        apoeSection(summary.apoeResult)
-                        markerSummaryBar(summary)
-                        markerCategoryCards(summary)
+            ScrollView {
+                VStack(spacing: 16) {
+                    switch activeTab {
+                    case .bioAge:
+                        epigeneticAgeSection
+                    case .genome:
+                        genomeUploadSection
+                        if !genomeVariants.isEmpty {
+                            if isScanning { scanningIndicator }
+                            if let summary = scanSummary {
+                                apoeSection(summary.apoeResult)
+                                markerSummaryBar(summary)
+                                markerCategoryCards(summary)
+                            }
+                        }
+                    case .clinvar:
                         clinvarSection
                     }
                 }
+                .padding()
             }
-            .padding()
         }
         .background(Color.bg)
         .sheet(isPresented: $showingAddTest) {

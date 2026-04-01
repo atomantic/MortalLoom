@@ -186,6 +186,11 @@ if [ "$DEPLOY_IOS" = true ]; then
     deploy_platform "iOS"
 fi
 
+if [ "$DEPLOY_IOS" = true ] && [ "$DEPLOY_MACOS" = true ]; then
+    echo "⏳ Waiting 60s before macOS upload to avoid Apple CDN contention..."
+    sleep 60
+fi
+
 if [ "$DEPLOY_MACOS" = true ]; then
     deploy_platform "macOS"
 fi

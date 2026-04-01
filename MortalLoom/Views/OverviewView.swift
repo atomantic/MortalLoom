@@ -931,7 +931,7 @@ struct OverviewView: View {
     private var epigeneticTile: some View {
         let latest = sortedEpigeneticTests.first
 
-        Button { navigateTo(.body) } label: {
+        Button { navigateTo(.genome) } label: {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Image(systemName: "dna")
