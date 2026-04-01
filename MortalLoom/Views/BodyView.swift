@@ -848,6 +848,17 @@ private struct EyeExamFormView: View {
     @State private var rightCylinder: String
     @State private var rightAxis: String
     @State private var showDeleteConfirm = false
+    @FocusState private var focusedField: EyeField?
+
+    enum EyeField {
+        case leftSphere, leftCylinder, rightSphere, rightCylinder, leftAxis, rightAxis
+        var isSigned: Bool {
+            switch self {
+            case .leftAxis, .rightAxis: false
+            default: true
+            }
+        }
+    }
 
     init(existing: EyeExam? = nil, onSave: @escaping (EyeExam) -> Void, onDelete: (() -> Void)? = nil) {
         self.existing = existing
@@ -879,15 +890,15 @@ private struct EyeExamFormView: View {
                 }
 
                 Section("Left Eye (OS)") {
-                    fieldRow("SPH (Sphere)", text: $leftSphere)
-                    fieldRow("CYL (Cylinder)", text: $leftCylinder)
-                    fieldRow("AXIS", text: $leftAxis, isAxis: true)
+                    fieldRow("SPH (Sphere)", text: $leftSphere, field: .leftSphere)
+                    fieldRow("CYL (Cylinder)", text: $leftCylinder, field: .leftCylinder)
+                    fieldRow("AXIS", text: $leftAxis, field: .leftAxis)
                 }
 
                 Section("Right Eye (OD)") {
-                    fieldRow("SPH (Sphere)", text: $rightSphere)
-                    fieldRow("CYL (Cylinder)", text: $rightCylinder)
-                    fieldRow("AXIS", text: $rightAxis, isAxis: true)
+                    fieldRow("SPH (Sphere)", text: $rightSphere, field: .rightSphere)
+                    fieldRow("CYL (Cylinder)", text: $rightCylinder, field: .rightCylinder)
+                    fieldRow("AXIS", text: $rightAxis, field: .rightAxis)
                 }
 
                 if onDelete != nil {
@@ -912,6 +923,12 @@ private struct EyeExamFormView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { saveExam() }
                 }
+                ToolbarItemGroup(placement: .keyboard) {
+                    if let field = focusedField, field.isSigned {
+                        Button("+/−") { toggleSign(for: field) }
+                    }
+                    Spacer()
+                }
             }
             .alert("Delete Eye Exam", isPresented: $showDeleteConfirm) {
                 Button("Delete", role: .destructive) {
@@ -925,15 +942,32 @@ private struct EyeExamFormView: View {
         }
     }
 
-    private func fieldRow(_ label: String, text: Binding<String>, isAxis: Bool = false) -> some View {
+    private func fieldRow(_ label: String, text: Binding<String>, field: EyeField) -> some View {
         HStack {
             Text(label)
                 .foregroundColor(.textPrimary)
             Spacer()
             TextField("—", text: text)
-                .keyboardType(isAxis ? .numberPad : .decimalPad)
+                .keyboardType(field.isSigned ? .decimalPad : .numberPad)
                 .multilineTextAlignment(.trailing)
                 .frame(width: 80)
+                .focused($focusedField, equals: field)
+        }
+    }
+
+    private func toggleSign(for field: EyeField) {
+        let binding: Binding<String>
+        switch field {
+        case .leftSphere: binding = $leftSphere
+        case .leftCylinder: binding = $leftCylinder
+        case .rightSphere: binding = $rightSphere
+        case .rightCylinder: binding = $rightCylinder
+        case .leftAxis, .rightAxis: return
+        }
+        if binding.wrappedValue.hasPrefix("-") {
+            binding.wrappedValue = String(binding.wrappedValue.dropFirst())
+        } else if !binding.wrappedValue.isEmpty {
+            binding.wrappedValue = "-" + binding.wrappedValue
         }
     }
 
