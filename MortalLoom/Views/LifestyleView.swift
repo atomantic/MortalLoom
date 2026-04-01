@@ -13,6 +13,8 @@ struct LifestyleView: View {
     @State private var bmiText: String = ""
 
     @State private var saved = false
+    @State private var hasHealthKitSleep = false
+    @State private var sleepStageBreakdown: SleepEngine.SleepStageBreakdown? = nil
 
     var body: some View {
         ScrollView {
@@ -124,14 +126,29 @@ struct LifestyleView: View {
                         .foregroundColor(sleepColor)
                 }
 
-                Slider(value: $sleepHours, in: 3...12, step: 0.5)
-                    .tint(.accentColor)
-                    .accessibilityLabel("Sleep hours per night")
-                    .accessibilityValue(String(format: "%.1f hours", sleepHours))
-
-                Text("Optimal: 7-9 hours")
-                    .font(.caption)
-                    .foregroundColor(.textMuted)
+                if hasHealthKitSleep {
+                    HStack(spacing: 4) {
+                        Image(systemName: "applelogo")
+                            .font(.caption2)
+                            .foregroundColor(.textMuted)
+                        Text("Synced from Apple Health")
+                            .font(.caption)
+                            .foregroundColor(.textMuted)
+                    }
+                    if let stages = sleepStageBreakdown {
+                        Text("Deep: \(stages.deepQuality.rawValue) · REM: \(stages.remQuality.rawValue)")
+                            .font(.caption)
+                            .foregroundColor(.textMuted)
+                    }
+                } else {
+                    Slider(value: $sleepHours, in: 3...12, step: 0.5)
+                        .tint(.accentColor)
+                        .accessibilityLabel("Sleep hours per night")
+                        .accessibilityValue(String(format: "%.1f hours", sleepHours))
+                    Text("Optimal: 7-9 hours")
+                        .font(.caption)
+                        .foregroundColor(.textMuted)
+                }
             }
 
             // Diet Quality
@@ -329,7 +346,7 @@ struct LifestyleView: View {
     }
 
     private var sleepImpact: Double {
-        DeathClockEngine.sleepImpact(sleepHours)
+        SleepEngine.enhancedLongevityImpact(averageHours: sleepHours, stageBreakdown: sleepStageBreakdown)
     }
 
     private var dietImpact: Double {
@@ -407,6 +424,10 @@ struct LifestyleView: View {
         let profile = data.profile
         let lifestyle = profile.lifestyle
 
+        let sleepVals = data.healthMetrics.compactMap(\.sleepHours)
+        hasHealthKitSleep = sleepVals.count >= 3
+        sleepStageBreakdown = hasHealthKitSleep ? SleepEngine.stageBreakdown(metrics: data.healthMetrics) : nil
+
         if let sex = profile.biologicalSex {
             biologicalSex = sex
         }
@@ -418,7 +439,11 @@ struct LifestyleView: View {
 
         smokingStatus = lifestyle.smokingStatus
         exerciseMinutes = Double(lifestyle.exerciseMinutesPerWeek)
-        sleepHours = lifestyle.sleepHoursPerNight
+        if hasHealthKitSleep {
+            sleepHours = (sleepVals.reduce(0, +) / Double(sleepVals.count) * 10).rounded() / 10
+        } else {
+            sleepHours = lifestyle.sleepHoursPerNight
+        }
         dietQuality = lifestyle.dietQuality
         stressLevel = lifestyle.stressLevel
         if let bmi = lifestyle.bmi {

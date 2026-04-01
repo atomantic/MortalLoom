@@ -23,6 +23,7 @@ struct OverviewView: View {
     @State private var cachedNormalPoints: [TrajectoryPoint] = []
     @State private var cachedLevPoints: [TrajectoryPoint] = []
     @State private var cachedRecommendations: [RecommendationEngine.Recommendation] = []
+    @State private var cachedSleepImpact: Double = 0
 
     var body: some View {
         ScrollView {
@@ -72,11 +73,17 @@ struct OverviewView: View {
             return
         }
         countdownMode = data.profile.countdownMode
+        let sleepStages = SleepEngine.stageBreakdown(metrics: data.healthMetrics)
         deathClock = DeathClockEngine.calculate(
             birthDateStr: birthDate,
             sex: data.profile.biologicalSex,
             lifestyle: data.profile.lifestyle,
-            genome: data.genomeScanRecord
+            genome: data.genomeScanRecord,
+            sleepStages: sleepStages
+        )
+        cachedSleepImpact = SleepEngine.enhancedLongevityImpact(
+            averageHours: data.profile.lifestyle.sleepHoursPerNight,
+            stageBreakdown: sleepStages
         )
         cachedAlcoholRisk = DeathClockEngine.alcoholRisk(drinks: data.alcoholDrinks, sex: data.profile.biologicalSex)
         cachedRecommendations = RecommendationEngine.generate(
@@ -320,7 +327,7 @@ struct OverviewView: View {
             ("Genome", "dna", DeathClockEngine.genomeAdjustment(data.genomeScanRecord)),
             ("Smoking", "nosign", DeathClockEngine.smokingImpact(lifestyle.smokingStatus)),
             ("Exercise", "figure.run", DeathClockEngine.exerciseImpact(lifestyle.exerciseMinutesPerWeek)),
-            ("Sleep", "bed.double.fill", DeathClockEngine.sleepImpact(lifestyle.sleepHoursPerNight)),
+            ("Sleep", "bed.double.fill", cachedSleepImpact),
             ("Diet", "fork.knife", DeathClockEngine.dietImpact(lifestyle.dietQuality)),
             ("Stress", "brain.head.profile", DeathClockEngine.stressImpact(lifestyle.stressLevel)),
             ("BMI", "scalemass.fill", DeathClockEngine.bmiImpact(lifestyle.bmi)),

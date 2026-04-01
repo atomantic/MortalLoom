@@ -126,17 +126,17 @@ enum DeathClockEngine {
         return min(4, max(-8, (adjustment * 10).rounded() / 10))
     }
 
-    // Lifestyle adjustments (match PortOS constants.js exactly)
-    static func lifestyleAdjustment(_ lifestyle: LifestyleData) -> Double {
+    // Lifestyle adjustments — sleep uses enhancedLongevityImpact with stage quality when available.
+    static func lifestyleAdjustment(_ lifestyle: LifestyleData, sleepStages: SleepEngine.SleepStageBreakdown? = nil) -> Double {
         smokingImpact(lifestyle.smokingStatus)
         + exerciseImpact(lifestyle.exerciseMinutesPerWeek)
-        + sleepImpact(lifestyle.sleepHoursPerNight)
+        + SleepEngine.enhancedLongevityImpact(averageHours: lifestyle.sleepHoursPerNight, stageBreakdown: sleepStages)
         + dietImpact(lifestyle.dietQuality)
         + stressImpact(lifestyle.stressLevel)
         + bmiImpact(lifestyle.bmi)
     }
 
-    static func calculate(birthDateStr: String, sex: BiologicalSex?, lifestyle: LifestyleData, genome: GenomeScanRecord? = nil, now: Date = Date()) -> DeathClockResult? {
+    static func calculate(birthDateStr: String, sex: BiologicalSex?, lifestyle: LifestyleData, genome: GenomeScanRecord? = nil, sleepStages: SleepEngine.SleepStageBreakdown? = nil, now: Date = Date()) -> DeathClockResult? {
         guard let birthDate = dateFromString(birthDateStr) else { return nil }
 
         let ageYears = Calendar.current.dateComponents([.year], from: birthDate, to: now).year ?? 0
@@ -144,7 +144,7 @@ enum DeathClockEngine {
 
         let baseline = ssaBaseline(sex: sex, ageYears: ageYears)
         let genomeAdj = genomeAdjustment(genome)
-        let lifestyleAdj = lifestyleAdjustment(lifestyle)
+        let lifestyleAdj = lifestyleAdjustment(lifestyle, sleepStages: sleepStages)
         let total = baseline + genomeAdj + lifestyleAdj
 
         let le = LifeExpectancy(

@@ -218,6 +218,19 @@ final class HealthKitSync {
 
         await DataStore.shared.upsertHealthMetrics(Array(byDate.values))
         NotificationCenter.default.post(name: .dataDidSync, object: nil)
+
+        // Sync 30-day average sleep hours into lifestyle profile (HealthKit as source of truth)
+        let recentSleepNights = sleepStages.filter { $0.totalHours > 0 }.suffix(30)
+        if recentSleepNights.count >= 3 {
+            let avgSleep = (recentSleepNights.map(\.totalHours).reduce(0, +) / Double(recentSleepNights.count) * 10).rounded() / 10
+            var profileData = await DataStore.shared.getData()
+            if abs(profileData.profile.lifestyle.sleepHoursPerNight - avgSleep) >= 0.05 {
+                profileData.profile.lifestyle.sleepHoursPerNight = avgSleep
+                await DataStore.shared.save(profileData)
+                NotificationCenter.default.post(name: .profileDidChange, object: nil)
+                print("💤 Synced sleep avg from HealthKit: \(avgSleep)h/night")
+            }
+        }
     }
 }
 #endif
