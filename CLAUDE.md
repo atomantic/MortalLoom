@@ -77,6 +77,14 @@ MortalLoom/
 - **Dark mode default** with light/dark adaptive colors
 - **Single-line emoji-prefixed logging**
 
+## iCloud Sync Pattern
+
+Data is stored as a single JSON file (`MortalLoom.json`) dual-written to both local Documents and the iCloud ubiquity container (`iCloud.net.shadowpuppet.MeatSpaceTracker`). Loads use a `newerOf(cloud:local:)` modification-date comparison.
+
+`ICloudMonitor` (Storage/ICloudMonitor.swift) is `@Observable @MainActor` and watches for remote file changes via `NSMetadataQuery`. On detection it debounces 2s, suppresses reloads within 5s of a local write (`markLocalWrite()`), then calls `DataStore.reloadIfNeeded()` and posts `.dataDidSync` + `.profileDidChange` to refresh the UI.
+
+The same pattern is used in ADultingHD (multiple JSON files) and EscapeMint-Swift.
+
 ## Git Workflow
 
 - **main**: Active development
