@@ -93,7 +93,8 @@ struct GoalsView: View {
             birthDateStr: data.profile.birthDate ?? "",
             sex: data.profile.biologicalSex,
             lifestyle: data.profile.lifestyle,
-            genome: data.genomeScanRecord
+            genome: data.genomeScanRecord,
+            locationProfile: data.profile.locationProfile
         )
         let levDc: DeathClockEngine.DeathClockResult? = dc.flatMap {
             DeathClockEngine.calculateLEVResult(

@@ -10,6 +10,7 @@ struct LifeCalendarView: View {
     @State private var goalWeekSet: Set<Int> = []
     @State private var projectedWeekSet: Set<Int> = []
     @State private var tooltipInfo: CellTooltip?
+    @State private var isLoaded = false
 
     private struct CellTooltip: Equatable {
         let age: Int
@@ -110,7 +111,11 @@ struct LifeCalendarView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                if deathClock != nil && birthDate != nil {
+                if !isLoaded {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(.top, 80)
+                } else if deathClock != nil && birthDate != nil {
                     statsGrid
                     viewModePicker
                     switch viewMode {
@@ -140,6 +145,7 @@ struct LifeCalendarView: View {
         let loaded = await DataStore.shared.getData()
         data = loaded
         recalculate()
+        isLoaded = true
     }
 
     private func recalculate() {
@@ -154,7 +160,8 @@ struct LifeCalendarView: View {
             birthDateStr: birthDateStr,
             sex: data.profile.biologicalSex,
             lifestyle: data.profile.lifestyle,
-            genome: data.genomeScanRecord
+            genome: data.genomeScanRecord,
+            locationProfile: data.profile.locationProfile
         )
         deathClock = dc
         levDeathClock = dc.flatMap { DeathClockEngine.calculateLEVResult(standardResult: $0, birthDateStr: birthDateStr, levTargetAge: data.profile.levTargetAge) }

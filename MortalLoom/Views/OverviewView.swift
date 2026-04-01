@@ -24,29 +24,66 @@ struct OverviewView: View {
     @State private var cachedLevPoints: [TrajectoryPoint] = []
     @State private var cachedRecommendations: [RecommendationEngine.Recommendation] = []
     @State private var cachedSleepImpact: Double = 0
+    @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
+    private var isWide: Bool { containerWidth >= Layout.wideThreshold }
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
-                deathClockCard
-                if deathClock != nil { lifeExpectancyFactorsCard }
-                if let lev { levCard(lev) }
-                if let dc = deathClock { lifetimeHealthChart(dc) }
-                vitalStatsRow
-                healthGrid
-                if !cachedRecommendations.isEmpty { recommendationsCard }
+            Group {
+                if isWide {
+                    wideContentStack
+                } else {
+                    narrowContentStack
+                }
             }
             .padding()
+            .readContainerWidth { containerWidth = $0 }
         }
         .background(Color.bg)
         .task { await loadData() }
-        .onAppear {
-            isVisible = true
-        }
+        .onAppear { isVisible = true }
         .onDisappear { isVisible = false }
         .onReceive(timer) { _ in guard isVisible else { return }; updateCountdown() }
         .onReceive(NotificationCenter.default.publisher(for: .profileDidChange)) { _ in
             Task { await loadData() }
+        }
+    }
+
+    @ViewBuilder
+    private var narrowContentStack: some View {
+        VStack(spacing: 16) {
+            deathClockCard
+            if deathClock != nil { lifeExpectancyFactorsCard }
+            if let lev { levCard(lev) }
+            if let dc = deathClock { lifetimeHealthChart(dc) }
+            vitalStatsRow
+            healthGrid
+            if !cachedRecommendations.isEmpty { recommendationsCard }
+        }
+    }
+
+    @ViewBuilder
+    private var wideContentStack: some View {
+        VStack(spacing: 16) {
+                HStack(alignment: .top, spacing: 16) {
+                deathClockCard
+                if deathClock != nil {
+                    lifeExpectancyFactorsCard
+                }
+            }
+                vitalStatsRow
+                if let dc = deathClock {
+                HStack(alignment: .top, spacing: 16) {
+                    lifetimeHealthChart(dc)
+                        .frame(maxWidth: .infinity)
+                    if let lev {
+                        levCard(lev)
+                            .frame(width: containerWidth * 0.32)
+                    }
+                }
+            }
+                healthGrid
+                if !cachedRecommendations.isEmpty { recommendationsCard }
         }
     }
 
@@ -79,7 +116,8 @@ struct OverviewView: View {
             sex: data.profile.biologicalSex,
             lifestyle: data.profile.lifestyle,
             genome: data.genomeScanRecord,
-            sleepStages: sleepStages
+            sleepStages: sleepStages,
+            locationProfile: data.profile.locationProfile
         )
         cachedSleepImpact = SleepEngine.enhancedLongevityImpact(
             averageHours: data.profile.lifestyle.sleepHoursPerNight,
@@ -183,6 +221,9 @@ struct OverviewView: View {
                         leBreakdownRow("SSA Baseline", value: dc.lifeExpectancy.baseline, unit: "yr")
                         leBreakdownRow("Genome Adjusted", value: dc.lifeExpectancy.genomeAdjusted, unit: "yr")
                         leBreakdownRow("Lifestyle Adj.", value: dc.lifeExpectancy.lifestyleAdjustment, unit: "yr", signed: true)
+                        if dc.lifeExpectancy.locationAdjustment != 0 {
+                            leBreakdownRow("Location Adj.", value: dc.lifeExpectancy.locationAdjustment, unit: "yr", signed: true)
+                        }
                         Divider().background(Color.cardBorder)
                     }
                     leBreakdownRow("Total LE", value: dc.lifeExpectancy.total, unit: "yr", bold: true)
@@ -331,6 +372,7 @@ struct OverviewView: View {
             ("Diet", "fork.knife", DeathClockEngine.dietImpact(lifestyle.dietQuality)),
             ("Stress", "brain.head.profile", DeathClockEngine.stressImpact(lifestyle.stressLevel)),
             ("BMI", "scalemass.fill", DeathClockEngine.bmiImpact(lifestyle.bmi)),
+            ("Location", "globe", deathClock?.lifeExpectancy.locationAdjustment ?? 0),
         ]
         let factors = allFactors.filter { $0.value != 0 }
 
@@ -792,13 +834,16 @@ struct OverviewView: View {
 
     @ViewBuilder
     private var healthGrid: some View {
+        let columns = isWide
+            ? [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
+            : [GridItem(.flexible()), GridItem(.flexible())]
         VStack(alignment: .leading, spacing: 8) {
             Text("Health Summary")
                 .font(.headline)
                 .foregroundColor(.textPrimary)
                 .padding(.horizontal, 4)
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+            LazyVGrid(columns: columns, spacing: 12) {
                 alcoholTile
                 bodyTile
                 bloodTile

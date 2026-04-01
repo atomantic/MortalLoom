@@ -26,6 +26,8 @@
 	<string>public.app-category.healthcare-fitness</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>MortalLoom reads your health data to display metrics, trends, and life expectancy calculations. Your data stays on your device.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>MortalLoom uses your location once to identify your country, which adjusts the life expectancy calculation based on local healthcare and environment. Only the country code is stored — coordinates are never saved or transmitted.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>MortalLoom may write health data to keep your records in sync across apps.</string>
 	<key>UILaunchScreen</key>

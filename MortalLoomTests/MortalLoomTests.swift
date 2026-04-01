@@ -134,8 +134,8 @@ final class DeathClockEngineTests: XCTestCase {
             stressLevel: .high,
             bmi: 35.0
         )
-        // -10 + -2 + -1.5 + -3 + -2 + -3 = -21.5
-        XCTAssertEqual(DeathClockEngine.lifestyleAdjustment(lifestyle), -21.5)
+        // -10 + -2 + -3 (< 5h sleep) + -3 + -2 + -3 = -23.0
+        XCTAssertEqual(DeathClockEngine.lifestyleAdjustment(lifestyle), -23.0)
     }
 
     // MARK: Full Calculation

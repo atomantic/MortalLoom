@@ -12,22 +12,56 @@ struct LifestyleView: View {
     @State private var stressLevel: StressLevel = .moderate
     @State private var bmiText: String = ""
 
+    // Location / environment
+    @State private var countryCode: String? = nil
+    @State private var airQuality: AirQualityLevel? = nil
+    @State private var useAutoDetect: Bool = false
+    @State private var locationService = LocationService.shared
+
     @State private var saved = false
     @State private var hasHealthKitSleep = false
     @State private var sleepStageBreakdown: SleepEngine.SleepStageBreakdown? = nil
+    @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
+    private var isWide: Bool { containerWidth >= Layout.wideThreshold }
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
-                profileSection
-                questionnaireSection
-                saveSection
-                impactPreviewSection
+            Group {
+                if isWide { wideLayout } else { narrowLayout }
             }
             .padding()
+            .readContainerWidth { containerWidth = $0 }
         }
         .background(Color.bg)
         .task { await loadData() }
+    }
+
+    @ViewBuilder
+    private var narrowLayout: some View {
+        VStack(spacing: 16) {
+            profileSection
+            questionnaireSection
+            environmentSection
+            saveSection
+            impactPreviewSection
+        }
+    }
+
+    @ViewBuilder
+    private var wideLayout: some View {
+        VStack(spacing: 16) {
+            HStack(alignment: .top, spacing: 16) {
+                VStack(spacing: 16) {
+                    profileSection
+                    environmentSection
+                    saveSection
+                }
+                .frame(maxWidth: .infinity)
+                questionnaireSection
+                    .frame(maxWidth: .infinity)
+            }
+            impactPreviewSection
+        }
     }
 
     // MARK: - Profile Section
@@ -69,6 +103,144 @@ struct LifestyleView: View {
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
+    }
+
+    // MARK: - Environment Section
+
+    @ViewBuilder
+    private var environmentSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            SectionLabel(text: "ENVIRONMENT")
+
+            // Country
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Country")
+                        .font(.subheadline).fontWeight(.medium)
+                        .foregroundColor(.textSecondary)
+                    Spacer()
+                    if useAutoDetect {
+                        autoDetectButton
+                    }
+                }
+
+                if useAutoDetect && locationService.status == .denied {
+                    Text("Location access denied. Enable in Settings or select your country manually.")
+                        .font(.caption)
+                        .foregroundColor(.warning)
+                }
+
+                Picker("Country", selection: $countryCode) {
+                    Text("Not set").tag(String?.none)
+                    ForEach(LocationEngine.countriesForPicker, id: \.code) { entry in
+                        Text(entry.name).tag(String?.some(entry.code))
+                    }
+                }
+                .pickerStyle(.menu)
+                .onChange(of: countryCode) { _, _ in saved = false }
+
+                Toggle("Auto-detect from location", isOn: $useAutoDetect)
+                    .font(.caption)
+                    .foregroundColor(.textSecondary)
+                    .toggleStyle(.switch)
+                    .onChange(of: useAutoDetect) { _, on in
+                        saved = false
+                        if on { Task { await triggerAutoDetect() } }
+                    }
+            }
+
+            // Air quality
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Air Quality")
+                        .font(.subheadline).fontWeight(.medium)
+                        .foregroundColor(.textSecondary)
+                    Spacer()
+                    if let aq = airQuality {
+                        Text(aq.rawValue)
+                            .font(.caption).fontWeight(.semibold)
+                            .foregroundColor(airQualityColor(aq))
+                    } else {
+                        Text("Not set")
+                            .font(.caption)
+                            .foregroundColor(.textMuted)
+                    }
+                }
+
+                Picker("Air Quality", selection: $airQuality) {
+                    Text("Not set").tag(AirQualityLevel?.none)
+                    ForEach(AirQualityLevel.allCases, id: \.self) { level in
+                        Text(level.rawValue).tag(AirQualityLevel?.some(level))
+                    }
+                }
+                .pickerStyle(.segmented)
+                .onChange(of: airQuality) { _, _ in saved = false }
+
+                if let aq = airQuality {
+                    Text(aq.description)
+                        .font(.caption2)
+                        .foregroundColor(.textMuted)
+                }
+            }
+
+            HStack(spacing: 6) {
+                Image(systemName: "info.circle")
+                    .font(.caption)
+                    .foregroundColor(.textMuted)
+                Text("Country LE is based on WHO 2022 data relative to the US SSA baseline. Air quality reflects long-term PM2.5 exposure impact.")
+                    .font(.system(size: 10))
+                    .foregroundColor(.textMuted)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle()
+    }
+
+    @ViewBuilder
+    private var autoDetectButton: some View {
+        Button {
+            Task { await triggerAutoDetect() }
+        } label: {
+            switch locationService.status {
+            case .requesting, .detecting:
+                HStack(spacing: 4) {
+                    ProgressView().controlSize(.mini)
+                    Text("Detecting…").font(.caption)
+                }
+            case .done:
+                Label("Detected", systemImage: "location.fill")
+                    .font(.caption)
+                    .foregroundColor(.success)
+            case .denied:
+                Label("Denied", systemImage: "location.slash")
+                    .font(.caption)
+                    .foregroundColor(.danger)
+            default:
+                Label("Detect", systemImage: "location")
+                    .font(.caption)
+            }
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .disabled(locationService.status == .requesting || locationService.status == .detecting)
+    }
+
+    private func triggerAutoDetect() async {
+        await locationService.detect()
+        if let code = locationService.detectedCountryCode {
+            countryCode = code
+            saved = false
+        }
+    }
+
+    private func airQualityColor(_ level: AirQualityLevel) -> Color {
+        switch level {
+        case .good:      return .success
+        case .moderate:  return .textSecondary
+        case .unhealthy: return .warning
+        case .hazardous: return .danger
+        }
     }
 
     // MARK: - Questionnaire Section
@@ -235,6 +407,8 @@ struct LifestyleView: View {
         .onChange(of: bmiText) { _, _ in saved = false }
         .onChange(of: biologicalSex) { _, _ in saved = false }
         .onChange(of: birthDate) { _, _ in saved = false }
+        .onChange(of: countryCode) { _, _ in saved = false }
+        .onChange(of: airQuality) { _, _ in saved = false }
     }
 
     // MARK: - Impact Preview
@@ -248,10 +422,7 @@ struct LifestyleView: View {
                 .font(.caption)
                 .foregroundColor(.textMuted)
 
-            LazyVGrid(columns: [
-                GridItem(.flexible()),
-                GridItem(.flexible())
-            ], spacing: 10) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: isWide ? 3 : 2), spacing: 10) {
                 impactCard(
                     icon: "nosign",
                     title: "Smoking",
@@ -287,6 +458,18 @@ struct LifestyleView: View {
                     title: "BMI",
                     value: bmiImpact,
                     detail: parsedBMI.map { String(format: "%.1f", $0) } ?? "Not set"
+                )
+                impactCard(
+                    icon: "globe",
+                    title: "Country",
+                    value: countryImpact,
+                    detail: countryCode.map { LocationEngine.countryDisplayName($0) } ?? "Not set"
+                )
+                impactCard(
+                    icon: "aqi.medium",
+                    title: "Air Quality",
+                    value: airQualityImpact,
+                    detail: airQuality?.rawValue ?? "Not set"
                 )
             }
 
@@ -361,8 +544,17 @@ struct LifestyleView: View {
         DeathClockEngine.bmiImpact(parsedBMI)
     }
 
+    private var countryImpact: Double {
+        LocationEngine.countryLifeExpectancyDelta(countryCode ?? "")
+    }
+
+    private var airQualityImpact: Double {
+        LocationEngine.airQualityAdjustment(airQuality)
+    }
+
     private var totalImpact: Double {
         smokingImpact + exerciseImpact + sleepImpact + dietImpact + stressImpact + bmiImpact
+        + countryImpact + airQualityImpact
     }
 
     // MARK: - Helpers
@@ -449,6 +641,12 @@ struct LifestyleView: View {
         if let bmi = lifestyle.bmi {
             bmiText = String(format: "%.1f", bmi)
         }
+
+        if let loc = profile.locationProfile {
+            countryCode = loc.countryCode
+            airQuality = loc.airQuality
+            useAutoDetect = loc.useAutoDetect
+        }
     }
 
     private func saveData() async {
@@ -465,13 +663,19 @@ struct LifestyleView: View {
             ? DeathClockEngine.dateString(birthDate)
             : nil
 
-        let profile = HealthProfile(
-            birthDate: birthDateStr,
-            biologicalSex: biologicalSex,
-            lifestyle: lifestyle
+        let locationProfile = LocationProfile(
+            countryCode: countryCode,
+            airQuality: airQuality,
+            useAutoDetect: useAutoDetect
         )
 
-        await DataStore.shared.updateProfile(profile)
+        // Load existing to preserve countdownMode, levTargetAge, and any future fields
+        var existingData = await DataStore.shared.getData()
+        existingData.profile.birthDate = birthDateStr
+        existingData.profile.biologicalSex = biologicalSex
+        existingData.profile.lifestyle = lifestyle
+        existingData.profile.locationProfile = locationProfile
+        await DataStore.shared.updateProfile(existingData.profile)
         saved = true
         NotificationCenter.default.post(name: .profileDidChange, object: nil)
     }
