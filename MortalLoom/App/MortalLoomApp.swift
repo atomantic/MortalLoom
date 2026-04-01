@@ -79,11 +79,16 @@ struct ContentView: View {
             // Start iCloud file monitoring for cross-device sync
             ICloudMonitor.shared.start()
             #if os(iOS)
-            // Sync HealthKit data into shared storage so macOS can see it
+            // Re-check HealthKit auth on every launch (authorized starts false until confirmed)
+            if HealthKitService.shared.isAvailable {
+                await HealthKitService.shared.requestAuthorization()
+            }
             if HealthKitService.shared.isAvailable && HealthKitService.shared.authorized {
+                print("🏃 syncing HealthKit data to iCloud…")
                 async let body: Void = HealthKitSync.shared.syncBodyMetrics()
                 async let metrics: Void = HealthKitSync.shared.syncHealthMetrics()
                 _ = await (body, metrics)
+                print("✅ HealthKit sync complete")
             }
             #endif
         }
@@ -165,6 +170,21 @@ struct MacContentView: View {
                     Text("MortalLoom")
                         .font(.title3).fontWeight(.bold)
                         .foregroundColor(.textPrimary)
+                    Spacer()
+                    if ICloudMonitor.shared.isICloud {
+                        Button {
+                            Task { await ICloudMonitor.shared.syncNow() }
+                        } label: {
+                            if ICloudMonitor.shared.isSyncing {
+                                ProgressView().controlSize(.small)
+                            } else {
+                                Image(systemName: "arrow.triangle.2.circlepath.icloud")
+                                    .foregroundColor(.textMuted)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .help("Sync with iCloud")
+                    }
                 }
                 .listRowBackground(Color.clear)
                 .listRowSeparator(.hidden)
@@ -190,6 +210,7 @@ struct MacContentView: View {
             .listStyle(.sidebar)
             .scrollContentBackground(.hidden)
             .background(Color.bg)
+            .navigationSplitViewColumnWidth(min: 200, ideal: 220)
         } detail: {
             Group {
                 switch selectedPage {

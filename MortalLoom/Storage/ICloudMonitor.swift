@@ -1,42 +1,99 @@
 import Foundation
 
 /// Watches for iCloud file changes and reloads DataStore when the remote file updates.
-@MainActor
+@MainActor @Observable
 final class ICloudMonitor {
     static let shared = ICloudMonitor()
 
     private var query: NSMetadataQuery?
+    private var debounceTask: Task<Void, Never>?
+    private var lastWriteDate = Date.distantPast
+
+    private let debounceInterval: TimeInterval = 2.0
+    private let writeSuppressionWindow: TimeInterval = 5.0
+
+    private(set) var isSyncing = false
+    private(set) var isICloud = false
+
+    private init() {}
 
     func start() {
         guard query == nil else { return }
+
+        isICloud = FileManager.default.url(forUbiquityContainerIdentifier: CloudConfig.containerID) != nil
 
         let q = NSMetadataQuery()
         q.searchScopes = [NSMetadataQueryUbiquitousDocumentsScope]
         q.predicate = NSPredicate(format: "%K == %@", NSMetadataItemFSNameKey, "MortalLoom.json")
 
         NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(queryDidUpdate),
-            name: .NSMetadataQueryDidUpdate,
-            object: q
+            self, selector: #selector(queryDidFinishGathering),
+            name: .NSMetadataQueryDidFinishGathering, object: q
+        )
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(queryDidUpdate),
+            name: .NSMetadataQueryDidUpdate, object: q
         )
 
         q.start()
         query = q
+        print("☁️ iCloud monitor started, isICloud=\(isICloud)")
     }
 
     func stop() {
         query?.stop()
         query = nil
+        debounceTask?.cancel()
+        NotificationCenter.default.removeObserver(self)
     }
 
-    @objc private func queryDidUpdate() {
-        Task {
-            let didChange = await DataStore.shared.reloadIfNeeded()
-            if didChange {
-                NotificationCenter.default.post(name: .dataDidSync, object: nil)
-                NotificationCenter.default.post(name: .profileDidChange, object: nil)
+    /// Manual sync — force reload from iCloud.
+    func syncNow() async {
+        print("☁️ manual sync triggered")
+        isSyncing = true
+        await applyReloadIfNeeded()
+        isSyncing = false
+    }
+
+    /// Call after local writes to suppress reload from our own iCloud changes.
+    func markLocalWrite() {
+        lastWriteDate = Date()
+    }
+
+    @objc private func queryDidFinishGathering(_ notification: Notification) {
+        query?.enableUpdates()
+        print("☁️ initial iCloud gather complete")
+    }
+
+    @objc private func queryDidUpdate(_ notification: Notification) {
+        print("☁️ iCloud file changed, scheduling reload")
+        scheduleReload()
+    }
+
+    private func scheduleReload() {
+        debounceTask?.cancel()
+        debounceTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(debounceInterval))
+            guard !Task.isCancelled else { return }
+
+            let sinceLastWrite = Date().timeIntervalSince(lastWriteDate)
+            guard sinceLastWrite > writeSuppressionWindow else {
+                print("☁️ skipping reload, local write was \(String(format: "%.1f", sinceLastWrite))s ago")
+                return
             }
+
+            isSyncing = true
+            await applyReloadIfNeeded()
+            isSyncing = false
+        }
+    }
+
+    private func applyReloadIfNeeded() async {
+        let didChange = await DataStore.shared.reloadIfNeeded()
+        if didChange {
+            NotificationCenter.default.post(name: .dataDidSync, object: nil)
+            NotificationCenter.default.post(name: .profileDidChange, object: nil)
+            print("☁️ sync: data updated from iCloud")
         }
     }
 }

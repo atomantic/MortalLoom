@@ -95,6 +95,7 @@ actor DataStore {
             try? encoded.write(to: cloudURL, options: .atomic)
         }
 
+        Task { @MainActor in ICloudMonitor.shared.markLocalWrite() }
         Task.detached { WidgetBridge.update(data: newData) }
     }
 

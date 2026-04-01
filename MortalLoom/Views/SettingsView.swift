@@ -21,6 +21,7 @@ struct SettingsView: View {
             VStack(spacing: 16) {
                 appearanceSection
                 countdownSection
+                iCloudSyncSection
                 healthKitSection
                 dataExportSection
                 dataImportSection
@@ -163,6 +164,50 @@ struct SettingsView: View {
                 Text("HealthKit is not available on this device.")
                     .font(.caption)
                     .foregroundColor(.warning)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle()
+    }
+
+    // MARK: - iCloud Sync
+
+    @ViewBuilder
+    private var iCloudSyncSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionLabel(text: "ICLOUD SYNC")
+
+            HStack(spacing: 12) {
+                Image(systemName: ICloudMonitor.shared.isICloud ? "icloud.fill" : "icloud.slash")
+                    .font(.title2)
+                    .foregroundColor(ICloudMonitor.shared.isICloud ? .accentColor : .textMuted)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("iCloud")
+                        .font(.subheadline).fontWeight(.medium)
+                        .foregroundColor(.textPrimary)
+                    Text(ICloudMonitor.shared.isICloud ? "Syncing across devices" : "Not available — sign in to iCloud in Settings")
+                        .font(.caption)
+                        .foregroundColor(ICloudMonitor.shared.isICloud ? .success : .textMuted)
+                }
+
+                Spacer()
+
+                if ICloudMonitor.shared.isICloud {
+                    Button {
+                        Task { await ICloudMonitor.shared.syncNow() }
+                    } label: {
+                        if ICloudMonitor.shared.isSyncing {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Image(systemName: "arrow.triangle.2.circlepath.icloud")
+                                .foregroundColor(.accentColor)
+                        }
+                    }
+                    .disabled(ICloudMonitor.shared.isSyncing)
+                    .accessibilityLabel("Sync with iCloud")
+                }
             }
         }
         .padding()
