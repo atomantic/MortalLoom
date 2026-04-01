@@ -36,6 +36,7 @@ struct BloodView: View {
             .padding()
         }
         .background(Color.bg)
+        .proGated()
         .sheet(isPresented: $showingAddForm) {
             BloodTestFormView(onSave: { test in
                 Task {

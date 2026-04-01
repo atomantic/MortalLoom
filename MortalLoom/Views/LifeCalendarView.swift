@@ -157,7 +157,7 @@ struct LifeCalendarView: View {
             genome: data.genomeScanRecord
         )
         deathClock = dc
-        levDeathClock = dc.flatMap { DeathClockEngine.calculateLEVResult(standardResult: $0, birthDateStr: birthDateStr) }
+        levDeathClock = dc.flatMap { DeathClockEngine.calculateLEVResult(standardResult: $0, birthDateStr: birthDateStr, levTargetAge: data.profile.levTargetAge) }
 
         guard let birth = DeathClockEngine.dateFromString(birthDateStr) else {
             goalMarkers = []

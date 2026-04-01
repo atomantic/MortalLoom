@@ -160,6 +160,7 @@ struct SubstancesView: View {
             .padding()
         }
         .background(Color.bg)
+        .proGated()
         .task { await loadData() }
         .sheet(item: $editingDrink) { drink in
             alcoholEditSheet(drink)

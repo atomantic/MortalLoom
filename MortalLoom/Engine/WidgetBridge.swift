@@ -20,6 +20,7 @@ enum WidgetBridge: Sendable {
     }
 
     static func update(data: AppData) {
+        #if os(iOS)
         guard let birthDate = data.profile.birthDate,
               let result = DeathClockEngine.calculate(
                   birthDateStr: birthDate,
@@ -39,7 +40,7 @@ enum WidgetBridge: Sendable {
             healthMetrics: data.healthMetrics
         )
 
-        let levResult = DeathClockEngine.calculateLEVResult(standardResult: result, birthDateStr: birthDate)
+        let levResult = DeathClockEngine.calculateLEVResult(standardResult: result, birthDateStr: birthDate, levTargetAge: data.profile.levTargetAge)
 
         let snapshot = Snapshot(
             deathDate: result.deathDate,
@@ -65,5 +66,6 @@ enum WidgetBridge: Sendable {
         try? encoded.write(to: url, options: .atomic)
 
         WidgetCenter.shared.reloadAllTimelines()
+        #endif
     }
 }

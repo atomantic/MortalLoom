@@ -78,6 +78,7 @@ struct GenomeView: View {
             }
         }
         .background(Color.bg)
+        .proGated()
         .sheet(isPresented: $showingAddTest) {
             EpigeneticTestFormView(onSave: { test in
                 Task {

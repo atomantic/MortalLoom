@@ -2,6 +2,14 @@
 
 Completed items archived from PLAN.md. For release notes, see `.changelogs/`.
 
+## 2026-03-31
+
+- macOS fix — WidgetBridge.update() guarded with #if os(iOS) to prevent cross-app-data sandbox alert
+- macOS fix — BodyView falls back to DataStore.bodyEntries when HealthKit unavailable; subscribes to dataDidSync for live iCloud updates
+- LEV mode — configurable target lifespan (default 120yr, user-adjustable via stepper in Settings, persisted to iCloud)
+- MortalLoom Pro — one-time IAP + secret code unlock (SHA-256/Keychain), Pro section in Settings
+- Feature gates — Blood, Genome, Substances, Body views fully gated; epigenetic tile and data export section gated via .proGated() overlay
+
 ## 2026-03-25
 
 - Core infrastructure — all models, actor-based storage with iCloud + local fallback, native HealthKit service

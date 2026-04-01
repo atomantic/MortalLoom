@@ -98,7 +98,8 @@ struct GoalsView: View {
         let levDc: DeathClockEngine.DeathClockResult? = dc.flatMap {
             DeathClockEngine.calculateLEVResult(
                 standardResult: $0,
-                birthDateStr: data.profile.birthDate ?? ""
+                birthDateStr: data.profile.birthDate ?? "",
+                levTargetAge: data.profile.levTargetAge
             )
         }
         let cogDate = GoalEngine.cognitiveDeadline(from: dc)

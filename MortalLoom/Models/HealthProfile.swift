@@ -5,16 +5,18 @@ struct HealthProfile: Codable, Sendable, Equatable {
     var biologicalSex: BiologicalSex?
     var lifestyle: LifestyleData
     var countdownMode: CountdownMode
+    var levTargetAge: Double // assumed max lifespan if LEV is achieved (default 120)
 
     enum CodingKeys: String, CodingKey {
-        case birthDate, biologicalSex, lifestyle, countdownMode
+        case birthDate, biologicalSex, lifestyle, countdownMode, levTargetAge
     }
 
-    init(birthDate: String? = nil, biologicalSex: BiologicalSex? = nil, lifestyle: LifestyleData, countdownMode: CountdownMode = .standard) {
+    init(birthDate: String? = nil, biologicalSex: BiologicalSex? = nil, lifestyle: LifestyleData, countdownMode: CountdownMode = .standard, levTargetAge: Double = 120) {
         self.birthDate = birthDate
         self.biologicalSex = biologicalSex
         self.lifestyle = lifestyle
         self.countdownMode = countdownMode
+        self.levTargetAge = levTargetAge
     }
 
     init(from decoder: Decoder) throws {
@@ -23,6 +25,7 @@ struct HealthProfile: Codable, Sendable, Equatable {
         biologicalSex = try c.decodeIfPresent(BiologicalSex.self, forKey: .biologicalSex)
         lifestyle = try c.decode(LifestyleData.self, forKey: .lifestyle)
         countdownMode = try c.decodeIfPresent(CountdownMode.self, forKey: .countdownMode) ?? .standard
+        levTargetAge = try c.decodeIfPresent(Double.self, forKey: .levTargetAge) ?? 120
     }
 }
 
@@ -64,7 +67,5 @@ enum CountdownMode: String, Codable, Sendable, CaseIterable {
     case standard = "Standard"
     case lev = "LEV"
 
-    var pickerLabel: String {
-        self == .lev ? "LEV (120yr)" : rawValue
-    }
+    var pickerLabel: String { rawValue }
 }

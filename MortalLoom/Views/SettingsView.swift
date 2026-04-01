@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 #endif
 
 struct SettingsView: View {
+    @Environment(StoreManager.self) private var store
     @State private var appearance = AppearanceManager.shared
     @StateObject private var healthKit = HealthKitService.shared
 
@@ -15,10 +16,17 @@ struct SettingsView: View {
     @State private var importSuccess = false
 
     @State private var countdownMode: CountdownMode = .standard
+    @State private var levTargetAge: Double = 120
+
+    @State private var showPaywall = false
+    @State private var showProCodeAlert = false
+    @State private var proCodeInput = ""
+    @State private var proCodeFeedback: String?
 
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
+                proSection
                 appearanceSection
                 countdownSection
                 iCloudSyncSection
@@ -36,6 +44,24 @@ struct SettingsView: View {
         .onReceive(NotificationCenter.default.publisher(for: .profileDidChange)) { _ in
             Task { await loadCountdownMode() }
         }
+        .sheet(isPresented: $showPaywall) { PaywallView() }
+        .alert("Enter Pro Code", isPresented: $showProCodeAlert) {
+            TextField("Code", text: $proCodeInput)
+                .autocorrectionDisabled()
+            Button("Unlock") {
+                let ok = store.redeemSecretCode(proCodeInput)
+                proCodeFeedback = ok ? "Pro unlocked! Welcome to MortalLoom Pro." : "Invalid code. Please try again."
+                proCodeInput = ""
+            }
+            Button("Cancel", role: .cancel) { proCodeInput = "" }
+        } message: {
+            Text("Enter your Pro access code")
+        }
+        .alert("Pro Code", isPresented: Binding(get: { proCodeFeedback != nil }, set: { if !$0 { proCodeFeedback = nil } })) {
+            Button("OK") { proCodeFeedback = nil }
+        } message: {
+            Text(proCodeFeedback ?? "")
+        }
         .fileImporter(
             isPresented: $showImporter,
             allowedContentTypes: [.json],
@@ -43,6 +69,61 @@ struct SettingsView: View {
         ) { result in
             handleImport(result)
         }
+    }
+
+    // MARK: - Pro
+
+    @ViewBuilder
+    private var proSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionLabel(text: "MORTALLOOM PRO")
+
+            if store.isPro {
+                HStack(spacing: 12) {
+                    Image(systemName: "star.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(.linearGradient(
+                            colors: [.accentColor, .purple],
+                            startPoint: .leading, endPoint: .trailing
+                        ))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Pro Unlocked")
+                            .font(.subheadline).fontWeight(.semibold)
+                            .foregroundColor(.textPrimary)
+                        Text("All features are available")
+                            .font(.caption)
+                            .foregroundColor(.textSecondary)
+                    }
+                    Spacer()
+                }
+            } else {
+                Text("Unlock blood tests, genome analysis, substance tracking, epigenetic age, body composition, and data export.")
+                    .font(.caption)
+                    .foregroundColor(.textSecondary)
+
+                Button {
+                    showPaywall = true
+                } label: {
+                    HStack {
+                        Image(systemName: "star.circle.fill")
+                        Text("Unlock Pro")
+                            .fontWeight(.semibold)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(Color.accentColor)
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+                }
+
+                Button("Enter access code") { showProCodeAlert = true }
+                    .font(.subheadline)
+                    .foregroundColor(.textSecondary)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle()
     }
 
     // MARK: - Appearance
@@ -94,6 +175,27 @@ struct SettingsView: View {
                 }
             }
 
+            if countdownMode == .lev {
+                HStack {
+                    Text("LEV target lifespan")
+                        .font(.subheadline)
+                    Spacer()
+                    Stepper(value: $levTargetAge, in: 100...500, step: 5) {
+                        Text("\(Int(levTargetAge)) yr")
+                            .font(.subheadline.monospacedDigit())
+                            .foregroundColor(.textPrimary)
+                    }
+                    .onChange(of: levTargetAge) { _, newAge in
+                        Task {
+                            var data = await DataStore.shared.getData()
+                            data.profile.levTargetAge = newAge
+                            await DataStore.shared.save(data)
+                            NotificationCenter.default.post(name: .profileDidChange, object: nil)
+                        }
+                    }
+                }
+            }
+
             HStack(spacing: 8) {
                 Image(systemName: "info.circle")
                     .foregroundColor(.textMuted)
@@ -102,7 +204,7 @@ struct SettingsView: View {
                     Text("Standard: SSA actuarial life expectancy + lifestyle adjustments")
                         .font(.system(size: 10))
                         .foregroundColor(.textMuted)
-                    Text("LEV: Assumes longevity escape velocity therapies extend lifespan to ~120yr (requires LE past 2045)")
+                    Text("LEV: Assumes longevity escape velocity therapies extend lifespan to the target age (requires LE past 2045)")
                         .font(.system(size: 10))
                         .foregroundColor(.textMuted)
                 }
@@ -116,6 +218,7 @@ struct SettingsView: View {
     private func loadCountdownMode() async {
         let data = await DataStore.shared.getData()
         countdownMode = data.profile.countdownMode
+        levTargetAge = data.profile.levTargetAge
     }
 
     // MARK: - Apple Health
@@ -262,6 +365,7 @@ struct SettingsView: View {
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
+        .proGated()
     }
 
     // MARK: - Data Import

@@ -75,6 +75,7 @@ struct BodyView: View {
             .padding()
         }
         .background(Color.bg)
+        .proGated()
         .sheet(isPresented: $showingAddExam) {
             EyeExamFormView(onSave: { exam in
                 Task {
@@ -100,6 +101,9 @@ struct BodyView: View {
             await healthKit.requestAuthorization()
             await loadData()
             await loadHealthKitData()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .dataDidSync)) { _ in
+            Task { await loadHealthKitData() }
         }
     }
 
@@ -734,6 +738,26 @@ struct BodyView: View {
         }
         if let lm = ll {
             latestLeanMass = lm.value
+        }
+
+        // Fall back to DataStore body entries when HealthKit is unavailable (macOS) or returns no data
+        if latestWeight == nil || weightPoints.isEmpty {
+            let stored = await DataStore.shared.getData()
+            let sortedEntries = stored.bodyEntries.sorted { $0.date > $1.date }
+            if latestWeight == nil, let latest = sortedEntries.first(where: { $0.weightLbs != nil }) {
+                latestWeight = latest.weightLbs
+                weightDate = DateFormatting.dateFromString(latest.date)
+            }
+            if latestBodyFat == nil, let latest = sortedEntries.first(where: { $0.bodyFatPct != nil }) {
+                latestBodyFat = latest.bodyFatPct
+                bodyFatDate = DateFormatting.dateFromString(latest.date)
+            }
+            if weightPoints.isEmpty {
+                weightPoints = sortedEntries.compactMap { entry -> WeightPoint? in
+                    guard let w = entry.weightLbs, let d = DateFormatting.dateFromString(entry.date) else { return nil }
+                    return WeightPoint(date: d, value: w)
+                }
+            }
         }
 
         // If HealthKit has no weight data but we have manual, compute lean mass

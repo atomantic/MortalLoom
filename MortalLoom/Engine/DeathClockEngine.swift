@@ -238,9 +238,9 @@ enum DeathClockEngine {
         )
     }
 
-    /// Calculate a LEV-extended death clock result (age 120 if on track for LEV).
+    /// Calculate a LEV-extended death clock result (target lifespan if on track for LEV).
     /// Accepts a pre-computed standard result to avoid duplicate calculation.
-    static func calculateLEVResult(standardResult: DeathClockResult, birthDateStr: String, now: Date = Date()) -> DeathClockResult? {
+    static func calculateLEVResult(standardResult: DeathClockResult, birthDateStr: String, levTargetAge: Double = 120, now: Date = Date()) -> DeathClockResult? {
         guard let birthDate = dateFromString(birthDateStr) else { return nil }
 
         let birthYear = Calendar.current.component(.year, from: birthDate)
@@ -248,7 +248,7 @@ enum DeathClockEngine {
 
         guard standardResult.lifeExpectancy.total >= Double(ageAtLEV) else { return nil }
 
-        let levLE = 120.0
+        let levLE = levTargetAge
         let ageFraction = now.timeIntervalSince(birthDate) / (365.25 * 24 * 3600)
         let levDeathDate = Calendar.current.date(byAdding: .day, value: Int((levLE - ageFraction) * 365.25), to: now) ?? now
         let yearsRemaining = max(0, levLE - ageFraction)

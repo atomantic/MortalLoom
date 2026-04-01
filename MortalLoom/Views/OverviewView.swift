@@ -94,7 +94,7 @@ struct OverviewView: View {
             hasBloodTests: !data.bloodTests.isEmpty
         )
         if let dc = deathClock {
-            levDeathClock = DeathClockEngine.calculateLEVResult(standardResult: dc, birthDateStr: birthDate)
+            levDeathClock = DeathClockEngine.calculateLEVResult(standardResult: dc, birthDateStr: birthDate, levTargetAge: data.profile.levTargetAge)
             lev = DeathClockEngine.calculateLEV(
                 birthDateStr: birthDate,
                 lifeExpectancy: dc.lifeExpectancy.total
@@ -978,6 +978,7 @@ struct OverviewView: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Epigenetic age: \(latest.map { String(format: "biological %.1f years, chronological %.1f years", $0.biologicalAge, $0.chronologicalAge) } ?? "no tests")")
         .accessibilityHint("Opens genome and epigenetic tracking")
+        .proGated()
     }
 
     // MARK: - Eyes Tile
