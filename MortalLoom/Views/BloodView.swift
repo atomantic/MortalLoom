@@ -429,39 +429,59 @@ private struct BloodTestFormView: View {
 
     @State private var testDate = Date()
     @State private var markerValues: [String: String] = [:]
+    @State private var selectedCategory = 0
+
+    private static let tabLabels = ["Metabolic", "Lipids", "CBC", "Thyroid", "Other"]
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Test Date") {
-                    DatePicker("Date", selection: $testDate, displayedComponents: .date)
-                        .datePickerStyle(.compact)
-                }
+            VStack(spacing: 0) {
+                // Date + tab picker — always visible above the scroll area
+                VStack(spacing: 10) {
+                    HStack {
+                        Text("Test Date")
+                            .font(.subheadline)
+                            .foregroundColor(.textPrimary)
+                        Spacer()
+                        DatePicker("", selection: $testDate, displayedComponents: .date)
+                            .datePickerStyle(.compact)
+                            .labelsHidden()
+                    }
+                    .padding(.horizontal)
 
-                ForEach(Array(BloodMarkers.categories.enumerated()), id: \.offset) { _, category in
-                    Section(category.name) {
-                        ForEach(category.keys, id: \.self) { key in
-                            if let ref = BloodMarkers.byKey[key] {
-                                HStack {
-                                    Text(ref.label)
-                                        .foregroundColor(.textPrimary)
-                                    Spacer()
-                                    TextField("—", text: binding(for: key))
-                                        .keyboardType(.decimalPad)
-                                        .multilineTextAlignment(.trailing)
-                                        .frame(width: 80)
-                                    if !ref.unit.isEmpty {
-                                        Text(ref.unit)
-                                            .font(.caption)
-                                            .foregroundColor(.textMuted)
-                                            .frame(width: 50, alignment: .leading)
-                                    }
+                    Picker("Category", selection: $selectedCategory) {
+                        ForEach(Array(Self.tabLabels.enumerated()), id: \.offset) { idx, label in
+                            Text(label).tag(idx)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal)
+                }
+                .padding(.vertical, 10)
+                .background(Color.bg)
+
+                Divider()
+
+                // Marker list for selected category
+                ScrollView {
+                    if selectedCategory < BloodMarkers.categories.count {
+                        let category = BloodMarkers.categories[selectedCategory]
+                        VStack(alignment: .leading, spacing: 0) {
+                            ForEach(Array(category.keys.enumerated()), id: \.offset) { idx, key in
+                                if let ref = BloodMarkers.byKey[key] {
+                                    if idx > 0 { Divider().padding(.leading, 16) }
+                                    markerRow(ref: ref)
                                 }
                             }
                         }
+                        .padding(.vertical, 4)
+                        .cardStyle()
+                        .padding()
                     }
                 }
+                .background(Color.bg)
             }
+            .background(Color.bg)
             .navigationTitle("Add Blood Test")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -476,6 +496,27 @@ private struct BloodTestFormView: View {
                 }
             }
         }
+    }
+
+    private func markerRow(ref: BloodMarkerRef) -> some View {
+        HStack(spacing: 8) {
+            Text(ref.label)
+                .font(.subheadline)
+                .foregroundColor(.textPrimary)
+            Spacer(minLength: 8)
+            TextField("—", text: binding(for: ref.key))
+                #if os(iOS)
+                .keyboardType(.decimalPad)
+                #endif
+                .multilineTextAlignment(.trailing)
+                .textFieldStyle(.roundedBorder)
+                .frame(width: 80)
+            Text(ref.unit.isEmpty ? " " : ref.unit)
+                .font(.caption)
+                .foregroundColor(.textMuted)
+                .frame(width: 44, alignment: .leading)
+        }
+        .padding(.vertical, 6)
     }
 
     private func binding(for key: String) -> Binding<String> {
