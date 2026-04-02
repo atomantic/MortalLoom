@@ -10,6 +10,8 @@ struct BloodView: View {
     @State private var trendAlerts: [BloodTrendEngine.MarkerTrend] = []
     @State private var showingAddForm = false
     @State private var isLoading = true
+    @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
+    private var isWide: Bool { containerWidth >= Layout.wideThreshold }
 
     private static let trackedMarkers: [(key: String, label: String, color: Color)] = [
         ("ldl", "LDL", .orange),
@@ -34,6 +36,7 @@ struct BloodView: View {
                 }
             }
             .padding()
+            .readContainerWidth { containerWidth = $0 }
         }
         .background(Color.bg)
         .proGated()
@@ -92,8 +95,15 @@ struct BloodView: View {
                     .font(.caption)
                     .foregroundColor(.textSecondary)
 
-                stepsChart(correlationData)
-                markerTrendChart(correlationData, markers: availableMarkers)
+                if isWide {
+                    HStack(alignment: .top, spacing: 16) {
+                        stepsChart(correlationData)
+                        markerTrendChart(correlationData, markers: availableMarkers)
+                    }
+                } else {
+                    stepsChart(correlationData)
+                    markerTrendChart(correlationData, markers: availableMarkers)
+                }
 
                 if correlationData.count >= 2 {
                     activitySummary(correlationData, markers: availableMarkers)
@@ -287,7 +297,7 @@ struct BloodView: View {
 
     private var testList: some View {
         ForEach(sortedTests.reversed()) { test in
-            BloodTestCardView(test: test, onDelete: {
+            BloodTestCardView(test: test, isWide: isWide, onDelete: {
                 Task {
                     await DataStore.shared.removeBloodTest(id: test.id)
                     await loadData()
@@ -311,6 +321,7 @@ struct BloodView: View {
 
 private struct BloodTestCardView: View {
     let test: BloodTest
+    let isWide: Bool
     let onDelete: () -> Void
     @State private var showDeleteConfirm = false
 
@@ -346,10 +357,7 @@ private struct BloodTestCardView: View {
                             .foregroundColor(.textMuted)
                             .textCase(.uppercase)
 
-                        LazyVGrid(columns: [
-                            GridItem(.flexible(), spacing: 8),
-                            GridItem(.flexible(), spacing: 8),
-                        ], spacing: 6) {
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: isWide ? 3 : 2), spacing: 6) {
                             ForEach(filledKeys, id: \.self) { key in
                                 if let value = test.markers[key],
                                    let ref = BloodMarkers.byKey[key] {

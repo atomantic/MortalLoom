@@ -62,17 +62,28 @@ struct BodyView: View {
     @State private var manualBodyFat = ""
 
     @StateObject private var healthKit = HealthKitService.shared
-
+    @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
+    private var isWide: Bool { containerWidth >= Layout.wideThreshold }
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                bodyCompositionSection
-                cardioFitnessSection
+                if isWide {
+                    HStack(alignment: .top, spacing: 16) {
+                        bodyCompositionSection
+                            .frame(maxWidth: .infinity)
+                        cardioFitnessSection
+                            .frame(maxWidth: .infinity)
+                    }
+                } else {
+                    bodyCompositionSection
+                    cardioFitnessSection
+                }
                 gaitSection
                 activitySection
                 eyePrescriptionSection
             }
             .padding()
+            .readContainerWidth { containerWidth = $0 }
         }
         .background(Color.bg)
         .proGated()

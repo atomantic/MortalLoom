@@ -132,6 +132,26 @@ struct EmptyStateView: View {
 
 enum Layout {
     static let chartFrameHeight: CGFloat = 160
+    static let wideThreshold: CGFloat = 700
+    static var defaultContainerWidth: CGFloat {
+        #if os(iOS)
+        UIScreen.main.bounds.width
+        #else
+        900
+        #endif
+    }
+}
+
+// MARK: - Container Width Reader
+
+extension View {
+    func readContainerWidth(_ action: @escaping (CGFloat) -> Void) -> some View {
+        background(GeometryReader { geo in
+            Color.clear
+                .onAppear { action(geo.size.width) }
+                .onChange(of: geo.size.width) { _, w in action(w) }
+        })
+    }
 }
 
 // MARK: - Card Style Modifier
@@ -161,6 +181,17 @@ extension View {
     func cardStyle(fill: Color = .bgCard, border: Color = .cardBorder, radius: CGFloat = 12) -> some View {
         modifier(CardStyle(fill: fill, border: border, radius: radius))
     }
+}
+
+// MARK: - Pro Brand Gradient
+
+extension LinearGradient {
+    static let proBrand = LinearGradient(
+        colors: [.accentColor, .purple], startPoint: .leading, endPoint: .trailing
+    )
+    static let proBrandDiagonal = LinearGradient(
+        colors: [.accentColor, .purple], startPoint: .topLeading, endPoint: .bottomTrailing
+    )
 }
 
 // MARK: - Cross-Platform Keyboard Type

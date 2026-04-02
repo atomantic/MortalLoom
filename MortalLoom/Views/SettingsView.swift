@@ -17,6 +17,8 @@ struct SettingsView: View {
 
     @State private var countdownMode: CountdownMode = .standard
     @State private var levTargetAge: Double = 120
+    @State private var levTargetAgeText: String = "120"
+    @FocusState private var levAgeFieldFocused: Bool
 
     @State private var showPaywall = false
     @State private var showProCodeAlert = false
@@ -24,52 +26,140 @@ struct SettingsView: View {
     @State private var proCodeFeedback: String?
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                proSection
-                appearanceSection
-                countdownSection
-                iCloudSyncSection
-                healthKitSection
-                dataExportSection
-                dataImportSection
-                aboutSection
-                setupGuideSection
-                dangerZoneSection
+        settingsContent
+            .background(Color.bg)
+            .task { await loadCountdownMode() }
+            .onReceive(NotificationCenter.default.publisher(for: .profileDidChange)) { _ in
+                Task { await loadCountdownMode() }
             }
-            .padding()
-        }
-        .background(Color.bg)
-        .task { await loadCountdownMode() }
-        .onReceive(NotificationCenter.default.publisher(for: .profileDidChange)) { _ in
-            Task { await loadCountdownMode() }
-        }
-        .sheet(isPresented: $showPaywall) { PaywallView() }
-        .alert("Enter Pro Code", isPresented: $showProCodeAlert) {
-            TextField("Code", text: $proCodeInput)
-                .autocorrectionDisabled()
-            Button("Unlock") {
-                let ok = store.redeemSecretCode(proCodeInput)
-                proCodeFeedback = ok ? "Pro unlocked! Welcome to MortalLoom Pro." : "Invalid code. Please try again."
-                proCodeInput = ""
+            .sheet(isPresented: $showPaywall) { PaywallView() }
+            .alert("Enter Pro Code", isPresented: $showProCodeAlert) {
+                TextField("Code", text: $proCodeInput)
+                    .autocorrectionDisabled()
+                Button("Unlock") {
+                    let ok = store.redeemSecretCode(proCodeInput)
+                    proCodeFeedback = ok ? "Pro unlocked! Welcome to MortalLoom Pro." : "Invalid code. Please try again."
+                    proCodeInput = ""
+                }
+                Button("Cancel", role: .cancel) { proCodeInput = "" }
+            } message: {
+                Text("Enter your Pro access code")
             }
-            Button("Cancel", role: .cancel) { proCodeInput = "" }
-        } message: {
-            Text("Enter your Pro access code")
-        }
-        .alert("Pro Code", isPresented: Binding(get: { proCodeFeedback != nil }, set: { if !$0 { proCodeFeedback = nil } })) {
-            Button("OK") { proCodeFeedback = nil }
-        } message: {
-            Text(proCodeFeedback ?? "")
-        }
-        .fileImporter(
-            isPresented: $showImporter,
-            allowedContentTypes: [.json],
-            allowsMultipleSelection: false
-        ) { result in
-            handleImport(result)
+            .alert("Pro Code", isPresented: Binding(get: { proCodeFeedback != nil }, set: { if !$0 { proCodeFeedback = nil } })) {
+                Button("OK") { proCodeFeedback = nil }
+            } message: {
+                Text(proCodeFeedback ?? "")
+            }
+            .fileImporter(
+                isPresented: $showImporter,
+                allowedContentTypes: [.json],
+                allowsMultipleSelection: false
+            ) { result in
+                handleImport(result)
+            }
+    }
+
+    // MARK: - Layout
+
+    @ViewBuilder
+    private var settingsContent: some View {
+        #if os(iOS)
+        iOSTabbedSettings
+        #else
+        macOSColumnsSettings
+        #endif
+    }
+
+    // iOS: tabbed so each group fits one screen without scrolling
+    #if os(iOS)
+    private var iOSTabbedSettings: some View {
+        TabView {
+            ScrollView {
+                VStack(spacing: 16) {
+                    proSection
+                    appearanceSection
+                    countdownSection
+                }
+                .padding()
+            }
+            .tabItem { Label("General", systemImage: "gearshape") }
+
+            ScrollView {
+                VStack(spacing: 16) {
+                    iCloudSyncSection
+                    healthKitSection
+                    dataExportSection
+                    dataImportSection
+                }
+                .padding()
+            }
+            .tabItem { Label("Data", systemImage: "externaldrive") }
+
+            ScrollView {
+                VStack(spacing: 16) {
+                    aboutSection
+                    setupGuideSection
+                    dangerZoneSection
+                }
+                .padding()
+            }
+            .tabItem { Label("More", systemImage: "ellipsis.circle") }
         }
     }
+    #endif
+
+    // macOS: responsive columns via GeometryReader (like CSS media queries)
+    // ≥ 860pt → 3 columns  |  ≥ 540pt → 2 columns  |  < 540pt → 1 column
+    #if os(macOS)
+    private var macOSColumnsSettings: some View {
+        GeometryReader { geo in
+            let w = geo.size.width
+            ScrollView {
+                Group {
+                    if w >= 860 {
+                        HStack(alignment: .top, spacing: 16) {
+                            col1.frame(maxWidth: .infinity)
+                            col2.frame(maxWidth: .infinity)
+                            col3.frame(maxWidth: .infinity)
+                        }
+                    } else if w >= 540 {
+                        HStack(alignment: .top, spacing: 16) {
+                            VStack(spacing: 16) { col1; col3 }.frame(maxWidth: .infinity)
+                            col2.frame(maxWidth: .infinity)
+                        }
+                    } else {
+                        VStack(spacing: 16) { col1; col2; col3 }
+                    }
+                }
+                .padding()
+            }
+        }
+    }
+
+    private var col1: some View {
+        VStack(spacing: 16) {
+            proSection
+            appearanceSection
+            countdownSection
+        }
+    }
+
+    private var col2: some View {
+        VStack(spacing: 16) {
+            iCloudSyncSection
+            dataExportSection
+            dataImportSection
+        }
+    }
+
+    private var col3: some View {
+        VStack(spacing: 16) {
+            aboutSection
+            setupGuideSection
+            dangerZoneSection
+        }
+    }
+    #endif
 
     // MARK: - Pro
 
@@ -82,10 +172,7 @@ struct SettingsView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "star.circle.fill")
                         .font(.title2)
-                        .foregroundStyle(.linearGradient(
-                            colors: [.accentColor, .purple],
-                            startPoint: .leading, endPoint: .trailing
-                        ))
+                        .foregroundStyle(LinearGradient.proBrand)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Pro Unlocked")
                             .font(.subheadline).fontWeight(.semibold)
@@ -181,11 +268,29 @@ struct SettingsView: View {
                         .font(.subheadline)
                     Spacer()
                     Stepper(value: $levTargetAge, in: 100...500, step: 5) {
-                        Text("\(Int(levTargetAge)) yr")
-                            .font(.subheadline.monospacedDigit())
-                            .foregroundColor(.textPrimary)
+                        HStack(spacing: 4) {
+                            TextField("", text: $levTargetAgeText)
+                                .textFieldStyle(.plain)
+                                .font(.subheadline.monospacedDigit())
+                                .foregroundColor(.textPrimary)
+                                .frame(width: 48)
+                                .multilineTextAlignment(.trailing)
+                                .focused($levAgeFieldFocused)
+                                .onSubmit { commitLEVAge() }
+                                .onChange(of: levAgeFieldFocused) { _, focused in
+                                    if !focused { commitLEVAge() }
+                                }
+                                #if os(iOS)
+                                .keyboardType(.numberPad)
+                                #endif
+                            Text("yr")
+                                .font(.subheadline)
+                                .foregroundColor(.textPrimary)
+                        }
                     }
-                    .onChange(of: levTargetAge) { _, newAge in
+                    .onChange(of: levTargetAge) { oldAge, newAge in
+                        guard newAge != oldAge else { return }
+                        levTargetAgeText = "\(Int(newAge))"
                         Task {
                             var data = await DataStore.shared.getData()
                             data.profile.levTargetAge = newAge
@@ -219,6 +324,14 @@ struct SettingsView: View {
         let data = await DataStore.shared.getData()
         countdownMode = data.profile.countdownMode
         levTargetAge = data.profile.levTargetAge
+        levTargetAgeText = "\(Int(data.profile.levTargetAge))"
+    }
+
+    private func commitLEVAge() {
+        let parsed = Double(levTargetAgeText.trimmingCharacters(in: .whitespaces)) ?? levTargetAge
+        let clamped = min(max(parsed, 100), 500)
+        levTargetAgeText = "\(Int(clamped))"  // always correct display (handles out-of-range input)
+        levTargetAge = clamped                 // triggers save via onChange if value actually changed
     }
 
     // MARK: - Apple Health
@@ -365,7 +478,6 @@ struct SettingsView: View {
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
-        .proGated()
     }
 
     // MARK: - Data Import

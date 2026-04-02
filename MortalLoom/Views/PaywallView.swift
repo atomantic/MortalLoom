@@ -9,11 +9,9 @@ struct PaywallView: View {
     private let features: [(icon: String, title: String, description: String)] = [
         ("drop.fill", "Blood Test Tracking", "Track 50+ lab markers with reference ranges"),
         ("allergens", "Genome Analysis", "ClinVar pathogenicity cross-reference for your DNA"),
-        ("repeat.circle", "Substance Tracking", "Alcohol & nicotine tracking with NIAAA risk levels"),
         ("clock.badge.checkmark.fill", "Epigenetic Age", "Track biological vs chronological aging"),
         ("eye.fill", "Eye Prescriptions", "Track vision changes over time"),
         ("figure.stand", "Full Body Composition", "Detailed body metrics beyond basics"),
-        ("square.and.arrow.up", "Data Export", "Export all your data in standard formats"),
     ]
 
     var body: some View {
@@ -46,11 +44,7 @@ struct PaywallView: View {
         VStack(spacing: 8) {
             Image(systemName: "star.circle.fill")
                 .font(.system(size: 60))
-                .foregroundStyle(.linearGradient(
-                    colors: [.accentColor, .purple],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ))
+                .foregroundStyle(LinearGradient.proBrandDiagonal)
             Text("Unlock MortalLoom Pro")
                 .font(.title2)
                 .fontWeight(.bold)
@@ -116,7 +110,7 @@ struct PaywallView: View {
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(Color.accentColor)
+                    .background(LinearGradient.proBrand)
                     .cornerRadius(12)
                 }
                 .disabled(store.purchaseInProgress)

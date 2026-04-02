@@ -119,6 +119,8 @@ struct SubstancesView: View {
     @State private var showAlcoholPresetManager = false
     @State private var showNicotinePresetManager = false
     @State private var showSaunaPresetManager = false
+    @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
+    private var isWide: Bool { containerWidth >= Layout.wideThreshold }
 
     // Edit form state
     @State private var editAlcoName = ""
@@ -158,9 +160,9 @@ struct SubstancesView: View {
                 }
             }
             .padding()
+            .readContainerWidth { containerWidth = $0 }
         }
         .background(Color.bg)
-        .proGated()
         .task { await loadData() }
         .sheet(item: $editingDrink) { drink in
             alcoholEditSheet(drink)
@@ -207,8 +209,15 @@ struct SubstancesView: View {
     @ViewBuilder
     private var alcoholSection: some View {
         alcoholStatsBar
-        alcoholChart
-        alcoholHrvCorrelation
+        if isWide {
+            HStack(alignment: .top, spacing: 16) {
+                alcoholChart
+                alcoholHrvCorrelation
+            }
+        } else {
+            alcoholChart
+            alcoholHrvCorrelation
+        }
         alcoholQuickAdd
         alcoholCustomForm
         alcoholHistory

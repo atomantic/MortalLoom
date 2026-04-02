@@ -24,6 +24,8 @@ struct SleepView: View {
     @State private var summary: SleepEngine.SleepSummary?
     @State private var userAge: Int = 0
     @State private var isLoading = true
+    @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
+    private var isWide: Bool { containerWidth >= Layout.wideThreshold }
 
     var body: some View {
         ScrollView {
@@ -33,26 +35,58 @@ struct SleepView: View {
                         .frame(maxWidth: .infinity, minHeight: 200)
                 } else if sleepPoints.isEmpty {
                     emptySleepCard
-                } else {
-                    if let summary {
-                        sleepScoreCard(summary)
-                        sleepDurationChart
-                        if let stages = summary.stageBreakdown, stages.totalNights > 0 {
-                            sleepStageCard(stages)
-                            sleepStageChart
-                        }
-                        if let apnea = summary.apneaRisk {
-                            breathingCard(apnea: apnea, avgBD: summary.avgBreathingDisturbances)
-                        }
-                        sleepStatsCard(summary)
-                        longevityImpactCard(summary)
-                    }
+                } else if let summary {
+                    if isWide { wideSleepContent(summary) } else { narrowSleepContent(summary) }
                 }
             }
             .padding()
+            .readContainerWidth { containerWidth = $0 }
         }
         .background(Color.bg)
         .task { await loadData() }
+    }
+
+    @ViewBuilder
+    private func narrowSleepContent(_ summary: SleepEngine.SleepSummary) -> some View {
+        sleepScoreCard(summary)
+        sleepDurationChart
+        if let stages = summary.stageBreakdown, stages.totalNights > 0 {
+            sleepStageCard(stages)
+            sleepStageChart
+        }
+        if let apnea = summary.apneaRisk {
+            breathingCard(apnea: apnea, avgBD: summary.avgBreathingDisturbances)
+        }
+        sleepStatsCard(summary)
+        longevityImpactCard(summary)
+    }
+
+    @ViewBuilder
+    private func wideSleepContent(_ summary: SleepEngine.SleepSummary) -> some View {
+        sleepScoreCard(summary)
+        if let stages = summary.stageBreakdown, stages.totalNights > 0 {
+            HStack(alignment: .top, spacing: 16) {
+                sleepDurationChart
+                sleepStageChart
+            }
+            if let apnea = summary.apneaRisk {
+                HStack(alignment: .top, spacing: 16) {
+                    sleepStageCard(stages)
+                    breathingCard(apnea: apnea, avgBD: summary.avgBreathingDisturbances)
+                }
+            } else {
+                sleepStageCard(stages)
+            }
+        } else {
+            sleepDurationChart
+            if let apnea = summary.apneaRisk {
+                breathingCard(apnea: apnea, avgBD: summary.avgBreathingDisturbances)
+            }
+        }
+        HStack(alignment: .top, spacing: 16) {
+            sleepStatsCard(summary)
+            longevityImpactCard(summary)
+        }
     }
 
     // MARK: - Empty State
