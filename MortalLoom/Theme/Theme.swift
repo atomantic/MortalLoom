@@ -194,6 +194,56 @@ extension LinearGradient {
     )
 }
 
+// MARK: - Toast Notification
+
+struct ToastModifier: ViewModifier {
+    @Binding var message: String?
+    let icon: String
+    let tint: Color
+
+    func body(content: Content) -> some View {
+        content.overlay(alignment: .top) {
+            Group {
+                if let message {
+                    HStack(spacing: 8) {
+                        Image(systemName: icon)
+                            .font(.body.weight(.semibold))
+                        Text(message)
+                            .font(.subheadline.weight(.medium))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(
+                        Capsule().fill(tint.opacity(0.92))
+                            .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
+                    )
+                    .padding(.top, 8)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .zIndex(999)
+                }
+            }
+            .animation(.spring(duration: 0.35), value: message)
+        }
+    }
+}
+
+extension View {
+    func toast(_ message: Binding<String?>, icon: String = "checkmark.circle.fill", tint: Color = .success) -> some View {
+        modifier(ToastModifier(message: message, icon: icon, tint: tint))
+    }
+}
+
+func showToast(_ binding: Binding<String?>, message: String, duration: TimeInterval = 2.0) {
+    binding.wrappedValue = message
+    Task { @MainActor in
+        try? await Task.sleep(for: .seconds(duration))
+        if binding.wrappedValue == message {
+            binding.wrappedValue = nil
+        }
+    }
+}
+
 // MARK: - Cross-Platform Keyboard Type
 
 #if os(macOS)

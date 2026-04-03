@@ -23,6 +23,7 @@ struct LifestyleView: View {
     @State private var sleepStageBreakdown: SleepEngine.SleepStageBreakdown? = nil
     @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
     private var isWide: Bool { containerWidth >= Layout.wideThreshold }
+    @State private var toastMessage: String?
 
     var body: some View {
         ScrollView {
@@ -33,6 +34,7 @@ struct LifestyleView: View {
             .readContainerWidth { containerWidth = $0 }
         }
         .background(Color.bg)
+        .toast($toastMessage)
         .task { await loadData() }
     }
 
@@ -678,5 +680,6 @@ struct LifestyleView: View {
         await DataStore.shared.updateProfile(existingData.profile)
         saved = true
         NotificationCenter.default.post(name: .profileDidChange, object: nil)
+        showToast($toastMessage, message: "Lifestyle profile saved")
     }
 }

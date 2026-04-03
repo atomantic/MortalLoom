@@ -122,6 +122,8 @@ struct SubstancesView: View {
     @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
     private var isWide: Bool { containerWidth >= Layout.wideThreshold }
 
+    @State private var toastMessage: String?
+
     // Edit form state
     @State private var editAlcoName = ""
     @State private var editAlcoOz = ""
@@ -188,6 +190,7 @@ struct SubstancesView: View {
                 Task { await DataStore.shared.setSaunaPresets(newPresets) }
             })
         }
+        .toast($toastMessage)
     }
 
     // MARK: - Data Loading
@@ -1495,6 +1498,7 @@ struct SubstancesView: View {
             await DataStore.shared.addAlcoholDrink(drink)
         }
         await loadData()
+        showToast($toastMessage, message: "\(preset.name) logged")
     }
 
     private func addCustomAlcohol() async {
@@ -1510,12 +1514,14 @@ struct SubstancesView: View {
             date: DateFormatting.dateString( alcoDate)
         )
         await DataStore.shared.addAlcoholDrink(drink)
+        let name = alcoName.isEmpty ? "Drink" : alcoName
         alcoName = ""
         alcoVolume = ""
         alcoABV = ""
         alcoCount = "1"
         alcoDate = Date()
         await loadData()
+        showToast($toastMessage, message: "\(name) logged")
     }
 
     private func quickAddNicotine(_ preset: NicotinePreset) async {
@@ -1528,6 +1534,7 @@ struct SubstancesView: View {
             await DataStore.shared.addNicotineEntry(entry)
         }
         await loadData()
+        showToast($toastMessage, message: "\(preset.name) logged")
     }
 
     private func addCustomNicotine() async {
@@ -1540,11 +1547,13 @@ struct SubstancesView: View {
             date: DateFormatting.dateString( nicoDate)
         )
         await DataStore.shared.addNicotineEntry(entry)
+        let name = nicoProduct.isEmpty ? "Nicotine" : nicoProduct
         nicoProduct = ""
         nicoMgPerUnit = ""
         nicoCount = "1"
         nicoDate = Date()
         await loadData()
+        showToast($toastMessage, message: "\(name) logged")
     }
 
     private func quickAddSauna(_ preset: SaunaPreset) async {
@@ -1556,6 +1565,7 @@ struct SubstancesView: View {
         )
         await DataStore.shared.addSaunaSession(session)
         await loadData()
+        showToast($toastMessage, message: "\(preset.saunaType.rawValue.capitalized) sauna logged")
     }
 
     private func addCustomSauna() async {
@@ -1572,6 +1582,7 @@ struct SubstancesView: View {
         saunaDuration = "\(saunaType.defaultMinutes)"
         saunaDate = Date()
         await loadData()
+        showToast($toastMessage, message: "\(saunaType.rawValue.capitalized) sauna logged")
     }
 
 }
