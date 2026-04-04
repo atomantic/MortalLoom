@@ -214,6 +214,8 @@ struct SleepView: View {
         }
         .padding()
         .cardStyle()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Sleep duration chart showing \(sleepPoints.count) nights, optimal range 7 to 9 hours")
     }
 
     private func legendItem(color: Color, label: String) -> some View {
@@ -341,6 +343,8 @@ struct SleepView: View {
         }
         .padding()
         .cardStyle()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Sleep stage breakdown chart showing deep, REM, and core sleep stacked by night over \(stagePoints.count > 0 ? "\(Set(stagePoints.map(\.date)).count)" : "0") nights")
     }
 
     // MARK: - Breathing Disturbances Card

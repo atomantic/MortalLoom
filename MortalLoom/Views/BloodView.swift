@@ -132,6 +132,8 @@ struct BloodView: View {
             }
         }
         .frame(height: Layout.chartFrameHeight)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Average daily steps chart showing activity levels around each blood test date")
     }
 
     private func markerTrendChart(_ data: [CorrelationDataPoint], markers: [(key: String, label: String, color: Color)]) -> some View {
@@ -165,6 +167,8 @@ struct BloodView: View {
             }
         }
         .frame(height: Layout.chartFrameHeight)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Blood marker trend chart tracking \(markers.map(\.label).joined(separator: ", ")) over time")
     }
 
     @ViewBuilder
@@ -511,6 +515,7 @@ private struct BloodTestFormView: View {
                 .multilineTextAlignment(.trailing)
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 80)
+                .accessibilityLabel("Enter \(ref.label) value in \(ref.unit)")
             Text(ref.unit.isEmpty ? " " : ref.unit)
                 .font(.caption)
                 .foregroundColor(.textMuted)

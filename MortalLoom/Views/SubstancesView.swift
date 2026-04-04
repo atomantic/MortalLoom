@@ -302,6 +302,8 @@ struct SubstancesView: View {
             }
             .chartYAxisLabel("grams")
             .frame(height: Layout.chartFrameHeight)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Daily alcohol consumption chart showing grams of alcohol over the last 30 days")
         }
         .padding()
         .cardStyle()
@@ -372,6 +374,8 @@ struct SubstancesView: View {
                     "Alcohol (g)": Color.accentColor.opacity(0.4),
                 ])
                 .frame(height: Layout.chartFrameHeight)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Alcohol and HRV correlation chart over 30 days. Average HRV on drinking days: \(String(format: "%.0f", avgDrinking)) milliseconds. Sober days: \(String(format: "%.0f", avgSober)) milliseconds")
 
                 let pctDiff = avgSober > 0 ? ((avgSober - avgDrinking) / avgSober * 100) : 0
                 HStack(spacing: 16) {
@@ -467,12 +471,13 @@ struct SubstancesView: View {
                     Text("Name").font(.caption).foregroundColor(.textMuted)
                     TextField("e.g. IPA", text: $alcoName)
                         .textFieldStyle(.roundedBorder)
+                        .accessibilityLabel("Drink name")
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
                         Text("Volume").font(.caption).foregroundColor(.textMuted)
-                        Picker("", selection: $alcoVolumeUnit) {
+                        Picker("Volume unit", selection: $alcoVolumeUnit) {
                             ForEach(VolumeUnit.allCases, id: \.self) { u in
                                 Text(u.rawValue).tag(u)
                             }
@@ -485,6 +490,7 @@ struct SubstancesView: View {
                         #if os(iOS)
                         .keyboardType(.decimalPad)
                         #endif
+                        .accessibilityLabel("Volume in \(alcoVolumeUnit.rawValue)")
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -494,6 +500,7 @@ struct SubstancesView: View {
                         #if os(iOS)
                         .keyboardType(.decimalPad)
                         #endif
+                        .accessibilityLabel("Alcohol by volume percentage")
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -503,6 +510,7 @@ struct SubstancesView: View {
                         #if os(iOS)
                         .keyboardType(.numberPad)
                         #endif
+                        .accessibilityLabel("Number of drinks")
                 }
             }
 
@@ -602,6 +610,10 @@ struct SubstancesView: View {
         }
         .padding(.vertical, 6)
         .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(drink.name): \(String(format: "%.1f", drink.gramsAlcohol)) grams, \(String(format: "%.1f", drink.standardDrinks)) standard drinks")
+        .accessibilityHint("Tap to edit")
+        .accessibilityAddTraits(.isButton)
         .onTapGesture { startEditingDrink(drink) }
         .contextMenu {
             Button { startEditingDrink(drink) } label: {
@@ -696,6 +708,8 @@ struct SubstancesView: View {
             }
             .chartYAxisLabel("mg")
             .frame(height: Layout.chartFrameHeight)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Daily nicotine consumption chart showing milligrams over the last 30 days")
         }
         .padding()
         .cardStyle()
@@ -760,6 +774,8 @@ struct SubstancesView: View {
                     "Resting HR": Color.pink,
                 ])
                 .frame(height: Layout.chartFrameHeight)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Nicotine and heart rate correlation chart. Average heart rate on nicotine days: \(String(format: "%.0f", avgNico)) bpm. Clean days: \(String(format: "%.0f", avgClean)) bpm")
 
                 let pctDiff = avgClean > 0 ? ((avgNico - avgClean) / avgClean * 100) : 0
                 let direction = pctDiff > 0 ? "higher" : "lower"
@@ -856,6 +872,7 @@ struct SubstancesView: View {
                     Text("Product").font(.caption).foregroundColor(.textMuted)
                     TextField("e.g. Zyn 6mg", text: $nicoProduct)
                         .textFieldStyle(.roundedBorder)
+                        .accessibilityLabel("Nicotine product name")
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -865,6 +882,7 @@ struct SubstancesView: View {
                         #if os(iOS)
                         .keyboardType(.decimalPad)
                         #endif
+                        .accessibilityLabel("Milligrams per unit")
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -874,6 +892,7 @@ struct SubstancesView: View {
                         #if os(iOS)
                         .keyboardType(.numberPad)
                         #endif
+                        .accessibilityLabel("Number of units")
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -970,6 +989,10 @@ struct SubstancesView: View {
         }
         .padding(.vertical, 6)
         .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(entry.product): \(String(format: "%.1f", entry.totalMg)) milligrams total, \(String(format: "%.1f", entry.mgPerUnit)) mg per unit, \(entry.count) units")
+        .accessibilityHint("Tap to edit")
+        .accessibilityAddTraits(.isButton)
         .onTapGesture { startEditingNicotine(entry) }
         .contextMenu {
             Button { startEditingNicotine(entry) } label: {
@@ -1060,6 +1083,8 @@ struct SubstancesView: View {
             }
             .chartYAxisLabel("minutes")
             .frame(height: Layout.chartFrameHeight)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Daily sauna duration chart showing minutes over the last 30 days")
         }
         .padding()
         .cardStyle()
@@ -1137,6 +1162,7 @@ struct SubstancesView: View {
                             #if os(iOS)
                             .keyboardType(.numberPad)
                             #endif
+                            .accessibilityLabel("Temperature in Fahrenheit")
                     }
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Minutes")
@@ -1147,6 +1173,7 @@ struct SubstancesView: View {
                             #if os(iOS)
                             .keyboardType(.numberPad)
                             #endif
+                            .accessibilityLabel("Duration in minutes")
                     }
                 }
 
@@ -1214,6 +1241,10 @@ struct SubstancesView: View {
                             .background(Color.bgInput)
                             .cornerRadius(8)
                             .contentShape(Rectangle())
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel("\(session.saunaType.rawValue) sauna: \(session.temperatureF) degrees Fahrenheit for \(session.durationMinutes) minutes")
+                            .accessibilityHint("Tap to edit")
+                            .accessibilityAddTraits(.isButton)
                             .onTapGesture { startEditingSauna(session) }
                             .contextMenu {
                                 Button { startEditingSauna(session) } label: {

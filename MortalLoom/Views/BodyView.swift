@@ -145,6 +145,8 @@ struct BodyView: View {
                 .chartYAxisLabel("lbs")
                 .frame(height: Layout.chartFrameHeight)
                 .padding(.vertical, 4)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Weight trend chart showing \(weightPoints.count) data points over time in pounds")
             } else {
                 Text("No weight data available")
                     .font(.subheadline)
@@ -210,6 +212,7 @@ struct BodyView: View {
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 80)
+                    .accessibilityLabel("Weight in pounds")
             }
             HStack {
                 Text("Body Fat %")
@@ -220,6 +223,7 @@ struct BodyView: View {
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 80)
+                    .accessibilityLabel("Body fat percentage, optional")
             }
             Button(action: saveManualEntry) {
                 Text("Save Entry")
@@ -267,6 +271,8 @@ struct BodyView: View {
                     .chartYAxisLabel("mL/kg/min")
                     .frame(height: Layout.chartFrameHeight)
                     .padding(.vertical, 4)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("VO2 Max trend chart showing \(vo2MaxHistory.count) readings over time")
                 }
 
                 // Metric cards
@@ -431,6 +437,8 @@ struct BodyView: View {
                                 .foregroundColor(colorForName(level.color))
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("Walking speed: \(String(format: "%.2f", speed)) meters per second, \(level.rawValue)")
                     }
 
                     if let dist = gait.avgWalkingDistance {
@@ -452,6 +460,8 @@ struct BodyView: View {
                                 .foregroundColor(.textMuted)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("Daily walking distance: \(String(format: "%.1f", dist)) kilometers average")
                     }
 
                     VStack(alignment: .leading, spacing: 4) {
@@ -474,6 +484,8 @@ struct BodyView: View {
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Fall risk: \(gait.fallRisk.rawValue)\(gait.avgAsymmetry.map { String(format: ", %.1f percent asymmetry", $0) } ?? "")")
                 }
 
                 // Longevity impact
@@ -527,6 +539,8 @@ struct BodyView: View {
                                 .foregroundColor(.textMuted)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("Stand time: \(String(format: "%.0f", stand)) minutes per day average")
                     }
 
                     if let basal = latestBasalEnergy {
@@ -548,6 +562,8 @@ struct BodyView: View {
                                 .foregroundColor(.textMuted)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("Basal energy: \(String(format: "%.0f", basal)) kilocalories per day")
                     }
 
                     if let daylight = latestDaylightMinutes {
@@ -569,6 +585,8 @@ struct BodyView: View {
                                 .foregroundColor(.textMuted)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("Daylight exposure: \(String(format: "%.0f", daylight)) minutes per day average, \(daylight >= 30 ? "meeting" : "below") recommended 30 minutes")
                     }
                 }
 

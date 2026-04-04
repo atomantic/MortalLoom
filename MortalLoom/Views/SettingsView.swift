@@ -283,6 +283,7 @@ struct SettingsView: View {
                                 #if os(iOS)
                                 .keyboardType(.numberPad)
                                 #endif
+                                .accessibilityLabel("LEV target lifespan in years")
                             Text("yr")
                                 .font(.subheadline)
                                 .foregroundColor(.textPrimary)

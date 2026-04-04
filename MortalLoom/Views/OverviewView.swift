@@ -692,6 +692,8 @@ struct OverviewView: View {
         .padding()
         .frame(maxWidth: .infinity)
         .cardStyle()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Health trajectory chart. Current health score \(String(format: "%.0f", cachedHealthScore)) percent. Shows expected decline and LEV optimistic path from \(currentYear) to \(levDeathYear)")
     }
 
     private func healthScoreColor(_ score: Double) -> Color {

@@ -513,6 +513,8 @@ struct GenomeView: View {
             .padding()
             .background(colorForStatus(apoe.status).opacity(0.08))
             .cardStyle()
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("APOE Haplotype: \(apoe.haplotype), risk multiplier \(apoe.riskMultiplier), \(apoe.frequency) of population. \(apoe.implication)")
         }
     }
 
@@ -567,6 +569,7 @@ struct GenomeView: View {
             Circle()
                 .fill(color)
                 .frame(width: 8, height: 8)
+                .accessibilityHidden(true)
             Text("\(count)")
                 .font(.subheadline)
                 .fontWeight(.bold)
@@ -575,6 +578,8 @@ struct GenomeView: View {
                 .font(.caption)
                 .foregroundColor(.textSecondary)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(count) \(label) markers")
     }
 
     // MARK: - Category Cards

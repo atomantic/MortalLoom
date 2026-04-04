@@ -130,7 +130,7 @@ With the new data, `DeathClockEngine.lifestyleAdjustment()` and `healthScore()` 
 
 ## Backlog
 
-- [ ] VoiceOver testing pass on iOS
+- [x] VoiceOver testing pass on iOS
 
 ## Not Porting (web-specific)
 

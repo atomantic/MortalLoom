@@ -376,6 +376,8 @@ struct LifestyleView: View {
                     .background(Color.bgInput)
                     .cornerRadius(8)
                     .foregroundColor(.textPrimary)
+                    .accessibilityLabel("Body mass index")
+                    .accessibilityHint("Enter your BMI as a decimal number")
             }
         }
         .padding()
@@ -486,6 +488,8 @@ struct LifestyleView: View {
                     .foregroundColor(impactColor(totalImpact))
             }
             .padding(.top, 4)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Total lifestyle adjustment: \(String(format: "%+.1f", totalImpact)) years on life expectancy")
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
