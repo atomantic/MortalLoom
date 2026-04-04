@@ -135,12 +135,14 @@ struct BodyView: View {
                     )
                     .foregroundStyle(Color.accentColor)
                     .interpolationMethod(.catmullRom)
-                    PointMark(
-                        x: .value("Date", point.date),
-                        y: .value("Weight", point.value)
-                    )
-                    .foregroundStyle(Color.accentColor)
-                    .symbolSize(20)
+                    if weightPoints.count <= 90 {
+                        PointMark(
+                            x: .value("Date", point.date),
+                            y: .value("Weight", point.value)
+                        )
+                        .foregroundStyle(Color.accentColor)
+                        .symbolSize(20)
+                    }
                 }
                 .chartYAxisLabel("lbs")
                 .frame(height: Layout.chartFrameHeight)
@@ -725,9 +727,9 @@ struct BodyView: View {
     }
 
     private func loadHealthKitData() async {
-        // Weight history for chart (last 90 days)
+        // Weight history for chart (last 365 days)
         let end = Date()
-        let start = Calendar.current.date(byAdding: .day, value: -90, to: end) ?? end
+        let start = Calendar.current.date(byAdding: .day, value: -365, to: end) ?? end
 
         // Run all HealthKit queries in parallel
         async let weightData = healthKit.dailyStats(
@@ -787,6 +789,10 @@ struct BodyView: View {
                     return WeightPoint(date: d, value: w)
                 }
             }
+        }
+
+        if weightPoints.isEmpty, let w = latestWeight, let d = weightDate {
+            weightPoints = [WeightPoint(date: d, value: w)]
         }
 
         // If HealthKit has no weight data but we have manual, compute lean mass
