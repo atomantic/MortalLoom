@@ -11,16 +11,21 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # Parse args
-DEPLOY_IOS=true
+DEPLOY_IOS=false
 DEPLOY_MACOS=false
 SKIP_TESTS=false
 for arg in "$@"; do
     case "$arg" in
-        --macos) DEPLOY_IOS=false; DEPLOY_MACOS=true ;;
+        --ios) DEPLOY_IOS=true ;;
+        --macos) DEPLOY_MACOS=true ;;
         --all) DEPLOY_IOS=true; DEPLOY_MACOS=true ;;
         --skip-tests) SKIP_TESTS=true ;;
     esac
 done
+# Default to iOS if no platform specified
+if ! $DEPLOY_IOS && ! $DEPLOY_MACOS; then
+    DEPLOY_IOS=true
+fi
 
 # Load environment
 if [ -f .env ]; then
