@@ -5,92 +5,142 @@ final class ScreenshotTests: XCTestCase {
 
     var app: XCUIApplication!
 
-    override func setUpWithError() throws {
-        continueAfterFailure = true
-        app = XCUIApplication()
-        app.launchArguments = ["-sample-data"]
-        app.launch()
-        Thread.sleep(forTimeInterval: 3)
+    private static let projectDir: String = {
+        URL(fileURLWithPath: #file)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .path
+    }()
+
+    private static let launchArgs = ["-sample-data", "-hasCompletedOnboarding", "1", "-force-pro"]
+
+    private lazy var cachedConfig: [String: String] = {
+        for path in ["\(Self.projectDir)/.screenshot_config.json",
+                     "/tmp/mortalloom_screenshot_config.json"] {
+            if let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+               let dict = try? JSONSerialization.jsonObject(with: data) as? [String: String] {
+                return dict
+            }
+        }
+        return [:]
+    }()
+
+    private var deviceType: String {
+        cachedConfig["device"] ?? "iphone_6.7"
     }
 
-    func testCaptureAllPages() throws {
-        let dir = "/Users/antic/github.com/atomantic/MortalLoom/screenshots"
+    private var isIPad: Bool {
+        if let device = cachedConfig["device"] { return device.hasPrefix("ipad") }
+        return UIDevice.current.userInterfaceIdiom == .pad
+    }
 
-        // 1. Overview (default page)
-        Thread.sleep(forTimeInterval: 1)
-        save("01-overview", to: dir)
+    private var outputDir: String {
+        cachedConfig["output_dir"] ?? "\(Self.projectDir)/screenshots"
+    }
+
+    private var targetScreen: String? {
+        let s = cachedConfig["target_screen"] ?? ""
+        return s.isEmpty ? nil : s
+    }
+
+    override func setUp() async throws {
+        continueAfterFailure = true
+        app = XCUIApplication()
+        app.launchArguments = Self.launchArgs
+        app.launch()
+        try await Task.sleep(for: .seconds(3))
+        dismissSystemAlerts()
+    }
+
+    // MARK: - iPhone Screenshots
+
+    func testCaptureIPhoneScreenshots() throws {
+        guard !isIPad else { return }
+
+        saveScreenshot("01_overview")
 
         app.swipeUp()
         Thread.sleep(forTimeInterval: 0.5)
-        save("01b-overview-scroll", to: dir)
+        saveScreenshot("02_overview_scroll")
         app.swipeDown()
         app.swipeDown()
         Thread.sleep(forTimeInterval: 0.3)
 
-        // 2. Habits - Alcohol
+        tapCustomTab("Goals")
+        saveScreenshot("03_goals")
+
         tapCustomTab("Habits")
-        save("02-habits-alcohol", to: dir)
+        saveScreenshot("04_habits_alcohol")
 
-        app.swipeUp()
-        Thread.sleep(forTimeInterval: 0.5)
-        save("03-habits-alcohol-hrv", to: dir)
-        app.swipeDown()
-        app.swipeDown()
-        Thread.sleep(forTimeInterval: 0.3)
-
-        // Nicotine sub-tab
         if app.buttons["Nicotine"].waitForExistence(timeout: 2) {
             app.buttons["Nicotine"].tap()
             Thread.sleep(forTimeInterval: 1)
-            save("04-habits-nicotine", to: dir)
-
-            app.swipeUp()
-            Thread.sleep(forTimeInterval: 0.5)
-            save("05-habits-nicotine-hr", to: dir)
-            app.swipeDown()
-            app.swipeDown()
-            Thread.sleep(forTimeInterval: 0.3)
+            saveScreenshot("05_habits_nicotine")
         }
 
-        // 3. Body
         tapCustomTab("Body")
-        save("06-body", to: dir)
+        saveScreenshot("06_body")
 
-        // 4. Blood
-        tapCustomTab("Blood")
-        save("07-blood", to: dir)
+        tapHamburger()
+        tapSideMenuItem("Blood")
+        saveScreenshot("07_blood")
 
-        // 5. Calendar
         tapCustomTab("Calendar")
-        save("08-calendar", to: dir)
+        saveScreenshot("08_calendar")
 
-        // 6. Lifestyle via side menu
+        tapHamburger()
+        tapSideMenuItem("Sleep")
+        saveScreenshot("09_sleep")
+
         tapHamburger()
         tapSideMenuItem("Lifestyle")
-        save("09-lifestyle", to: dir)
+        saveScreenshot("10_lifestyle")
+    }
 
-        // 7. Genome
-        tapHamburger()
-        tapSideMenuItem("Genome")
-        save("10-genome", to: dir)
+    // MARK: - iPad Screenshots
 
-        // 8. Settings
+    func testCaptureIPadScreenshots() throws {
+        guard isIPad else { return }
+
+        saveScreenshot("01_overview")
+
+        app.swipeUp()
+        Thread.sleep(forTimeInterval: 0.5)
+        saveScreenshot("02_overview_scroll")
+        app.swipeDown()
+        app.swipeDown()
+        Thread.sleep(forTimeInterval: 0.3)
+
+        tapCustomTab("Goals")
+        saveScreenshot("03_goals")
+
+        tapCustomTab("Habits")
+        saveScreenshot("04_habits_alcohol")
+
+        tapCustomTab("Body")
+        saveScreenshot("05_body")
+
         tapHamburger()
-        tapSideMenuItem("Settings")
-        save("11-settings", to: dir)
+        tapSideMenuItem("Blood")
+        saveScreenshot("06_blood")
+
+        tapCustomTab("Calendar")
+        saveScreenshot("07_calendar")
+
+        tapHamburger()
+        tapSideMenuItem("Sleep")
+        saveScreenshot("08_sleep")
     }
 
     // MARK: - Helpers
 
     private func tapCustomTab(_ name: String) {
-        // Custom tab bar uses plain buttons with the page title as text
         let button = app.buttons[name]
         if button.waitForExistence(timeout: 3) {
             button.tap()
             Thread.sleep(forTimeInterval: 1)
             return
         }
-        // Fallback: try static text
         let text = app.staticTexts[name]
         if text.waitForExistence(timeout: 2) {
             text.tap()
@@ -116,9 +166,29 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
-    private func save(_ name: String, to dir: String) {
-        let screenshot = XCUIScreen.main.screenshot()
+    private func dismissSystemAlerts() {
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        for label in ["Allow", "Don't Allow", "OK"] {
+            let btn = springboard.buttons[label]
+            if btn.waitForExistence(timeout: 1) {
+                btn.tap()
+                Thread.sleep(forTimeInterval: 0.5)
+            }
+        }
+    }
+
+    private func saveScreenshot(_ name: String) {
+        if let target = targetScreen, target != name { return }
+
+        let screenshot = app.screenshot()
+        let attachment = XCTAttachment(screenshot: screenshot)
+        attachment.name = "\(deviceType)_\(name)"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+
+        let dir = "\(outputDir)/en/\(deviceType)"
         let url = URL(fileURLWithPath: "\(dir)/\(name).png")
+        try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         try? screenshot.pngRepresentation.write(to: url)
     }
 }

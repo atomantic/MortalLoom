@@ -51,9 +51,24 @@ if [ ! -f ~/.private_keys/"$KEY_FILENAME" ]; then
     echo "🔑 Symlinked API key to ~/.private_keys/"
 fi
 
-# Regenerate Xcode project from project.yml
-echo "⚙️  Regenerating Xcode project..."
-xcodegen generate
+# Strip alpha from app icons (App Store rejects icons with alpha/transparency)
+python3 -c "
+from PIL import Image
+from pathlib import Path
+fixed = False
+for p in Path('MortalLoom/App/Assets.xcassets/AppIcon.appiconset').glob('AppIcon-*.png'):
+    img = Image.open(p)
+    if img.mode == 'RGBA':
+        bg = Image.new('RGB', img.size, (0, 0, 0))
+        bg.paste(img, mask=img.split()[3])
+        bg.save(p)
+        fixed = True
+    elif img.mode != 'RGB':
+        img.convert('RGB').save(p)
+        fixed = True
+if fixed:
+    print('🎨 Stripped alpha from app icons')
+"
 
 PROJECT="MortalLoom.xcodeproj"
 BUILD_DIR="$SCRIPT_DIR/build"
@@ -64,8 +79,9 @@ NEW_BUILD=$((CURRENT_BUILD + 1))
 echo "📦 Build number: $CURRENT_BUILD → $NEW_BUILD"
 /usr/bin/sed -i '' "s/CURRENT_PROJECT_VERSION: ${CURRENT_BUILD}/CURRENT_PROJECT_VERSION: ${NEW_BUILD}/" project.yml
 
-# Regenerate after build number change
-xcodegen generate 2>/dev/null
+# Regenerate Xcode project from project.yml
+echo "⚙️  Regenerating Xcode project..."
+xcodegen generate
 
 # Run tests (unless skipped)
 if [ "$SKIP_TESTS" = false ]; then
@@ -93,13 +109,16 @@ for runtime, devices in data.get('devices', {}).items():
             echo "platform=iOS Simulator,name=iPhone 16,OS=18.6"
         fi
     )
-    xcodebuild test \
+    if ! xcodebuild test \
         -project "$PROJECT" \
-        -scheme "MortalLoomTests_iOS" \
+        -scheme "MortalLoom_iOS" \
         -destination "$DESTINATION" \
+        -only-testing:MortalLoomTests_iOS \
         -configuration Debug \
         CODE_SIGNING_ALLOWED=NO \
-        -quiet || true
+        -quiet; then
+        echo "⚠️  Tests had failures — continuing deploy"
+    fi
     echo "✅ Tests complete"
 fi
 
@@ -170,16 +189,17 @@ EOF
     fi
 
     echo "🚀 Uploading $PLATFORM to TestFlight..."
-    if xcrun altool --upload-app \
+    UPLOAD_OUTPUT=$(xcrun altool --upload-app \
         --file "$ARTIFACT" \
         --type "$APP_TYPE" \
         --apiKey "$APPSTORE_API_KEY_ID" \
-        --apiIssuer "$APPSTORE_ISSUER_ID"; then
-        echo "✅ $PLATFORM upload complete!"
-    else
+        --apiIssuer "$APPSTORE_ISSUER_ID" 2>&1) || true
+    echo "$UPLOAD_OUTPUT"
+    if echo "$UPLOAD_OUTPUT" | grep -q "UPLOAD FAILED\|ERROR:"; then
         echo "❌ $PLATFORM upload failed"
         exit 1
     fi
+    echo "✅ $PLATFORM upload complete!"
 }
 
 # Clean build directory
@@ -203,10 +223,12 @@ fi
 echo "✅ Build $NEW_BUILD submitted to TestFlight."
 echo "🔗 https://appstoreconnect.apple.com/apps/6760883701/testflight"
 
-# Commit the build number bump
+# Commit the build number bump and push
 git add project.yml "$PROJECT/project.pbxproj"
 git commit -m "build: bump to $NEW_BUILD"
 echo "📝 Committed build number bump"
+git pull --rebase --autostash && git push
+echo "📤 Pushed to remote"
 
 # Clean up
 rm -rf "$BUILD_DIR"

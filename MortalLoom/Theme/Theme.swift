@@ -133,9 +133,11 @@ struct EmptyStateView: View {
 enum Layout {
     static let chartFrameHeight: CGFloat = 160
     static let wideThreshold: CGFloat = 700
-    static var defaultContainerWidth: CGFloat {
+    @MainActor static var defaultContainerWidth: CGFloat {
         #if os(iOS)
-        UIScreen.main.bounds.width
+        (UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first?.screen.bounds.width) ?? 390
         #else
         900
         #endif

@@ -50,6 +50,17 @@
                ReferencedContainer = "container:MortalLoom.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "D14CEF7D50E685454E8D52CE"
+               BuildableName = "MortalLoomUITests_iOS.xctest"
+               BlueprintName = "MortalLoomUITests_iOS"
+               ReferencedContainer = "container:MortalLoom.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
       <CommandLineArguments>
       </CommandLineArguments>

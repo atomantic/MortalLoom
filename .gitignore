@@ -16,7 +16,14 @@ Pods/
 .DS_Store
 
 # Screenshots
+screenshots/
 *.png
+
+# Screenshot config (temp files from take_screenshots.sh)
+.screenshot_config.json
+
+# Build artifacts
+.build/
 
 # Playwright
 .playwright-mcp/

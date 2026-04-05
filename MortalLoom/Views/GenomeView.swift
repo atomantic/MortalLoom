@@ -38,9 +38,18 @@ struct GenomeView: View {
     @State private var clinvarProgress: String = ""
     @State private var clinvarError: String?
     @State private var expandedThemes: Set<ClinVarTheme> = []
+    @State private var minimumStars: Int = 0
+    @State private var themeDisplayLimits: [ClinVarTheme: Int] = [:]
+
+    private static let themePageSize = 20
+
+    private var filteredClinvarHits: [ClinVarHit] {
+        if minimumStars == 0 { return clinvarHits }
+        return clinvarHits.filter { $0.entry.reviewStars >= minimumStars }
+    }
 
     private var clinvarGrouped: [(theme: ClinVarTheme, hits: [ClinVarHit])] {
-        GenomeEngine.groupByTheme(clinvarHits)
+        GenomeEngine.groupByTheme(filteredClinvarHits)
     }
 
     var body: some View {
@@ -788,7 +797,9 @@ struct GenomeView: View {
     // MARK: - ClinVar Section
 
     private var clinvarSection: some View {
-        VStack(spacing: 12) {
+        let grouped = clinvarGrouped
+
+        return VStack(spacing: 12) {
             // Header card
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 8) {
@@ -816,7 +827,7 @@ struct GenomeView: View {
                 } else if clinvarHits.isEmpty && clinvarStatus.synced {
                     clinvarNoHitsView
                 } else {
-                    clinvarSummaryBar
+                    clinvarSummaryBar(grouped: grouped)
                 }
 
                 if let error = clinvarError {
@@ -830,28 +841,35 @@ struct GenomeView: View {
             .onAppear { loadClinVarStatus() }
 
             // Theme cards (outside the header card)
-            if !clinvarGrouped.isEmpty {
-                ForEach(clinvarGrouped, id: \.theme) { group in
+            if !grouped.isEmpty {
+                ForEach(grouped, id: \.theme) { group in
                     clinvarThemeCard(theme: group.theme, hits: group.hits)
                 }
             }
         }
     }
 
-    private var clinvarSummaryBar: some View {
-        var pathogenic = 0, riskFactor = 0, drugResponse = 0, protective = 0
-        for hit in clinvarHits {
-            switch hit.entry.severity {
-            case "pathogenic": pathogenic += 1
-            case "risk_factor": riskFactor += 1
-            case "drug_response": drugResponse += 1
-            case "protective": protective += 1
-            default: break
+    private func clinvarSummaryBar(grouped: [(theme: ClinVarTheme, hits: [ClinVarHit])]) -> some View {
+        var pathogenic = 0, riskFactor = 0, drugResponse = 0, protective = 0, filteredTotal = 0
+        for group in grouped {
+            for hit in group.hits {
+                filteredTotal += 1
+                switch hit.entry.severity {
+                case "pathogenic": pathogenic += 1
+                case "risk_factor": riskFactor += 1
+                case "drug_response": drugResponse += 1
+                case "protective": protective += 1
+                default: break
+                }
             }
         }
 
+        let summaryText = minimumStars > 0
+            ? "\(filteredTotal) of \(clinvarHits.count) variants (≥\(minimumStars) star\(minimumStars == 1 ? "" : "s"))"
+            : "\(clinvarHits.count) variants matched your genome"
+
         return VStack(alignment: .leading, spacing: 8) {
-            Text("\(clinvarHits.count) variants matched your genome")
+            Text(summaryText)
                 .font(.subheadline)
                 .fontWeight(.semibold)
                 .foregroundColor(.textPrimary)
@@ -870,6 +888,37 @@ struct GenomeView: View {
                     summaryPill(count: protective, label: "Protective", color: .green)
                 }
             }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Minimum Review Stars")
+                    .font(.caption)
+                    .foregroundColor(.textMuted)
+                HStack(spacing: 2) {
+                    ForEach(0..<5, id: \.self) { star in
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                minimumStars = minimumStars == star ? 0 : star
+                                themeDisplayLimits = [:]
+                            }
+                        }) {
+                            Image(systemName: star == 0 ? "line.3.horizontal.decrease.circle" : (star <= minimumStars ? "star.fill" : "star"))
+                                .font(.system(size: star == 0 ? 16 : 14))
+                                .foregroundColor(star == 0
+                                    ? (minimumStars == 0 ? .textMuted : .accentColor)
+                                    : (star <= minimumStars ? .orange : .textMuted))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(star == 0 ? "Show all" : "\(star) star\(star == 1 ? "" : "s") minimum")
+                    }
+                    if minimumStars > 0 {
+                        Text("≥\(minimumStars)")
+                            .font(.caption2)
+                            .foregroundColor(.orange)
+                            .padding(.leading, 4)
+                    }
+                }
+            }
+            .padding(.top, 4)
 
             Text("Organized by health theme below. Tap a category to see details.")
                 .font(.caption)
@@ -998,13 +1047,32 @@ struct GenomeView: View {
                 Divider()
                     .padding(.horizontal)
 
-                VStack(spacing: 0) {
-                    ForEach(0..<hits.count, id: \.self) { idx in
-                        clinvarHitRow(hits[idx])
-                        if idx < hits.count - 1 {
+                let displayLimit = themeDisplayLimits[theme] ?? Self.themePageSize
+                let visibleHits = Array(hits.prefix(displayLimit))
+                let hasMore = hits.count > displayLimit
+
+                LazyVStack(spacing: 0) {
+                    ForEach(0..<visibleHits.count, id: \.self) { idx in
+                        clinvarHitRow(visibleHits[idx])
+                        if idx < visibleHits.count - 1 {
                             Divider()
                                 .padding(.leading, 44)
                         }
+                    }
+
+                    if hasMore {
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                themeDisplayLimits[theme] = displayLimit + Self.themePageSize
+                            }
+                        }) {
+                            Text("Show more (\(hits.count - displayLimit) remaining)")
+                                .font(.caption)
+                                .foregroundColor(.accentColor)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))

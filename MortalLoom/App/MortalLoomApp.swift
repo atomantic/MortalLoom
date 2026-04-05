@@ -6,6 +6,13 @@ enum AppConstants {
     static var useSampleData: Bool {
         ProcessInfo.processInfo.arguments.contains("-sample-data")
     }
+    /// Launch with -start-page <name> to open a specific page (for macOS screenshots)
+    static var startPage: AppPage? {
+        let args = ProcessInfo.processInfo.arguments
+        guard let idx = args.firstIndex(of: "-start-page"),
+              idx + 1 < args.count else { return nil }
+        return AppPage.allCases.first { $0.title.lowercased() == args[idx + 1].lowercased() }
+    }
 }
 
 extension Notification.Name {
@@ -151,7 +158,7 @@ struct ContentView: View {
 
 #if os(macOS)
 struct MacContentView: View {
-    @State private var selectedPage: AppPage? = .overview
+    @State private var selectedPage: AppPage? = AppConstants.startPage ?? .overview
 
     private var selectedTabBinding: Binding<Int> {
         Binding<Int>(

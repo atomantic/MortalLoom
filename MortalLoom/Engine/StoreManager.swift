@@ -21,8 +21,10 @@ final class StoreManager {
     private static let secretKeychainKey = "SecretProUnlocked"
 
     @ObservationIgnored private var transactionListener: Task<Void, Never>?
+    private let forceProEnabled = ProcessInfo.processInfo.arguments.contains("-force-pro")
 
     private init() {
+        if forceProEnabled { isPro = true }
         if readKeychainFlag(Self.secretKeychainKey) { isPro = true }
         transactionListener = listenForTransactions()
         Task { await loadProducts() }
@@ -123,8 +125,8 @@ final class StoreManager {
                 return
             }
         }
-        // Secret code unlock survives entitlement checks
-        if !readKeychainFlag(Self.secretKeychainKey) {
+        // Secret code unlock and force-pro survive entitlement checks
+        if !readKeychainFlag(Self.secretKeychainKey) && !forceProEnabled {
             isPro = false
         }
     }
