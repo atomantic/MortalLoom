@@ -439,7 +439,7 @@ struct OverviewView: View {
                 let maxAbsValue = 10.0 // scale: max |-10| for smoking
                 let barWidth = abs(value) / maxAbsValue * geo.size.width * 0.7
                 let isPositive = value > 0
-                ZStack(alignment: isPositive ? .leading : .trailing) {
+                ZStack(alignment: .leading) {
                     Color.clear
                     RoundedRectangle(cornerRadius: 3)
                         .fill(isPositive ? Color.success : Color.danger)
@@ -448,6 +448,7 @@ struct OverviewView: View {
                 }
             }
             .frame(height: 16)
+            .clipped()
             Text(String(format: "%+.1f yr", value))
                 .font(.caption).fontWeight(.bold).monospacedDigit()
                 .foregroundColor(value > 0 ? .success : .danger)
