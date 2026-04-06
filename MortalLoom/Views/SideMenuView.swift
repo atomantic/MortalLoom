@@ -48,7 +48,7 @@ enum AppPage: Int, CaseIterable, Hashable {
         AppPage(rawValue: tabIndex) ?? .overview
     }
 
-    // Pages shown in bottom tab bar; the fifth slot is the "More" button.
+    // Pages shown in the bottom tab bar; the "More" button is rendered separately.
     static let tabBarPages: [AppPage] = [.overview, .goals, .habits, .body]
 }
 
@@ -192,6 +192,12 @@ struct CustomTabBar: View {
     @Binding var selectedPage: AppPage
     @Binding var showSideMenu: Bool
 
+    // "More" reflects selection when the side menu is open OR when the current
+    // page is not one of the primary tabs (e.g. Calendar/Blood opened via menu).
+    private var isMoreSelected: Bool {
+        showSideMenu || !AppPage.tabBarPages.contains(selectedPage)
+    }
+
     var body: some View {
         HStack {
             ForEach(AppPage.tabBarPages, id: \.self) { page in
@@ -220,11 +226,12 @@ struct CustomTabBar: View {
                     Text("More")
                         .font(.caption2)
                 }
-                .foregroundColor(.textMuted)
+                .foregroundColor(isMoreSelected ? .accentColor : .textMuted)
                 .frame(maxWidth: .infinity)
             }
             .accessibilityLabel("More")
             .accessibilityHint("Opens side menu with additional pages")
+            .accessibilityAddTraits(isMoreSelected ? .isSelected : [])
         }
         .padding(.top, 8)
         .padding(.bottom, 4)

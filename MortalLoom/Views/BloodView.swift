@@ -14,10 +14,15 @@ struct BloodView: View {
     private var isWide: Bool { containerWidth >= Layout.wideThreshold }
 
     private var hasInsightsEligible: Bool {
-        let availableMarkers = Self.trackedMarkers.filter { marker in
-            correlationData.contains { $0.markers[marker.key] != nil }
+        // Teaser should fire whenever a Pro upgrade would actually surface something:
+        // either trend alerts (requires 2+ tests with shared markers) OR activity
+        // correlation data. Basing this purely on correlationData excluded free
+        // users who have blood tests but no HealthKit activity metrics.
+        guard sortedTests.count >= 2 else { return false }
+        let hasTrackedMarker = Self.trackedMarkers.contains { marker in
+            sortedTests.contains { $0.markers[marker.key] != nil }
         }
-        return correlationData.count >= 2 && !availableMarkers.isEmpty
+        return hasTrackedMarker || !correlationData.isEmpty
     }
 
     private static let trackedMarkers: [(key: String, label: String, color: Color)] = [

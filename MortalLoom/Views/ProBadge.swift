@@ -141,15 +141,22 @@ struct ProTeaserCard: View {
                     .foregroundColor(.textSecondary)
                     .multilineTextAlignment(.leading)
                 HStack(spacing: 12) {
-                    ForEach(bullets, id: \.text) { bullet in
+                    ForEach(Array(bullets.enumerated()), id: \.offset) { _, bullet in
                         ProOverlayBullet(icon: bullet.icon, text: bullet.text)
                     }
                 }
             }
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(LinearGradient.proBrandSubtleDiagonal)
-            .cardStyle()
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(LinearGradient.proBrandSubtleDiagonal)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.cardBorder, lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
         .buttonStyle(.plain)
         .sheet(isPresented: $showingPaywall) { PaywallView() }
