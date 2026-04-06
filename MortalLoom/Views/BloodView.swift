@@ -13,26 +13,49 @@ struct BloodView: View {
     @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
     private var isWide: Bool { containerWidth >= Layout.wideThreshold }
 
-    private var hasInsightsEligible: Bool {
-        // Teaser should fire only when a Pro upgrade would actually surface a
-        // gated insight: either visible trend alerts or a usable activity
-        // correlation view. The activity-correlation branch must be derived
-        // from `correlationData` (not `sortedTests`) so the eligibility
-        // condition matches what the chart would actually render — tests
-        // without enough HealthKit metrics in the lookback window are dropped
-        // by `CorrelationEngine.buildCorrelationData`.
-        guard sortedTests.count >= 2 else { return false }
+    // Eligibility for each gated insight — mirrors the actual render
+    // conditions so the teaser never promises something a Pro upgrade wouldn't
+    // surface (and is never suppressed when an upgrade would).
+    private var hasTrendAlertInsight: Bool {
+        !trendAlerts.isEmpty
+    }
 
-        let hasVisibleTrendAlerts = !trendAlerts.isEmpty
-
-        let hasTrackedMarkerInCorrelation = Self.trackedMarkers.contains { marker in
-            correlationData.reduce(into: 0) { count, point in
-                if point.markers[marker.key] != nil { count += 1 }
-            } >= 2
+    private var hasActivityCorrelationInsight: Bool {
+        // Matches `activityCorrelationChart`'s render condition exactly:
+        // correlationData.count >= 2 AND at least one tracked marker appears
+        // at least once in correlationData.
+        guard correlationData.count >= 2 else { return false }
+        return Self.trackedMarkers.contains { marker in
+            correlationData.contains { $0.markers[marker.key] != nil }
         }
-        let hasVisibleActivityCorrelation = correlationData.count >= 2 && hasTrackedMarkerInCorrelation
+    }
 
-        return hasVisibleTrendAlerts || hasVisibleActivityCorrelation
+    private var hasInsightsEligible: Bool {
+        hasTrendAlertInsight || hasActivityCorrelationInsight
+    }
+
+    private var insightsTeaserMessage: String {
+        switch (hasTrendAlertInsight, hasActivityCorrelationInsight) {
+        case (true, true):
+            return "With \(sortedTests.count) tests recorded, MortalLoom Pro reveals trend alerts for markers heading the wrong direction and correlates your lab results against daily activity."
+        case (true, false):
+            return "With \(sortedTests.count) tests recorded, MortalLoom Pro reveals trend alerts for markers heading the wrong direction."
+        case (false, true):
+            return "With \(sortedTests.count) tests recorded, MortalLoom Pro correlates your lab results against daily activity so you can see how lifestyle changes move your markers."
+        case (false, false):
+            return ""
+        }
+    }
+
+    private var insightsTeaserBullets: [(icon: String, text: String)] {
+        var bullets: [(icon: String, text: String)] = []
+        if hasTrendAlertInsight {
+            bullets.append(("chart.line.uptrend.xyaxis", "Trend alerts"))
+        }
+        if hasActivityCorrelationInsight {
+            bullets.append(("figure.walk.motion", "Activity correlation"))
+        }
+        return bullets
     }
 
     private static let trackedMarkers: [(key: String, label: String, color: Color)] = [
@@ -58,11 +81,8 @@ struct BloodView: View {
                     } else if hasInsightsEligible {
                         ProTeaserCard(
                             title: "Unlock Insights",
-                            message: "With \(sortedTests.count) tests recorded, MortalLoom Pro reveals trend alerts for markers heading the wrong direction and correlates your lab results against daily activity.",
-                            bullets: [
-                                ("chart.line.uptrend.xyaxis", "Trend alerts"),
-                                ("figure.walk.motion", "Activity correlation"),
-                            ]
+                            message: insightsTeaserMessage,
+                            bullets: insightsTeaserBullets
                         )
                     }
                     testList
