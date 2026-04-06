@@ -22,6 +22,11 @@ struct ProGateModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            // Disable hit-testing and hide the gated content from the
+            // accessibility tree so VoiceOver/keyboard users can't bypass the
+            // overlay. The overlay itself is the only interactive element.
+            .allowsHitTesting(store.isPro)
+            .accessibilityHidden(!store.isPro)
             .overlay {
                 if !store.isPro {
                     proOverlay

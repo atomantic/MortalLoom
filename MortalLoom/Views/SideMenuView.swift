@@ -192,15 +192,18 @@ struct CustomTabBar: View {
     @Binding var selectedPage: AppPage
     @Binding var showSideMenu: Bool
 
-    // "More" reflects selection when the side menu is open OR when the current
-    // page is not one of the primary tabs (e.g. Calendar/Blood opened via menu).
+    // "More" represents selection only when the current page isn't a primary
+    // tab (e.g. Calendar/Blood opened via the side menu). When the side menu
+    // is open we leave the underlying primary tab selected so VoiceOver and
+    // visual state never report two simultaneously selected tabs.
     private var isMoreSelected: Bool {
-        showSideMenu || !AppPage.tabBarPages.contains(selectedPage)
+        !AppPage.tabBarPages.contains(selectedPage)
     }
 
     var body: some View {
         HStack {
             ForEach(AppPage.tabBarPages, id: \.self) { page in
+                let isSelected = selectedPage == page && !isMoreSelected
                 Button {
                     selectedPage = page
                 } label: {
@@ -210,11 +213,11 @@ struct CustomTabBar: View {
                         Text(page.title)
                             .font(.caption2)
                     }
-                    .foregroundColor(selectedPage == page ? .accentColor : .textMuted)
+                    .foregroundColor(isSelected ? .accentColor : .textMuted)
                     .frame(maxWidth: .infinity)
                 }
                 .accessibilityLabel(page.title)
-                .accessibilityAddTraits(selectedPage == page ? .isSelected : [])
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
             }
 
             Button {
