@@ -16,17 +16,21 @@ struct BloodView: View {
     private var hasInsightsEligible: Bool {
         // Teaser should fire only when a Pro upgrade would actually surface a
         // gated insight: either visible trend alerts or a usable activity
-        // correlation view.
+        // correlation view. The activity-correlation branch must be derived
+        // from `correlationData` (not `sortedTests`) so the eligibility
+        // condition matches what the chart would actually render — tests
+        // without enough HealthKit metrics in the lookback window are dropped
+        // by `CorrelationEngine.buildCorrelationData`.
         guard sortedTests.count >= 2 else { return false }
 
-        let hasTrackedMarkerWithMultipleDataPoints = Self.trackedMarkers.contains { marker in
-            sortedTests.reduce(into: 0) { count, test in
-                if test.markers[marker.key] != nil { count += 1 }
+        let hasVisibleTrendAlerts = !trendAlerts.isEmpty
+
+        let hasTrackedMarkerInCorrelation = Self.trackedMarkers.contains { marker in
+            correlationData.reduce(into: 0) { count, point in
+                if point.markers[marker.key] != nil { count += 1 }
             } >= 2
         }
-
-        let hasVisibleTrendAlerts = !trendAlerts.isEmpty
-        let hasVisibleActivityCorrelation = correlationData.count >= 2 && hasTrackedMarkerWithMultipleDataPoints
+        let hasVisibleActivityCorrelation = correlationData.count >= 2 && hasTrackedMarkerInCorrelation
 
         return hasVisibleTrendAlerts || hasVisibleActivityCorrelation
     }

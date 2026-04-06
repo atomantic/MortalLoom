@@ -50,6 +50,8 @@ struct GoalsView: View {
             .padding()
         }
         .background(Color.bg)
+        #if os(macOS)
+        // macOS still has a NavigationSplitView host that renders toolbar items.
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { showingAddGoal = true } label: {
@@ -57,6 +59,7 @@ struct GoalsView: View {
                 }
             }
         }
+        #endif
         .sheet(isPresented: $showingAddGoal) {
             GoalEditSheet(goal: nil, allGoals: goals) { newGoal in
                 saveAndReload { await DataStore.shared.addGoal(newGoal) }
@@ -228,6 +231,18 @@ struct GoalsView: View {
                             .foregroundColor(.warning)
                     }
                 }
+                #if os(iOS)
+                // No NavigationStack on iOS root, so toolbar(.primaryAction)
+                // wouldn't render — surface the add button inline instead.
+                Button { showingAddGoal = true } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(.accentColor)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Add goal")
+                .padding(.leading, 8)
+                #endif
             }
         }
         .padding()
