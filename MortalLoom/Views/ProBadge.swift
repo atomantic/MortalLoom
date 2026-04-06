@@ -166,10 +166,19 @@ struct ProTeaserCard: View {
         }
         .buttonStyle(.plain)
         .sheet(isPresented: $showingPaywall) { PaywallView() }
-        .accessibilityElement(children: .combine)
-        // Avoid hardcoding "Unlock" because callers may already include it in
-        // `title` (e.g. "Unlock Insights"), which would produce "Unlock Unlock…".
+        // Build a single, complete VoiceOver announcement so non-visual users
+        // hear the same context as sighted users (title + message + bullets).
+        // Avoid prefixing with "Unlock" since callers may already include it
+        // in `title` (e.g. "Unlock Insights" -> "Unlock Unlock…").
+        .accessibilityElement(children: .ignore)
+        .accessibilityAddTraits(.isButton)
         .accessibilityLabel("MortalLoom Pro: \(title)")
+        .accessibilityValue(accessibilityValue)
         .accessibilityHint("Tap to view upgrade options")
+    }
+
+    private var accessibilityValue: String {
+        let bulletText = bullets.map(\.text).joined(separator: ", ")
+        return bulletText.isEmpty ? message : "\(message) \(bulletText)."
     }
 }
