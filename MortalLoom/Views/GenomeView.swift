@@ -9,6 +9,30 @@ private enum GenomeTab: String, CaseIterable {
     case clinvar = "ClinVar"
 }
 
+private enum SexFilter: String, CaseIterable {
+    case all = "All"
+    case female = "Female"
+    case male = "Male"
+
+    /// Categories hidden when this filter is active
+    var hiddenMarkerCategories: Set<MarkerCategory> {
+        switch self {
+        case .all: []
+        case .female: [.cancerProstate]
+        case .male: [.cancerBreast]
+        }
+    }
+
+    /// ClinVar themes hidden when this filter is active
+    var hiddenClinVarThemes: Set<ClinVarTheme> {
+        switch self {
+        case .all: []
+        case .female: [.cancerProstate]
+        case .male: [.cancerBreast]
+        }
+    }
+}
+
 struct GenomeView: View {
     @State private var activeTab: GenomeTab = .bioAge
     @State private var epigeneticTests: [EpigeneticTest] = []
@@ -31,6 +55,10 @@ struct GenomeView: View {
     @State private var expandedMarkers: Set<String> = []
     @State private var showNotFound = false
 
+    // Sex filter
+    @State private var sexFilter: SexFilter = .all
+    @State private var hasInitializedSexFilter = false
+
     // ClinVar
     @State private var clinvarHits: [ClinVarHit] = []
     @State private var clinvarStatus: ClinVarService.SyncStatus = ClinVarService.SyncStatus(synced: false)
@@ -38,14 +66,17 @@ struct GenomeView: View {
     @State private var clinvarProgress: String = ""
     @State private var clinvarError: String?
     @State private var expandedThemes: Set<ClinVarTheme> = []
-    @State private var minimumStars: Int = 0
+    @State private var minimumStars: Int = 4
     @State private var themeDisplayLimits: [ClinVarTheme: Int] = [:]
 
     private static let themePageSize = 20
 
     private var filteredClinvarHits: [ClinVarHit] {
-        if minimumStars == 0 { return clinvarHits }
-        return clinvarHits.filter { $0.entry.reviewStars >= minimumStars }
+        let hiddenThemes = sexFilter.hiddenClinVarThemes
+        return clinvarHits.filter { hit in
+            (minimumStars == 0 || hit.entry.reviewStars >= minimumStars)
+                && !hiddenThemes.contains(GenomeEngine.classifyTheme(hit))
+        }
     }
 
     private var clinvarGrouped: [(theme: ClinVarTheme, hits: [ClinVarHit])] {
@@ -557,6 +588,12 @@ struct GenomeView: View {
             }
 
             HStack {
+                HStack(spacing: 4) {
+                    Image(systemName: "person.fill")
+                        .font(.caption2)
+                        .foregroundColor(.textMuted)
+                    sexFilterPicker
+                }
                 Spacer()
                 Button(action: { withAnimation { showNotFound.toggle() } }) {
                     HStack(spacing: 4) {
@@ -595,8 +632,9 @@ struct GenomeView: View {
 
     @ViewBuilder
     private func markerCategoryCards(_ summary: GenomeScanSummary) -> some View {
+        let hiddenCategories = sexFilter.hiddenMarkerCategories
         let grouped = Dictionary(grouping: summary.markerResults, by: { $0.marker.category })
-        let sortedCategories = grouped.keys.sorted()
+        let sortedCategories = grouped.keys.sorted().filter { !hiddenCategories.contains($0) }
 
         ForEach(sortedCategories, id: \.self) { category in
             let results = grouped[category] ?? []
@@ -889,33 +927,42 @@ struct GenomeView: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Minimum Review Stars")
-                    .font(.caption)
-                    .foregroundColor(.textMuted)
-                HStack(spacing: 2) {
-                    ForEach(0..<5, id: \.self) { star in
-                        Button(action: {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                minimumStars = minimumStars == star ? 0 : star
-                                themeDisplayLimits = [:]
+            HStack(alignment: .top, spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Minimum Review Stars")
+                        .font(.caption)
+                        .foregroundColor(.textMuted)
+                    HStack(spacing: 2) {
+                        ForEach(0..<5, id: \.self) { star in
+                            Button(action: {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    minimumStars = minimumStars == star ? 0 : star
+                                    themeDisplayLimits = [:]
+                                }
+                            }) {
+                                Image(systemName: star == 0 ? "line.3.horizontal.decrease.circle" : (star <= minimumStars ? "star.fill" : "star"))
+                                    .font(.system(size: star == 0 ? 16 : 14))
+                                    .foregroundColor(star == 0
+                                        ? (minimumStars == 0 ? .textMuted : .accentColor)
+                                        : (star <= minimumStars ? .orange : .textMuted))
                             }
-                        }) {
-                            Image(systemName: star == 0 ? "line.3.horizontal.decrease.circle" : (star <= minimumStars ? "star.fill" : "star"))
-                                .font(.system(size: star == 0 ? 16 : 14))
-                                .foregroundColor(star == 0
-                                    ? (minimumStars == 0 ? .textMuted : .accentColor)
-                                    : (star <= minimumStars ? .orange : .textMuted))
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(star == 0 ? "Show all" : "\(star) star\(star == 1 ? "" : "s") minimum")
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(star == 0 ? "Show all" : "\(star) star\(star == 1 ? "" : "s") minimum")
+                        if minimumStars > 0 {
+                            Text("≥\(minimumStars)")
+                                .font(.caption2)
+                                .foregroundColor(.orange)
+                                .padding(.leading, 4)
+                        }
                     }
-                    if minimumStars > 0 {
-                        Text("≥\(minimumStars)")
-                            .font(.caption2)
-                            .foregroundColor(.orange)
-                            .padding(.leading, 4)
-                    }
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Sex Filter")
+                        .font(.caption)
+                        .foregroundColor(.textMuted)
+                    sexFilterPicker
                 }
             }
             .padding(.top, 4)
@@ -1227,6 +1274,33 @@ struct GenomeView: View {
         }
     }
 
+    // MARK: - Sex Filter Picker
+
+    private var sexFilterPicker: some View {
+        HStack(spacing: 4) {
+            ForEach(SexFilter.allCases, id: \.self) { filter in
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        sexFilter = filter
+                        themeDisplayLimits = [:]
+                    }
+                }) {
+                    Text(filter.rawValue)
+                        .font(.caption)
+                        .fontWeight(sexFilter == filter ? .semibold : .regular)
+                        .foregroundColor(sexFilter == filter ? .white : .textSecondary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(sexFilter == filter ? Color.accentColor : Color.bgInput)
+                        .cornerRadius(12)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(filter.rawValue) sex filter")
+                .accessibilityAddTraits(sexFilter == filter ? .isSelected : [])
+            }
+        }
+    }
+
     // MARK: - Status Helpers
 
     private func colorForStatus(_ status: GenomeMarkerStatus) -> Color {
@@ -1304,6 +1378,12 @@ struct GenomeView: View {
         let data = await DataStore.shared.getData()
         epigeneticTests = data.epigeneticTests
         sortedEpigeneticTests = data.epigeneticTests.sorted(by: { $0.date > $1.date })
+
+        // Default sex filter from profile on first load
+        if !hasInitializedSexFilter, let sex = data.profile.biologicalSex {
+            hasInitializedSexFilter = true
+            sexFilter = sex == .male ? .male : .female
+        }
 
         // Restore genome variants from persisted file (survives app updates + syncs via iCloud)
         if allGenomeVariants.isEmpty, let rawContent = await DataStore.shared.loadGenomeFile() {
