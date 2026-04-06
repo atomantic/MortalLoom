@@ -48,8 +48,8 @@ enum AppPage: Int, CaseIterable, Hashable {
         AppPage(rawValue: tabIndex) ?? .overview
     }
 
-    // Pages shown in bottom tab bar
-    static let tabBarPages: [AppPage] = [.overview, .goals, .habits, .body, .calendar]
+    // Pages shown in bottom tab bar; the fifth slot is the "More" button.
+    static let tabBarPages: [AppPage] = [.overview, .goals, .habits, .body]
 }
 
 // MARK: - Side Menu Sections
@@ -190,6 +190,7 @@ struct SideMenuView: View {
 #if os(iOS)
 struct CustomTabBar: View {
     @Binding var selectedPage: AppPage
+    @Binding var showSideMenu: Bool
 
     var body: some View {
         HStack {
@@ -209,6 +210,21 @@ struct CustomTabBar: View {
                 .accessibilityLabel(page.title)
                 .accessibilityAddTraits(selectedPage == page ? .isSelected : [])
             }
+
+            Button {
+                showSideMenu = true
+            } label: {
+                VStack(spacing: 4) {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.system(size: 20))
+                    Text("More")
+                        .font(.caption2)
+                }
+                .foregroundColor(.textMuted)
+                .frame(maxWidth: .infinity)
+            }
+            .accessibilityLabel("More")
+            .accessibilityHint("Opens side menu with additional pages")
         }
         .padding(.top, 8)
         .padding(.bottom, 4)

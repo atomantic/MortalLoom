@@ -7,11 +7,10 @@ struct PaywallView: View {
     @State private var purchaseError: String?
 
     private let features: [(icon: String, title: String, description: String)] = [
-        ("drop.fill", "Blood Test Tracking", "Track 50+ lab markers with reference ranges"),
         ("allergens", "Genome Analysis", "ClinVar pathogenicity cross-reference for your DNA"),
-        ("clock.badge.checkmark.fill", "Epigenetic Age", "Track biological vs chronological aging"),
-        ("eye.fill", "Eye Prescriptions", "Track vision changes over time"),
-        ("figure.stand", "Full Body Composition", "Detailed body metrics beyond basics"),
+        ("chart.line.uptrend.xyaxis", "Blood Marker Insights", "Trend alerts and activity correlation across your lab results"),
+        ("clock.badge.checkmark.fill", "Epigenetic Age", "Track biological vs chronological aging over time"),
+        ("eye.fill", "Eye Prescription History", "Track vision changes across multiple exams"),
     ]
 
     var body: some View {

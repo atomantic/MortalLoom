@@ -4,7 +4,7 @@ import Charts
 // MARK: - BloodView
 
 struct BloodView: View {
-    @State private var bloodTests: [BloodTest] = []
+    @Environment(StoreManager.self) private var store
     @State private var sortedTests: [BloodTest] = []
     @State private var correlationData: [CorrelationDataPoint] = []
     @State private var trendAlerts: [BloodTrendEngine.MarkerTrend] = []
@@ -12,6 +12,13 @@ struct BloodView: View {
     @State private var isLoading = true
     @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
     private var isWide: Bool { containerWidth >= Layout.wideThreshold }
+
+    private var hasInsightsEligible: Bool {
+        let availableMarkers = Self.trackedMarkers.filter { marker in
+            correlationData.contains { $0.markers[marker.key] != nil }
+        }
+        return correlationData.count >= 2 && !availableMarkers.isEmpty
+    }
 
     private static let trackedMarkers: [(key: String, label: String, color: Color)] = [
         ("ldl", "LDL", .orange),
@@ -27,11 +34,22 @@ struct BloodView: View {
                 if isLoading {
                     ProgressView()
                         .padding(.top, 40)
-                } else if bloodTests.isEmpty {
+                } else if sortedTests.isEmpty {
                     emptyState
                 } else {
-                    if !trendAlerts.isEmpty { trendAlertsCard }
-                    activityCorrelationChart
+                    if store.isPro {
+                        if !trendAlerts.isEmpty { trendAlertsCard }
+                        activityCorrelationChart
+                    } else if hasInsightsEligible {
+                        ProTeaserCard(
+                            title: "Unlock Insights",
+                            message: "With \(sortedTests.count) tests recorded, MortalLoom Pro reveals trend alerts for markers heading the wrong direction and correlates your lab results against daily activity.",
+                            bullets: [
+                                ("chart.line.uptrend.xyaxis", "Trend alerts"),
+                                ("figure.walk.motion", "Activity correlation"),
+                            ]
+                        )
+                    }
                     testList
                 }
             }
@@ -39,7 +57,6 @@ struct BloodView: View {
             .readContainerWidth { containerWidth = $0 }
         }
         .background(Color.bg)
-        .proGated()
         .sheet(isPresented: $showingAddForm) {
             BloodTestFormView(onSave: { test in
                 Task {
@@ -53,7 +70,7 @@ struct BloodView: View {
 
     private var headerSection: some View {
         HStack {
-            Text("Blood Tests (\(bloodTests.count))")
+            Text("Blood Tests (\(sortedTests.count))")
                 .font(.headline)
                 .foregroundColor(.textPrimary)
             Spacer()
@@ -85,59 +102,49 @@ struct BloodView: View {
             correlationData.contains { $0.markers[marker.key] != nil }
         }
 
-        if sortedTests.count >= 2 && !correlationData.isEmpty && !availableMarkers.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
+        if correlationData.count >= 2 && !availableMarkers.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
                 Text("Activity + Blood Markers")
                     .font(.headline)
                     .foregroundColor(.textPrimary)
 
-                Text("30-day avg activity before each test vs. key markers")
+                Text("30-day avg steps vs. key markers across tests")
                     .font(.caption)
                     .foregroundColor(.textSecondary)
 
-                if isWide {
-                    HStack(alignment: .top, spacing: 16) {
-                        stepsChart(correlationData)
-                        markerTrendChart(correlationData, markers: availableMarkers)
-                    }
-                } else {
-                    stepsChart(correlationData)
-                    markerTrendChart(correlationData, markers: availableMarkers)
-                }
+                combinedActivityMarkerChart(correlationData, markers: availableMarkers)
 
-                if correlationData.count >= 2 {
-                    activitySummary(correlationData, markers: availableMarkers)
-                }
+                markerLegend(availableMarkers)
+
+                activitySummary(correlationData, markers: availableMarkers)
             }
             .padding()
             .cardStyle()
         }
     }
 
-    private func stepsChart(_ data: [CorrelationDataPoint]) -> some View {
-        Chart {
+    private func combinedActivityMarkerChart(
+        _ data: [CorrelationDataPoint],
+        markers: [(key: String, label: String, color: Color)]
+    ) -> some View {
+        let markerValues = data.flatMap { item in markers.compactMap { item.markers[$0.key] } }
+        let rawMarkerMax = markerValues.max() ?? 100
+        let markerMax = max(rawMarkerMax * 1.15, 1)
+        let rawStepsMax = data.map(\.avgDailySteps).max() ?? 0
+        let stepsMax = max(rawStepsMax * 1.15, 1000)
+        let scale: (Double) -> Double = { ($0 / stepsMax) * markerMax }
+
+        return Chart {
             ForEach(data, id: \.testDate) { item in
                 BarMark(
                     x: .value("Date", item.testDate),
-                    y: .value("Steps", item.avgDailySteps)
+                    y: .value("Steps (scaled)", scale(item.avgDailySteps)),
+                    width: .fixed(20)
                 )
-                .foregroundStyle(Color.accentColor.opacity(0.3))
+                .foregroundStyle(Color.accentColor.opacity(0.22))
+                .cornerRadius(3)
             }
-        }
-        .chartYAxisLabel("Avg Daily Steps")
-        .chartXAxis {
-            AxisMarks { _ in
-                AxisGridLine()
-                AxisValueLabel(format: .dateTime.month(.abbreviated).day(), centered: true)
-            }
-        }
-        .frame(height: Layout.chartFrameHeight)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Average daily steps chart showing activity levels around each blood test date")
-    }
 
-    private func markerTrendChart(_ data: [CorrelationDataPoint], markers: [(key: String, label: String, color: Color)]) -> some View {
-        Chart {
             ForEach(markers, id: \.key) { marker in
                 ForEach(data, id: \.testDate) { item in
                     if let value = item.markers[marker.key] {
@@ -148,27 +155,85 @@ struct BloodView: View {
                         )
                         .foregroundStyle(marker.color)
                         .lineStyle(StrokeStyle(lineWidth: 2))
+                        .interpolationMethod(.catmullRom)
 
                         PointMark(
                             x: .value("Date", item.testDate),
                             y: .value(marker.label, value)
                         )
                         .foregroundStyle(marker.color)
-                        .symbolSize(30)
+                        .symbolSize(45)
                     }
                 }
             }
         }
-        .chartYAxisLabel("Marker Value")
+        .chartYScale(domain: 0...markerMax)
+        .chartYAxis {
+            AxisMarks(position: .leading) { _ in
+                AxisGridLine()
+                AxisTick()
+                AxisValueLabel()
+            }
+            AxisMarks(
+                position: .trailing,
+                values: Array(stride(from: 0.0, through: markerMax, by: markerMax / 4))
+            ) { value in
+                AxisTick()
+                if let v = value.as(Double.self) {
+                    let steps = (v / markerMax) * stepsMax
+                    AxisValueLabel {
+                        Text(formatStepAxisValue(steps))
+                            .foregroundStyle(Color.accentColor.opacity(0.85))
+                    }
+                }
+            }
+        }
+        .chartYAxisLabel("Marker Value", position: .leading)
+        .chartYAxisLabel("Avg Daily Steps", position: .trailing)
         .chartXAxis {
             AxisMarks { _ in
                 AxisGridLine()
                 AxisValueLabel(format: .dateTime.month(.abbreviated).day(), centered: true)
             }
         }
-        .frame(height: Layout.chartFrameHeight)
+        .frame(height: Layout.chartFrameHeight + 30)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Blood marker trend chart tracking \(markers.map(\.label).joined(separator: ", ")) over time")
+        .accessibilityLabel(
+            "Combined chart: translucent bars show average daily steps, colored lines show \(markers.map(\.label).joined(separator: ", ")) across each test date"
+        )
+    }
+
+    private func markerLegend(_ markers: [(key: String, label: String, color: Color)]) -> some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 4) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(Color.accentColor.opacity(0.35))
+                    .frame(width: 10, height: 10)
+                Text("Steps")
+                    .font(.caption2)
+                    .foregroundColor(.textMuted)
+            }
+            ForEach(markers, id: \.key) { marker in
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(marker.color)
+                        .frame(width: 8, height: 8)
+                    Text(marker.label)
+                        .font(.caption2)
+                        .foregroundColor(.textMuted)
+                }
+            }
+        }
+    }
+
+    private func formatStepAxisValue(_ value: Double) -> String {
+        if value >= 1000 {
+            let thousands = value / 1000
+            return thousands == thousands.rounded()
+                ? "\(Int(thousands))k"
+                : String(format: "%.1fk", thousands)
+        }
+        return "\(Int(value))"
     }
 
     @ViewBuilder
@@ -312,9 +377,11 @@ struct BloodView: View {
 
     private func loadData() async {
         let data = await DataStore.shared.getData()
-        bloodTests = data.bloodTests
         let sorted = data.bloodTests.sorted { $0.date < $1.date }
         sortedTests = sorted
+        // Pre-compute correlation/trend regardless of pro status — the teaser eligibility
+        // check (hasInsightsEligible) needs correlationData to know if a Pro upgrade
+        // would actually surface anything for this user, so the work isn't wasted.
         correlationData = CorrelationEngine.buildCorrelationData(tests: sorted, healthMetrics: data.healthMetrics)
         trendAlerts = BloodTrendEngine.alerts(tests: sorted)
         isLoading = false

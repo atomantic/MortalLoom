@@ -63,9 +63,9 @@ struct ProGateModifier: ViewModifier {
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                ProOverlayBullet(icon: "drop.fill",                  text: "Blood markers + genome analysis")
+                ProOverlayBullet(icon: "allergens",                  text: "Genome + ClinVar analysis")
+                ProOverlayBullet(icon: "chart.line.uptrend.xyaxis",  text: "Blood marker trend insights")
                 ProOverlayBullet(icon: "clock.badge.checkmark.fill", text: "Epigenetic age tracking")
-                ProOverlayBullet(icon: "figure.stand",               text: "Full body composition + eye tracking")
             }
 
             Button {
@@ -89,7 +89,7 @@ struct ProGateModifier: ViewModifier {
     }
 }
 
-private struct ProOverlayBullet: View {
+struct ProOverlayBullet: View {
     let icon: String
     let text: String
 
@@ -109,5 +109,52 @@ private struct ProOverlayBullet: View {
 extension View {
     func proGated() -> some View {
         modifier(ProGateModifier())
+    }
+}
+
+// MARK: - Pro Teaser Card
+//
+// Inline upsell card embedded in free-feature views (e.g. between content sections).
+// Owns its own paywall sheet so callers don't reimplement the plumbing.
+
+struct ProTeaserCard: View {
+    let title: String
+    let message: String
+    let bullets: [(icon: String, text: String)]
+    @State private var showingPaywall = false
+
+    var body: some View {
+        Button { showingPaywall = true } label: {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Image(systemName: "lock.fill")
+                        .font(.callout)
+                        .foregroundStyle(LinearGradient.proBrandDiagonal)
+                    Text(title)
+                        .font(.headline)
+                        .foregroundColor(.textPrimary)
+                    Spacer()
+                    ProBadge()
+                }
+                Text(message)
+                    .font(.caption)
+                    .foregroundColor(.textSecondary)
+                    .multilineTextAlignment(.leading)
+                HStack(spacing: 12) {
+                    ForEach(bullets, id: \.text) { bullet in
+                        ProOverlayBullet(icon: bullet.icon, text: bullet.text)
+                    }
+                }
+            }
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(LinearGradient.proBrandSubtleDiagonal)
+            .cardStyle()
+        }
+        .buttonStyle(.plain)
+        .sheet(isPresented: $showingPaywall) { PaywallView() }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Unlock \(title) with MortalLoom Pro")
+        .accessibilityHint("Tap to view upgrade options")
     }
 }

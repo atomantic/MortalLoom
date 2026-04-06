@@ -194,6 +194,10 @@ extension LinearGradient {
     static let proBrandDiagonal = LinearGradient(
         colors: [.accentColor, .purple], startPoint: .topLeading, endPoint: .bottomTrailing
     )
+    static let proBrandSubtleDiagonal = LinearGradient(
+        colors: [Color.accentColor.opacity(0.12), Color.purple.opacity(0.16)],
+        startPoint: .topLeading, endPoint: .bottomTrailing
+    )
 }
 
 // MARK: - Toast Notification
