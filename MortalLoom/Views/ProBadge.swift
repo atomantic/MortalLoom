@@ -66,6 +66,7 @@ struct ProGateModifier: ViewModifier {
                 ProOverlayBullet(icon: "allergens",                  text: "Genome + ClinVar analysis")
                 ProOverlayBullet(icon: "chart.line.uptrend.xyaxis",  text: "Blood marker trend insights")
                 ProOverlayBullet(icon: "clock.badge.checkmark.fill", text: "Epigenetic age tracking")
+                ProOverlayBullet(icon: "eye.fill",                   text: "Eye prescription history")
             }
 
             Button {
@@ -161,7 +162,9 @@ struct ProTeaserCard: View {
         .buttonStyle(.plain)
         .sheet(isPresented: $showingPaywall) { PaywallView() }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Unlock \(title) with MortalLoom Pro")
+        // Avoid hardcoding "Unlock" because callers may already include it in
+        // `title` (e.g. "Unlock Insights"), which would produce "Unlock Unlock…".
+        .accessibilityLabel("MortalLoom Pro: \(title)")
         .accessibilityHint("Tap to view upgrade options")
     }
 }
