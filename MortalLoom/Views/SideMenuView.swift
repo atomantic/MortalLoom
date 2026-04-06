@@ -48,8 +48,8 @@ enum AppPage: Int, CaseIterable, Hashable {
         AppPage(rawValue: tabIndex) ?? .overview
     }
 
-    // Pages shown in bottom tab bar
-    static let tabBarPages: [AppPage] = [.overview, .goals, .habits, .body, .calendar]
+    // Pages shown in the bottom tab bar; the "More" button is rendered separately.
+    static let tabBarPages: [AppPage] = [.overview, .goals, .habits, .body]
 }
 
 // MARK: - Side Menu Sections
@@ -190,10 +190,20 @@ struct SideMenuView: View {
 #if os(iOS)
 struct CustomTabBar: View {
     @Binding var selectedPage: AppPage
+    @Binding var showSideMenu: Bool
+
+    // "More" represents selection only when the current page isn't a primary
+    // tab (e.g. Calendar/Blood opened via the side menu). When the side menu
+    // is open we leave the underlying primary tab selected so VoiceOver and
+    // visual state never report two simultaneously selected tabs.
+    private var isMoreSelected: Bool {
+        !AppPage.tabBarPages.contains(selectedPage)
+    }
 
     var body: some View {
         HStack {
             ForEach(AppPage.tabBarPages, id: \.self) { page in
+                let isSelected = selectedPage == page && !isMoreSelected
                 Button {
                     selectedPage = page
                 } label: {
@@ -203,12 +213,28 @@ struct CustomTabBar: View {
                         Text(page.title)
                             .font(.caption2)
                     }
-                    .foregroundColor(selectedPage == page ? .accentColor : .textMuted)
+                    .foregroundColor(isSelected ? .accentColor : .textMuted)
                     .frame(maxWidth: .infinity)
                 }
                 .accessibilityLabel(page.title)
-                .accessibilityAddTraits(selectedPage == page ? .isSelected : [])
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
             }
+
+            Button {
+                showSideMenu = true
+            } label: {
+                VStack(spacing: 4) {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.system(size: 20))
+                    Text("More")
+                        .font(.caption2)
+                }
+                .foregroundColor(isMoreSelected ? .accentColor : .textMuted)
+                .frame(maxWidth: .infinity)
+            }
+            .accessibilityLabel("More")
+            .accessibilityHint("Opens side menu with additional pages")
+            .accessibilityAddTraits(isMoreSelected ? .isSelected : [])
         }
         .padding(.top, 8)
         .padding(.bottom, 4)

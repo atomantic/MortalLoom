@@ -105,20 +105,8 @@ struct ContentView: View {
     private var iOSContent: some View {
         ZStack {
             VStack(spacing: 0) {
-                NavigationStack {
-                    pageContent
-                        .toolbar {
-                            ToolbarItem(placement: .navigationBarLeading) {
-                                Button { showSideMenu = true } label: {
-                                    Image(systemName: "line.3.horizontal")
-                                        .font(.title3)
-                                        .foregroundColor(.textPrimary)
-                                }
-                            }
-                        }
-                }
-
-                CustomTabBar(selectedPage: $selectedPage)
+                pageContent
+                CustomTabBar(selectedPage: $selectedPage, showSideMenu: $showSideMenu)
             }
 
             if showSideMenu {

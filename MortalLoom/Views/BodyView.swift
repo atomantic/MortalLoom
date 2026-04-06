@@ -80,13 +80,12 @@ struct BodyView: View {
                 }
                 gaitSection
                 activitySection
-                eyePrescriptionSection
+                eyePrescriptionSection.proGated()
             }
             .padding()
             .readContainerWidth { containerWidth = $0 }
         }
         .background(Color.bg)
-        .proGated()
         .sheet(isPresented: $showingAddExam) {
             EyeExamFormView(onSave: { exam in
                 Task {
