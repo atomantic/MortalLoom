@@ -194,7 +194,7 @@
 		17554F4F50A7084DE0587FE8 /* ProBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProBadge.swift; sourceTree = "<group>"; };
 		1B2CB5E984C7556ED4DE0610 /* ScreenshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotTests.swift; sourceTree = "<group>"; };
 		1F9ADA70E28A5E28CA55C63F /* GoalsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalsView.swift; sourceTree = "<group>"; };
-		223CD2E2AB78B4665CCC4255 /* Products.storekit */ = {isa = PBXFileReference; path = Products.storekit; sourceTree = "<group>"; };
+		223CD2E2AB78B4665CCC4255 /* Products.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Products.storekit; sourceTree = "<group>"; };
 		25A938EE48931E1A7D80455D /* MortalLoomApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MortalLoomApp.swift; sourceTree = "<group>"; };
 		29D32D124C715340FD2DC350 /* ICloudMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ICloudMonitor.swift; sourceTree = "<group>"; };
 		2FD15E79DD0EC46F86D0506C /* LocationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationService.swift; sourceTree = "<group>"; };
