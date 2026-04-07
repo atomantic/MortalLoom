@@ -3,6 +3,49 @@
 For project mission and milestones, see [GOALS.md](./GOALS.md).
 For completed work, see [DONE.md](./DONE.md).
 
+## Better Swift Audit — 2026-04-06 (COMPLETE)
+
+Shipped 5 PRs against `main` covering 17 files + 2 new test suites (70 new test cases).
+Platforms verified: iOS 17.0+, macOS 14.0+. All iOS tests pass on the post-merge `main`.
+
+### PRs
+
+| Category | PR | Status | Iterations | Notes |
+|---|---|---|---|---|
+| Security | atomantic/MortalLoom#3 | merged | 4 Copilot rounds | Fixed `.completeFileProtectionUnlessOpen` → `UntilFirstUserAuthentication` (the former does NOT permit widget background reads while locked) |
+| Bugs & Perf | atomantic/MortalLoom#4 | merged | 8 Copilot rounds (10-iteration guardrail) | Reverted bad Task.detached → Task change; added file protection in `reloadIfNeeded()`; logged silent write failures |
+| Code Quality | atomantic/MortalLoom#5 | merged | 5 Copilot rounds | Renamed `authorized` → `authorizationRequestCompleted` (HealthKit read auth never reports user denial — Apple privacy feature) |
+| DRY & YAGNI | atomantic/MortalLoom#6 | merged | 5 Copilot rounds | Added missing sauna test for `allTimeAverage<T>` helper; fixed timezone bug in new test |
+| Tests | atomantic/MortalLoom#7 | merged | 3 Copilot rounds | Split entitlements into iOS/macOS files; renamed clamp tests to reflect what they actually verify |
+
+### Foundation — Shared Utilities
+
+- `View.inlineNavigationTitle()` (in `Theme/Theme.swift`) — wraps `.navigationBarTitleDisplayMode(.inline)` in `#if os(iOS)`. Replaced 6 inline guards in `SubstancesView`. The remaining 6 occurrences (PaywallView, GoalsView, GenomeView, BodyView, BloodView) are deferred for a follow-up cleanup PR.
+- `weeklyXAxis()` chart helper — deferred (originally planned but skipped because the chart axis pattern only existed in 5 SubstancesView call sites, and the `@AxisContentBuilder` extraction was more complex than the savings).
+- `SubstanceEngine.allTimeAverage<T>(items:date:value:now:)` — generic helper that replaced 3 copies of the same date-bucket arithmetic.
+
+### Notable Findings During the Cycle
+
+These are the things future-self should know:
+
+- **HealthKit read-only authorization is always `.notDetermined` for privacy.** `HKHealthStore.requestAuthorization(toShare:read:)` does NOT throw when the user denies access for read types — there is no way to detect denial. The previous `authorized: Bool` flag was a misleading name because `true` only meant "the request call returned without error", which is true even when the user denied everything. Renamed to `authorizationRequestCompleted` to avoid the trap.
+- **`.completeFileProtectionUnlessOpen` does NOT allow widget background reads when the file is closed.** Only `.completeFileProtectionUntilFirstUserAuthentication` does. The widget App Group snapshot had to use the latter; the original audit-PR change had it wrong.
+- **`Task.detached` vs attached `Task` inside an actor**: an attached `Task` inherits actor isolation, so it BLOCKS the actor for the duration of the work. For a widget snapshot write that happens after `DataStore.save()`, `Task.detached` is correct. The audit briefly tried switching to attached `Task` and the Copilot reviewer caught the regression.
+- **Swift `??` binds TIGHTER than `>`**: `NilCoalescingPrecedence` is higher than `ComparisonPrecedence`, so `a ?? b > c ?? d` is `(a ?? b) > (c ?? d)`. Audit Agent 2 flagged a `Goal` sort closure as a precedence bug; it was already correct. Always verify Swift operator precedence claims against the language reference.
+- **`ISO8601DateFormatter` is documented thread-safe since iOS 10** (not iOS 7 — `NSDateFormatter` was thread-safe since iOS 7, but `ISO8601DateFormatter` was introduced in iOS 10 and inherited the same guarantee). Cached as `nonisolated(unsafe) static let`.
+- **HealthKit IS available on macOS 13+** with limited functionality. Audit Agent 6 flagged the unguarded `import HealthKit` in HealthKitService.swift, BodyView.swift, OnboardingView.swift as a CRITICAL macOS-build-break — but macOS builds clean today, so the finding was a false positive. Always verify "this won't compile on platform X" claims by actually building on platform X.
+- **`Data.WritingOptions.completeFileProtection` is iOS-specific** but compiles cleanly as a no-op on macOS — no `#if os(iOS)` guard needed.
+- **XcodeGen drift in entitlements**: the committed `MortalLoom.entitlements` file was missing keys that `project.yml` declared (`com.apple.security.app-sandbox`, etc.). XcodeGen regenerates from project.yml on every run. Phase 4c had to split into iOS/macOS-specific entitlements files because the macOS app uses sandbox capabilities that don't apply to iOS.
+
+### Deferred / Out-of-Scope From This Cycle
+
+- God-file decomposition (Substances/Genome/Overview/Goals at 1000+ lines)
+- Architectural file moves (Engine → Services for stateful services)
+- macOS window lifecycle hardening (App Store guideline 4 — `applicationShouldTerminateAfterLastWindowClosed`, `applicationShouldHandleReopen`, "Show Main Window" command)
+- ClinVar streaming decompression rewrite (the gzip is still loaded into memory before streaming)
+- Test coverage for `CardioFitnessEngine`, `GaitEngine`, `GenomeEngine` (Agent 7 flagged but only `SleepEngineTests` and `LocationEngineTests` shipped this cycle)
+- 6 remaining `#if os(iOS) .navigationBarTitleDisplayMode #endif` guards in PaywallView, GoalsView, GenomeView, BodyView, BloodView
+
 ## Next Up
 
 1. **Storage/HealthKit test coverage**: Unit tests for DataStore actor, HealthKitService auth states, ICloudMonitor metadata queries
