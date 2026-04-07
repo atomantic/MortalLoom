@@ -72,8 +72,12 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: false
-        # macOS uses a separate entitlements file that includes App Sandbox keys.
-        # These are macOS-only and must not appear in the iOS signed entitlements.
+        # MortalLoom-macOS.entitlements is a manually-maintained file because XcodeGen
+        # cannot generate per-SDK entitlements from the `entitlements:` section below.
+        # It includes the same shared keys (HealthKit, iCloud, app groups, bookmarks) PLUS
+        # macOS App Sandbox keys that are macOS-only and must not appear in the iOS signed
+        # entitlements. When shared capabilities change in the `entitlements:` section below,
+        # update MortalLoom/App/MortalLoom-macOS.entitlements manually to stay in sync.
         "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]": MortalLoom/App/MortalLoom-macOS.entitlements
     info:
       path: MortalLoom/App/Info.plist
