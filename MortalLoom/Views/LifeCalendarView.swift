@@ -161,7 +161,8 @@ struct LifeCalendarView: View {
             sex: data.profile.biologicalSex,
             lifestyle: data.profile.lifestyle,
             genome: data.genomeScanRecord,
-            locationProfile: data.profile.locationProfile
+            locationProfile: data.profile.locationProfile,
+            healthMetrics: data.healthMetrics
         )
         deathClock = dc
         levDeathClock = dc.flatMap { DeathClockEngine.calculateLEVResult(standardResult: $0, birthDateStr: birthDateStr, levTargetAge: data.profile.levTargetAge) }

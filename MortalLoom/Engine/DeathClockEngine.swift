@@ -9,6 +9,7 @@ enum DeathClockEngine {
         let genomeAdjusted: Double  // After genome adjustments
         let lifestyleAdjustment: Double // Total lifestyle year adjustment
         let locationAdjustment: Double  // Country + air quality adjustment
+        let healthMetricsAdjustment: Double // Apple Health fitness data adjustment
         let total: Double           // Final life expectancy in years
     }
 
@@ -137,7 +138,7 @@ enum DeathClockEngine {
         + bmiImpact(lifestyle.bmi)
     }
 
-    static func calculate(birthDateStr: String, sex: BiologicalSex?, lifestyle: LifestyleData, genome: GenomeScanRecord? = nil, sleepStages: SleepEngine.SleepStageBreakdown? = nil, locationProfile: LocationProfile? = nil, now: Date = Date()) -> DeathClockResult? {
+    static func calculate(birthDateStr: String, sex: BiologicalSex?, lifestyle: LifestyleData, genome: GenomeScanRecord? = nil, sleepStages: SleepEngine.SleepStageBreakdown? = nil, locationProfile: LocationProfile? = nil, healthMetrics: [HealthMetricEntry] = [], now: Date = Date()) -> DeathClockResult? {
         guard let birthDate = dateFromString(birthDateStr) else { return nil }
 
         let ageYears = Calendar.current.dateComponents([.year], from: birthDate, to: now).year ?? 0
@@ -150,13 +151,15 @@ enum DeathClockEngine {
             countryCode: locationProfile?.countryCode,
             airQuality: locationProfile?.airQuality
         )
-        let total = baseline + genomeAdj + lifestyleAdj + locationAdj
+        let healthAdj = healthMetricsAdjustment(healthMetrics, age: ageYears, sex: sex)
+        let total = baseline + genomeAdj + lifestyleAdj + locationAdj + healthAdj
 
         let le = LifeExpectancy(
             baseline: baseline,
             genomeAdjusted: baseline + genomeAdj,
             lifestyleAdjustment: lifestyleAdj,
             locationAdjustment: locationAdj,
+            healthMetricsAdjustment: healthAdj,
             total: total
         )
 
@@ -266,6 +269,7 @@ enum DeathClockEngine {
             genomeAdjusted: standardResult.lifeExpectancy.genomeAdjusted,
             lifestyleAdjustment: standardResult.lifeExpectancy.lifestyleAdjustment,
             locationAdjustment: standardResult.lifeExpectancy.locationAdjustment,
+            healthMetricsAdjustment: standardResult.lifeExpectancy.healthMetricsAdjustment,
             total: levLE
         )
 

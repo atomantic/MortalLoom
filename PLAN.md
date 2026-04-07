@@ -142,7 +142,7 @@ Once the above metrics are synced, these cross-domain analyses become possible:
 
 | Correlation | Inputs | Insight |
 |---|---|---|
-| Alcohol → Sleep Quality | Drinking days × deep/REM % | Quantify alcohol's true sleep cost |
+| ~~Alcohol → Sleep Quality~~ ✅ | Drinking days × deep/REM % | Quantify alcohol's true sleep cost |
 | Sauna → HRV/Sleep | Sauna sessions × next-day HRV × deep sleep | Validate sauna's recovery benefit |
 | Nicotine → Cardio Recovery | Nicotine mg × HR recovery bpm | Quantify nicotine's cardiac impact |
 | Activity → Blood Markers | Steps + distance + exercise × blood panels | Strengthen existing CorrelationEngine |
@@ -153,23 +153,23 @@ Once the above metrics are synced, these cross-domain analyses become possible:
 
 ### Death Clock Enhancements
 
-With the new data, `DeathClockEngine.lifestyleAdjustment()` and `healthScore()` can incorporate:
+`healthMetricsAdjustment()` is now wired into `DeathClockEngine.calculate()` — cardio recovery, walking speed, and apnea risk all affect the final life expectancy estimate. Individual factors are visible in the Overview Life Expectancy Factors card.
 
-1. **Cardio Recovery Score** (+2 to -2 years) — based on HR recovery classification
-2. **Sleep Quality Score** (adjust existing sleep impact) — penalize consistently poor deep/REM ratios
-3. **Functional Fitness Score** (+1 to -2 years) — based on gait metrics and walking speed trends
-4. **Apnea Risk** (-1 to -3 years) — based on breathing disturbance severity
+1. **Cardio Recovery Score** (+2 to -2 years) — ✅ integrated via `healthMetricsAdjustment()`
+2. **Sleep Quality Score** (adjust existing sleep impact) — ✅ integrated via `enhancedLongevityImpact()`
+3. **Functional Fitness Score** (+1 to -2 years) — ✅ integrated via `healthMetricsAdjustment()`
+4. **Apnea Risk** (-1 to -3 years) — ✅ integrated via `healthMetricsAdjustment()`
 
 ### Implementation Priority
 
-1. Sleep stages (modify existing sleep code, high-value quick win)
-2. Cardio recovery (new metric, strongest single mortality predictor after VO2 max)
-3. Breathing disturbances (apnea detection, simple addition)
-4. Time in daylight (new metric, easy sync)
-5. Sync already-requested-but-unused types (stand time, basal energy, distance, walking speed)
-6. Gait engine (new engine, more complex but high long-term value)
-7. New correlation charts
-8. Death clock enhancement with new factors
+1. ~~Sleep stages (modify existing sleep code, high-value quick win)~~ ✅
+2. ~~Cardio recovery (new metric, strongest single mortality predictor after VO2 max)~~ ✅
+3. ~~Breathing disturbances (apnea detection, simple addition)~~ ✅
+4. ~~Time in daylight (new metric, easy sync)~~ ✅
+5. ~~Sync already-requested-but-unused types (stand time, basal energy, distance, walking speed)~~ ✅
+6. ~~Gait engine (new engine, more complex but high long-term value)~~ ✅
+7. New correlation charts (Alcohol → Sleep done; 7 remaining)
+8. ~~Death clock enhancement with new factors~~ ✅
 
 ## Backlog
 

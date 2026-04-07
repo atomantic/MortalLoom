@@ -12,7 +12,82 @@ struct CorrelationDataPoint: Sendable {
     let markers: [String: Double]
 }
 
+/// A day's alcohol intake paired with next-night sleep stage quality.
+struct AlcoholSleepDataPoint: Sendable {
+    let date: String           // "YYYY-MM-DD" of the drinking day
+    let standardDrinks: Double // total standard drinks that day
+    let nextNightDeepPct: Double? // deep sleep % the following night
+    let nextNightRemPct: Double?  // REM sleep % the following night
+    let nextNightTotalHours: Double? // total sleep hours the following night
+}
+
 enum CorrelationEngine {
+
+    // MARK: - Alcohol → Sleep Quality
+
+    /// Build per-day data points correlating alcohol intake with next-night sleep stages.
+    /// Alcohol consumed on day N is compared to sleep recorded on day N+1
+    /// (sleep that ends the morning after drinking).
+    static func alcoholSleepCorrelation(
+        drinks: [AlcoholDrink],
+        healthMetrics: [HealthMetricEntry]
+    ) -> [AlcoholSleepDataPoint] {
+        guard !drinks.isEmpty, !healthMetrics.isEmpty else { return [] }
+
+        // Index sleep metrics by date string for O(1) lookup
+        let sleepByDate = Dictionary(grouping: healthMetrics, by: \.date)
+            .compactMapValues(\.first)
+
+        // Sum standard drinks per day
+        var drinksByDate: [String: Double] = [:]
+        for drink in drinks {
+            drinksByDate[drink.date, default: 0] += drink.standardDrinks
+        }
+
+        // Also include zero-drink days that have sleep data for contrast
+        let allSleepDates = Set(healthMetrics.compactMap { m -> String? in
+            guard m.sleepDeepHours != nil || m.sleepRemHours != nil else { return nil }
+            // The sleep date is the morning-after date; the "drinking day" is one day prior
+            guard let sleepDate = DateFormatting.dateFromString(m.date) else { return nil }
+            guard let priorDay = Calendar.current.date(byAdding: .day, value: -1, to: sleepDate) else { return nil }
+            return DateFormatting.dateString(priorDay)
+        })
+
+        let allDates = Set(drinksByDate.keys).union(allSleepDates)
+
+        return allDates.compactMap { dateStr -> AlcoholSleepDataPoint? in
+            let drinks = drinksByDate[dateStr] ?? 0
+
+            // Look up sleep for the next day (morning after)
+            guard let day = DateFormatting.dateFromString(dateStr),
+                  let nextDay = Calendar.current.date(byAdding: .day, value: 1, to: day) else { return nil }
+            let nextDayStr = DateFormatting.dateString(nextDay)
+            let sleep = sleepByDate[nextDayStr]
+
+            let total = sleep?.sleepHours
+            let deepPct: Double? = {
+                guard let deep = sleep?.sleepDeepHours, let t = total, t > 0 else { return nil }
+                return (deep / t) * 100
+            }()
+            let remPct: Double? = {
+                guard let rem = sleep?.sleepRemHours, let t = total, t > 0 else { return nil }
+                return (rem / t) * 100
+            }()
+
+            // Only include if we have at least some sleep data for the next night
+            guard deepPct != nil || remPct != nil || total != nil else { return nil }
+
+            return AlcoholSleepDataPoint(
+                date: dateStr,
+                standardDrinks: drinks,
+                nextNightDeepPct: deepPct,
+                nextNightRemPct: remPct,
+                nextNightTotalHours: total
+            )
+        }.sorted { $0.date < $1.date }
+    }
+
+    // MARK: - Activity → Blood Markers
 
     static func buildCorrelationData(
         tests: [BloodTest],

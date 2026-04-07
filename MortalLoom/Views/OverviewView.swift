@@ -117,7 +117,8 @@ struct OverviewView: View {
             lifestyle: data.profile.lifestyle,
             genome: data.genomeScanRecord,
             sleepStages: sleepStages,
-            locationProfile: data.profile.locationProfile
+            locationProfile: data.profile.locationProfile,
+            healthMetrics: data.healthMetrics
         )
         cachedSleepImpact = SleepEngine.enhancedLongevityImpact(
             averageHours: data.profile.lifestyle.sleepHoursPerNight,
@@ -223,6 +224,9 @@ struct OverviewView: View {
                         leBreakdownRow("Lifestyle Adj.", value: dc.lifeExpectancy.lifestyleAdjustment, unit: "yr", signed: true)
                         if dc.lifeExpectancy.locationAdjustment != 0 {
                             leBreakdownRow("Location Adj.", value: dc.lifeExpectancy.locationAdjustment, unit: "yr", signed: true)
+                        }
+                        if dc.lifeExpectancy.healthMetricsAdjustment != 0 {
+                            leBreakdownRow("Health Metrics", value: dc.lifeExpectancy.healthMetricsAdjustment, unit: "yr", signed: true)
                         }
                         Divider().background(Color.cardBorder)
                     }
@@ -364,6 +368,14 @@ struct OverviewView: View {
     @ViewBuilder
     private var lifeExpectancyFactorsCard: some View {
         let lifestyle = data.profile.lifestyle
+        let metrics = data.healthMetrics
+        let recoveries = metrics.compactMap(\.cardioRecovery)
+        let cardioImpact = recoveries.isEmpty ? 0.0 : CardioFitnessEngine.recoveryLongevityImpact(recoveries.reduce(0, +) / Double(recoveries.count))
+        let speeds = metrics.compactMap(\.walkingSpeed)
+        let gaitImpact = speeds.isEmpty ? 0.0 : GaitEngine.walkingSpeedLongevityImpact(speeds.reduce(0, +) / Double(speeds.count), age: deathClock?.ageYears ?? 0)
+        let bds = metrics.compactMap(\.breathingDisturbances)
+        let apneaImpact = bds.isEmpty ? 0.0 : SleepEngine.apneaLongevityImpact(bds.reduce(0, +) / Double(bds.count))
+
         let allFactors: [(name: String, icon: String, value: Double)] = [
             ("Genome", "dna", DeathClockEngine.genomeAdjustment(data.genomeScanRecord)),
             ("Smoking", "nosign", DeathClockEngine.smokingImpact(lifestyle.smokingStatus)),
@@ -373,6 +385,9 @@ struct OverviewView: View {
             ("Stress", "brain.head.profile", DeathClockEngine.stressImpact(lifestyle.stressLevel)),
             ("BMI", "scalemass.fill", DeathClockEngine.bmiImpact(lifestyle.bmi)),
             ("Location", "globe", deathClock?.lifeExpectancy.locationAdjustment ?? 0),
+            ("Cardio Recovery", "heart.fill", cardioImpact),
+            ("Walking Speed", "figure.walk", gaitImpact),
+            ("Apnea Risk", "lungs.fill", apneaImpact),
         ]
         let factors = allFactors.filter { $0.value != 0 }
 
