@@ -21,7 +21,16 @@ final class StoreManager {
     private static let secretKeychainKey = "SecretProUnlocked"
 
     @ObservationIgnored private var transactionListener: Task<Void, Never>?
-    private let forceProEnabled = ProcessInfo.processInfo.arguments.contains("-force-pro")
+    /// Debug-only launch flag for screenshot/UI testing builds. Release binaries
+    /// ignore this flag so the App Store binary cannot be tricked into bypassing
+    /// the IAP via launch arguments.
+    private let forceProEnabled: Bool = {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("-force-pro")
+        #else
+        return false
+        #endif
+    }()
 
     private init() {
         if forceProEnabled { isPro = true }

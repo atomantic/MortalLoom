@@ -1,5 +1,8 @@
 import Foundation
+import os
 import WidgetKit
+
+private let widgetLogger = Logger(subsystem: "net.shadowpuppet.MeatSpaceTracker", category: "Widget")
 
 enum WidgetBridge: Sendable {
     static let appGroupID = "group.net.shadowpuppet.MeatSpaceTracker"
@@ -64,9 +67,20 @@ enum WidgetBridge: Sendable {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         guard let encoded = try? encoder.encode(snapshot) else { return }
-        try? encoded.write(to: url, options: .atomic)
-
-        WidgetCenter.shared.reloadAllTimelines()
+        // .completeFileProtectionUntilFirstUserAuthentication — widget extensions need
+        // to be able to open/read the snapshot while the device is locked after
+        // the first unlock following boot, while still keeping the file encrypted
+        // at rest before first user authentication. We cannot use .complete
+        // because WidgetKit reads the snapshot in the background.
+        do {
+            try encoded.write(
+                to: url,
+                options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication]
+            )
+            WidgetCenter.shared.reloadAllTimelines()
+        } catch {
+            widgetLogger.error("⚠️ WidgetBridge.update failed to write snapshot: \(error.localizedDescription, privacy: .private)")
+        }
         #endif
     }
 }

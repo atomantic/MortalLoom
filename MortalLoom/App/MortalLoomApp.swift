@@ -1,17 +1,31 @@
 import SwiftUI
+import os
+
+private let appLogger = Logger(subsystem: "net.shadowpuppet.MeatSpaceTracker", category: "App")
 
 enum AppConstants {
     static let hasCompletedOnboardingKey = "hasCompletedOnboarding"
-    /// Launch with -sample-data to load realistic test data for screenshots
+    /// Launch with -sample-data to load realistic test data for screenshots.
+    /// Debug-only — Release builds ignore this flag so a shipped binary cannot
+    /// be coerced into wiping a real user's data via launch arguments.
     static var useSampleData: Bool {
-        ProcessInfo.processInfo.arguments.contains("-sample-data")
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("-sample-data")
+        #else
+        return false
+        #endif
     }
-    /// Launch with -start-page <name> to open a specific page (for macOS screenshots)
+    /// Launch with -start-page <name> to open a specific page (for macOS screenshots).
+    /// Debug-only.
     static var startPage: AppPage? {
+        #if DEBUG
         let args = ProcessInfo.processInfo.arguments
         guard let idx = args.firstIndex(of: "-start-page"),
               idx + 1 < args.count else { return nil }
         return AppPage.allCases.first { $0.title.lowercased() == args[idx + 1].lowercased() }
+        #else
+        return nil
+        #endif
     }
 }
 
@@ -91,11 +105,11 @@ struct ContentView: View {
                 await HealthKitService.shared.requestAuthorization()
             }
             if HealthKitService.shared.isAvailable && HealthKitService.shared.authorizationRequestCompleted {
-                print("🏃 syncing HealthKit data to iCloud…")
+                appLogger.info("🏃 syncing HealthKit data to iCloud…")
                 async let body: Void = HealthKitSync.shared.syncBodyMetrics()
                 async let metrics: Void = HealthKitSync.shared.syncHealthMetrics()
                 _ = await (body, metrics)
-                print("✅ HealthKit sync complete")
+                appLogger.info("✅ HealthKit sync complete")
             }
             #endif
         }
