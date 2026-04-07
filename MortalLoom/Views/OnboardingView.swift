@@ -11,7 +11,7 @@ struct OnboardingView: View {
     @State private var dietQuality: DietQuality = .good
     @State private var stressLevel: StressLevel = .moderate
 
-    @StateObject private var healthKit = HealthKitService.shared
+    @State private var healthKit = HealthKitService.shared
     @State private var healthKitRequested = false
     @State private var healthKitDenied = false
     @State private var deathClockResult: DeathClockEngine.DeathClockResult?

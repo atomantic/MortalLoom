@@ -61,7 +61,7 @@ struct BodyView: View {
     @State private var manualWeight = ""
     @State private var manualBodyFat = ""
 
-    @StateObject private var healthKit = HealthKitService.shared
+    @State private var healthKit = HealthKitService.shared
     @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
     private var isWide: Bool { containerWidth >= Layout.wideThreshold }
     var body: some View {

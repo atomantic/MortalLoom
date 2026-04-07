@@ -1,12 +1,15 @@
 import Foundation
 import HealthKit
+import os
 
-@MainActor
-final class HealthKitService: ObservableObject {
+private let logger = Logger(subsystem: "net.shadowpuppet.MeatSpaceTracker", category: "HealthKit")
+
+@MainActor @Observable
+final class HealthKitService {
     static let shared = HealthKitService()
 
-    private let store = HKHealthStore()
-    @Published var authorized = false
+    @ObservationIgnored private let store = HKHealthStore()
+    private(set) var authorized = false
 
     // All types we want to read
     private var readTypes: Set<HKObjectType> {
@@ -45,6 +48,10 @@ final class HealthKitService: ObservableObject {
             authorized = true
         } catch {
             authorized = false
+            // Surface the failure so it can be diagnosed in Console.app —
+            // previously the error was silently swallowed and "denied" was
+            // indistinguishable from "request raised an exception".
+            logger.error("🩺 HealthKit authorization failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 

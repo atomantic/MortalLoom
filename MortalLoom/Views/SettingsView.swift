@@ -6,7 +6,7 @@ import UniformTypeIdentifiers
 struct SettingsView: View {
     @Environment(StoreManager.self) private var store
     @State private var appearance = AppearanceManager.shared
-    @StateObject private var healthKit = HealthKitService.shared
+    @State private var healthKit = HealthKitService.shared
 
     @State private var showExporter = false
     @State private var showImporter = false
