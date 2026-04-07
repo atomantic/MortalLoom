@@ -16,20 +16,21 @@ struct OnboardingView: View {
     @State private var healthKitRequestFailed = false
     @State private var deathClockResult: DeathClockEngine.DeathClockResult?
 
-    private let totalSteps = 9
+    private let totalSteps = 10
 
     var body: some View {
         VStack(spacing: 0) {
             TabView(selection: $currentStep) {
                 welcomeStep.tag(0)
-                healthKitStep.tag(1)
-                birthDateStep.tag(2)
-                biologicalSexStep.tag(3)
-                smokingStep.tag(4)
-                exerciseStep.tag(5)
-                sleepStep.tag(6)
-                dietStressStep.tag(7)
-                resultsStep.tag(8)
+                escapeVelocityStep.tag(1)
+                healthKitStep.tag(2)
+                birthDateStep.tag(3)
+                biologicalSexStep.tag(4)
+                smokingStep.tag(5)
+                exerciseStep.tag(6)
+                sleepStep.tag(7)
+                dietStressStep.tag(8)
+                resultsStep.tag(9)
             }
             #if os(iOS)
             .tabViewStyle(.page(indexDisplayMode: .never))
@@ -64,12 +65,41 @@ struct OnboardingView: View {
 
     // MARK: - Step 0: Welcome
 
+    private var companionPlatformName: String {
+        #if os(macOS)
+        return "iPhone & iPad"
+        #else
+        return "Mac"
+        #endif
+    }
+
     @ViewBuilder
     private var welcomeStep: some View {
         stepContainer {
             stepIcon("heart.text.clipboard")
             stepTitle("Welcome to MortalLoom")
-            stepDescription("A privacy-first longevity tracker. See how long you might have left \u{2014} and what you can do about it. All data stays on your device.")
+            stepDescription("A privacy-first longevity tracker. See how long you might have left \u{2014} and what you can do about it.")
+
+            VStack(alignment: .leading, spacing: 14) {
+                privacyBullet(
+                    icon: "lock.shield.fill",
+                    title: "Private by design",
+                    detail: "No accounts, no servers, no telemetry. Your health data is yours alone."
+                )
+                privacyBullet(
+                    icon: "icloud.fill",
+                    title: "Syncs through your iCloud",
+                    detail: "Encrypted end-to-end by Apple and shared only with your other Apple devices \u{2014} including the companion \(companionPlatformName) app."
+                )
+                privacyBullet(
+                    icon: "square.and.arrow.up",
+                    title: "Export anytime",
+                    detail: "Take your data with you. It never leaves your devices unless you explicitly share it."
+                )
+            }
+            .padding(.horizontal, 8)
+            .padding(.top, 4)
+
             Spacer()
             primaryButton("Get Started") {
                 advanceStep()
@@ -77,7 +107,79 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Step 1: Apple Health
+    @ViewBuilder
+    private func privacyBullet(icon: String, title: String, detail: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 20))
+                .foregroundColor(.accentColor)
+                .frame(width: 28, alignment: .center)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline).fontWeight(.semibold)
+                    .foregroundColor(.textPrimary)
+                Text(detail)
+                    .font(.caption)
+                    .foregroundColor(.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    // MARK: - Step 1: Longevity Escape Velocity
+
+    @ViewBuilder
+    private var escapeVelocityStep: some View {
+        stepContainer {
+            Image("EscapeVelocity")
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: 360, maxHeight: 180)
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(Color.cardBorder, lineWidth: 1)
+                )
+                .padding(.bottom, 4)
+                .accessibilityLabel("A glowing DNA helix curving upward into an arrow, symbolizing accelerating longevity")
+            stepTitle("Longevity Escape Velocity")
+            stepDescription("The reason every healthy year right now matters more than the last.")
+
+            VStack(alignment: .leading, spacing: 14) {
+                privacyBullet(
+                    icon: "hourglass",
+                    title: "You age 1 year per year",
+                    detail: "That has always been the deal \u{2014} until recently."
+                )
+                privacyBullet(
+                    icon: "chart.line.uptrend.xyaxis",
+                    title: "Medicine is catching up",
+                    detail: "Each year, breakthroughs in geroscience, gene therapy, and AI-driven diagnostics add measurable months to expected lifespan."
+                )
+                privacyBullet(
+                    icon: "infinity",
+                    title: "Escape velocity",
+                    detail: "When research adds more than a year of life expectancy per calendar year, the finish line stops moving toward you. Reach it in good health and the math tilts in your favor."
+                )
+                privacyBullet(
+                    icon: "figure.run.circle.fill",
+                    title: "Your job: stay in the game",
+                    detail: "MortalLoom tracks the levers you control \u{2014} sleep, movement, substances, blood markers, genome \u{2014} so you can buy yourself time until the curve crosses."
+                )
+            }
+            .padding(.horizontal, 8)
+            .padding(.top, 4)
+
+            Spacer()
+            primaryButton("Next") {
+                advanceStep()
+            }
+        }
+    }
+
+    // MARK: - Step 2: Apple Health
 
     @ViewBuilder
     private var healthKitStep: some View {
@@ -159,7 +261,7 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Step 2: Birth Date
+    // MARK: - Step 3: Birth Date
 
     @ViewBuilder
     private var birthDateStep: some View {
@@ -189,7 +291,7 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Step 2: Biological Sex
+    // MARK: - Step 4: Biological Sex
 
     @ViewBuilder
     private var biologicalSexStep: some View {
@@ -251,7 +353,7 @@ struct OnboardingView: View {
         .accessibilityAddTraits(biologicalSex == sex ? .isSelected : [])
     }
 
-    // MARK: - Step 3: Smoking
+    // MARK: - Step 5: Smoking
 
     @ViewBuilder
     private var smokingStep: some View {
@@ -306,7 +408,7 @@ struct OnboardingView: View {
         .accessibilityAddTraits(smokingStatus == status ? .isSelected : [])
     }
 
-    // MARK: - Step 4: Exercise
+    // MARK: - Step 6: Exercise
 
     @ViewBuilder
     private var exerciseStep: some View {
@@ -355,7 +457,7 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Step 5: Sleep
+    // MARK: - Step 7: Sleep
 
     @ViewBuilder
     private var sleepStep: some View {
@@ -404,7 +506,7 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Step 6: Diet & Stress
+    // MARK: - Step 8: Diet & Stress
 
     @ViewBuilder
     private var dietStressStep: some View {
@@ -482,7 +584,7 @@ struct OnboardingView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Step 7: Results
+    // MARK: - Step 9: Results
 
     @ViewBuilder
     private var resultsStep: some View {
@@ -672,7 +774,7 @@ struct OnboardingView: View {
 
     private func advanceStep() {
         let nextStep = min(currentStep + 1, totalSteps - 1)
-        if nextStep == 8 {
+        if nextStep == 9 {
             let birthDateStr = DateFormatting.dateString(birthDate)
             let lifestyle = LifestyleData(
                 smokingStatus: smokingStatus,

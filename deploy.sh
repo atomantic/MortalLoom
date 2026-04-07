@@ -195,7 +195,7 @@ EOF
         --apiKey "$APPSTORE_API_KEY_ID" \
         --apiIssuer "$APPSTORE_ISSUER_ID" 2>&1) || true
     echo "$UPLOAD_OUTPUT"
-    if echo "$UPLOAD_OUTPUT" | grep -q "UPLOAD FAILED\|ERROR:"; then
+    if echo "$UPLOAD_OUTPUT" | grep -qE "UPLOAD FAILED|ERROR: |Validation failed"; then
         echo "❌ $PLATFORM upload failed"
         exit 1
     fi
