@@ -72,6 +72,9 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: false
+        # macOS uses a separate entitlements file that includes App Sandbox keys.
+        # These are macOS-only and must not appear in the iOS signed entitlements.
+        "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]": MortalLoom/App/MortalLoom-macOS.entitlements
     info:
       path: MortalLoom/App/Info.plist
       properties:
@@ -96,10 +99,6 @@ targets:
     entitlements:
       path: MortalLoom/App/MortalLoom.entitlements
       properties:
-        com.apple.security.app-sandbox: true
-        com.apple.security.files.user-selected.read-write: true
-        com.apple.security.files.downloads.read-write: true
-        com.apple.security.files.bookmarks.app-scope: true
         com.apple.developer.healthkit: true
         com.apple.developer.healthkit.access:
           - health-records
@@ -109,6 +108,7 @@ targets:
           - CloudDocuments
         com.apple.security.application-groups:
           - group.net.shadowpuppet.MeatSpaceTracker
+        com.apple.security.files.bookmarks.app-scope: true
     dependencies:
       - target: MortalLoomWidget
         embed: true

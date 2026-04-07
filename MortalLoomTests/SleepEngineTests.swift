@@ -100,7 +100,7 @@ final class SleepEngineTests: XCTestCase {
         // 10 nights, take last 7
         let nights: [Double] = [6, 6, 6, 7, 7, 7, 8, 8, 8, 8]
         let avg = SleepEngine.rollingAverage(nights, days: 7)
-        // suffix 7 = [6, 7, 7, 7, 8, 8, 8, 8] — wait, suffix(7) gives last 7 = [7,7,7,8,8,8,8] = 53/7 ≈ 7.571
+        // Last 7 values are [7, 7, 7, 8, 8, 8, 8], which sum to 53.
         XCTAssertEqual(avg ?? 0, 53.0 / 7.0, accuracy: 0.001)
     }
 
@@ -280,16 +280,18 @@ final class SleepEngineTests: XCTestCase {
         XCTAssertEqual(SleepEngine.enhancedLongevityImpact(averageHours: 7.5, stageBreakdown: stages), -0.2, accuracy: 0.001)
     }
 
-    func testEnhancedLongevityImpactClampedHigh() {
+    func testEnhancedLongevityImpactMaximumReachableValue() {
         let stages = SleepEngine.SleepStageBreakdown(
             avgDeepHours: 1.6, avgRemHours: 1.8, avgCoreHours: 4.0,
             deepPct: 22, remPct: 24, corePct: 54,
             deepQuality: .excellent, remQuality: .excellent,
             totalNights: 7
         )
-        // Even with optimal stages, should not exceed +2.0
-        XCTAssertEqual(SleepEngine.enhancedLongevityImpact(averageHours: 7.5, stageBreakdown: stages), 1.5)
-        XCTAssertLessThanOrEqual(SleepEngine.enhancedLongevityImpact(averageHours: 7.5, stageBreakdown: stages), 2.0)
+        // Current best-case inputs: optimal hours (7.5 → +1.0)
+        // plus excellent deep (+0.3) and excellent rem (+0.2) = 1.5.
+        // Documents the maximum reachable value with current scoring weights.
+        let result = SleepEngine.enhancedLongevityImpact(averageHours: 7.5, stageBreakdown: stages)
+        XCTAssertEqual(result, 1.5, accuracy: 0.001)
     }
 
     func testEnhancedLongevityImpactClampedLow() {

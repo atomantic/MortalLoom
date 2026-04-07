@@ -213,6 +213,7 @@
 		581A48FA229D5FCAD176458F /* SampleData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleData.swift; sourceTree = "<group>"; };
 		5ABFE2DBE2C3A4FAFEE5EE6E /* LifeCalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifeCalendarView.swift; sourceTree = "<group>"; };
 		5C8ED8531BC086732C92DA9B /* MortalLoomTests_macOS.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MortalLoomTests_macOS.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		6106B8D7893DD34F5503FC93 /* MortalLoom-macOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "MortalLoom-macOS.entitlements"; sourceTree = "<group>"; };
 		63EFA7304632982F7F2C834D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		66616D81AC46D85C5D584F4F /* HealthKitSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitSync.swift; sourceTree = "<group>"; };
 		69B73CEA0F3655CDD11A007C /* CuratedMarkers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CuratedMarkers.swift; sourceTree = "<group>"; };
@@ -298,6 +299,7 @@
 			children = (
 				8DFE4C5B3F84209835BAB96B /* Assets.xcassets */,
 				63EFA7304632982F7F2C834D /* Info.plist */,
+				6106B8D7893DD34F5503FC93 /* MortalLoom-macOS.entitlements */,
 				9A913A076D3406287294E60C /* MortalLoom.entitlements */,
 				25A938EE48931E1A7D80455D /* MortalLoomApp.swift */,
 				223CD2E2AB78B4665CCC4255 /* Products.storekit */,
@@ -887,6 +889,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = MortalLoom/App/MortalLoom.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "MortalLoom/App/MortalLoom-macOS.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = TYQ32QCF6K;
@@ -963,6 +966,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = MortalLoom/App/MortalLoom.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "MortalLoom/App/MortalLoom-macOS.entitlements";
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = TYQ32QCF6K;
@@ -1060,6 +1064,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = MortalLoom/App/MortalLoom.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "MortalLoom/App/MortalLoom-macOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = TYQ32QCF6K;
@@ -1087,6 +1092,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = MortalLoom/App/MortalLoom.entitlements;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "MortalLoom/App/MortalLoom-macOS.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = TYQ32QCF6K;

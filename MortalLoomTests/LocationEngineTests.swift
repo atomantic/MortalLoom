@@ -31,8 +31,8 @@ final class LocationEngineTests: XCTestCase {
 
     // MARK: Country deltas — clamping
 
-    func testCountryDeltaClampsToCeiling() {
-        // Even if a future entry exceeds 6.0, it should clamp at +6.0
+    func testCountryDeltaHongKongDoesNotExceedCeiling() {
+        // Hong Kong's table value should not exceed the documented +6.0 ceiling.
         XCTAssertLessThanOrEqual(LocationEngine.countryLifeExpectancyDelta("HK"), 6.0)
     }
 
@@ -116,8 +116,8 @@ final class LocationEngineTests: XCTestCase {
         )
     }
 
-    func testLocationAdjustmentClampsCeiling() {
-        // Hong Kong (6.0) + good (0.5) = 6.5 — under ceiling of 8.0, no clamp
+    func testLocationAdjustmentDoesNotClampUnderCeiling() {
+        // Hong Kong (6.0) + good (0.5) = 6.5, which is under the +8.0 ceiling — no clamping occurs.
         XCTAssertEqual(
             LocationEngine.locationAdjustment(countryCode: "HK", airQuality: .good),
             6.5,
