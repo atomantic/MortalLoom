@@ -31,24 +31,50 @@ struct HealthMetricEntry: Codable, Sendable, Equatable, Identifiable {
     // Cardio recovery
     var cardioRecovery: Double?     // HR recovery bpm drop in 1 min post-exercise
 
+    // Body composition (extended)
+    var leanBodyMass: Double?       // lbs
+
+    // Cardiovascular (device synced)
+    var bloodPressureSystolic: Double?  // mmHg
+    var bloodPressureDiastolic: Double? // mmHg
+
     // Gait & mobility
     var walkingSpeed: Double?       // m/s (daily average)
     var walkingDistance: Double?     // km (daily sum)
+    var walkingStepLength: Double?  // meters (daily average)
+    var distanceCycling: Double?    // km (daily sum)
     var walkingAsymmetry: Double?   // % asymmetry (lower is better)
     var walkingDoubleSupport: Double? // % of gait cycle in double support
     var stairSpeedUp: Double?       // m/s ascending stairs
     var stairSpeedDown: Double?     // m/s descending stairs
     var walkingHRAverage: Double?   // bpm average during walks
+    var walkingSteadiness: Double?  // % (0-100, Apple Walking Steadiness)
 
     // Activity
     var standMinutes: Double?       // daily stand time (minutes)
     var basalEnergy: Double?        // basal metabolic rate (kcal/day)
+    var physicalEffort: Double?     // kcal/(kg*hr) average physical effort intensity
 
-    // Respiratory
+    // Breathing
     var breathingDisturbances: Double? // events per hour during sleep
+
+    // Metabolic
+    var bloodGlucose: Double?       // mg/dL
+    var bodyTemperature: Double?    // °F
+
+    // Sleep (extended)
+    var wristTemperature: Double?   // °C deviation from baseline (Apple Watch)
+
+    // Mindfulness
+    var mindfulMinutes: Double?     // daily mindfulness/meditation minutes
+
+    // Substance (HealthKit correlation)
+    var hkAlcoholicBeverages: Double? // drinks logged via HealthKit (not app manual entry)
 
     // Environment
     var daylightMinutes: Double?    // outdoor light exposure (minutes/day)
+    var environmentalAudioExposure: Double? // dB daily average
+    var headphoneAudioExposure: Double?     // dB daily average
 
     init(
         id: UUID = UUID(),
@@ -77,8 +103,22 @@ struct HealthMetricEntry: Codable, Sendable, Equatable, Identifiable {
         walkingHRAverage: Double? = nil,
         standMinutes: Double? = nil,
         basalEnergy: Double? = nil,
+        distanceCycling: Double? = nil,
+        walkingStepLength: Double? = nil,
+        leanBodyMass: Double? = nil,
+        physicalEffort: Double? = nil,
         breathingDisturbances: Double? = nil,
-        daylightMinutes: Double? = nil
+        bloodPressureSystolic: Double? = nil,
+        bloodPressureDiastolic: Double? = nil,
+        bloodGlucose: Double? = nil,
+        bodyTemperature: Double? = nil,
+        wristTemperature: Double? = nil,
+        mindfulMinutes: Double? = nil,
+        hkAlcoholicBeverages: Double? = nil,
+        daylightMinutes: Double? = nil,
+        environmentalAudioExposure: Double? = nil,
+        headphoneAudioExposure: Double? = nil,
+        walkingSteadiness: Double? = nil
     ) {
         self.id = id
         self.date = date
@@ -106,8 +146,22 @@ struct HealthMetricEntry: Codable, Sendable, Equatable, Identifiable {
         self.walkingHRAverage = walkingHRAverage
         self.standMinutes = standMinutes
         self.basalEnergy = basalEnergy
+        self.distanceCycling = distanceCycling
+        self.walkingStepLength = walkingStepLength
+        self.leanBodyMass = leanBodyMass
+        self.physicalEffort = physicalEffort
         self.breathingDisturbances = breathingDisturbances
+        self.bloodPressureSystolic = bloodPressureSystolic
+        self.bloodPressureDiastolic = bloodPressureDiastolic
+        self.bloodGlucose = bloodGlucose
+        self.bodyTemperature = bodyTemperature
+        self.wristTemperature = wristTemperature
+        self.mindfulMinutes = mindfulMinutes
+        self.hkAlcoholicBeverages = hkAlcoholicBeverages
         self.daylightMinutes = daylightMinutes
+        self.environmentalAudioExposure = environmentalAudioExposure
+        self.headphoneAudioExposure = headphoneAudioExposure
+        self.walkingSteadiness = walkingSteadiness
     }
 
     /// Merge non-nil fields from another entry into this one.
@@ -136,7 +190,21 @@ struct HealthMetricEntry: Codable, Sendable, Equatable, Identifiable {
         if let v = source.walkingHRAverage { walkingHRAverage = v }
         if let v = source.standMinutes { standMinutes = v }
         if let v = source.basalEnergy { basalEnergy = v }
+        if let v = source.distanceCycling { distanceCycling = v }
+        if let v = source.walkingStepLength { walkingStepLength = v }
+        if let v = source.leanBodyMass { leanBodyMass = v }
+        if let v = source.physicalEffort { physicalEffort = v }
         if let v = source.breathingDisturbances { breathingDisturbances = v }
+        if let v = source.bloodPressureSystolic { bloodPressureSystolic = v }
+        if let v = source.bloodPressureDiastolic { bloodPressureDiastolic = v }
+        if let v = source.bloodGlucose { bloodGlucose = v }
+        if let v = source.bodyTemperature { bodyTemperature = v }
+        if let v = source.wristTemperature { wristTemperature = v }
+        if let v = source.mindfulMinutes { mindfulMinutes = v }
+        if let v = source.hkAlcoholicBeverages { hkAlcoholicBeverages = v }
         if let v = source.daylightMinutes { daylightMinutes = v }
+        if let v = source.environmentalAudioExposure { environmentalAudioExposure = v }
+        if let v = source.headphoneAudioExposure { headphoneAudioExposure = v }
+        if let v = source.walkingSteadiness { walkingSteadiness = v }
     }
 }

@@ -13,30 +13,61 @@ final class HealthKitService {
     @ObservationIgnored private let store = HKHealthStore()
     private(set) var authorizationRequestCompleted = false
 
-    // All types we want to read
+    // All types we want to read — longevity-relevant HealthKit data
     private var readTypes: Set<HKObjectType> {
         var types: Set<HKObjectType> = []
         let quantityTypes: [HKQuantityTypeIdentifier] = [
+            // Cardiovascular
             .heartRate, .restingHeartRate, .heartRateVariabilitySDNN,
+            .heartRateRecoveryOneMinute,
+            .bloodPressureSystolic, .bloodPressureDiastolic,
+
+            // Respiratory & oxygenation
             .oxygenSaturation, .respiratoryRate, .vo2Max,
+
+            // Activity & movement
             .stepCount, .activeEnergyBurned, .basalEnergyBurned,
             .flightsClimbed, .appleExerciseTime, .appleStandTime,
             .distanceWalkingRunning, .distanceCycling,
+
+            // Body composition
             .bodyMass, .bodyMassIndex, .bodyFatPercentage, .leanBodyMass,
+
+            // Gait & mobility
             .walkingSpeed, .walkingStepLength,
             .walkingAsymmetryPercentage, .walkingDoubleSupportPercentage,
             .stairAscentSpeed, .stairDescentSpeed, .walkingHeartRateAverage,
-            .heartRateRecoveryOneMinute,
+            .appleWalkingSteadiness,
+
+            // Metabolic
+            .bloodGlucose, .bodyTemperature,
+
+            // Sleep
+            .appleSleepingWristTemperature,
+
+            // Substance (correlate with manual tracking)
+            .numberOfAlcoholicBeverages,
+
+            // Environment
             .timeInDaylight,
             .environmentalAudioExposure, .headphoneAudioExposure,
+
+            // Physical effort (iOS 17+)
+            .physicalEffort,
         ]
         for id in quantityTypes {
             if let t = HKObjectType.quantityType(forIdentifier: id) {
                 types.insert(t)
             }
         }
-        if let sleep = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) {
-            types.insert(sleep)
+        let categoryTypes: [HKCategoryTypeIdentifier] = [
+            .sleepAnalysis,
+            .mindfulSession,
+        ]
+        for id in categoryTypes {
+            if let t = HKObjectType.categoryType(forIdentifier: id) {
+                types.insert(t)
+            }
         }
         return types
     }
@@ -222,6 +253,36 @@ final class HealthKitService {
                     )
                 }.sorted { $0.date < $1.date }
 
+                continuation.resume(returning: result)
+            }
+            store.execute(query)
+        }
+    }
+
+    /// Query daily mindful session minutes for a date range.
+    /// Sums all mindfulSession category sample durations per calendar day.
+    func dailyMindfulMinutes(from: Date, to: Date) async -> [(date: Date, value: Double)] {
+        guard let mindfulType = HKCategoryType.categoryType(forIdentifier: .mindfulSession) else { return [] }
+
+        return await withCheckedContinuation { continuation in
+            let predicate = HKQuery.predicateForSamples(withStart: from, end: to, options: .strictStartDate)
+            let sort = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)
+            let query = HKSampleQuery(sampleType: mindfulType, predicate: predicate, limit: HKObjectQueryNoLimit, sortDescriptors: [sort]) { _, samples, _ in
+                guard let samples = samples as? [HKCategorySample] else {
+                    continuation.resume(returning: [])
+                    return
+                }
+
+                var dailySeconds: [Date: Double] = [:]
+                let calendar = Calendar.current
+                for sample in samples {
+                    let dayStart = calendar.startOfDay(for: sample.startDate)
+                    let duration = sample.endDate.timeIntervalSince(sample.startDate)
+                    dailySeconds[dayStart, default: 0] += duration
+                }
+
+                let result = dailySeconds.map { (date: $0.key, value: $0.value / 60.0) }
+                    .sorted { $0.date < $1.date }
                 continuation.resume(returning: result)
             }
             store.execute(query)

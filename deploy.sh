@@ -195,7 +195,10 @@ EOF
         --apiKey "$APPSTORE_API_KEY_ID" \
         --apiIssuer "$APPSTORE_ISSUER_ID" 2>&1) || true
     echo "$UPLOAD_OUTPUT"
-    if echo "$UPLOAD_OUTPUT" | grep -qE "UPLOAD FAILED|ERROR: |Validation failed"; then
+    # Definitive failure markers only — plain "ERROR: " false-positives on
+    # altool's normal multipart retry events ("WILL RETRY PART N. Checksums
+    # do not match." / "The network connection was lost.").
+    if echo "$UPLOAD_OUTPUT" | grep -qE "UPLOAD FAILED|Validation failed \(|ERROR ITMS-|product-errors"; then
         echo "❌ $PLATFORM upload failed"
         exit 1
     fi

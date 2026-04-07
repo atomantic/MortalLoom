@@ -113,7 +113,7 @@ final class HealthKitSync {
         async let respData = hk.dailyStats(for: .respiratoryRate, unit: .count().unitDivided(by: .minute()), aggregation: .average, from: from, to: to)
         async let sleepStageData = hk.dailySleepStages(from: from, to: to)
 
-        // New metrics: cardio recovery, gait, activity, environment
+        // Cardio recovery, gait, activity, environment
         async let cardioRecoveryData = hk.dailyStats(for: .heartRateRecoveryOneMinute, unit: .count().unitDivided(by: .minute()), aggregation: .average, from: from, to: to)
         async let walkingSpeedData = hk.dailyStats(for: .walkingSpeed, unit: HKUnit.meter().unitDivided(by: .second()), aggregation: .average, from: from, to: to)
         async let walkingDistanceData = hk.dailyStats(for: .distanceWalkingRunning, unit: .meterUnit(with: .kilo), aggregation: .sum, from: from, to: to)
@@ -125,6 +125,24 @@ final class HealthKitSync {
         async let standData = hk.dailyStats(for: .appleStandTime, unit: .minute(), aggregation: .sum, from: from, to: to)
         async let basalEnergyData = hk.dailyStats(for: .basalEnergyBurned, unit: .kilocalorie(), aggregation: .sum, from: from, to: to)
         async let daylightData = hk.dailyStats(for: .timeInDaylight, unit: .minute(), aggregation: .sum, from: from, to: to)
+
+        // Previously requested but not synced
+        async let cyclingData = hk.dailyStats(for: .distanceCycling, unit: .meterUnit(with: .kilo), aggregation: .sum, from: from, to: to)
+        async let stepLengthData = hk.dailyStats(for: .walkingStepLength, unit: .meter(), aggregation: .average, from: from, to: to)
+        async let leanMassData = hk.dailyStats(for: .leanBodyMass, unit: .pound(), aggregation: .average, from: from, to: to)
+        async let envAudioData = hk.dailyStats(for: .environmentalAudioExposure, unit: .decibelAWeightedSoundPressureLevel(), aggregation: .average, from: from, to: to)
+        async let headphoneAudioData = hk.dailyStats(for: .headphoneAudioExposure, unit: .decibelAWeightedSoundPressureLevel(), aggregation: .average, from: from, to: to)
+
+        // New longevity-relevant types
+        async let bpSystolicData = hk.dailyStats(for: .bloodPressureSystolic, unit: .millimeterOfMercury(), aggregation: .average, from: from, to: to)
+        async let bpDiastolicData = hk.dailyStats(for: .bloodPressureDiastolic, unit: .millimeterOfMercury(), aggregation: .average, from: from, to: to)
+        async let glucoseData = hk.dailyStats(for: .bloodGlucose, unit: HKUnit.gramUnit(with: .milli).unitDivided(by: .literUnit(with: .deci)), aggregation: .average, from: from, to: to)
+        async let bodyTempData = hk.dailyStats(for: .bodyTemperature, unit: .degreeFahrenheit(), aggregation: .average, from: from, to: to)
+        async let wristTempData = hk.dailyStats(for: .appleSleepingWristTemperature, unit: .degreeCelsius(), aggregation: .average, from: from, to: to)
+        async let hkAlcoholData = hk.dailyStats(for: .numberOfAlcoholicBeverages, unit: .count(), aggregation: .sum, from: from, to: to)
+        async let steadinessData = hk.dailyStats(for: .appleWalkingSteadiness, unit: .percent(), aggregation: .average, from: from, to: to)
+        async let physicalEffortData = hk.dailyStats(for: .physicalEffort, unit: HKUnit.kilocalorie().unitDivided(by: HKUnit.gramUnit(with: .kilo).unitMultiplied(by: .hour())), aggregation: .average, from: from, to: to)
+        async let mindfulData = hk.dailyMindfulMinutes(from: from, to: to)
 
         // Collect all results
         let hrv = await hrvData
@@ -151,14 +169,32 @@ final class HealthKitSync {
         let basalE = await basalEnergyData
         let daylight = await daylightData
 
+        // Previously requested but not synced
+        let cycling = await cyclingData
+        let stepLength = await stepLengthData
+        let leanMass = await leanMassData
+        let envAudio = await envAudioData
+        let headphoneAudio = await headphoneAudioData
+
+        // New longevity types
+        let bpSystolic = await bpSystolicData
+        let bpDiastolic = await bpDiastolicData
+        let glucose = await glucoseData
+        let bodyTemp = await bodyTempData
+        let wristTemp = await wristTempData
+        let hkAlcohol = await hkAlcoholData
+        let steadiness = await steadinessData
+        let physicalEffort = await physicalEffortData
+        let mindful = await mindfulData
+
         // Build a date-keyed dictionary of all metrics
         var byDate: [String: HealthMetricEntry] = [:]
 
-        func merge(_ data: [(date: Date, value: Double)], into path: WritableKeyPath<HealthMetricEntry, Double?>) {
+        func merge(_ data: [(date: Date, value: Double)], into path: WritableKeyPath<HealthMetricEntry, Double?>, transform: ((Double) -> Double)? = nil) {
             for item in data {
                 let dateStr = DateFormatting.dateString(item.date)
                 var entry = byDate[dateStr] ?? HealthMetricEntry(date: dateStr)
-                entry[keyPath: path] = item.value
+                entry[keyPath: path] = transform?(item.value) ?? item.value
                 byDate[dateStr] = entry
             }
         }
@@ -195,27 +231,29 @@ final class HealthKitSync {
         merge(basalE, into: \.basalEnergy)
         merge(daylight, into: \.daylightMinutes)
 
-        // Walking asymmetry/double support come as 0-1, convert to 0-100
-        for item in walkAsym {
-            let dateStr = DateFormatting.dateString(item.date)
-            var entry = byDate[dateStr] ?? HealthMetricEntry(date: dateStr)
-            entry.walkingAsymmetry = item.value * 100
-            byDate[dateStr] = entry
-        }
-        for item in walkDS {
-            let dateStr = DateFormatting.dateString(item.date)
-            var entry = byDate[dateStr] ?? HealthMetricEntry(date: dateStr)
-            entry.walkingDoubleSupport = item.value * 100
-            byDate[dateStr] = entry
-        }
+        // Previously requested but not synced
+        merge(cycling, into: \.distanceCycling)
+        merge(stepLength, into: \.walkingStepLength)
+        merge(leanMass, into: \.leanBodyMass)
+        merge(envAudio, into: \.environmentalAudioExposure)
+        merge(headphoneAudio, into: \.headphoneAudioExposure)
 
-        // SpO2 comes as 0-1, convert to 0-100
-        for item in spo2 {
-            let dateStr = DateFormatting.dateString(item.date)
-            var entry = byDate[dateStr] ?? HealthMetricEntry(date: dateStr)
-            entry.oxygenSaturation = item.value * 100
-            byDate[dateStr] = entry
-        }
+        // New longevity types
+        merge(bpSystolic, into: \.bloodPressureSystolic)
+        merge(bpDiastolic, into: \.bloodPressureDiastolic)
+        merge(glucose, into: \.bloodGlucose)
+        merge(bodyTemp, into: \.bodyTemperature)
+        merge(wristTemp, into: \.wristTemperature)
+        merge(hkAlcohol, into: \.hkAlcoholicBeverages)
+        merge(physicalEffort, into: \.physicalEffort)
+        merge(mindful, into: \.mindfulMinutes)
+
+        // HealthKit returns these as 0-1 fractions; convert to 0-100 percentages
+        let toPercent: (Double) -> Double = { $0 * 100 }
+        merge(walkAsym, into: \.walkingAsymmetry, transform: toPercent)
+        merge(walkDS, into: \.walkingDoubleSupport, transform: toPercent)
+        merge(spo2, into: \.oxygenSaturation, transform: toPercent)
+        merge(steadiness, into: \.walkingSteadiness, transform: toPercent)
 
         guard !byDate.isEmpty else { return }
 
