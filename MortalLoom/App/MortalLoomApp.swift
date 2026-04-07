@@ -86,11 +86,11 @@ struct ContentView: View {
             // Start iCloud file monitoring for cross-device sync
             ICloudMonitor.shared.start()
             #if os(iOS)
-            // Re-check HealthKit auth on every launch (authorized starts false until confirmed)
+            // Request HealthKit auth on every launch (prompt shows once; subsequent calls are no-ops)
             if HealthKitService.shared.isAvailable {
                 await HealthKitService.shared.requestAuthorization()
             }
-            if HealthKitService.shared.isAvailable && HealthKitService.shared.authorized {
+            if HealthKitService.shared.isAvailable && HealthKitService.shared.authorizationRequestCompleted {
                 print("🏃 syncing HealthKit data to iCloud…")
                 async let body: Void = HealthKitSync.shared.syncBodyMetrics()
                 async let metrics: Void = HealthKitSync.shared.syncHealthMetrics()

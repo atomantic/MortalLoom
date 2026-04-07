@@ -13,7 +13,7 @@ final class HealthKitSync {
     /// Pull latest weight and body fat from HealthKit into bodyEntries.
     /// Merges with existing data — HealthKit entries won't duplicate manual entries.
     func syncBodyMetrics() async {
-        guard hk.isAvailable, hk.authorized else { return }
+        guard hk.isAvailable, hk.authorizationRequestCompleted else { return }
 
         var data = await DataStore.shared.getData()
         var changed = false
@@ -63,7 +63,7 @@ final class HealthKitSync {
 
     /// Pull historical weight data for the last 90 days.
     func syncWeightHistory() async {
-        guard hk.isAvailable, hk.authorized else { return }
+        guard hk.isAvailable, hk.authorizationRequestCompleted else { return }
 
         let to = Date()
         let from = Calendar.current.date(byAdding: .day, value: -90, to: to) ?? to
@@ -92,7 +92,7 @@ final class HealthKitSync {
     /// Pull 90 days of daily health metrics (HRV, heart rate, steps, etc.) into AppData.
     /// These persist to iCloud so macOS can render correlation charts without HealthKit.
     func syncHealthMetrics() async {
-        guard hk.isAvailable, hk.authorized else { return }
+        guard hk.isAvailable, hk.authorizationRequestCompleted else { return }
 
         let to = Date()
         let from = Calendar.current.date(byAdding: .day, value: -90, to: to) ?? to

@@ -6,7 +6,7 @@ import UniformTypeIdentifiers
 struct SettingsView: View {
     @Environment(StoreManager.self) private var store
     @State private var appearance = AppearanceManager.shared
-    @StateObject private var healthKit = HealthKitService.shared
+    @State private var healthKit = HealthKitService.shared
 
     @State private var showExporter = false
     @State private var showImporter = false
@@ -345,20 +345,20 @@ struct SettingsView: View {
             HStack(spacing: 12) {
                 Image(systemName: "heart.fill")
                     .font(.title2)
-                    .foregroundColor(healthKit.authorized ? .success : .textMuted)
+                    .foregroundColor(healthKit.authorizationRequestCompleted ? .success : .textMuted)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("HealthKit")
                         .font(.subheadline).fontWeight(.medium)
                         .foregroundColor(.textPrimary)
-                    Text(healthKit.authorized ? "Connected" : "Not connected")
+                    Text(healthKit.authorizationRequestCompleted ? "Access requested" : "Not requested")
                         .font(.caption)
-                        .foregroundColor(healthKit.authorized ? .success : .textMuted)
+                        .foregroundColor(healthKit.authorizationRequestCompleted ? .success : .textMuted)
                 }
 
                 Spacer()
 
-                if !healthKit.authorized {
+                if !healthKit.authorizationRequestCompleted {
                     Button {
                         Task { await healthKit.requestAuthorization() }
                     } label: {
