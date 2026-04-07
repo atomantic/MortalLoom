@@ -1,4 +1,7 @@
 import Foundation
+import os
+
+private let logger = Logger(subsystem: "net.shadowpuppet.MeatSpaceTracker", category: "iCloud")
 
 /// Watches for iCloud file changes and reloads DataStore when the remote file updates.
 @MainActor @Observable
@@ -37,7 +40,7 @@ final class ICloudMonitor {
 
         q.start()
         query = q
-        print("☁️ iCloud monitor started, isICloud=\(isICloud)")
+        logger.info("☁️ iCloud monitor started, isICloud=\(self.isICloud, privacy: .public)")
     }
 
     func stop() {
@@ -49,7 +52,7 @@ final class ICloudMonitor {
 
     /// Manual sync — force reload from iCloud.
     func syncNow() async {
-        print("☁️ manual sync triggered")
+        logger.info("☁️ manual sync triggered")
         isSyncing = true
         await applyReloadIfNeeded()
         isSyncing = false
@@ -62,11 +65,11 @@ final class ICloudMonitor {
 
     @objc private func queryDidFinishGathering(_ notification: Notification) {
         query?.enableUpdates()
-        print("☁️ initial iCloud gather complete")
+        logger.info("☁️ initial iCloud gather complete")
     }
 
     @objc private func queryDidUpdate(_ notification: Notification) {
-        print("☁️ iCloud file changed, scheduling reload")
+        logger.info("☁️ iCloud file changed, scheduling reload")
         scheduleReload()
     }
 
@@ -78,7 +81,7 @@ final class ICloudMonitor {
 
             let sinceLastWrite = Date().timeIntervalSince(lastWriteDate)
             guard sinceLastWrite > writeSuppressionWindow else {
-                print("☁️ skipping reload, local write was \(String(format: "%.1f", sinceLastWrite))s ago")
+                logger.debug("☁️ skipping reload, local write was \(sinceLastWrite, format: .fixed(precision: 1))s ago")
                 return
             }
 
@@ -93,7 +96,7 @@ final class ICloudMonitor {
         if didChange {
             NotificationCenter.default.post(name: .dataDidSync, object: nil)
             NotificationCenter.default.post(name: .profileDidChange, object: nil)
-            print("☁️ sync: data updated from iCloud")
+            logger.info("☁️ sync: data updated from iCloud")
         }
     }
 }

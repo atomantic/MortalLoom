@@ -453,7 +453,7 @@ private struct BloodTestCardView: View {
                 category.keys.contains(where: { test.markers[$0] != nil })
             }
 
-            ForEach(Array(filledCategories.enumerated()), id: \.offset) { _, category in
+            ForEach(filledCategories, id: \.name) { category in
                 let filledKeys = category.keys.filter { test.markers[$0] != nil }
                 if !filledKeys.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {

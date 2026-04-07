@@ -1,6 +1,9 @@
 import Foundation
 #if os(iOS)
 import HealthKit
+import os
+
+private let logger = Logger(subsystem: "net.shadowpuppet.MeatSpaceTracker", category: "HealthKitSync")
 
 /// Pulls HealthKit metrics into AppData so they sync to macOS via iCloud.
 /// Runs on iOS only since macOS doesn't have direct HealthKit access.
@@ -228,7 +231,10 @@ final class HealthKitSync {
                 profileData.profile.lifestyle.sleepHoursPerNight = avgSleep
                 await DataStore.shared.save(profileData)
                 NotificationCenter.default.post(name: .profileDidChange, object: nil)
-                print("💤 Synced sleep avg from HealthKit: \(avgSleep)h/night")
+                // Average is a rolling 30-day mean — privacy: .private keeps the
+                // numeric value out of system log streams, but the sync event is
+                // worth recording for diagnostics.
+                logger.info("💤 Synced sleep avg from HealthKit: \(avgSleep, privacy: .private)h/night")
             }
         }
     }

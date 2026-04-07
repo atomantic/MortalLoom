@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 extension Notification.Name {
     static let dataDidSync = Notification.Name("dataDidSync")
@@ -7,6 +8,8 @@ extension Notification.Name {
 enum CloudConfig {
     static let containerID = "iCloud.net.shadowpuppet.MeatSpaceTracker"
 }
+
+private let logger = Logger(subsystem: "net.shadowpuppet.MeatSpaceTracker", category: "DataStore")
 
 extension FileManager {
     /// Returns the cloud URL if it exists and is newer than the local URL, otherwise the local URL.
@@ -72,8 +75,13 @@ actor DataStore {
            let decoded = try? JSONDecoder().decode(AppData.self, from: fileData) {
             data = decoded
             lastSaveDate = cloudDate
-            // Also update local copy
-            try? fileData.write(to: localURL, options: .atomic)
+            // Mirror the same protection class used in save(_:) so the local
+            // copy is never silently downgraded by an iCloud-triggered reload.
+            do {
+                try fileData.write(to: localURL, options: [.atomic, .completeFileProtection])
+            } catch {
+                logger.error("💾 Failed to write local data in reloadIfNeeded: \(error.localizedDescription, privacy: .private)")
+            }
             return true
         }
         return false
@@ -86,16 +94,39 @@ actor DataStore {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         guard let encoded = try? encoder.encode(data) else { return }
 
-        try? encoded.write(to: localURL, options: .atomic)
+        // Health profile contains birth date, sex, and behavioral data — write
+        // with .complete file protection so the file is unreadable while the
+        // device is locked. The main app does not need background access to
+        // this file (the widget reads its own snapshot via WidgetBridge), so
+        // .complete is the strongest level we can use without breaking sync.
+        do {
+            try encoded.write(to: localURL, options: [.atomic, .completeFileProtection])
+        } catch {
+            logger.error("💾 Failed to write local data: \(error.localizedDescription, privacy: .private)")
+        }
         lastSaveDate = Date()
 
         if let cloudURL = iCloudURL {
             let dir = cloudURL.deletingLastPathComponent()
-            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            try? encoded.write(to: cloudURL, options: .atomic)
+            do {
+                try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            } catch {
+                logger.error("☁️ Failed to create iCloud directory: \(error.localizedDescription, privacy: .private)")
+            }
+            // iCloud Documents propagates protection class via the container's
+            // security policy; pass .completeUnlessOpen so the iCloud daemon
+            // can still read it for sync after first authentication.
+            do {
+                try encoded.write(to: cloudURL, options: [.atomic, .completeFileProtectionUnlessOpen])
+            } catch {
+                logger.error("☁️ Failed to write iCloud data: \(error.localizedDescription, privacy: .private)")
+            }
         }
 
+        // iCloud-monitor markLocalWrite runs on @MainActor (attached Task is fine).
         Task { @MainActor in ICloudMonitor.shared.markLocalWrite() }
+        // WidgetBridge.update does synchronous work (engine calc, file write, WidgetCenter
+        // reload). Task.detached keeps it off the DataStore actor's serial executor.
         Task.detached { WidgetBridge.update(data: newData) }
     }
 
@@ -312,11 +343,25 @@ actor DataStore {
 
     func saveGenomeFile(_ content: String) {
         guard let data = content.data(using: .utf8) else { return }
-        try? data.write(to: localGenomeURL, options: .atomic)
+        // Genome data is the most sensitive payload in the app — full data
+        // protection while the device is locked.
+        do {
+            try data.write(to: localGenomeURL, options: [.atomic, .completeFileProtection])
+        } catch {
+            logger.error("🧬 Failed to write local genome file: \(error.localizedDescription, privacy: .private)")
+        }
         if let cloudURL = iCloudGenomeURL {
             let dir = cloudURL.deletingLastPathComponent()
-            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            try? data.write(to: cloudURL, options: .atomic)
+            do {
+                try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            } catch {
+                logger.error("🧬 Failed to create iCloud genome directory: \(error.localizedDescription, privacy: .private)")
+            }
+            do {
+                try data.write(to: cloudURL, options: [.atomic, .completeFileProtectionUnlessOpen])
+            } catch {
+                logger.error("🧬 Failed to write iCloud genome file: \(error.localizedDescription, privacy: .private)")
+            }
         }
     }
 
