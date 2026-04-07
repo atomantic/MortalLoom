@@ -9,7 +9,7 @@ final class HealthKitService {
     static let shared = HealthKitService()
 
     @ObservationIgnored private let store = HKHealthStore()
-    private(set) var authorized = false
+    private(set) var authorizationRequestCompleted = false
 
     // All types we want to read
     private var readTypes: Set<HKObjectType> {
@@ -51,9 +51,9 @@ final class HealthKitService {
             // so there is no API to confirm access was granted without a
             // data query. `authorized` means "auth prompt completed without
             // error"; callers must handle empty / nil query results.
-            authorized = true
+            authorizationRequestCompleted = true
         } catch {
-            authorized = false
+            authorizationRequestCompleted = false
             // Surface the failure so it can be diagnosed in Console.app —
             // previously the error was silently swallowed and "denied" was
             // indistinguishable from "request threw an error".

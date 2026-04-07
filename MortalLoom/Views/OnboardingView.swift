@@ -136,7 +136,7 @@ struct OnboardingView: View {
                 primaryButton("Connect Apple Health") {
                     Task {
                         await healthKit.requestAuthorization()
-                        healthKitDenied = !healthKit.authorized
+                        healthKitDenied = !healthKit.authorizationRequestCompleted
                         healthKitRequested = true
                         advanceStep()
                     }

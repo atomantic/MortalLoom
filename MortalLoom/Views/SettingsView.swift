@@ -345,20 +345,20 @@ struct SettingsView: View {
             HStack(spacing: 12) {
                 Image(systemName: "heart.fill")
                     .font(.title2)
-                    .foregroundColor(healthKit.authorized ? .success : .textMuted)
+                    .foregroundColor(healthKit.authorizationRequestCompleted ? .success : .textMuted)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("HealthKit")
                         .font(.subheadline).fontWeight(.medium)
                         .foregroundColor(.textPrimary)
-                    Text(healthKit.authorized ? "Connected" : "Not connected")
+                    Text(healthKit.authorizationRequestCompleted ? "Connected" : "Not connected")
                         .font(.caption)
-                        .foregroundColor(healthKit.authorized ? .success : .textMuted)
+                        .foregroundColor(healthKit.authorizationRequestCompleted ? .success : .textMuted)
                 }
 
                 Spacer()
 
-                if !healthKit.authorized {
+                if !healthKit.authorizationRequestCompleted {
                     Button {
                         Task { await healthKit.requestAuthorization() }
                     } label: {

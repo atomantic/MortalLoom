@@ -90,7 +90,7 @@ struct ContentView: View {
             if HealthKitService.shared.isAvailable {
                 await HealthKitService.shared.requestAuthorization()
             }
-            if HealthKitService.shared.isAvailable && HealthKitService.shared.authorized {
+            if HealthKitService.shared.isAvailable && HealthKitService.shared.authorizationRequestCompleted {
                 print("🏃 syncing HealthKit data to iCloud…")
                 async let body: Void = HealthKitSync.shared.syncBodyMetrics()
                 async let metrics: Void = HealthKitSync.shared.syncHealthMetrics()
