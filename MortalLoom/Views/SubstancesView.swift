@@ -1300,9 +1300,7 @@ struct SubstancesView: View {
                 }
             }
             .navigationTitle("Edit Session")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { editingSauna = nil }
@@ -1409,9 +1407,7 @@ struct SubstancesView: View {
                 }
             }
             .navigationTitle("Edit Drink")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { editingDrink = nil }
@@ -1476,9 +1472,7 @@ struct SubstancesView: View {
                 }
             }
             .navigationTitle("Edit Entry")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { editingNicotine = nil }
@@ -1681,9 +1675,7 @@ struct AlcoholPresetManagerView: View {
                 }
             }
             .navigationTitle("Alcohol Presets")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -1754,9 +1746,7 @@ struct NicotinePresetManagerView: View {
                 }
             }
             .navigationTitle("Nicotine Presets")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -1850,9 +1840,7 @@ struct SaunaPresetManagerView: View {
                 }
             }
             .navigationTitle("Sauna Presets")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

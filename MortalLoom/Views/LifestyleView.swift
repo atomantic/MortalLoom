@@ -604,15 +604,11 @@ struct LifestyleView: View {
     }
 
     private func formatYears(_ value: Double) -> String {
-        if value > 0 { return "+\(formatNumber(value)) yrs" }
-        if value < 0 { return "\(formatNumber(value)) yrs" }
+        // Use the shared DateFormatting helper instead of duplicating the
+        // truncatingRemainder formatter inline. The two are character-identical.
+        if value > 0 { return "+\(DateFormatting.formatMarkerValue(value)) yrs" }
+        if value < 0 { return "\(DateFormatting.formatMarkerValue(value)) yrs" }
         return "0 yrs"
-    }
-
-    private func formatNumber(_ value: Double) -> String {
-        value.truncatingRemainder(dividingBy: 1) == 0
-            ? String(format: "%.0f", value)
-            : String(format: "%.1f", value)
     }
 
     // MARK: - Data Persistence

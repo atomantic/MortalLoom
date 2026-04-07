@@ -1602,6 +1602,26 @@ final class SubstanceEngineTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(avg30, 0)
         XCTAssertGreaterThan(allTime, 0)
     }
+
+    // MARK: Sauna All-Time Average
+
+    func testAllTimeAverageMinutesEmpty() {
+        XCTAssertEqual(SubstanceEngine.allTimeAverageMinutes(sessions: []), 0)
+    }
+
+    func testAllTimeAverageMinutesMultipleDates() {
+        // Use DateFormatting.dateFromString so the date and formatter share the same timezone.
+        let today = "2024-01-10"
+        let weekAgo = "2024-01-03"
+        let now = DateFormatting.dateFromString(today)!
+        let sessions = [
+            SaunaSession(saunaType: .infrared, temperatureF: 140, durationMinutes: 25, date: weekAgo),
+            SaunaSession(saunaType: .steam, temperatureF: 175, durationMinutes: 15, date: today),
+        ]
+        // Total = 40 minutes over 7 days (Jan 3–Jan 10); verifies Int-to-Double conversion
+        let avg = SubstanceEngine.allTimeAverageMinutes(sessions: sessions, now: now)
+        XCTAssertEqual(avg, 40.0 / 7.0, accuracy: 0.001)
+    }
 }
 
 // MARK: - GenomeParser Tests

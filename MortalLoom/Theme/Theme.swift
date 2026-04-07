@@ -183,6 +183,17 @@ extension View {
     func cardStyle(fill: Color = .bgCard, border: Color = .cardBorder, radius: CGFloat = 12) -> some View {
         modifier(CardStyle(fill: fill, border: border, radius: radius))
     }
+
+    /// Applies `.navigationBarTitleDisplayMode(.inline)` on iOS only.
+    /// On macOS, `NavigationStack` already lays titles inline so the modifier is a no-op.
+    /// Replaces 12+ inline `#if os(iOS)` guards across the views.
+    func inlineNavigationTitle() -> some View {
+        #if os(iOS)
+        navigationBarTitleDisplayMode(.inline)
+        #else
+        self
+        #endif
+    }
 }
 
 // MARK: - Pro Brand Gradient
