@@ -12,7 +12,7 @@ enum SubstanceEngine {
 
     // MARK: - Generic helpers
 
-    /// Average per-day value across the entire history of an items collection.
+    /// Average per-day value across the entire history of a collection of items.
     /// Each item must expose a `"yyyy-MM-dd"` date string and a numeric value.
     /// Returns 0 for an empty collection. Used by alcohol/nicotine/sauna stats
     /// to share the date-bucket arithmetic that previously appeared three times.
