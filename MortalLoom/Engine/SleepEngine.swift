@@ -40,8 +40,8 @@ enum SleepEngine {
     static func rateDuration(_ hours: Double, age: Int) -> DurationRating {
         let isOlder = age >= 65
         if hours < 5 { return .veryShort }
-        if hours < 6 { return isOlder ? .short : .short }
-        if hours < 7 { return isOlder ? .adequate : .adequate }
+        if hours < 6 { return .short }
+        if hours < 7 { return .adequate }
         if hours <= (isOlder ? 8 : 9) { return .optimal }
         if hours <= 10 { return .good }
         return .excessive

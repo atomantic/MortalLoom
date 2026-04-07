@@ -10,6 +10,21 @@ enum ClinVarService {
 
     static let clinvarURL = "https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/variant_summary.txt.gz"
 
+    /// Fails fast on first ClinVar access via `fatalError` if `clinvarURL` is malformed,
+    /// rather than crashing deeper inside the user's sync flow.
+    private static let downloadURL: URL = {
+        guard let url = URL(string: clinvarURL) else {
+            fatalError("ClinVarService.clinvarURL is malformed: \(clinvarURL)")
+        }
+        return url
+    }()
+
+    /// Cached ISO8601 formatter — `ISO8601DateFormatter` is expensive to allocate,
+    /// and sharing a single static instance avoids repeated setup work.
+    /// `nonisolated(unsafe)` opts the static out of strict concurrency checking;
+    /// `ISO8601DateFormatter` is thread-safe in practice (Apple NSHipster docs, OSS tests).
+    nonisolated(unsafe) private static let iso8601Formatter = ISO8601DateFormatter()
+
     private static let actionableSignificance: Set<String> = [
         "pathogenic", "likely pathogenic", "pathogenic/likely pathogenic",
         "risk factor", "drug response", "association", "protective", "affects",
@@ -89,7 +104,7 @@ enum ClinVarService {
         onProgress("Downloading ClinVar database from NCBI...")
 
         // Download gzipped file to temp location
-        let (tempFileURL, response) = try await URLSession.shared.download(from: URL(string: clinvarURL)!)
+        let (tempFileURL, response) = try await URLSession.shared.download(from: downloadURL)
 
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
             throw ClinVarError.downloadFailed
@@ -109,7 +124,7 @@ enum ClinVarService {
         let meta = SyncStatus(
             synced: true,
             variantCount: index.count,
-            syncedAt: ISO8601DateFormatter().string(from: Date()),
+            syncedAt: iso8601Formatter.string(from: Date()),
             downloadSizeMB: sizeMB
         )
         let metaData = try JSONEncoder().encode(meta)
