@@ -8,6 +8,8 @@ private let logger = Logger(subsystem: "net.shadowpuppet.MeatSpaceTracker", cate
 final class HealthKitService {
     static let shared = HealthKitService()
 
+    private init() {}
+
     @ObservationIgnored private let store = HKHealthStore()
     private(set) var authorizationRequestCompleted = false
 

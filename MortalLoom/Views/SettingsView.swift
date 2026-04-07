@@ -351,7 +351,7 @@ struct SettingsView: View {
                     Text("HealthKit")
                         .font(.subheadline).fontWeight(.medium)
                         .foregroundColor(.textPrimary)
-                    Text(healthKit.authorizationRequestCompleted ? "Connected" : "Not connected")
+                    Text(healthKit.authorizationRequestCompleted ? "Access requested" : "Not requested")
                         .font(.caption)
                         .foregroundColor(healthKit.authorizationRequestCompleted ? .success : .textMuted)
                 }

@@ -13,7 +13,7 @@ struct OnboardingView: View {
 
     @State private var healthKit = HealthKitService.shared
     @State private var healthKitRequested = false
-    @State private var healthKitDenied = false
+    @State private var healthKitRequestFailed = false
     @State private var deathClockResult: DeathClockEngine.DeathClockResult?
 
     private let totalSteps = 9
@@ -91,11 +91,11 @@ struct OnboardingView: View {
             if healthKit.isAvailable {
                 if healthKitRequested {
                     VStack(spacing: 8) {
-                        if healthKitDenied {
+                        if healthKitRequestFailed {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .font(.system(size: 48))
                                 .foregroundColor(.warning)
-                            Text("Health access was not granted. You can enable it later in Settings > Privacy > Health.")
+                            Text("Health permission request failed. You can try again via Settings > Privacy > Health.")
                                 .font(.subheadline)
                                 .foregroundColor(.textSecondary)
                                 .multilineTextAlignment(.center)
@@ -136,7 +136,7 @@ struct OnboardingView: View {
                 primaryButton("Connect Apple Health") {
                     Task {
                         await healthKit.requestAuthorization()
-                        healthKitDenied = !healthKit.authorizationRequestCompleted
+                        healthKitRequestFailed = !healthKit.authorizationRequestCompleted
                         healthKitRequested = true
                         advanceStep()
                     }
