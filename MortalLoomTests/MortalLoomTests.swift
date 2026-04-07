@@ -1610,12 +1610,10 @@ final class SubstanceEngineTests: XCTestCase {
     }
 
     func testAllTimeAverageMinutesMultipleDates() {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
-        let now = calendar.date(from: DateComponents(year: 2024, month: 1, day: 10, hour: 12))!
-        let weekAgoDate = calendar.date(byAdding: .day, value: -7, to: now)!
-        let weekAgo = DateFormatting.dateString(weekAgoDate)
-        let today = DateFormatting.dateString(now)
+        // Use DateFormatting.dateFromString so the date and formatter share the same timezone.
+        let today = "2024-01-10"
+        let weekAgo = "2024-01-03"
+        let now = DateFormatting.dateFromString(today)!
         let sessions = [
             SaunaSession(saunaType: .infrared, temperatureF: 140, durationMinutes: 25, date: weekAgo),
             SaunaSession(saunaType: .steam, temperatureF: 175, durationMinutes: 15, date: today),
