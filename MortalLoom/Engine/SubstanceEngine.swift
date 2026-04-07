@@ -10,6 +10,31 @@ enum AlcoholRisk: String, Sendable {
 
 enum SubstanceEngine {
 
+    // MARK: - Generic helpers
+
+    /// Average per-day value across the entire history of an items collection.
+    /// Each item must expose a `"YYYY-MM-DD"` date string and a numeric value.
+    /// Returns 0 for an empty collection. Used by alcohol/nicotine/sauna stats
+    /// to share the date-bucket arithmetic that previously appeared three times.
+    static func allTimeAverage<T>(
+        items: [T],
+        date: KeyPath<T, String>,
+        value: (T) -> Double,
+        now: Date = Date()
+    ) -> Double {
+        guard !items.isEmpty else { return 0 }
+        var earliest = items[0][keyPath: date]
+        var total = 0.0
+        for item in items {
+            total += value(item)
+            let d = item[keyPath: date]
+            if d < earliest { earliest = d }
+        }
+        guard let firstDate = DateFormatting.dateFromString(earliest) else { return 0 }
+        let dayCount = max(1, Calendar.current.dateComponents([.day], from: firstDate, to: now).day ?? 1)
+        return total / Double(dayCount)
+    }
+
     // MARK: - Alcohol
 
     static func rollingAverageGrams(drinks: [AlcoholDrink], days: Int, now: Date = Date()) -> Double {
@@ -24,16 +49,7 @@ enum SubstanceEngine {
     }
 
     static func allTimeAverageGrams(drinks: [AlcoholDrink], now: Date = Date()) -> Double {
-        guard !drinks.isEmpty else { return 0 }
-        var earliest = drinks[0].date
-        var total = 0.0
-        for drink in drinks {
-            total += drink.gramsAlcohol
-            if drink.date < earliest { earliest = drink.date }
-        }
-        guard let firstDate = DateFormatting.dateFromString(earliest) else { return 0 }
-        let dayCount = max(1, Calendar.current.dateComponents([.day], from: firstDate, to: now).day ?? 1)
-        return total / Double(dayCount)
+        allTimeAverage(items: drinks, date: \.date, value: { $0.gramsAlcohol }, now: now)
     }
 
     static func dailyMaxStandardDrinks(drinks: [AlcoholDrink], days: Int, now: Date = Date()) -> Double {
@@ -81,16 +97,7 @@ enum SubstanceEngine {
     }
 
     static func allTimeAverageMg(entries: [NicotineEntry], now: Date = Date()) -> Double {
-        guard !entries.isEmpty else { return 0 }
-        var earliest = entries[0].date
-        var total = 0.0
-        for entry in entries {
-            total += entry.totalMg
-            if entry.date < earliest { earliest = entry.date }
-        }
-        guard let firstDate = DateFormatting.dateFromString(earliest) else { return 0 }
-        let dayCount = max(1, Calendar.current.dateComponents([.day], from: firstDate, to: now).day ?? 1)
-        return total / Double(dayCount)
+        allTimeAverage(items: entries, date: \.date, value: { $0.totalMg }, now: now)
     }
 
     // MARK: - Sauna
@@ -112,15 +119,6 @@ enum SubstanceEngine {
     }
 
     static func allTimeAverageMinutes(sessions: [SaunaSession], now: Date = Date()) -> Double {
-        guard !sessions.isEmpty else { return 0 }
-        var earliest = sessions[0].date
-        var total = 0
-        for session in sessions {
-            total += session.durationMinutes
-            if session.date < earliest { earliest = session.date }
-        }
-        guard let firstDate = DateFormatting.dateFromString(earliest) else { return 0 }
-        let dayCount = max(1, Calendar.current.dateComponents([.day], from: firstDate, to: now).day ?? 1)
-        return Double(total) / Double(dayCount)
+        allTimeAverage(items: sessions, date: \.date, value: { Double($0.durationMinutes) }, now: now)
     }
 }
