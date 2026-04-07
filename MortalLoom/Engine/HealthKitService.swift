@@ -45,12 +45,18 @@ final class HealthKitService {
         guard isAvailable else { return }
         do {
             try await store.requestAuthorization(toShare: [], read: readTypes)
+            // HealthKit completes without throwing even when the user
+            // denies access. For read-only types Apple keeps authorization
+            // status opaque (always .notDetermined) for privacy reasons,
+            // so there is no API to confirm access was granted without a
+            // data query. `authorized` means "auth prompt completed without
+            // error"; callers must handle empty / nil query results.
             authorized = true
         } catch {
             authorized = false
             // Surface the failure so it can be diagnosed in Console.app —
             // previously the error was silently swallowed and "denied" was
-            // indistinguishable from "request raised an exception".
+            // indistinguishable from "request threw an error".
             logger.error("🩺 HealthKit authorization failed: \(error.localizedDescription, privacy: .public)")
         }
     }
