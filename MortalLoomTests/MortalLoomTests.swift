@@ -1610,16 +1610,19 @@ final class SubstanceEngineTests: XCTestCase {
     }
 
     func testAllTimeAverageMinutesMultipleDates() {
-        let weekAgo = DateFormatting.dateString(Calendar.current.date(byAdding: .day, value: -7, to: Date())!)
-        let today = DateFormatting.todayString()
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = calendar.date(from: DateComponents(year: 2024, month: 1, day: 10, hour: 12))!
+        let weekAgoDate = calendar.date(byAdding: .day, value: -7, to: now)!
+        let weekAgo = DateFormatting.dateString(weekAgoDate)
+        let today = DateFormatting.dateString(now)
         let sessions = [
             SaunaSession(saunaType: .infrared, temperatureF: 140, durationMinutes: 25, date: weekAgo),
             SaunaSession(saunaType: .steam, temperatureF: 175, durationMinutes: 15, date: today),
         ]
-        // Total = 40 minutes over ~7 days; verifies Int-to-Double conversion in the generic helper
-        let avg = SubstanceEngine.allTimeAverageMinutes(sessions: sessions)
-        XCTAssertGreaterThan(avg, 0)
-        XCTAssertLessThanOrEqual(avg, 40)
+        // Total = 40 minutes over 7 days (Jan 3–Jan 10); verifies Int-to-Double conversion
+        let avg = SubstanceEngine.allTimeAverageMinutes(sessions: sessions, now: now)
+        XCTAssertEqual(avg, 40.0 / 7.0, accuracy: 0.001)
     }
 }
 
