@@ -211,6 +211,7 @@ struct SubstancesView: View {
 
     @ViewBuilder
     private var alcoholSection: some View {
+        alcoholQuickAdd
         alcoholStatsBar
         if isWide {
             HStack(alignment: .top, spacing: 16) {
@@ -221,7 +222,6 @@ struct SubstancesView: View {
             alcoholChart
             alcoholHrvCorrelation
         }
-        alcoholQuickAdd
         alcoholCustomForm
         alcoholHistory
         manageAlcoholPresetsButton
@@ -638,10 +638,10 @@ struct SubstancesView: View {
 
     @ViewBuilder
     private var nicotineSection: some View {
+        nicotineQuickAdd
         nicotineStatsBar
         nicotineChart
         nicotineHeartRateCorrelation
-        nicotineQuickAdd
         nicotineCustomForm
         nicotineHistory
         manageNicotinePresetsButton
@@ -717,8 +717,17 @@ struct SubstancesView: View {
 
     // MARK: Nicotine + Heart Rate Correlation
 
-    @ViewBuilder
-    private var nicotineHeartRateCorrelation: some View {
+    private struct NicotineHRCorrelation {
+        let correlationData: [(date: String, hr: Double?, rhr: Double?, nicotineMg: Double)]
+        let highLabel: String
+        let lowLabel: String
+        let avgHigh: Double
+        let avgLow: Double
+        let hasData: Bool
+        let explanation: String
+    }
+
+    private func buildNicotineHRCorrelation() -> NicotineHRCorrelation {
         let days = last30DayStrings()
         let nicoByDate = Dictionary(grouping: nicotineEntries, by: \.date)
 
@@ -728,13 +737,72 @@ struct SubstancesView: View {
             return (day, metric?.heartRate, metric?.restingHeartRate, mg)
         }
 
-        let nicoDays = correlationData.filter { $0.nicotineMg > 0 && $0.hr != nil }
-        let cleanDays = correlationData.filter { $0.nicotineMg == 0 && $0.hr != nil }
-        let avgNico = nicoDays.isEmpty ? 0 : nicoDays.compactMap(\.hr).reduce(0, +) / Double(nicoDays.count)
-        let avgClean = cleanDays.isEmpty ? 0 : cleanDays.compactMap(\.hr).reduce(0, +) / Double(cleanDays.count)
-        let hasData = !nicoDays.isEmpty && !cleanDays.isEmpty
+        // Build comparison groups. Prefer clean-vs-used when the user has enough
+        // of both. For daily users (few or no zero-nicotine days), fall back to
+        // a median split: high-usage days vs low-usage days.
+        let daysWithHR = correlationData.filter { $0.hr != nil }
+        let zeroDays = daysWithHR.filter { $0.nicotineMg == 0 }
+        let usedDays = daysWithHR.filter { $0.nicotineMg > 0 }
 
-        if hasData {
+        let cleanVsUsed = zeroDays.count >= 3 && usedDays.count >= 3
+        let highGroup: [(date: String, hr: Double?, rhr: Double?, nicotineMg: Double)]
+        let lowGroup: [(date: String, hr: Double?, rhr: Double?, nicotineMg: Double)]
+        let highLabel: String
+        let lowLabel: String
+        let explanation: String
+
+        if cleanVsUsed {
+            highGroup = usedDays
+            lowGroup = zeroDays
+            highLabel = "Nicotine Days"
+            lowLabel = "Clean Days"
+            explanation = "Nicotine raises heart rate by stimulating adrenaline release."
+        } else {
+            // Median split on usage among days with HR data. Prefer used-only
+            // days when there are enough of them.
+            let pool = usedDays.count >= 4 ? usedDays : daysWithHR
+            let sortedMg = pool.map(\.nicotineMg).sorted()
+            let median: Double
+            if sortedMg.isEmpty {
+                median = 0
+            } else {
+                let mid = sortedMg.count / 2
+                median = sortedMg.count % 2 == 0
+                    ? (sortedMg[mid - 1] + sortedMg[mid]) / 2
+                    : sortedMg[mid]
+            }
+            highGroup = pool.filter { $0.nicotineMg > median }
+            lowGroup = pool.filter { $0.nicotineMg <= median }
+            highLabel = "High Usage"
+            lowLabel = "Low Usage"
+            explanation = "Comparing your higher-usage days against your lower-usage days. Nicotine raises heart rate by stimulating adrenaline release."
+        }
+
+        let avgHigh = highGroup.isEmpty ? 0 : highGroup.compactMap(\.hr).reduce(0, +) / Double(highGroup.count)
+        let avgLow = lowGroup.isEmpty ? 0 : lowGroup.compactMap(\.hr).reduce(0, +) / Double(lowGroup.count)
+        let hasData = !highGroup.isEmpty && !lowGroup.isEmpty
+
+        return NicotineHRCorrelation(
+            correlationData: correlationData,
+            highLabel: highLabel,
+            lowLabel: lowLabel,
+            avgHigh: avgHigh,
+            avgLow: avgLow,
+            hasData: hasData,
+            explanation: explanation
+        )
+    }
+
+    @ViewBuilder
+    private var nicotineHeartRateCorrelation: some View {
+        let model = buildNicotineHRCorrelation()
+        let correlationData = model.correlationData
+        let highLabel = model.highLabel
+        let lowLabel = model.lowLabel
+        let avgHigh = model.avgHigh
+        let avgLow = model.avgLow
+
+        if model.hasData {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Nicotine + Heart Rate Correlation")
                     .font(.headline)
@@ -745,20 +813,20 @@ struct SubstancesView: View {
                         if let hr = item.hr {
                             LineMark(
                                 x: .value("Date", item.date),
-                                y: .value("HR", hr),
-                                series: .value("Metric", "HR")
+                                y: .value("bpm", hr),
+                                series: .value("Metric", "Heart Rate")
                             )
-                            .foregroundStyle(Color.red)
+                            .foregroundStyle(by: .value("Metric", "Heart Rate"))
                             .lineStyle(StrokeStyle(lineWidth: 2))
                         }
                         if let rhr = item.rhr {
                             LineMark(
                                 x: .value("Date", item.date),
-                                y: .value("Resting HR", rhr),
-                                series: .value("Metric", "RHR")
+                                y: .value("bpm", rhr),
+                                series: .value("Metric", "Resting HR")
                             )
-                            .foregroundStyle(Color.pink)
-                            .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
+                            .foregroundStyle(by: .value("Metric", "Resting HR"))
+                            .lineStyle(StrokeStyle(lineWidth: 2))
                         }
                     }
                 }
@@ -771,30 +839,30 @@ struct SubstancesView: View {
                 .chartYAxisLabel("bpm")
                 .chartForegroundStyleScale([
                     "Heart Rate": Color.red,
-                    "Resting HR": Color.pink,
+                    "Resting HR": Color.blue,
                 ])
                 .frame(height: Layout.chartFrameHeight)
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel("Nicotine and heart rate correlation chart. Average heart rate on nicotine days: \(String(format: "%.0f", avgNico)) bpm. Clean days: \(String(format: "%.0f", avgClean)) bpm")
+                .accessibilityLabel("Nicotine and heart rate correlation chart. Average heart rate on \(highLabel.lowercased()): \(String(format: "%.0f", avgHigh)) bpm. \(lowLabel): \(String(format: "%.0f", avgLow)) bpm")
 
-                let pctDiff = avgClean > 0 ? ((avgNico - avgClean) / avgClean * 100) : 0
+                let pctDiff = avgLow > 0 ? ((avgHigh - avgLow) / avgLow * 100) : 0
                 let direction = pctDiff > 0 ? "higher" : "lower"
                 HStack(spacing: 16) {
                     VStack(spacing: 2) {
-                        Text("Nicotine Days")
+                        Text(highLabel)
                             .font(.caption2)
                             .foregroundColor(.textMuted)
-                        Text(String(format: "%.0f bpm", avgNico))
+                        Text(String(format: "%.0f bpm", avgHigh))
                             .font(.subheadline.bold())
                             .foregroundColor(.warning)
                     }
                     VStack(spacing: 2) {
-                        Text("Clean Days")
+                        Text(lowLabel)
                             .font(.caption2)
                             .foregroundColor(.textMuted)
-                        Text(String(format: "%.0f bpm", avgClean))
+                        Text(String(format: "%.0f bpm", avgLow))
                             .font(.subheadline.bold())
-                            .foregroundColor(.red)
+                            .foregroundColor(.success)
                     }
                     VStack(spacing: 2) {
                         Text("Difference")
@@ -807,7 +875,7 @@ struct SubstancesView: View {
                 }
                 .frame(maxWidth: .infinity)
 
-                Text("Nicotine raises heart rate by stimulating adrenaline release.")
+                Text(model.explanation)
                     .font(.caption2)
                     .foregroundColor(.textMuted)
             }
@@ -1017,9 +1085,9 @@ struct SubstancesView: View {
 
     @ViewBuilder
     private var saunaSection: some View {
+        saunaQuickAdd
         saunaStatsBar
         saunaChart
-        saunaQuickAdd
         saunaCustomForm
         saunaHistory
         manageSaunaPresetsButton

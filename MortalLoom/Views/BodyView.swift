@@ -635,67 +635,81 @@ struct BodyView: View {
 
     private var eyeExamTable: some View {
         VStack(spacing: 0) {
-            // Header row
-            HStack(spacing: 0) {
-                Text("Date")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                Group {
-                    Text("L SPH")
-                    Text("L CYL")
-                    Text("L AXIS")
-                    Text("R SPH")
-                    Text("R CYL")
-                    Text("R AXIS")
-                }
-                .frame(width: 56, alignment: .trailing)
-            }
-            .font(.caption2)
-            .fontWeight(.semibold)
-            .foregroundColor(.textMuted)
-            .textCase(.uppercase)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
-
-            Divider()
-
             ForEach(sortedEyeExams) { exam in
-                HStack(spacing: 0) {
-                    Text(DateFormatting.displayDate(exam.date))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    Group {
-                        Text(formatSphere(exam.leftSphere))
-                        Text(formatSphere(exam.leftCylinder))
-                        Text(formatAxis(exam.leftAxis))
-                        Text(formatSphere(exam.rightSphere))
-                        Text(formatSphere(exam.rightCylinder))
-                        Text(formatAxis(exam.rightAxis))
-                    }
-                    .frame(width: 56, alignment: .trailing)
-                }
-                .font(.caption)
-                .foregroundColor(.textPrimary)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 8)
-                .contentShape(Rectangle())
-                .onTapGesture { editingExam = exam }
-                .contextMenu {
-                    Button(action: { editingExam = exam }) {
-                        Label("Edit", systemImage: "pencil")
-                    }
-                    Button(role: .destructive, action: {
-                        Task {
-                            await DataStore.shared.removeEyeExam(id: exam.id)
-                            await loadData()
-                        }
-                    }) {
-                        Label("Delete", systemImage: "trash")
-                    }
-                }
-
+                eyeExamRow(exam)
                 if exam.id != sortedEyeExams.last?.id {
                     Divider()
                 }
             }
+        }
+    }
+
+    private func eyeExamRow(_ exam: EyeExam) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(DateFormatting.displayDate(exam.date))
+                .font(.caption.bold())
+                .foregroundColor(.textPrimary)
+
+            HStack(spacing: 8) {
+                eyeExamEyeBlock(
+                    label: "L",
+                    sph: exam.leftSphere,
+                    cyl: exam.leftCylinder,
+                    axis: exam.leftAxis
+                )
+                eyeExamEyeBlock(
+                    label: "R",
+                    sph: exam.rightSphere,
+                    cyl: exam.rightCylinder,
+                    axis: exam.rightAxis
+                )
+            }
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .onTapGesture { editingExam = exam }
+        .contextMenu {
+            Button(action: { editingExam = exam }) {
+                Label("Edit", systemImage: "pencil")
+            }
+            Button(role: .destructive, action: {
+                Task {
+                    await DataStore.shared.removeEyeExam(id: exam.id)
+                    await loadData()
+                }
+            }) {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+    }
+
+    private func eyeExamEyeBlock(label: String, sph: Double?, cyl: Double?, axis: Int?) -> some View {
+        HStack(spacing: 6) {
+            Text(label)
+                .font(.caption2.bold())
+                .foregroundColor(.accentColor)
+                .frame(width: 12, alignment: .leading)
+            VStack(alignment: .leading, spacing: 2) {
+                eyeExamMetricLine(name: "SPH", value: formatSphere(sph))
+                eyeExamMetricLine(name: "CYL", value: formatSphere(cyl))
+                eyeExamMetricLine(name: "AXIS", value: formatAxis(axis))
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func eyeExamMetricLine(name: String, value: String) -> some View {
+        HStack(spacing: 4) {
+            Text(name)
+                .font(.caption2)
+                .foregroundColor(.textMuted)
+            Spacer(minLength: 2)
+            Text(value)
+                .font(.caption)
+                .foregroundColor(.textPrimary)
+                .monospacedDigit()
         }
     }
 
