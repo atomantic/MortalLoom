@@ -222,6 +222,7 @@ struct SubstancesView: View {
             alcoholChart
             alcoholHrvCorrelation
         }
+        alcoholSleepCorrelation
         alcoholCustomForm
         alcoholHistory
         manageAlcoholPresetsButton
@@ -413,6 +414,175 @@ struct SubstancesView: View {
             .padding()
             .cardStyle()
         }
+    }
+
+    // MARK: Alcohol + Sleep Quality Correlation
+
+    @ViewBuilder
+    private var alcoholSleepCorrelation: some View {
+        let dataPoints = CorrelationEngine.alcoholSleepCorrelation(
+            drinks: alcoholDrinks,
+            healthMetrics: healthMetrics
+        )
+
+        // Split into drinking (>0.5 std drinks) vs sober days
+        let drinkingDays = dataPoints.filter { $0.standardDrinks > 0.5 }
+        let soberDays = dataPoints.filter { $0.standardDrinks <= 0.5 }
+
+        let avgDeepDrinking = average(drinkingDays.compactMap(\.nextNightDeepPct))
+        let avgDeepSober = average(soberDays.compactMap(\.nextNightDeepPct))
+        let avgRemDrinking = average(drinkingDays.compactMap(\.nextNightRemPct))
+        let avgRemSober = average(soberDays.compactMap(\.nextNightRemPct))
+        let avgHoursDrinking = average(drinkingDays.compactMap(\.nextNightTotalHours))
+        let avgHoursSober = average(soberDays.compactMap(\.nextNightTotalHours))
+
+        let hasData = !drinkingDays.isEmpty && !soberDays.isEmpty
+            && avgDeepDrinking != nil && avgDeepSober != nil
+
+        if hasData {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Alcohol + Sleep Quality")
+                    .font(.headline)
+                    .foregroundColor(.textPrimary)
+
+                // Last 60 data points max for readability
+                let chartData = dataPoints.suffix(60)
+
+                Chart {
+                    ForEach(Array(chartData), id: \.date) { item in
+                        if item.standardDrinks > 0 {
+                            BarMark(
+                                x: .value("Date", item.date),
+                                y: .value("Drinks", item.standardDrinks)
+                            )
+                            .foregroundStyle(Color.accentColor.opacity(0.3))
+                        }
+                        if let deep = item.nextNightDeepPct {
+                            LineMark(
+                                x: .value("Date", item.date),
+                                y: .value("Deep %", deep),
+                                series: .value("Stage", "Deep Sleep %")
+                            )
+                            .foregroundStyle(Color.indigo)
+                            .lineStyle(StrokeStyle(lineWidth: 2))
+                        }
+                        if let rem = item.nextNightRemPct {
+                            LineMark(
+                                x: .value("Date", item.date),
+                                y: .value("REM %", rem),
+                                series: .value("Stage", "REM Sleep %")
+                            )
+                            .foregroundStyle(Color.purple)
+                            .lineStyle(StrokeStyle(lineWidth: 2))
+                        }
+                    }
+                }
+                .chartXAxis {
+                    AxisMarks(values: .stride(by: .day, count: 14)) { _ in
+                        AxisGridLine()
+                        AxisValueLabel(format: .dateTime.month(.abbreviated).day(), centered: true)
+                    }
+                }
+                .chartForegroundStyleScale([
+                    "Deep Sleep %": Color.indigo,
+                    "REM Sleep %": Color.purple,
+                    "Drinks": Color.accentColor.opacity(0.3),
+                ])
+                .frame(height: Layout.chartFrameHeight)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Alcohol and sleep quality correlation. Deep sleep on drinking nights: \(String(format: "%.1f", avgDeepDrinking ?? 0))%. Sober nights: \(String(format: "%.1f", avgDeepSober ?? 0))%. REM on drinking nights: \(String(format: "%.1f", avgRemDrinking ?? 0))%. Sober nights: \(String(format: "%.1f", avgRemSober ?? 0))%")
+
+                // Summary stats
+                let deepDiff = pctDifference(avgDeepSober, avgDeepDrinking)
+                let remDiff = pctDifference(avgRemSober, avgRemDrinking)
+                let hoursDiff = pctDifference(avgHoursSober, avgHoursDrinking)
+
+                VStack(spacing: 8) {
+                    HStack(spacing: 12) {
+                        sleepStatColumn(
+                            label: "Deep (Drinking)",
+                            value: String(format: "%.1f%%", avgDeepDrinking ?? 0),
+                            color: .accentColor
+                        )
+                        sleepStatColumn(
+                            label: "Deep (Sober)",
+                            value: String(format: "%.1f%%", avgDeepSober ?? 0),
+                            color: .indigo
+                        )
+                        sleepStatColumn(
+                            label: "Deep Δ",
+                            value: String(format: "%.1f%%", abs(deepDiff ?? 0)) + (deepDiff.map { $0 > 0 ? " less" : " more" } ?? ""),
+                            color: (deepDiff ?? 0) > 0 ? .danger : .success
+                        )
+                    }
+                    HStack(spacing: 12) {
+                        sleepStatColumn(
+                            label: "REM (Drinking)",
+                            value: String(format: "%.1f%%", avgRemDrinking ?? 0),
+                            color: .accentColor
+                        )
+                        sleepStatColumn(
+                            label: "REM (Sober)",
+                            value: String(format: "%.1f%%", avgRemSober ?? 0),
+                            color: .purple
+                        )
+                        sleepStatColumn(
+                            label: "REM Δ",
+                            value: String(format: "%.1f%%", abs(remDiff ?? 0)) + (remDiff.map { $0 > 0 ? " less" : " more" } ?? ""),
+                            color: (remDiff ?? 0) > 0 ? .danger : .success
+                        )
+                    }
+                    if let hDrk = avgHoursDrinking, let hSob = avgHoursSober {
+                        HStack(spacing: 12) {
+                            sleepStatColumn(
+                                label: "Hours (Drinking)",
+                                value: String(format: "%.1fh", hDrk),
+                                color: .accentColor
+                            )
+                            sleepStatColumn(
+                                label: "Hours (Sober)",
+                                value: String(format: "%.1fh", hSob),
+                                color: .cyan
+                            )
+                            sleepStatColumn(
+                                label: "Hours Δ",
+                                value: String(format: "%.1f%%", abs(hoursDiff ?? 0)) + (hoursDiff.map { $0 > 0 ? " less" : " more" } ?? ""),
+                                color: (hoursDiff ?? 0) > 0 ? .danger : .success
+                            )
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity)
+
+                Text("Deep & REM sleep are critical for recovery. Alcohol suppresses both stages.")
+                    .font(.caption2)
+                    .foregroundColor(.textMuted)
+            }
+            .padding()
+            .cardStyle()
+        }
+    }
+
+    private func sleepStatColumn(label: String, value: String, color: Color) -> some View {
+        VStack(spacing: 2) {
+            Text(label)
+                .font(.caption2)
+                .foregroundColor(.textMuted)
+            Text(value)
+                .font(.subheadline.bold())
+                .foregroundColor(color)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func average(_ values: [Double]) -> Double? {
+        guard !values.isEmpty else { return nil }
+        return values.reduce(0, +) / Double(values.count)
+    }
+
+    private func pctDifference(_ baseline: Double?, _ comparison: Double?) -> Double? {
+        guard let b = baseline, let c = comparison, b > 0 else { return nil }
+        return (b - c) / b * 100
     }
 
     // MARK: Alcohol Quick Add

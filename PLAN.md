@@ -168,7 +168,7 @@ Once the above metrics are synced, these cross-domain analyses become possible:
 4. ~~Time in daylight (new metric, easy sync)~~ ✅
 5. ~~Sync already-requested-but-unused types (stand time, basal energy, distance, walking speed)~~ ✅
 6. ~~Gait engine (new engine, more complex but high long-term value)~~ ✅
-7. New correlation charts (Alcohol → Sleep done; 7 remaining)
+7. New correlation charts (Alcohol → Sleep chart wired up; 6 remaining)
 8. ~~Death clock enhancement with new factors~~ ✅
 
 ## Backlog
