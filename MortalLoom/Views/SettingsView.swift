@@ -21,6 +21,11 @@ struct SettingsView: View {
     private let exportStaleAfterDays: Double = 14
     @State private var showResetConfirmation = false
     @State private var importMessage: String? = nil
+    @State private var backups: [URL] = []
+    @State private var selectedBackup: URL? = nil
+    @State private var showRestoreConfirmation = false
+    @State private var restoreMessage: String? = nil
+    @State private var restoreSuccess = false
     @State private var importSuccess = false
 
     @State private var countdownMode: CountdownMode = .standard
@@ -98,6 +103,7 @@ struct SettingsView: View {
                     healthKitSection
                     dataExportSection
                     dataImportSection
+                    dataRestoreSection
                 }
                 .padding()
             }
@@ -157,6 +163,7 @@ struct SettingsView: View {
             iCloudSyncSection
             dataExportSection
             dataImportSection
+            dataRestoreSection
         }
     }
 
@@ -593,6 +600,160 @@ struct SettingsView: View {
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
+    }
+
+    // MARK: - Restore from Backup
+
+    @ViewBuilder
+    private var dataRestoreSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionLabel(text: "RESTORE FROM BACKUP")
+
+            Text("MortalLoom keeps the last 10 automatic backups — one before every reset or import. Restoring will replace your current data with the chosen backup; the current data is first snapshotted as \"pre-restore\" so you can undo if you pick the wrong one.")
+                .font(.caption)
+                .foregroundColor(.textSecondary)
+
+            if backups.isEmpty {
+                Text("No backups yet. Backups are created automatically before resets and imports.")
+                    .font(.caption)
+                    .foregroundColor(.textMuted)
+                    .padding(.vertical, 8)
+            } else {
+                VStack(spacing: 4) {
+                    ForEach(backups, id: \.self) { url in
+                        backupRow(url)
+                    }
+                }
+            }
+
+            if let msg = restoreMessage {
+                HStack(spacing: 6) {
+                    Image(systemName: restoreSuccess ? "checkmark.circle.fill" : "xmark.circle.fill")
+                        .foregroundColor(restoreSuccess ? .success : .danger)
+                    Text(msg)
+                        .font(.caption)
+                        .foregroundColor(restoreSuccess ? .success : .danger)
+                }
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle()
+        .task { await refreshBackups() }
+        .onReceive(NotificationCenter.default.publisher(for: .dataDidSync)) { _ in
+            Task { await refreshBackups() }
+        }
+        .alert("Restore from backup?", isPresented: $showRestoreConfirmation, presenting: selectedBackup) { url in
+            Button("Restore", role: .destructive) {
+                Task { await performRestore(url) }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { url in
+            Text("This will replace your current data with the contents of \(url.lastPathComponent). Your current state will be snapshotted as a pre-restore backup first.")
+        }
+    }
+
+    private func backupRow(_ url: URL) -> some View {
+        let meta = backupMetadata(url)
+        return Button {
+            selectedBackup = url
+            showRestoreConfirmation = true
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(meta.displayDate)
+                        .font(.subheadline).fontWeight(.medium)
+                        .foregroundColor(.textPrimary)
+                    HStack(spacing: 6) {
+                        Text(meta.reasonLabel)
+                            .font(.caption2).fontWeight(.semibold)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(meta.reasonColor.opacity(0.2))
+                            .foregroundColor(meta.reasonColor)
+                            .clipShape(Capsule())
+                        Text(meta.sizeString)
+                            .font(.caption)
+                            .foregroundColor(.textMuted)
+                    }
+                }
+                Spacer()
+                Image(systemName: "arrow.counterclockwise")
+                    .foregroundColor(.accentColor)
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 10)
+            .background(Color.bgCard.opacity(0.5))
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(Color.cardBorder, lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Metadata parsed from a backup filename + filesystem.
+    /// Filenames are "MortalLoom-YYYYMMDD-HHMMSS-<reason>.json".
+    private struct BackupMetadata {
+        let displayDate: String
+        let reasonLabel: String
+        let reasonColor: Color
+        let sizeString: String
+    }
+
+    private func backupMetadata(_ url: URL) -> BackupMetadata {
+        let fm = FileManager.default
+        let attrs = try? fm.attributesOfItem(atPath: url.path)
+        let mtime = (attrs?[.modificationDate] as? Date) ?? .distantPast
+        let size = (attrs?[.size] as? Int) ?? 0
+
+        let name = url.deletingPathExtension().lastPathComponent
+        let parts = name.split(separator: "-")
+        // Expected: ["MortalLoom", "YYYYMMDD", "HHMMSS", "<reason>"]
+        let reason: String = parts.count >= 4 ? String(parts[3...].joined(separator: "-")) : "backup"
+
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        let displayDate = formatter.string(from: mtime)
+
+        let formatter2 = ByteCountFormatter()
+        formatter2.countStyle = .file
+        let sizeString = formatter2.string(fromByteCount: Int64(size))
+
+        let (label, color) = backupReasonStyle(reason)
+        return BackupMetadata(
+            displayDate: displayDate,
+            reasonLabel: label,
+            reasonColor: color,
+            sizeString: sizeString
+        )
+    }
+
+    private func backupReasonStyle(_ reason: String) -> (label: String, color: Color) {
+        switch reason {
+        case "reset":       return ("before reset", .danger)
+        case "import":      return ("before import", .warning)
+        case "pre-restore": return ("before restore", .accentColor)
+        default:            return (reason, .textMuted)
+        }
+    }
+
+    private func refreshBackups() async {
+        backups = await DataStore.shared.listBackups()
+    }
+
+    private func performRestore(_ url: URL) async {
+        let success = await DataStore.shared.restoreFromBackup(url)
+        restoreSuccess = success
+        restoreMessage = success
+            ? "Restored from \(url.lastPathComponent)"
+            : "Restore failed — backup file could not be decoded."
+        await refreshBackups()
+        if success {
+            NotificationCenter.default.post(name: .dataDidSync, object: nil)
+        }
     }
 
     // MARK: - About

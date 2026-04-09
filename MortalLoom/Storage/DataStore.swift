@@ -136,8 +136,8 @@ actor DataStore {
         }
     }
 
-    /// List current backups (most recent first). Useful for a future
-    /// "Restore from Backup" UI.
+    /// List current backups (most recent first). Used by the Restore from
+    /// Backup UI in Settings.
     func listBackups() -> [URL] {
         let fm = FileManager.default
         guard let urls = try? fm.contentsOfDirectory(
@@ -150,6 +150,27 @@ actor DataStore {
             let rd = (try? rhs.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
             return ld > rd
         }
+    }
+
+    /// Restore the store from a backup file. Before applying the backup we
+    /// snapshot the current state (reason "pre-restore") so the restore
+    /// itself is reversible — a user who picks the wrong backup can roll
+    /// back one more step. Returns true on success.
+    @discardableResult
+    func restoreFromBackup(_ url: URL) -> Bool {
+        guard let fileData = try? Data(contentsOf: url),
+              let decoded = try? JSONDecoder().decode(AppData.self, from: fileData) else {
+            logger.error("💾 restore failed to decode backup at \(url.lastPathComponent, privacy: .public)")
+            return false
+        }
+
+        // Snapshot the current state before overwriting so the restore is
+        // itself reversible. Uses a different "reason" so the user can see
+        // which rolling backup was the pre-restore snapshot.
+        backupCurrentFile(reason: "pre-restore")
+        save(decoded)
+        logger.info("💾 restored from backup \(url.lastPathComponent, privacy: .public) (\(decoded.alcoholDrinks.count) drinks, \(decoded.nicotineEntries.count) nic)")
+        return true
     }
 
     // Load from best available source
@@ -225,8 +246,20 @@ actor DataStore {
         return data
     }
 
-    /// Reload from disk if the iCloud file is newer than our last save.
-    /// Returns true if data was updated.
+    /// Reload from iCloud when it has a newer file. Instead of wholesale
+    /// replacing our in-memory state with the remote file, this merges the
+    /// remote file INTO the current state using `AppData.merged(with:)` —
+    /// unioning UUID-keyed arrays, field-merging health metrics per date,
+    /// and preserving non-default profile fields. The result is written
+    /// back to the local file so subsequent launches start from the merged
+    /// state.
+    ///
+    /// We deliberately do NOT push the merged state back to iCloud from
+    /// this function to avoid a ping-pong feedback loop with other devices.
+    /// The merged state will propagate to iCloud on the next user edit via
+    /// `save(_:)`. Eventual convergence is fine for this use case.
+    ///
+    /// Returns true if the merge produced any change.
     func reloadIfNeeded() -> Bool {
         guard let cloudURL = iCloudURL,
               FileManager.default.fileExists(atPath: cloudURL.path) else { return false }
@@ -234,20 +267,45 @@ actor DataStore {
         let cloudDate = (try? FileManager.default.attributesOfItem(atPath: cloudURL.path)[.modificationDate] as? Date) ?? .distantPast
         guard cloudDate > lastSaveDate else { return false }
 
-        if let fileData = try? Data(contentsOf: cloudURL),
-           let decoded = try? JSONDecoder().decode(AppData.self, from: fileData) {
-            data = decoded
-            lastSaveDate = cloudDate
-            // Mirror the same protection class used in save(_:) so the local
-            // copy is never silently downgraded by an iCloud-triggered reload.
+        guard let fileData = try? Data(contentsOf: cloudURL),
+              let decoded = try? JSONDecoder().decode(AppData.self, from: fileData) else {
+            return false
+        }
+
+        let beforeDrinks = data.alcoholDrinks.count
+        let beforeNic = data.nicotineEntries.count
+        let beforeSauna = data.saunaSessions.count
+        let beforeMetrics = data.healthMetrics.count
+
+        let merged = data.merged(with: decoded)
+        data = merged
+        lastSaveDate = cloudDate
+
+        let addedDrinks = merged.alcoholDrinks.count - beforeDrinks
+        let addedNic = merged.nicotineEntries.count - beforeNic
+        let addedSauna = merged.saunaSessions.count - beforeSauna
+        let addedMetrics = merged.healthMetrics.count - beforeMetrics
+        logger.info("☁️ merged iCloud update (+ \(addedDrinks) drinks, \(addedNic) nic, \(addedSauna) sauna, \(addedMetrics) metrics)")
+
+        // "Changed" = added entries OR the remote had content we didn't
+        // have mirrored locally yet. For simplicity we treat every merge
+        // as a change and let the caller debounce if needed.
+        let didChange = addedDrinks != 0 || addedNic != 0 || addedSauna != 0 || addedMetrics != 0
+
+        // Mirror merged state to the local sandbox copy so the next launch
+        // doesn't need to re-run the merge. Use the same protection class
+        // as save(_:) so the file isn't silently downgraded.
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        if let encoded = try? encoder.encode(merged) {
             do {
-                try fileData.write(to: localURL, options: [.atomic, .completeFileProtection])
+                try encoded.write(to: localURL, options: [.atomic, .completeFileProtection])
             } catch {
                 logger.error("💾 Failed to write local data in reloadIfNeeded: \(error.localizedDescription, privacy: .private)")
             }
-            return true
         }
-        return false
+
+        return didChange
     }
 
     // Save to both local and iCloud
