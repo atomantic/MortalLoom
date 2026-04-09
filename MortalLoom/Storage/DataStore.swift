@@ -27,6 +27,24 @@ actor DataStore {
     private var data: AppData = .empty
     private var loaded = false
     private var lastSaveDate: Date = .distantPast
+    /// When true, save() keeps data in memory only and NEVER writes to local
+    /// or iCloud. Used by -sample-data mode so fake screenshot data cannot
+    /// overwrite a real user's iCloud container. Set once at app launch via
+    /// enableSampleDataMode(); there is no way to turn it back off.
+    private var sampleDataMode = false
+
+    /// Debug-only: switch this store into in-memory mode so writes don't
+    /// touch disk or iCloud. Irreversible for the process lifetime.
+    func enableSampleDataMode() {
+        sampleDataMode = true
+    }
+
+    /// Debug-only: replace the in-memory data without persisting. Paired with
+    /// enableSampleDataMode() for the screenshot-capture flow.
+    func setInMemory(_ newData: AppData) {
+        data = newData
+        loaded = true
+    }
 
     // File locations
     private var localURL: URL {
@@ -142,6 +160,14 @@ actor DataStore {
     // Save to both local and iCloud
     func save(_ newData: AppData) {
         data = newData
+
+        // Sample-data mode short-circuits persistence so screenshot runs
+        // can never mutate a real user's local file or iCloud container.
+        if sampleDataMode {
+            logger.info("💾 sample-data mode — skipping persistence (in-memory only)")
+            return
+        }
+
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         guard let encoded = try? encoder.encode(data) else { return }

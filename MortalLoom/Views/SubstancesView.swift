@@ -639,57 +639,85 @@ struct SubstancesView: View {
 
     // MARK: Alcohol Custom Form
 
+    @ViewBuilder
+    private var alcoholNameField: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Name").font(.caption).foregroundColor(.textMuted)
+            TextField("e.g. IPA", text: $alcoName)
+                .textFieldStyle(.roundedBorder)
+                .accessibilityLabel("Drink name")
+        }
+    }
+
+    @ViewBuilder
+    private var alcoholVolumeField: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Volume").font(.caption).foregroundColor(.textMuted)
+            HStack(spacing: 6) {
+                TextField("12", text: $alcoVolume)
+                    .textFieldStyle(.roundedBorder)
+                    #if os(iOS)
+                    .keyboardType(.decimalPad)
+                    #endif
+                    .accessibilityLabel("Volume in \(alcoVolumeUnit.rawValue)")
+                Picker("Volume unit", selection: $alcoVolumeUnit) {
+                    ForEach(VolumeUnit.allCases, id: \.self) { u in
+                        Text(u.rawValue).tag(u)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 80)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var alcoholABVField: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("ABV %").font(.caption).foregroundColor(.textMuted)
+            TextField("5.0", text: $alcoABV)
+                .textFieldStyle(.roundedBorder)
+                #if os(iOS)
+                .keyboardType(.decimalPad)
+                #endif
+                .accessibilityLabel("Alcohol by volume percentage")
+        }
+    }
+
+    @ViewBuilder
+    private var alcoholCountField: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Count").font(.caption).foregroundColor(.textMuted)
+            TextField("1", text: $alcoCount)
+                .textFieldStyle(.roundedBorder)
+                #if os(iOS)
+                .keyboardType(.numberPad)
+                #endif
+                .accessibilityLabel("Number of drinks")
+        }
+    }
+
     private var alcoholCustomForm: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Log a Drink")
                 .font(.headline)
                 .foregroundColor(.textPrimary)
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Name").font(.caption).foregroundColor(.textMuted)
-                    TextField("e.g. IPA", text: $alcoName)
-                        .textFieldStyle(.roundedBorder)
-                        .accessibilityLabel("Drink name")
+            // Responsive: single row when ≥ ~720pt of horizontal room,
+            // otherwise 2x2 grid. ViewThatFits picks the first child that fits.
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: 12) {
+                    alcoholNameField.frame(minWidth: 160)
+                    alcoholVolumeField.frame(minWidth: 180)
+                    alcoholABVField.frame(minWidth: 80)
+                    alcoholCountField.frame(minWidth: 70)
                 }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Text("Volume").font(.caption).foregroundColor(.textMuted)
-                        Picker("Volume unit", selection: $alcoVolumeUnit) {
-                            ForEach(VolumeUnit.allCases, id: \.self) { u in
-                                Text(u.rawValue).tag(u)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-                        .frame(width: 80)
-                    }
-                    TextField("12", text: $alcoVolume)
-                        .textFieldStyle(.roundedBorder)
-                        #if os(iOS)
-                        .keyboardType(.decimalPad)
-                        #endif
-                        .accessibilityLabel("Volume in \(alcoVolumeUnit.rawValue)")
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("ABV %").font(.caption).foregroundColor(.textMuted)
-                    TextField("5.0", text: $alcoABV)
-                        .textFieldStyle(.roundedBorder)
-                        #if os(iOS)
-                        .keyboardType(.decimalPad)
-                        #endif
-                        .accessibilityLabel("Alcohol by volume percentage")
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Count").font(.caption).foregroundColor(.textMuted)
-                    TextField("1", text: $alcoCount)
-                        .textFieldStyle(.roundedBorder)
-                        #if os(iOS)
-                        .keyboardType(.numberPad)
-                        #endif
-                        .accessibilityLabel("Number of drinks")
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                    alcoholNameField
+                    alcoholVolumeField
+                    alcoholABVField
+                    alcoholCountField
                 }
             }
 
@@ -1108,44 +1136,69 @@ struct SubstancesView: View {
 
     // MARK: Nicotine Custom Form
 
+    @ViewBuilder
+    private var nicotineProductField: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Product").font(.caption).foregroundColor(.textMuted)
+            TextField("e.g. Zyn 6mg", text: $nicoProduct)
+                .textFieldStyle(.roundedBorder)
+                .accessibilityLabel("Nicotine product name")
+        }
+    }
+
+    @ViewBuilder
+    private var nicotineMgField: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("mg / unit").font(.caption).foregroundColor(.textMuted)
+            TextField("6", text: $nicoMgPerUnit)
+                .textFieldStyle(.roundedBorder)
+                #if os(iOS)
+                .keyboardType(.decimalPad)
+                #endif
+                .accessibilityLabel("Milligrams per unit")
+        }
+    }
+
+    @ViewBuilder
+    private var nicotineCountField: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Count").font(.caption).foregroundColor(.textMuted)
+            TextField("1", text: $nicoCount)
+                .textFieldStyle(.roundedBorder)
+                #if os(iOS)
+                .keyboardType(.numberPad)
+                #endif
+                .accessibilityLabel("Number of units")
+        }
+    }
+
+    @ViewBuilder
+    private var nicotineDateField: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Date").font(.caption).foregroundColor(.textMuted)
+            DatePicker("", selection: $nicoDate, displayedComponents: .date)
+                .labelsHidden()
+        }
+    }
+
     private var nicotineCustomForm: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Log Nicotine")
                 .font(.headline)
                 .foregroundColor(.textPrimary)
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Product").font(.caption).foregroundColor(.textMuted)
-                    TextField("e.g. Zyn 6mg", text: $nicoProduct)
-                        .textFieldStyle(.roundedBorder)
-                        .accessibilityLabel("Nicotine product name")
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: 12) {
+                    nicotineProductField.frame(minWidth: 160)
+                    nicotineMgField.frame(minWidth: 90)
+                    nicotineCountField.frame(minWidth: 70)
+                    nicotineDateField.frame(minWidth: 150)
                 }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("mg / unit").font(.caption).foregroundColor(.textMuted)
-                    TextField("6", text: $nicoMgPerUnit)
-                        .textFieldStyle(.roundedBorder)
-                        #if os(iOS)
-                        .keyboardType(.decimalPad)
-                        #endif
-                        .accessibilityLabel("Milligrams per unit")
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Count").font(.caption).foregroundColor(.textMuted)
-                    TextField("1", text: $nicoCount)
-                        .textFieldStyle(.roundedBorder)
-                        #if os(iOS)
-                        .keyboardType(.numberPad)
-                        #endif
-                        .accessibilityLabel("Number of units")
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Date").font(.caption).foregroundColor(.textMuted)
-                    DatePicker("", selection: $nicoDate, displayedComponents: .date)
-                        .labelsHidden()
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                    nicotineProductField
+                    nicotineMgField
+                    nicotineCountField
+                    nicotineDateField
                 }
             }
 
@@ -1780,20 +1833,22 @@ struct SubstancesView: View {
     private func alcoholEditSheet(_ drink: AlcoholDrink) -> some View {
         NavigationStack {
             Form {
-                TextField("Name", text: $editAlcoName)
-                TextField("Oz", text: $editAlcoOz)
-                    #if os(iOS)
-                    .keyboardType(.decimalPad)
-                    #endif
-                TextField("ABV %", text: $editAlcoABV)
-                    #if os(iOS)
-                    .keyboardType(.decimalPad)
-                    #endif
-                TextField("Count", text: $editAlcoCount)
-                    #if os(iOS)
-                    .keyboardType(.numberPad)
-                    #endif
-                TextField("Date (YYYY-MM-DD)", text: $editAlcoDate)
+                Section("Drink") {
+                    TextField("Name", text: $editAlcoName)
+                    TextField("Oz", text: $editAlcoOz)
+                        #if os(iOS)
+                        .keyboardType(.decimalPad)
+                        #endif
+                    TextField("ABV %", text: $editAlcoABV)
+                        #if os(iOS)
+                        .keyboardType(.decimalPad)
+                        #endif
+                    TextField("Count", text: $editAlcoCount)
+                        #if os(iOS)
+                        .keyboardType(.numberPad)
+                        #endif
+                    TextField("Date (YYYY-MM-DD)", text: $editAlcoDate)
+                }
 
                 Section {
                     Button(role: .destructive) {
@@ -1802,8 +1857,16 @@ struct SubstancesView: View {
                         Label("Delete Drink", systemImage: "trash")
                             .frame(maxWidth: .infinity)
                     }
+                    #if os(macOS)
+                    .buttonStyle(.borderedProminent)
+                    .tint(.red)
+                    #endif
                 }
             }
+            #if os(macOS)
+            .formStyle(.grouped)
+            .frame(minWidth: 480, minHeight: 360)
+            #endif
             .navigationTitle("Edit Drink")
             .inlineNavigationTitle()
             .toolbar {
@@ -1849,16 +1912,18 @@ struct SubstancesView: View {
     private func nicotineEditSheet(_ entry: NicotineEntry) -> some View {
         NavigationStack {
             Form {
-                TextField("Product", text: $editNicoProduct)
-                TextField("mg/unit", text: $editNicoMg)
-                    #if os(iOS)
-                    .keyboardType(.decimalPad)
-                    #endif
-                TextField("Count", text: $editNicoCount)
-                    #if os(iOS)
-                    .keyboardType(.numberPad)
-                    #endif
-                TextField("Date (YYYY-MM-DD)", text: $editNicoDate)
+                Section("Entry") {
+                    TextField("Product", text: $editNicoProduct)
+                    TextField("mg/unit", text: $editNicoMg)
+                        #if os(iOS)
+                        .keyboardType(.decimalPad)
+                        #endif
+                    TextField("Count", text: $editNicoCount)
+                        #if os(iOS)
+                        .keyboardType(.numberPad)
+                        #endif
+                    TextField("Date (YYYY-MM-DD)", text: $editNicoDate)
+                }
 
                 Section {
                     Button(role: .destructive) {
@@ -1867,8 +1932,16 @@ struct SubstancesView: View {
                         Label("Delete Entry", systemImage: "trash")
                             .frame(maxWidth: .infinity)
                     }
+                    #if os(macOS)
+                    .buttonStyle(.borderedProminent)
+                    .tint(.red)
+                    #endif
                 }
             }
+            #if os(macOS)
+            .formStyle(.grouped)
+            .frame(minWidth: 480, minHeight: 360)
+            #endif
             .navigationTitle("Edit Entry")
             .inlineNavigationTitle()
             .toolbar {

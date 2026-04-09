@@ -10,7 +10,10 @@ struct SettingsView: View {
 
     @State private var showExporter = false
     @State private var showImporter = false
-    @State private var exportData: Data? = nil
+    @State private var exportDocument: MortalLoomExportDocument? = nil
+    @State private var exportFilename: String = "MortalLoom.json"
+    @State private var isPreparingExport = false
+    @State private var exportMessage: String? = nil
     @State private var showResetConfirmation = false
     @State private var importMessage: String? = nil
     @State private var importSuccess = false
@@ -443,42 +446,68 @@ struct SettingsView: View {
                 .font(.caption)
                 .foregroundColor(.textSecondary)
 
-            if let data = exportData {
-                ShareLink(
-                    item: ExportedJSON(data: data),
-                    preview: SharePreview("MortalLoom Data", image: Image(systemName: "doc.text"))
-                ) {
-                    HStack {
-                        Image(systemName: "square.and.arrow.up")
-                        Text("Share Export")
-                            .fontWeight(.semibold)
+            Button {
+                Task { await prepareExport() }
+            } label: {
+                HStack {
+                    if isPreparingExport {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Image(systemName: "square.and.arrow.down")
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
+                    Text(isPreparingExport ? "Preparing…" : "Save Export…")
+                        .fontWeight(.semibold)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.accentColor)
-            } else {
-                Button {
-                    Task {
-                        exportData = await DataStore.shared.exportData()
-                    }
-                } label: {
-                    HStack {
-                        Image(systemName: "arrow.down.doc")
-                        Text("Prepare Export")
-                            .fontWeight(.semibold)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.accentColor)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.accentColor)
+            .disabled(isPreparingExport)
+
+            if let msg = exportMessage {
+                Text(msg)
+                    .font(.caption)
+                    .foregroundColor(.textSecondary)
             }
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
+        .fileExporter(
+            isPresented: $showExporter,
+            document: exportDocument,
+            contentType: .json,
+            defaultFilename: exportFilename
+        ) { result in
+            switch result {
+            case .success(let url):
+                exportMessage = "Saved to \(url.lastPathComponent)"
+            case .failure(let error):
+                exportMessage = "Export failed: \(error.localizedDescription)"
+            }
+            exportDocument = nil
+        }
+    }
+
+    private func prepareExport() async {
+        isPreparingExport = true
+        defer { isPreparingExport = false }
+        guard let data = await DataStore.shared.exportData() else {
+            exportMessage = "No data to export."
+            return
+        }
+        let stamp = Self.exportTimestamp()
+        exportFilename = "MortalLoom-\(stamp).json"
+        exportDocument = MortalLoomExportDocument(data: data)
+        exportMessage = nil
+        showExporter = true
+    }
+
+    private static func exportTimestamp() -> String {
+        let f = DateFormatter()
+        f.dateFormat = "yyyyMMdd-HHmmss"
+        return f.string(from: Date())
     }
 
     // MARK: - Data Import
@@ -694,7 +723,7 @@ struct SettingsView: View {
                 importMessage = success
                     ? "Data imported successfully."
                     : "Invalid MortalLoom data file."
-                exportData = nil
+                exportDocument = nil
             }
 
         case .failure:
@@ -705,7 +734,7 @@ struct SettingsView: View {
 
     private func resetAllData() async {
         await DataStore.shared.save(.empty)
-        exportData = nil
+        exportDocument = nil
         showResetConfirmation = false
         importMessage = nil
         UserDefaults.standard.set(false, forKey: AppConstants.hasCompletedOnboardingKey)
@@ -715,12 +744,19 @@ struct SettingsView: View {
 
 // MARK: - Export Helper
 
-struct ExportedJSON: Transferable {
+struct MortalLoomExportDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.json] }
+    static var writableContentTypes: [UTType] { [.json] }
+
     let data: Data
 
-    static var transferRepresentation: some TransferRepresentation {
-        DataRepresentation(exportedContentType: .json) { item in
-            item.data
-        }
+    init(data: Data) { self.data = data }
+
+    init(configuration: ReadConfiguration) throws {
+        self.data = configuration.file.regularFileContents ?? Data()
+    }
+
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        FileWrapper(regularFileWithContents: data)
     }
 }

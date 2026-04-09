@@ -107,9 +107,17 @@ struct ContentView: View {
         }
         .task {
             if AppConstants.useSampleData {
-                await DataStore.shared.save(SampleData.fullAppData)
+                // Sample-data mode: load fake data in-memory only, and skip
+                // every side-effecting subsystem so nothing ever writes to
+                // disk or the iCloud container. This is the root-cause fix
+                // for the 2026-04-09 sample-data-clobbers-iCloud incident.
+                appLogger.warning("⚠️ -sample-data flag present: entering in-memory-only mode — iCloud & HealthKit disabled")
+                await DataStore.shared.enableSampleDataMode()
+                await DataStore.shared.setInMemory(SampleData.fullAppData)
                 UserDefaults.standard.set(true, forKey: AppConstants.hasCompletedOnboardingKey)
+                return
             }
+
             // Start iCloud file monitoring for cross-device sync
             ICloudMonitor.shared.start()
             // Ensure data is loaded from iCloud before any sync writes.
