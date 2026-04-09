@@ -75,6 +75,14 @@ actor DataStore {
         if let fileData = try? Data(contentsOf: url) {
             if let decoded = try? JSONDecoder().decode(AppData.self, from: fileData) {
                 data = decoded
+                // Seed lastSaveDate with the loaded file's mtime so that
+                // reloadIfNeeded() doesn't treat any subsequent iCloud change
+                // as "newer" than our freshly-loaded state. Without this,
+                // lastSaveDate stays at .distantPast and any iCloud push from
+                // another device (even a stale one) unconditionally wins.
+                if let mtime = try? FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate] as? Date {
+                    lastSaveDate = mtime
+                }
                 let drinkCount = self.data.alcoholDrinks.count
                 let nicCount = self.data.nicotineEntries.count
                 let saunaCount = self.data.saunaSessions.count
