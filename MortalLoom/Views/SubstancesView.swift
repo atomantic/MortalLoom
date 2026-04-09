@@ -1258,6 +1258,7 @@ struct SubstancesView: View {
         saunaQuickAdd
         saunaStatsBar
         saunaChart
+        saunaRecoveryCorrelation
         saunaCustomForm
         saunaHistory
         manageSaunaPresetsButton
@@ -1326,6 +1327,156 @@ struct SubstancesView: View {
         }
         .padding()
         .cardStyle()
+    }
+
+    // MARK: Sauna + Recovery Correlation
+
+    @ViewBuilder
+    private var saunaRecoveryCorrelation: some View {
+        let dataPoints = CorrelationEngine.saunaRecoveryCorrelation(
+            sessions: saunaSessions,
+            healthMetrics: healthMetrics
+        )
+
+        let saunaDays = dataPoints.filter { $0.saunaMinutes > 0 }
+        let restDays = dataPoints.filter { $0.saunaMinutes == 0 }
+
+        let avgHRVSauna = average(saunaDays.compactMap(\.nextDayHRV))
+        let avgHRVRest = average(restDays.compactMap(\.nextDayHRV))
+        let avgDeepSauna = average(saunaDays.compactMap(\.nextNightDeepPct))
+        let avgDeepRest = average(restDays.compactMap(\.nextNightDeepPct))
+        let avgRemSauna = average(saunaDays.compactMap(\.nextNightRemPct))
+        let avgRemRest = average(restDays.compactMap(\.nextNightRemPct))
+
+        let hasData = !saunaDays.isEmpty && !restDays.isEmpty
+            && (avgHRVSauna != nil && avgHRVRest != nil
+                || avgDeepSauna != nil && avgDeepRest != nil)
+
+        if hasData {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Sauna + Recovery (HRV & Sleep)")
+                    .font(.headline)
+                    .foregroundColor(.textPrimary)
+
+                let chartData = dataPoints.suffix(60)
+
+                Chart {
+                    ForEach(Array(chartData), id: \.date) { item in
+                        if item.saunaMinutes > 0 {
+                            BarMark(
+                                x: .value("Date", item.date),
+                                y: .value("Minutes", item.saunaMinutes)
+                            )
+                            .foregroundStyle(Color.orange.opacity(0.3))
+                        }
+                        if let hrv = item.nextDayHRV {
+                            LineMark(
+                                x: .value("Date", item.date),
+                                y: .value("HRV", hrv),
+                                series: .value("Metric", "HRV (ms)")
+                            )
+                            .foregroundStyle(Color.green)
+                            .lineStyle(StrokeStyle(lineWidth: 2))
+                        }
+                        if let deep = item.nextNightDeepPct {
+                            LineMark(
+                                x: .value("Date", item.date),
+                                y: .value("Deep %", deep),
+                                series: .value("Metric", "Deep Sleep %")
+                            )
+                            .foregroundStyle(Color.indigo)
+                            .lineStyle(StrokeStyle(lineWidth: 2))
+                        }
+                    }
+                }
+                .chartXAxis {
+                    AxisMarks(values: .stride(by: .day, count: 14)) { _ in
+                        AxisGridLine()
+                        AxisValueLabel(format: .dateTime.month(.abbreviated).day(), centered: true)
+                    }
+                }
+                .chartForegroundStyleScale([
+                    "HRV (ms)": Color.green,
+                    "Deep Sleep %": Color.indigo,
+                    "Sauna": Color.orange.opacity(0.3),
+                ])
+                .frame(height: Layout.chartFrameHeight)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Sauna and recovery correlation. HRV after sauna: \(String(format: "%.0f", avgHRVSauna ?? 0)) ms. Rest days: \(String(format: "%.0f", avgHRVRest ?? 0)) ms. Deep sleep after sauna: \(String(format: "%.1f", avgDeepSauna ?? 0))%. Rest days: \(String(format: "%.1f", avgDeepRest ?? 0))%")
+
+                // Summary stats
+                let hrvDiff = pctDifference(avgHRVRest, avgHRVSauna)
+                let deepDiff = pctDifference(avgDeepRest, avgDeepSauna)
+                let remDiff = pctDifference(avgRemRest, avgRemSauna)
+
+                VStack(spacing: 8) {
+                    if let hSauna = avgHRVSauna, let hRest = avgHRVRest {
+                        HStack(spacing: 12) {
+                            sleepStatColumn(
+                                label: "HRV (Sauna)",
+                                value: String(format: "%.0f ms", hSauna),
+                                color: .orange
+                            )
+                            sleepStatColumn(
+                                label: "HRV (Rest)",
+                                value: String(format: "%.0f ms", hRest),
+                                color: .green
+                            )
+                            sleepStatColumn(
+                                label: "HRV Δ",
+                                value: String(format: "%.1f%%", abs(hrvDiff ?? 0)) + (hrvDiff.map { $0 < 0 ? " higher" : " lower" } ?? ""),
+                                color: (hrvDiff ?? 0) < 0 ? .success : .danger
+                            )
+                        }
+                    }
+                    if avgDeepSauna != nil && avgDeepRest != nil {
+                        HStack(spacing: 12) {
+                            sleepStatColumn(
+                                label: "Deep (Sauna)",
+                                value: String(format: "%.1f%%", avgDeepSauna ?? 0),
+                                color: .orange
+                            )
+                            sleepStatColumn(
+                                label: "Deep (Rest)",
+                                value: String(format: "%.1f%%", avgDeepRest ?? 0),
+                                color: .indigo
+                            )
+                            sleepStatColumn(
+                                label: "Deep Δ",
+                                value: String(format: "%.1f%%", abs(deepDiff ?? 0)) + (deepDiff.map { $0 < 0 ? " more" : " less" } ?? ""),
+                                color: (deepDiff ?? 0) < 0 ? .success : .danger
+                            )
+                        }
+                    }
+                    if avgRemSauna != nil && avgRemRest != nil {
+                        HStack(spacing: 12) {
+                            sleepStatColumn(
+                                label: "REM (Sauna)",
+                                value: String(format: "%.1f%%", avgRemSauna ?? 0),
+                                color: .orange
+                            )
+                            sleepStatColumn(
+                                label: "REM (Rest)",
+                                value: String(format: "%.1f%%", avgRemRest ?? 0),
+                                color: .purple
+                            )
+                            sleepStatColumn(
+                                label: "REM Δ",
+                                value: String(format: "%.1f%%", abs(remDiff ?? 0)) + (remDiff.map { $0 < 0 ? " more" : " less" } ?? ""),
+                                color: (remDiff ?? 0) < 0 ? .success : .danger
+                            )
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity)
+
+                Text("Sauna use may improve HRV and deep sleep via heat stress adaptation and parasympathetic activation.")
+                    .font(.caption2)
+                    .foregroundColor(.textMuted)
+            }
+            .padding()
+            .cardStyle()
+        }
     }
 
     // MARK: Sauna Quick Add

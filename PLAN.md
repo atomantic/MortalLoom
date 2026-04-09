@@ -143,7 +143,7 @@ Once the above metrics are synced, these cross-domain analyses become possible:
 | Correlation | Inputs | Insight |
 |---|---|---|
 | ~~Alcohol → Sleep Quality~~ ✅ | Drinking days × deep/REM % | Quantify alcohol's true sleep cost |
-| Sauna → HRV/Sleep | Sauna sessions × next-day HRV × deep sleep | Validate sauna's recovery benefit |
+| ~~Sauna → HRV/Sleep~~ ✅ | Sauna sessions × next-day HRV × deep sleep | Validate sauna's recovery benefit |
 | Nicotine → Cardio Recovery | Nicotine mg × HR recovery bpm | Quantify nicotine's cardiac impact |
 | Activity → Blood Markers | Steps + distance + exercise × blood panels | Strengthen existing CorrelationEngine |
 | Daylight → Sleep Consistency | Daily daylight min × sleep consistency score | Circadian regulation feedback |
@@ -168,7 +168,7 @@ Once the above metrics are synced, these cross-domain analyses become possible:
 4. ~~Time in daylight (new metric, easy sync)~~ ✅
 5. ~~Sync already-requested-but-unused types (stand time, basal energy, distance, walking speed)~~ ✅
 6. ~~Gait engine (new engine, more complex but high long-term value)~~ ✅
-7. New correlation charts (Alcohol → Sleep chart wired up; 6 remaining)
+7. New correlation charts (Alcohol → Sleep ✅, Sauna → HRV/Sleep ✅; 5 remaining)
 8. ~~Death clock enhancement with new factors~~ ✅
 
 ## Backlog

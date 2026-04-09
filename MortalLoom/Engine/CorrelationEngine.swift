@@ -12,6 +12,16 @@ struct CorrelationDataPoint: Sendable {
     let markers: [String: Double]
 }
 
+/// A sauna session day paired with next-day HRV and sleep stage quality.
+struct SaunaRecoveryDataPoint: Sendable {
+    let date: String              // "YYYY-MM-DD" of the sauna day
+    let saunaMinutes: Int         // total sauna minutes that day
+    let nextDayHRV: Double?       // HRV (ms SDNN) the following day
+    let nextNightDeepPct: Double? // deep sleep % the following night
+    let nextNightRemPct: Double?  // REM sleep % the following night
+    let nextNightTotalHours: Double? // total sleep hours the following night
+}
+
 /// A day's alcohol intake paired with next-night sleep stage quality.
 struct AlcoholSleepDataPoint: Sendable {
     let date: String           // "YYYY-MM-DD" of the drinking day
@@ -22,6 +32,67 @@ struct AlcoholSleepDataPoint: Sendable {
 }
 
 enum CorrelationEngine {
+
+    // MARK: - Sauna → HRV / Sleep Quality
+
+    /// Build per-day data points correlating sauna use with next-day HRV and sleep stages.
+    /// Sauna on day N is compared to HRV on day N+1 and sleep recorded on day N+1.
+    static func saunaRecoveryCorrelation(
+        sessions: [SaunaSession],
+        healthMetrics: [HealthMetricEntry]
+    ) -> [SaunaRecoveryDataPoint] {
+        guard !sessions.isEmpty, !healthMetrics.isEmpty else { return [] }
+
+        let metricsByDate = Dictionary(grouping: healthMetrics, by: \.date)
+            .compactMapValues(\.first)
+
+        // Sum sauna minutes per day
+        var minutesByDate: [String: Int] = [:]
+        for session in sessions {
+            minutesByDate[session.date, default: 0] += session.durationMinutes
+        }
+
+        // Also include non-sauna days that have HRV/sleep data for contrast
+        let allMetricDates = Set(healthMetrics.compactMap { m -> String? in
+            guard m.hrv != nil || m.sleepDeepHours != nil else { return nil }
+            guard let metricDate = DateFormatting.dateFromString(m.date) else { return nil }
+            guard let priorDay = Calendar.current.date(byAdding: .day, value: -1, to: metricDate) else { return nil }
+            return DateFormatting.dateString(priorDay)
+        })
+
+        let allDates = Set(minutesByDate.keys).union(allMetricDates)
+
+        return allDates.compactMap { dateStr -> SaunaRecoveryDataPoint? in
+            let minutes = minutesByDate[dateStr] ?? 0
+
+            guard let day = DateFormatting.dateFromString(dateStr),
+                  let nextDay = Calendar.current.date(byAdding: .day, value: 1, to: day) else { return nil }
+            let nextDayStr = DateFormatting.dateString(nextDay)
+            let nextMetrics = metricsByDate[nextDayStr]
+
+            let hrv = nextMetrics?.hrv
+            let total = nextMetrics?.sleepHours
+            let deepPct: Double? = {
+                guard let deep = nextMetrics?.sleepDeepHours, let t = total, t > 0 else { return nil }
+                return (deep / t) * 100
+            }()
+            let remPct: Double? = {
+                guard let rem = nextMetrics?.sleepRemHours, let t = total, t > 0 else { return nil }
+                return (rem / t) * 100
+            }()
+
+            guard hrv != nil || deepPct != nil || remPct != nil || total != nil else { return nil }
+
+            return SaunaRecoveryDataPoint(
+                date: dateStr,
+                saunaMinutes: minutes,
+                nextDayHRV: hrv,
+                nextNightDeepPct: deepPct,
+                nextNightRemPct: remPct,
+                nextNightTotalHours: total
+            )
+        }.sorted { $0.date < $1.date }
+    }
 
     // MARK: - Alcohol → Sleep Quality
 
