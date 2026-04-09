@@ -70,7 +70,13 @@ private struct DailyAmount: Identifiable {
 // MARK: - SubstancesView
 
 struct SubstancesView: View {
-    @State private var selectedTab: SubstanceTab = .alcohol
+    @State private var selectedTab: SubstanceTab = {
+        if let arg = AppConstants.startSubstanceTab,
+           let tab = SubstanceTab.allCases.first(where: { $0.rawValue.lowercased() == arg }) {
+            return tab
+        }
+        return .alcohol
+    }()
 
     // Alcohol state
     @State private var alcoholDrinks: [AlcoholDrink] = []

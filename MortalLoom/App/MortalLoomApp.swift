@@ -27,6 +27,19 @@ enum AppConstants {
         return nil
         #endif
     }
+
+    /// Launch with -substance-tab <alcohol|nicotine|sauna> to open a specific
+    /// tab inside the Habits page (for screenshot automation). Debug-only.
+    static var startSubstanceTab: String? {
+        #if DEBUG
+        let args = ProcessInfo.processInfo.arguments
+        guard let idx = args.firstIndex(of: "-substance-tab"),
+              idx + 1 < args.count else { return nil }
+        return args[idx + 1].lowercased()
+        #else
+        return nil
+        #endif
+    }
 }
 
 extension Notification.Name {

@@ -19,16 +19,19 @@ SCREENSHOTS_DIR="$PROJECT_DIR/screenshots"
 DERIVED_DATA="$PROJECT_DIR/.build/DerivedData"
 APP_PATH="$DERIVED_DATA/Build/Products/Debug/MortalLoom.app"
 
-# Pages to capture: "page_name|output_filename"
+# Pages to capture: "page_name|output_filename|extra_args"
+# extra_args lets us pass additional launch flags (e.g. -substance-tab nicotine)
 PAGES=(
-    "overview|01_overview"
-    "body|02_body"
-    "blood|03_blood"
-    "habits|04_habits"
-    "goals|05_goals"
-    "calendar|06_calendar"
-    "sleep|07_sleep"
-    "lifestyle|08_lifestyle"
+    "overview|01_overview|"
+    "goals|02_goals|"
+    "habits|03_habits_alcohol|-substance-tab alcohol"
+    "habits|04_habits_nicotine|-substance-tab nicotine"
+    "body|05_body|"
+    "blood|06_blood|"
+    "sleep|07_sleep|"
+    "calendar|08_calendar|"
+    "lifestyle|09_lifestyle|"
+    "genome|10_genome|"
 )
 
 echo "=========================================="
@@ -114,20 +117,22 @@ echo "📸 Capturing macOS screenshots..."
 
 CURRENT=0
 for page_spec in "${PAGES[@]}"; do
-    IFS='|' read -r PAGE_NAME OUTPUT_NAME <<< "$page_spec"
+    IFS='|' read -r PAGE_NAME OUTPUT_NAME EXTRA_ARGS <<< "$page_spec"
     CURRENT=$((CURRENT + 1))
-    echo "  [$CURRENT/${#PAGES[@]}] $PAGE_NAME..."
+    echo "  [$CURRENT/${#PAGES[@]}] $OUTPUT_NAME..."
 
     # Kill any existing instance
     killall MortalLoom 2>/dev/null || true
     sleep 2
 
-    # Launch with sample data and target page
+    # Launch with sample data and target page (plus any per-page extra args)
+    # shellcheck disable=SC2086
     open "$APP_PATH" --args \
         -sample-data \
         -hasCompletedOnboarding 1 \
         -force-pro \
-        -start-page "$PAGE_NAME"
+        -start-page "$PAGE_NAME" \
+        $EXTRA_ARGS
 
     sleep 5
     capture_window "$OUT_DIR/${OUTPUT_NAME}.png"

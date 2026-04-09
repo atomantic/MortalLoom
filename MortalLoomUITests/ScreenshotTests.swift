@@ -56,7 +56,23 @@ final class ScreenshotTests: XCTestCase {
 
     func testCaptureIPhoneScreenshots() throws {
         guard !isIPad else { return }
+        captureAppStoreScreenshots()
+    }
 
+    // MARK: - iPad Screenshots
+
+    func testCaptureIPadScreenshots() throws {
+        guard isIPad else { return }
+        captureAppStoreScreenshots()
+    }
+
+    // MARK: - Shared Capture Flow
+
+    /// Shared capture sequence used by both iPhone and iPad tests. The nav flow
+    /// is identical on both idioms: 4 pages live in the bottom tab bar
+    /// (Overview, Goals, Habits, Body) and the rest are reached through the
+    /// "More" button which opens the side menu.
+    private func captureAppStoreScreenshots() {
         saveScreenshot("01_overview")
 
         app.swipeUp()
@@ -81,55 +97,21 @@ final class ScreenshotTests: XCTestCase {
         tapCustomTab("Body")
         saveScreenshot("06_body")
 
-        tapHamburger()
+        openSideMenu()
         tapSideMenuItem("Blood")
         saveScreenshot("07_blood")
 
-        tapCustomTab("Calendar")
+        openSideMenu()
+        tapSideMenuItem("Calendar")
         saveScreenshot("08_calendar")
 
-        tapHamburger()
+        openSideMenu()
         tapSideMenuItem("Sleep")
         saveScreenshot("09_sleep")
 
-        tapHamburger()
+        openSideMenu()
         tapSideMenuItem("Lifestyle")
         saveScreenshot("10_lifestyle")
-    }
-
-    // MARK: - iPad Screenshots
-
-    func testCaptureIPadScreenshots() throws {
-        guard isIPad else { return }
-
-        saveScreenshot("01_overview")
-
-        app.swipeUp()
-        Thread.sleep(forTimeInterval: 0.5)
-        saveScreenshot("02_overview_scroll")
-        app.swipeDown()
-        app.swipeDown()
-        Thread.sleep(forTimeInterval: 0.3)
-
-        tapCustomTab("Goals")
-        saveScreenshot("03_goals")
-
-        tapCustomTab("Habits")
-        saveScreenshot("04_habits_alcohol")
-
-        tapCustomTab("Body")
-        saveScreenshot("05_body")
-
-        tapHamburger()
-        tapSideMenuItem("Blood")
-        saveScreenshot("06_blood")
-
-        tapCustomTab("Calendar")
-        saveScreenshot("07_calendar")
-
-        tapHamburger()
-        tapSideMenuItem("Sleep")
-        saveScreenshot("08_sleep")
     }
 
     // MARK: - Helpers
@@ -148,11 +130,12 @@ final class ScreenshotTests: XCTestCase {
         }
     }
 
-    private func tapHamburger() {
-        let navBar = app.navigationBars.firstMatch
-        if navBar.waitForExistence(timeout: 2) {
-            navBar.buttons.element(boundBy: 0).tap()
-            Thread.sleep(forTimeInterval: 0.5)
+    /// Opens the side menu by tapping the "More" button in the bottom tab bar.
+    private func openSideMenu() {
+        let more = app.buttons["More"]
+        if more.waitForExistence(timeout: 3) {
+            more.tap()
+            Thread.sleep(forTimeInterval: 0.6)
         }
     }
 
