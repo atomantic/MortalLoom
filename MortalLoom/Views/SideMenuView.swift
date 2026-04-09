@@ -110,6 +110,9 @@ struct SideMenuView: View {
                 .font(.title3)
                 .fontWeight(.bold)
                 .foregroundColor(.textPrimary)
+            #if DEBUG
+            DebugBuildBadge()
+            #endif
             Spacer()
             Button { dismiss() } label: {
                 Image(systemName: "xmark")

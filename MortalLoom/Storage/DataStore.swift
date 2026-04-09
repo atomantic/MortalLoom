@@ -67,6 +67,91 @@ actor DataStore {
             .appendingPathComponent("Documents/genome-raw.txt")
     }
 
+    /// Rolling backups of the main data file. Written before destructive
+    /// operations (reset, import) so we always have an undo path. Lives in
+    /// the sandbox so it survives reboots but never leaks outside the app.
+    private var backupsDirectory: URL {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("backups", isDirectory: true)
+    }
+
+    /// Maximum number of rolling backups to keep. Older backups beyond this
+    /// count are deleted on each new backup.
+    private let maxBackups = 10
+
+    /// Copy the current local data file into backups/ with a timestamped
+    /// filename. Call this before any destructive mutation (reset, import,
+    /// bulk replace). Prunes to the last `maxBackups` entries.
+    @discardableResult
+    func backupCurrentFile(reason: String) -> URL? {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: localURL.path) else {
+            logger.info("💾 backup skipped — no local file yet (\(reason, privacy: .public))")
+            return nil
+        }
+
+        do {
+            try fm.createDirectory(at: backupsDirectory, withIntermediateDirectories: true)
+        } catch {
+            logger.error("💾 backup dir create failed: \(error.localizedDescription, privacy: .private)")
+            return nil
+        }
+
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyyMMdd-HHmmss"
+        let stamp = fmt.string(from: Date())
+        let dest = backupsDirectory.appendingPathComponent("MortalLoom-\(stamp)-\(reason).json")
+
+        do {
+            try fm.copyItem(at: localURL, to: dest)
+            logger.info("💾 pre-\(reason, privacy: .public) backup: \(dest.lastPathComponent, privacy: .public)")
+        } catch {
+            logger.error("💾 backup copy failed: \(error.localizedDescription, privacy: .private)")
+            return nil
+        }
+
+        pruneBackups()
+        return dest
+    }
+
+    /// Delete oldest backups so at most `maxBackups` remain.
+    private func pruneBackups() {
+        let fm = FileManager.default
+        guard let urls = try? fm.contentsOfDirectory(
+            at: backupsDirectory,
+            includingPropertiesForKeys: [.contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        ) else { return }
+
+        let sorted = urls.sorted { lhs, rhs in
+            let ld = (try? lhs.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+            let rd = (try? rhs.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+            return ld > rd // newest first
+        }
+
+        guard sorted.count > maxBackups else { return }
+        for url in sorted[maxBackups...] {
+            try? fm.removeItem(at: url)
+            logger.info("💾 pruned old backup \(url.lastPathComponent, privacy: .public)")
+        }
+    }
+
+    /// List current backups (most recent first). Useful for a future
+    /// "Restore from Backup" UI.
+    func listBackups() -> [URL] {
+        let fm = FileManager.default
+        guard let urls = try? fm.contentsOfDirectory(
+            at: backupsDirectory,
+            includingPropertiesForKeys: [.contentModificationDateKey],
+            options: [.skipsHiddenFiles]
+        ) else { return [] }
+        return urls.sorted { lhs, rhs in
+            let ld = (try? lhs.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+            let rd = (try? rhs.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+            return ld > rd
+        }
+    }
+
     // Load from best available source
     func load() -> AppData {
         if loaded { return data }
@@ -475,6 +560,9 @@ actor DataStore {
 
     func importData(from jsonData: Data) -> Bool {
         guard let imported = try? JSONDecoder().decode(AppData.self, from: jsonData) else { return false }
+        // Snapshot whatever is currently on disk BEFORE the import clobbers
+        // it, so a bad import file can be undone.
+        backupCurrentFile(reason: "import")
         save(imported)
         return true
     }

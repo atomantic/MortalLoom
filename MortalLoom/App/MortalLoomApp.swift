@@ -204,6 +204,9 @@ struct MacContentView: View {
                     Text("MortalLoom")
                         .font(.title3).fontWeight(.bold)
                         .foregroundColor(.textPrimary)
+                    #if DEBUG
+                    DebugBuildBadge()
+                    #endif
                     Spacer()
                     if ICloudMonitor.shared.isICloud {
                         Button {
@@ -273,6 +276,25 @@ struct MacContentView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color.bg)
         }
+    }
+}
+#endif
+
+#if DEBUG
+/// Small red pill shown on DEBUG builds only. Makes it obvious when the user
+/// is looking at a developer build versus the shipped Release build — helps
+/// avoid "is this the fixed binary?" confusion after an incident. Defined in
+/// a #if DEBUG block so it's physically absent from Release.
+struct DebugBuildBadge: View {
+    var body: some View {
+        Text("DEBUG")
+            .font(.system(size: 9, weight: .bold, design: .monospaced))
+            .foregroundColor(.white)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+            .background(Color.red.opacity(0.85))
+            .clipShape(Capsule())
+            .accessibilityLabel("Debug build")
     }
 }
 #endif

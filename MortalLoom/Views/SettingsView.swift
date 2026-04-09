@@ -14,6 +14,11 @@ struct SettingsView: View {
     @State private var exportFilename: String = "MortalLoom.json"
     @State private var isPreparingExport = false
     @State private var exportMessage: String? = nil
+    /// UNIX epoch (seconds) of the last successful export. 0 means never.
+    /// Surfaces a nag banner when stale.
+    @AppStorage("lastExportEpoch") private var lastExportEpoch: Double = 0
+    /// Days after which we consider the last export stale and nag the user.
+    private let exportStaleAfterDays: Double = 14
     @State private var showResetConfirmation = false
     @State private var importMessage: String? = nil
     @State private var importSuccess = false
@@ -446,6 +451,24 @@ struct SettingsView: View {
                 .font(.caption)
                 .foregroundColor(.textSecondary)
 
+            if isExportStale {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.warning)
+                    Text(exportStaleMessage)
+                        .font(.caption)
+                        .foregroundColor(.textPrimary)
+                }
+                .padding(8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.warning.opacity(0.15))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(Color.warning.opacity(0.4), lineWidth: 1)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+
             Button {
                 Task { await prepareExport() }
             } label: {
@@ -483,11 +506,31 @@ struct SettingsView: View {
             switch result {
             case .success(let url):
                 exportMessage = "Saved to \(url.lastPathComponent)"
+                lastExportEpoch = Date().timeIntervalSince1970
             case .failure(let error):
                 exportMessage = "Export failed: \(error.localizedDescription)"
             }
             exportDocument = nil
         }
+    }
+
+    /// True when the user either has never exported, or the last export is
+    /// older than `exportStaleAfterDays`.
+    private var isExportStale: Bool {
+        guard lastExportEpoch > 0 else { return true }
+        let last = Date(timeIntervalSince1970: lastExportEpoch)
+        let staleInterval = exportStaleAfterDays * 24 * 60 * 60
+        return Date().timeIntervalSince(last) > staleInterval
+    }
+
+    /// Human-readable message for the staleness banner.
+    private var exportStaleMessage: String {
+        guard lastExportEpoch > 0 else {
+            return "No export on file yet — save one now as a backup."
+        }
+        let last = Date(timeIntervalSince1970: lastExportEpoch)
+        let days = Int(Date().timeIntervalSince(last) / (24 * 60 * 60))
+        return "Last export was \(days) days ago — consider saving a fresh backup."
     }
 
     private func prepareExport() async {
@@ -733,6 +776,9 @@ struct SettingsView: View {
     }
 
     private func resetAllData() async {
+        // Snapshot the current file before wiping so the user can undo via
+        // the rolling backup in ~/Library/Containers/.../Data/Documents/backups/
+        await DataStore.shared.backupCurrentFile(reason: "reset")
         await DataStore.shared.save(.empty)
         exportDocument = nil
         showResetConfirmation = false
