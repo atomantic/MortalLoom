@@ -135,13 +135,11 @@ struct OnboardingView: View {
         stepContainer {
             Image("EscapeVelocity")
                 .resizable()
-                .scaledToFit()
-                .frame(maxWidth: 360, maxHeight: 180)
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(Color.cardBorder, lineWidth: 1)
-                )
+                .aspectRatio(contentMode: .fill)
+                .frame(maxWidth: .infinity)
+                .frame(height: 180)
+                .clipped()
+                .padding(.horizontal, -24)
                 .padding(.bottom, 4)
                 .accessibilityLabel("A glowing DNA helix curving upward into an arrow, symbolizing accelerating longevity")
             stepTitle("Longevity Escape Velocity")
