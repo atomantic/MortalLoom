@@ -101,6 +101,9 @@ struct BloodView: View {
             })
         }
         .task { await loadData() }
+        .onReceive(NotificationCenter.default.publisher(for: .dataDidSync)) { _ in
+            Task { await loadData() }
+        }
     }
 
     private var headerSection: some View {

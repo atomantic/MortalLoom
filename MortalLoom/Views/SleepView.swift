@@ -44,6 +44,9 @@ struct SleepView: View {
         }
         .background(Color.bg)
         .task { await loadData() }
+        .onReceive(NotificationCenter.default.publisher(for: .dataDidSync)) { _ in
+            Task { await loadData() }
+        }
     }
 
     @ViewBuilder

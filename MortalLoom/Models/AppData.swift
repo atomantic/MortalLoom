@@ -55,6 +55,21 @@ struct AppData: Codable, Sendable {
         self.saunaPresets = saunaPresets
     }
 
+    /// True when the data has no user-entered content (only defaults).
+    var hasUserData: Bool {
+        profile.birthDate != nil
+        || !alcoholDrinks.isEmpty
+        || !nicotineEntries.isEmpty
+        || !saunaSessions.isEmpty
+        || !bloodTests.isEmpty
+        || !eyeExams.isEmpty
+        || !epigeneticTests.isEmpty
+        || !bodyEntries.isEmpty
+        || !healthMetrics.isEmpty
+        || !goals.isEmpty
+        || genomeScanRecord != nil
+    }
+
     // Support decoding files saved before newer fields were added
     enum CodingKeys: String, CodingKey {
         case profile, alcoholDrinks, alcoholPresets, nicotineEntries, nicotinePresets

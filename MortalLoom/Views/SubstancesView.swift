@@ -172,6 +172,9 @@ struct SubstancesView: View {
         }
         .background(Color.bg)
         .task { await loadData() }
+        .onReceive(NotificationCenter.default.publisher(for: .dataDidSync)) { _ in
+            Task { await loadData() }
+        }
         .sheet(item: $editingDrink) { drink in
             alcoholEditSheet(drink)
         }

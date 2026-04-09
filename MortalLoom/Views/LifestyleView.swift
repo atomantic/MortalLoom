@@ -36,6 +36,9 @@ struct LifestyleView: View {
         .background(Color.bg)
         .toast($toastMessage)
         .task { await loadData() }
+        .onReceive(NotificationCenter.default.publisher(for: .dataDidSync)) { _ in
+            Task { await loadData() }
+        }
     }
 
     @ViewBuilder

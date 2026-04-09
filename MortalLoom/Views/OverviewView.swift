@@ -44,6 +44,9 @@ struct OverviewView: View {
         .onAppear { isVisible = true }
         .onDisappear { isVisible = false }
         .onReceive(timer) { _ in guard isVisible else { return }; updateCountdown() }
+        .onReceive(NotificationCenter.default.publisher(for: .dataDidSync)) { _ in
+            Task { await loadData() }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .profileDidChange)) { _ in
             Task { await loadData() }
         }

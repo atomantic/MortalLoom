@@ -135,6 +135,9 @@ struct GenomeView: View {
             handleFileImport(result)
         }
         .task { await loadData() }
+        .onReceive(NotificationCenter.default.publisher(for: .dataDidSync)) { _ in
+            Task { await loadData() }
+        }
     }
 
     // MARK: - Epigenetic Age Section

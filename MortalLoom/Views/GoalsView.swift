@@ -78,6 +78,9 @@ struct GoalsView: View {
             }
         }
         .task { await loadData() }
+        .onReceive(NotificationCenter.default.publisher(for: .dataDidSync)) { _ in
+            Task { await loadData() }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .profileDidChange)) { _ in
             Task { await loadData() }
         }

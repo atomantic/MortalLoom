@@ -112,6 +112,10 @@ struct ContentView: View {
             }
             // Start iCloud file monitoring for cross-device sync
             ICloudMonitor.shared.start()
+            // Ensure data is loaded from iCloud before any sync writes.
+            // This prevents the race where HealthKit sync saves empty data
+            // because the iCloud file hasn't been downloaded yet.
+            _ = await DataStore.shared.ensureLoaded()
             #if os(iOS)
             // Request HealthKit auth on every launch (prompt shows once; subsequent calls are no-ops)
             if HealthKitService.shared.isAvailable {

@@ -54,11 +54,63 @@ actor DataStore {
         if loaded { return data }
 
         let url = bestURL()
-        if let fileData = try? Data(contentsOf: url),
-           let decoded = try? JSONDecoder().decode(AppData.self, from: fileData) {
-            data = decoded
+        if let fileData = try? Data(contentsOf: url) {
+            if let decoded = try? JSONDecoder().decode(AppData.self, from: fileData) {
+                data = decoded
+                let drinkCount = self.data.alcoholDrinks.count
+                let nicCount = self.data.nicotineEntries.count
+                let saunaCount = self.data.saunaSessions.count
+                logger.info("💾 loaded data from \(url.lastPathComponent, privacy: .public) (\(drinkCount) drinks, \(nicCount) nic, \(saunaCount) sauna)")
+            } else {
+                logger.error("💾 failed to decode data from \(url.path, privacy: .private)")
+            }
+        } else {
+            logger.info("💾 no data file found at \(url.path, privacy: .private)")
         }
         loaded = true
+        return data
+    }
+
+    /// Ensure data is loaded, waiting for iCloud file download if needed.
+    /// Call this before any sync that might write, to prevent overwriting
+    /// cloud data that hasn't been downloaded yet.
+    func ensureLoaded() async -> AppData {
+        if loaded { return data }
+
+        let result = load()
+
+        // If we loaded empty data and iCloud is available, the cloud file
+        // might not be downloaded yet. Trigger download and wait briefly.
+        if !result.hasUserData, let cloudURL = iCloudURL {
+            let fm = FileManager.default
+            if !fm.fileExists(atPath: cloudURL.path) {
+                logger.info("💾 no local user data, attempting iCloud download…")
+                try? fm.startDownloadingUbiquitousItem(at: cloudURL)
+
+                for _ in 0..<10 {
+                    try? await Task.sleep(for: .seconds(0.5))
+                    if fm.fileExists(atPath: cloudURL.path) {
+                        if let fileData = try? Data(contentsOf: cloudURL),
+                           let decoded = try? JSONDecoder().decode(AppData.self, from: fileData) {
+                            data = decoded
+                            // Record the cloud file's mod date so reloadIfNeeded()
+                            // doesn't redundantly reload the same data.
+                            lastSaveDate = (try? fm.attributesOfItem(atPath: cloudURL.path)[.modificationDate] as? Date) ?? Date()
+                            let drinkCount = self.data.alcoholDrinks.count
+                            let nicCount = self.data.nicotineEntries.count
+                            logger.info("💾 loaded iCloud data after download (\(drinkCount) drinks, \(nicCount) nic)")
+                            do {
+                                try fileData.write(to: localURL, options: [.atomic, .completeFileProtection])
+                            } catch {
+                                logger.error("💾 failed to mirror iCloud data locally: \(error.localizedDescription, privacy: .private)")
+                            }
+                        }
+                        break
+                    }
+                }
+            }
+        }
+
         return data
     }
 

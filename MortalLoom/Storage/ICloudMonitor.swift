@@ -66,6 +66,12 @@ final class ICloudMonitor {
     @objc private func queryDidFinishGathering(_ notification: Notification) {
         query?.enableUpdates()
         logger.info("☁️ initial iCloud gather complete")
+        // Trigger an initial reload in case the cloud file is newer than local.
+        // This covers the case where the app was reinstalled or updated and the
+        // iCloud file has data that wasn't available when DataStore.load() ran.
+        Task { @MainActor in
+            await applyReloadIfNeeded()
+        }
     }
 
     @objc private func queryDidUpdate(_ notification: Notification) {
