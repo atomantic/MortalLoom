@@ -194,7 +194,7 @@ enum CardioFitnessEngine {
     }
 
     /// HR recovery longevity impact (years).
-    /// Abnormal recovery is one of the strongest single predictors of cardiac death.
+    /// Abnormal recovery is one of the strongest single predictors of cardiac mortality.
     static func recoveryLongevityImpact(_ bpmDrop: Double) -> Double {
         switch classifyRecovery(bpmDrop) {
         case .excellent: return 2.0

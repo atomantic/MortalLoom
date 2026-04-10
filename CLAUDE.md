@@ -49,13 +49,13 @@ MortalLoom/
 ├── App/          # Entry point, Info.plist, entitlements
 ├── Theme/        # Colors, layout constants, card styles
 ├── Views/        # SwiftUI views (Overview, Body, Substances, Blood, Genome, Lifestyle, Settings)
-├── Engine/       # Pure computation (death clock, risk assessment, rolling averages)
+├── Engine/       # Pure computation (longevity clock, risk assessment, rolling averages)
 ├── Models/       # Data types (health metrics, blood markers, genome variants)
 ├── Storage/      # Actor-based file I/O, iCloud sync
 ```
 
 ### Key Features
-- Death clock countdown with life expectancy calculation
+- Longevity clock countdown with life expectancy calculation
 - Epigenetic age tracking
 - Alcohol & nicotine substance tracking with NIAAA risk levels
 - Blood test results with 50+ reference ranges

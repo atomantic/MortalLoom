@@ -276,6 +276,10 @@ struct SubstancesView: View {
                 }
                 .frame(maxWidth: .infinity)
             }
+
+            Text("Thresholds: NIAAA low-risk drinking limits")
+                .font(.caption2)
+                .foregroundColor(.textMuted)
         }
         .padding()
         .cardStyle()

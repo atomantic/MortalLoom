@@ -325,7 +325,7 @@ struct MediumWidgetView: View {
                 Image(systemName: "clock.fill")
                     .font(.title)
                     .foregroundStyle(.secondary)
-                Text("Open MortalLoom to configure your death clock")
+                Text("Open MortalLoom to configure your longevity clock")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -454,7 +454,7 @@ struct MortalLoomWidget: Widget {
         StaticConfiguration(kind: kind, provider: MortalLoomProvider()) { entry in
             MortalLoomWidgetEntryView(entry: entry)
         }
-        .configurationDisplayName("Death Clock")
+        .configurationDisplayName("Longevity Clock")
         .description("Your life countdown and health score")
         .supportedFamilies([
             .systemSmall,

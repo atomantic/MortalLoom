@@ -379,7 +379,7 @@ struct SleepView: View {
                 }
             }
 
-            Text("AHI thresholds: <5 normal, 5-15 mild, 15-30 moderate, >30 severe. Untreated moderate-to-severe apnea increases cardiovascular mortality 2-3x.")
+            Text("AHI thresholds: <5 normal, 5-15 mild, 15-30 moderate, >30 severe. Untreated moderate-to-severe apnea increases cardiovascular mortality 2-3x. (AASM Clinical Guidelines)")
                 .font(.caption2)
                 .foregroundColor(.textMuted)
         }

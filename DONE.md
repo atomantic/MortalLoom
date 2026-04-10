@@ -13,7 +13,7 @@ Completed items archived from PLAN.md. For release notes, see `.changelogs/`.
 ## 2026-03-25
 
 - Core infrastructure — all models, actor-based storage with iCloud + local fallback, native HealthKit service
-- Death clock engine — SSA baseline life expectancy, lifestyle/genome adjustments, live countdown, LEV tracker
+- Longevity clock engine — SSA baseline life expectancy, lifestyle/genome adjustments, live countdown, LEV tracker
 - Lifestyle questionnaire — profile, smoking, exercise, sleep, diet, stress, BMI with impact preview
 - Substance tracking — alcohol/nicotine logging with presets, NIAAA risk levels, rolling averages, Swift Charts
 - Blood tests — manual entry for 50+ markers with reference ranges and status colors

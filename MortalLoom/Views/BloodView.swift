@@ -404,7 +404,7 @@ struct BloodView: View {
 
     private var testList: some View {
         ForEach(sortedTests.reversed()) { test in
-            BloodTestCardView(test: test, isWide: isWide, onDelete: {
+            BloodTestCardView(test: test, containerWidth: containerWidth, onDelete: {
                 Task {
                     await DataStore.shared.removeBloodTest(id: test.id)
                     await loadData()
@@ -430,9 +430,15 @@ struct BloodView: View {
 
 private struct BloodTestCardView: View {
     let test: BloodTest
-    let isWide: Bool
+    let containerWidth: CGFloat
     let onDelete: () -> Void
     @State private var showDeleteConfirm = false
+
+    private var columnCount: Int {
+        if containerWidth >= 1000 { return 4 }
+        if containerWidth >= Layout.wideThreshold { return 3 }
+        return 2
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -466,7 +472,7 @@ private struct BloodTestCardView: View {
                             .foregroundColor(.textMuted)
                             .textCase(.uppercase)
 
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: isWide ? 3 : 2), spacing: 6) {
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: columnCount), spacing: 4) {
                             ForEach(filledKeys, id: \.self) { key in
                                 if let value = test.markers[key],
                                    let ref = BloodMarkers.byKey[key] {
@@ -477,6 +483,10 @@ private struct BloodTestCardView: View {
                     }
                 }
             }
+
+            Text("Reference ranges: standard clinical laboratory values (Mayo Clinic / Quest Diagnostics)")
+                .font(.caption2)
+                .foregroundColor(.textMuted)
         }
         .padding()
         .cardStyle()
@@ -497,32 +507,34 @@ private struct BloodTestCardView: View {
         case .unknown: .textMuted
         }
 
-        return VStack(alignment: .leading, spacing: 2) {
+        return HStack(alignment: .firstTextBaseline, spacing: 4) {
             Text(ref.label)
-                .font(.caption2)
+                .font(.caption)
                 .foregroundColor(.textMuted)
                 .lineLimit(1)
-            HStack(spacing: 2) {
-                Text(formatMarkerValue(value))
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
+            Spacer(minLength: 4)
+            Text(formatMarkerValue(value))
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .monospacedDigit()
+                .foregroundColor(statusColor)
+            if !ref.unit.isEmpty {
+                Text(ref.unit)
+                    .font(.system(size: 9, weight: .medium))
                     .foregroundColor(statusColor)
-                if !ref.unit.isEmpty {
-                    Text(ref.unit)
-                        .font(.caption2)
-                        .foregroundColor(.textMuted)
-                }
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 2)
+                    .background(statusColor.opacity(0.15))
+                    .cornerRadius(3)
             }
-            Text("\(formatMarkerValue(ref.min))–\(formatMarkerValue(ref.max))")
-                .font(.caption2)
-                .foregroundColor(.textMuted)
         }
-        .padding(6)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(statusColor.opacity(0.1))
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .frame(maxWidth: .infinity)
+        .background(Color.bgInput.opacity(0.5))
         .cornerRadius(6)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(ref.label): \(formatMarkerValue(value)) \(ref.unit), \(status == .normal ? "normal" : status == .low ? "low" : status == .high ? "high" : "unknown") range \(formatMarkerValue(ref.min)) to \(formatMarkerValue(ref.max))")
+        .accessibilityLabel("\(ref.label): \(formatMarkerValue(value)) \(ref.unit), \(status == .normal ? "normal" : status == .low ? "low" : status == .high ? "high" : "unknown")")
     }
 
     private func formatMarkerValue(_ value: Double) -> String {

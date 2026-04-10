@@ -173,7 +173,7 @@ struct OverviewView: View {
         }
     }
 
-    // MARK: - Death Clock Hero Card
+    // MARK: - Longevity Clock Hero Card
 
     private var activeDC: DeathClockEngine.DeathClockResult? {
         if countdownMode == .lev, let levDC = levDeathClock { return levDC }
@@ -269,6 +269,10 @@ struct OverviewView: View {
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel("Life progress")
                 .accessibilityValue(String(format: "%.1f percent complete", dc.percentComplete))
+
+                Text("Based on SSA Period Life Tables, WHO data, and peer-reviewed longevity research. See Sources & Citations in Settings.")
+                    .font(.system(size: 9))
+                    .foregroundColor(.textMuted)
             } else {
                 // Not configured
                 VStack(spacing: 8) {
@@ -278,7 +282,7 @@ struct OverviewView: View {
                     Text("Life Progress")
                         .font(.headline)
                         .foregroundColor(.textPrimary)
-                    Text("Configure your birth date and lifestyle in Settings to see your mortality countdown.")
+                    Text("Configure your birth date and lifestyle in Settings to see your longevity clock.")
                         .font(.subheadline)
                         .foregroundColor(.textSecondary)
                         .multilineTextAlignment(.center)
@@ -565,7 +569,7 @@ struct OverviewView: View {
 
             ZStack(alignment: .topLeading) {
             Chart {
-                // Normal expected trajectory (now → death)
+                // Normal expected trajectory (now → life expectancy)
                 ForEach(cachedNormalPoints) { pt in
                     LineMark(
                         x: .value("Year", pt.year),
@@ -607,8 +611,8 @@ struct OverviewView: View {
                             .foregroundColor(.purple)
                     }
 
-                // Normal death marker
-                RuleMark(x: .value("Death", deathYear))
+                // Life expectancy marker
+                RuleMark(x: .value("LE", deathYear))
                     .foregroundStyle(Color.danger.opacity(0.6))
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
                     .annotation(position: .top, alignment: .center) {
@@ -721,7 +725,7 @@ struct OverviewView: View {
         return .danger
     }
 
-    /// Now → Death: flat/improving for ~10 years, gentle decline mid-life, steeper only in final 5 years
+    /// Now → LE: flat/improving for ~10 years, gentle decline mid-life, steeper only in final 5 years
     private func normalTrajectory(currentYear: Int, deathYear: Int, currentHealth: Double) -> [TrajectoryPoint] {
         var points: [TrajectoryPoint] = []
         // Three phases: improvement (10yr), slow decline, steep final (5yr)

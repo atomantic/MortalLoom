@@ -34,6 +34,7 @@ struct SettingsView: View {
     @FocusState private var levAgeFieldFocused: Bool
 
     @State private var showPaywall = false
+    @State private var showCitations = false
     @State private var showProCodeAlert = false
     @State private var proCodeInput = ""
     @State private var proCodeFeedback: String?
@@ -46,6 +47,7 @@ struct SettingsView: View {
                 Task { await loadCountdownMode() }
             }
             .sheet(isPresented: $showPaywall) { PaywallView() }
+            .sheet(isPresented: $showCitations) { CitationsView() }
             .alert("Enter Pro Code", isPresented: $showProCodeAlert) {
                 TextField("Code", text: $proCodeInput)
                     .autocorrectionDisabled()
@@ -801,6 +803,31 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundColor(.textSecondary)
             }
+
+            Divider()
+                .background(Color.cardBorder)
+
+            Button {
+                showCitations = true
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "book.closed.fill")
+                        .foregroundColor(.accentColor)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Sources & Citations")
+                            .font(.subheadline).fontWeight(.medium)
+                            .foregroundColor(.textPrimary)
+                        Text("View research and data sources used in health calculations")
+                            .font(.caption)
+                            .foregroundColor(.textSecondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.textMuted)
+                }
+            }
+            .buttonStyle(.plain)
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)

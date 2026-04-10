@@ -63,7 +63,7 @@ enum DeathClockEngine {
     // MARK: - Genome Adjustment
 
     /// Category impact tiers for mortality-relevant genome markers.
-    /// High-impact categories directly affect leading causes of death.
+    /// High-impact categories directly affect leading causes of mortality.
     /// Medium-impact categories contribute indirectly to mortality.
     /// Low-impact categories affect quality of life but have minimal mortality signal.
     private enum CategoryImpact {
@@ -247,7 +247,7 @@ enum DeathClockEngine {
         )
     }
 
-    /// Calculate a LEV-extended death clock result (target lifespan if on track for LEV).
+    /// Calculate a LEV-extended longevity result (target lifespan if on track for LEV).
     /// Accepts a pre-computed standard result to avoid duplicate calculation.
     static func calculateLEVResult(standardResult: DeathClockResult, birthDateStr: String, levTargetAge: Double = 120, now: Date = Date()) -> DeathClockResult? {
         guard let birthDate = dateFromString(birthDateStr) else { return nil }

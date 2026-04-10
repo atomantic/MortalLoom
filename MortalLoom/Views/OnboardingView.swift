@@ -631,7 +631,7 @@ struct OnboardingView: View {
                             .foregroundColor(.accentColor)
                     }
 
-                    // Projected death date
+                    // Projected life expectancy date
                     HStack {
                         Text("Projected Date")
                             .font(.subheadline)
@@ -648,7 +648,7 @@ struct OnboardingView: View {
 
                 Spacer()
 
-                // Death clock countdown preview
+                // Longevity clock countdown preview
                 let countdown = DeathClockEngine.countdown(to: result.deathDate)
                 VStack(spacing: 8) {
                     Text("Time Remaining")

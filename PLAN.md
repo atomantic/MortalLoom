@@ -63,7 +63,7 @@ PortOS ingests 60+ Apple Health metric types from day-partitioned JSON files. Mo
 - **PortOS data**: Full stage breakdown stored per night (deep, rem, core, awake hours)
 - **Longevity evidence**: Deep sleep % is linked to cognitive health, memory consolidation, glymphatic brain waste clearance, and all-cause mortality. REM is tied to emotional regulation and cardiovascular health. Stages matter more than total duration.
 - **Correlations**: Alcohol suppresses deep/REM (correlate with drinking days). Sauna may improve deep sleep. Exercise timing affects stage distribution.
-- **Death clock integration**: Adjust sleep impact beyond just hours — penalize consistently low deep sleep %
+- **Longevity clock integration**: Adjust sleep impact beyond just hours — penalize consistently low deep sleep %
 - **Implementation**: Add `deepSleepHours`, `remSleepHours`, `coreSleepHours` to `HealthMetricEntry`. Modify `dailySleepHours()` to return stage breakdown. Extend `SleepEngine` with stage quality rating.
 
 #### 2. Cardio Recovery (HR Recovery after exercise)
@@ -71,7 +71,7 @@ PortOS ingests 60+ Apple Health metric types from day-partitioned JSON files. Mo
 - **PortOS data**: `cardio_recovery` metric with bpm values
 - **Longevity evidence**: Abnormal HR recovery (<12 bpm drop in 1 min) is associated with 4x cardiovascular mortality risk (Cole et al., NEJM 1999). One of the strongest single predictors of cardiac death.
 - **Correlations**: Track improvement with exercise habits. Alcohol and nicotine impair recovery. VO2 max and HR recovery are complementary fitness markers.
-- **Death clock integration**: Add to `CardioFitnessEngine` alongside VO2 max — poor recovery = mortality penalty
+- **Longevity clock integration**: Add to `CardioFitnessEngine` alongside VO2 max — poor recovery = mortality penalty
 - **Implementation**: Add `cardioRecovery` to `HealthMetricEntry`. New classification in `CardioFitnessEngine`. Factor into health score.
 
 #### 3. Walking Steadiness & Gait Metrics
@@ -79,7 +79,7 @@ PortOS ingests 60+ Apple Health metric types from day-partitioned JSON files. Mo
 - **PortOS data**: Daily gait metrics from Apple Watch (asymmetry, double support %, stair speeds, walking HR)
 - **Longevity evidence**: Walking speed is called "the 6th vital sign" — a strong independent predictor of mortality. Gait asymmetry and double support % predict fall risk (falls are a top-5 cause of death in 65+). Declining stair speed indicates functional capacity loss.
 - **Correlations**: Track functional age trajectory. Correlate with body composition changes, blood markers (inflammation), and exercise habits.
-- **Death clock integration**: Create a "functional fitness" score that adjusts healthspan estimate. Declining gait → shorter healthy years remaining.
+- **Longevity clock integration**: Create a "functional fitness" score that adjusts healthspan estimate. Declining gait → shorter healthy years remaining.
 - **Implementation**: Add `walkingAsymmetry`, `walkingDoubleSupport`, `stairSpeedUp`, `stairSpeedDown`, `walkingHRAverage` to `HealthMetricEntry`. New `GaitEngine` for fall risk classification and functional age estimation. MortalLoom already requests `walkingSpeed` and `walkingStepLength` but doesn't sync them — add these too.
 
 #### 4. Breathing Disturbances (Sleep Apnea Detection)
@@ -87,7 +87,7 @@ PortOS ingests 60+ Apple Health metric types from day-partitioned JSON files. Mo
 - **PortOS data**: `breathing_disturbances` count per night
 - **Longevity evidence**: Untreated sleep apnea increases cardiovascular mortality 2-3x, raises stroke risk, and accelerates cognitive decline. Elevated breathing disturbances (>15/hr) indicate moderate-to-severe apnea.
 - **Correlations**: Correlate with alcohol (alcohol worsens apnea), BMI (obesity is primary risk factor), sleep quality, and blood pressure.
-- **Death clock integration**: Persistent high breathing disturbances → mortality penalty and recommendation to get a sleep study
+- **Longevity clock integration**: Persistent high breathing disturbances → mortality penalty and recommendation to get a sleep study
 - **Implementation**: Add `breathingDisturbances` to `HealthMetricEntry`. Extend `SleepEngine` with apnea risk classification (AHI thresholds: <5 normal, 5-15 mild, 15-30 moderate, >30 severe).
 
 #### 5. Time in Daylight
@@ -95,7 +95,7 @@ PortOS ingests 60+ Apple Health metric types from day-partitioned JSON files. Mo
 - **PortOS data**: Per-minute daylight readings summed daily
 - **Longevity evidence**: Circadian disruption is linked to metabolic syndrome, depression, and cancer risk (Lancet Psychiatry 2018). Daylight drives vitamin D synthesis, melatonin regulation, and mood. Low outdoor time correlates with myopia progression (relevant to eye health tracking).
 - **Correlations**: Correlate with sleep quality/consistency, HRV, eye prescription changes, and mood/stress.
-- **Death clock integration**: Chronic low daylight → stress and sleep quality proxy affecting lifestyle adjustment
+- **Longevity clock integration**: Chronic low daylight → stress and sleep quality proxy affecting lifestyle adjustment
 - **Implementation**: Add `daylightMinutes` to `HealthMetricEntry`. Show trend with recommendation for minimum 30 min/day.
 
 ### Tier 2 — Moderate Evidence (Should Add)
@@ -151,7 +151,7 @@ Once the above metrics are synced, these cross-domain analyses become possible:
 | Gait Trends → Functional Age | Walking speed + asymmetry over months | Early decline detection |
 | Exercise → Cardio Recovery | Weekly exercise min × HR recovery trend | Fitness trajectory validation |
 
-### Death Clock Enhancements
+### Longevity Clock Enhancements
 
 `healthMetricsAdjustment()` is now wired into `DeathClockEngine.calculate()` — cardio recovery, walking speed, and apnea risk all affect the final life expectancy estimate. Individual factors are visible in the Overview Life Expectancy Factors card.
 
@@ -169,7 +169,7 @@ Once the above metrics are synced, these cross-domain analyses become possible:
 5. ~~Sync already-requested-but-unused types (stand time, basal energy, distance, walking speed)~~ ✅
 6. ~~Gait engine (new engine, more complex but high long-term value)~~ ✅
 7. New correlation charts (Alcohol → Sleep ✅, Sauna → HRV/Sleep ✅; 5 remaining)
-8. ~~Death clock enhancement with new factors~~ ✅
+8. ~~Longevity clock enhancement with new factors~~ ✅
 
 ## Backlog
 

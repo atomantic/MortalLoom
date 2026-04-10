@@ -1,7 +1,7 @@
 import Foundation
 
 /// Lightweight, Codable summary of a genome scan for persistence in AppData.
-/// Captures per-category risk counts and APOE haplotype so the death clock
+/// Captures per-category risk counts and APOE haplotype so the longevity engine
 /// can apply genome-based life expectancy adjustments without re-scanning.
 struct GenomeScanRecord: Codable, Sendable {
     let scannedAt: Date

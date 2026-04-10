@@ -14,7 +14,7 @@
 
 ## Features
 
-- **Death Clock** — Life expectancy countdown based on actuarial data, genetics, and lifestyle
+- **Longevity Clock** — Life expectancy countdown based on actuarial data, genetics, and lifestyle
 - **Epigenetic Age** — Track biological vs chronological age
 - **Blood Tests** — 50+ lab markers with reference ranges and trend tracking
 - **Body Composition** — Weight, body fat, and eye prescription history
@@ -73,7 +73,7 @@ MortalLoom/
 ├── App/          # Entry point, Info.plist, entitlements
 ├── Theme/        # Adaptive colors, layout constants, card styles
 ├── Views/        # SwiftUI views per feature section
-├── Engine/       # Pure computation (death clock, risk assessment)
+├── Engine/       # Pure computation (longevity clock, risk assessment)
 ├── Models/       # Data types (health metrics, blood markers)
 ├── Storage/      # Actor-based file I/O, iCloud sync
 ```

@@ -16,7 +16,7 @@ The concept was popularized by Aubrey de Grey, who estimates LEV could be reache
 - Calculate life expectancy from actuarial tables (SSA data)
 - Adjust for genetics via genome analysis and ClinVar pathogenicity
 - Track epigenetic (biological) age vs chronological age
-- Visualize how far you are from your estimated death date
+- Visualize your life progress and remaining time
 
 ### 2. Track What Matters
 - Monitor blood biomarkers with reference ranges to catch issues early
@@ -28,7 +28,7 @@ The concept was popularized by Aubrey de Grey, who estimates LEV could be reache
 - Lifestyle questionnaire quantifies how habits affect longevity
 - Correlation analysis shows how substances impact biomarkers
 - Rolling averages reveal trends before they become problems
-- Death clock countdown creates urgency and motivation
+- Longevity clock creates urgency and motivation to optimize your health
 
 ### 4. Bridge to LEV
 - LEV 2045 progress tracker monitors research milestones
