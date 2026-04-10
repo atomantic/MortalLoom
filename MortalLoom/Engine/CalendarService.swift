@@ -9,8 +9,11 @@ private let calendarLogger = Logger(subsystem: "net.shadowpuppet.MeatSpaceTracke
 final class CalendarService {
     static let shared = CalendarService()
 
+    /// EKAlarm.relativeOffset is in seconds before the event — negative values.
+    private static let tenMinutesBeforeStart: TimeInterval = -600
+
     private let store = EKEventStore()
-    var authorizationStatus: EKAuthorizationStatus
+    private(set) var authorizationStatus: EKAuthorizationStatus
 
     private init() {
         self.authorizationStatus = EKEventStore.authorizationStatus(for: .event)
@@ -40,6 +43,22 @@ final class CalendarService {
         }
     }
 
+    private func makeBaseEvent(
+        goalTitle: String,
+        notes: String,
+        startDate: Date,
+        durationMinutes: Int
+    ) -> EKEvent {
+        let event = EKEvent(eventStore: store)
+        event.title = "🎯 \(goalTitle)"
+        event.notes = notes.isEmpty ? "MortalLoom goal work block" : "\(notes)\n\n— Scheduled by MortalLoom"
+        event.startDate = startDate
+        event.endDate = startDate.addingTimeInterval(TimeInterval(durationMinutes * 60))
+        event.calendar = store.defaultCalendarForNewEvents
+        event.addAlarm(EKAlarm(relativeOffset: Self.tenMinutesBeforeStart))
+        return event
+    }
+
     /// Schedule a single work block for a goal.
     /// Returns the EKEvent's eventIdentifier on success.
     func scheduleWorkBlock(
@@ -49,15 +68,12 @@ final class CalendarService {
         durationMinutes: Int
     ) -> String? {
         guard isAuthorized else { return nil }
-        let event = EKEvent(eventStore: store)
-        event.title = "🎯 \(goalTitle)"
-        event.notes = notes.isEmpty ? "MortalLoom goal work block" : "\(notes)\n\n— Scheduled by MortalLoom"
-        event.startDate = startDate
-        event.endDate = startDate.addingTimeInterval(TimeInterval(durationMinutes * 60))
-        event.calendar = store.defaultCalendarForNewEvents
-
-        // Add a 10-minute reminder
-        event.addAlarm(EKAlarm(relativeOffset: -600))
+        let event = makeBaseEvent(
+            goalTitle: goalTitle,
+            notes: notes,
+            startDate: startDate,
+            durationMinutes: durationMinutes
+        )
 
         do {
             try store.save(event, span: .thisEvent)
@@ -80,14 +96,13 @@ final class CalendarService {
         endDate: Date?
     ) -> String? {
         guard isAuthorized else { return nil }
-        let event = EKEvent(eventStore: store)
-        event.title = "🎯 \(goalTitle)"
-        event.notes = notes.isEmpty ? "MortalLoom goal work block" : "\(notes)\n\n— Scheduled by MortalLoom"
-        event.startDate = startDate
-        event.endDate = startDate.addingTimeInterval(TimeInterval(durationMinutes * 60))
-        event.calendar = store.defaultCalendarForNewEvents
+        let event = makeBaseEvent(
+            goalTitle: goalTitle,
+            notes: notes,
+            startDate: startDate,
+            durationMinutes: durationMinutes
+        )
 
-        // Build recurrence rule
         let frequency: EKRecurrenceFrequency = switch recurrence {
         case .daily: .daily
         case .weekly: .weekly
@@ -120,7 +135,6 @@ final class CalendarService {
             )
         }
         event.addRecurrenceRule(rule)
-        event.addAlarm(EKAlarm(relativeOffset: -600))
 
         do {
             try store.save(event, span: .futureEvents)
@@ -130,16 +144,6 @@ final class CalendarService {
             calendarLogger.error("⚠️ Failed to schedule recurring work block: \(error.localizedDescription, privacy: .private)")
             return nil
         }
-    }
-
-    /// Count the number of events scheduled for this goal in the next 30 days.
-    func upcomingEventCount(goalTitle: String, days: Int = 30) -> Int {
-        guard isAuthorized else { return 0 }
-        let now = Date()
-        let end = Calendar.current.date(byAdding: .day, value: days, to: now) ?? now
-        let predicate = store.predicateForEvents(withStart: now, end: end, calendars: nil)
-        let events = store.events(matching: predicate)
-        return events.filter { $0.title?.contains(goalTitle) ?? false }.count
     }
 }
 

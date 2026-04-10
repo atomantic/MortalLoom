@@ -750,7 +750,6 @@ struct GoalEditSheet: View {
     @State private var goalType: GoalType?
     @State private var showDeleteConfirm = false
     @State private var showCalendarScheduler = false
-    @State private var calendarService = CalendarService.shared
     @State private var scheduleMessage: String?
 
     private struct MilestoneRow: Identifiable {

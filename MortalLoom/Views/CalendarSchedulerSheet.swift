@@ -8,7 +8,7 @@ struct CalendarSchedulerSheet: View {
     let onScheduled: (String) -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @State private var calendarService = CalendarService.shared
+    private let calendarService = CalendarService.shared
 
     @State private var startDate = Date()
     @State private var durationMinutes: Double = 60

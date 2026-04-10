@@ -28,13 +28,8 @@ struct OverviewView: View {
     @State private var editingGoal: Goal?
     private var isWide: Bool { containerWidth >= Layout.wideThreshold }
 
-    private var apexGoal: Goal? {
-        data.goals.first(where: { $0.goalType == .apex && $0.status == .active })
-    }
-
-    private var activeGoalCount: Int {
-        data.goals.filter { $0.status == .active }.count
-    }
+    private var apexGoal: Goal? { data.goals.activeApex }
+    private var activeGoalCount: Int { data.goals.activeCount }
 
     var body: some View {
         ScrollView {
@@ -258,18 +253,13 @@ struct OverviewView: View {
                             .fill(Color.bgInput)
                             .frame(height: 8)
                         RoundedRectangle(cornerRadius: 4)
-                            .fill(LinearGradient(
-                                colors: [.accentColor, .purple],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            ))
+                            .fill(LinearGradient.proBrand)
                             .frame(width: geo.size.width * min(1, goal.progressPercent / 100), height: 8)
                     }
                 }
                 .frame(height: 8)
             }
 
-            // Milestones count + call to action
             let milestoneCount = goal.milestones.count
             let checkInCount = goal.checkIns.count
             HStack(spacing: 12) {
@@ -278,54 +268,48 @@ struct OverviewView: View {
                 statPill(icon: "circle.grid.2x2.fill", value: "\(activeGoalCount)", label: "goals")
             }
 
-            // Flesh out prompt if goal is thin
             if milestoneCount == 0 || goal.notes.isEmpty {
-                Button {
-                    editingGoal = goal
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "pencil.and.outline")
-                        Text("Flesh out your goal — add milestones and plan")
-                            .font(.caption).fontWeight(.semibold)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption2)
-                    }
-                    .padding(10)
-                    .frame(maxWidth: .infinity)
-                    .background(LinearGradient(
-                        colors: [.accentColor.opacity(0.15), .purple.opacity(0.15)],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    ))
-                    .foregroundColor(.accentColor)
-                    .cornerRadius(8)
-                }
-                .buttonStyle(.plain)
+                goalCTAButton(
+                    icon: "pencil.and.outline",
+                    text: "Flesh out your goal — add milestones and plan",
+                    background: AnyShapeStyle(LinearGradient.proBrandSubtleDiagonal)
+                ) { editingGoal = goal }
             } else {
-                Button {
-                    editingGoal = goal
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "calendar.badge.plus")
-                        Text("Schedule next work block")
-                            .font(.caption).fontWeight(.semibold)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption2)
-                    }
-                    .padding(10)
-                    .frame(maxWidth: .infinity)
-                    .background(Color.accentColor.opacity(0.15))
-                    .foregroundColor(.accentColor)
-                    .cornerRadius(8)
-                }
-                .buttonStyle(.plain)
+                goalCTAButton(
+                    icon: "calendar.badge.plus",
+                    text: "Schedule next work block",
+                    background: AnyShapeStyle(Color.accentColor.opacity(0.15))
+                ) { editingGoal = goal }
             }
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
+    }
+
+    @ViewBuilder
+    private func goalCTAButton(
+        icon: String,
+        text: String,
+        background: AnyShapeStyle,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                Text(text)
+                    .font(.caption).fontWeight(.semibold)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption2)
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity)
+            .background(background)
+            .foregroundColor(.accentColor)
+            .cornerRadius(8)
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -366,11 +350,7 @@ struct OverviewView: View {
                 }
                 .padding(12)
                 .frame(maxWidth: .infinity)
-                .background(LinearGradient(
-                    colors: [.accentColor, .purple],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                ))
+                .background(LinearGradient.proBrand)
                 .foregroundColor(.white)
                 .cornerRadius(10)
             }

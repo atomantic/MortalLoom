@@ -16,7 +16,6 @@ struct OnboardingView: View {
     @State private var healthKitRequestFailed = false
     @State private var lifeExpectancyResult: DeathClockEngine.DeathClockResult?
 
-    // Apex goal state
     @State private var apexGoalTitle: String = ""
     @State private var apexGoalNotes: String = ""
     @State private var apexGoalTargetDate: Date = Calendar.current.date(byAdding: .year, value: 5, to: Date()) ?? Date()

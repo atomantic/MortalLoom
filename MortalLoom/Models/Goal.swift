@@ -204,3 +204,16 @@ enum GoalType: String, Codable, Sendable, CaseIterable, Equatable {
         }
     }
 }
+
+// MARK: - Collection Helpers
+
+extension Array where Element == Goal {
+    /// The user's active North Star goal, if set.
+    var activeApex: Goal? {
+        first { $0.goalType == .apex && $0.status == .active }
+    }
+
+    var activeCount: Int {
+        filter { $0.status == .active }.count
+    }
+}
