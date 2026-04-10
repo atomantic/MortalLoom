@@ -730,7 +730,7 @@ struct GoalsView: View {
 
 // MARK: - Goal Edit Sheet
 
-private struct GoalEditSheet: View {
+struct GoalEditSheet: View {
     let goal: Goal?
     let allGoals: [Goal]
     let onSave: (Goal) -> Void
@@ -749,6 +749,9 @@ private struct GoalEditSheet: View {
     @State private var category: GoalCategory?
     @State private var goalType: GoalType?
     @State private var showDeleteConfirm = false
+    @State private var showCalendarScheduler = false
+    @State private var calendarService = CalendarService.shared
+    @State private var scheduleMessage: String?
 
     private struct MilestoneRow: Identifiable {
         let id: UUID
@@ -869,6 +872,22 @@ private struct GoalEditSheet: View {
                     }
                 }
 
+                Section("Schedule on Calendar") {
+                    Button {
+                        showCalendarScheduler = true
+                    } label: {
+                        Label("Add Work Block to Calendar", systemImage: "calendar.badge.plus")
+                    }
+                    if let msg = scheduleMessage {
+                        Text(msg)
+                            .font(.caption)
+                            .foregroundColor(.success)
+                    }
+                    Text("Schedule time on your Apple Calendar to work on this goal. MortalLoom can create one-time or recurring blocks.")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+
                 if onDelete != nil {
                     Section {
                         Button(role: .destructive) {
@@ -901,6 +920,15 @@ private struct GoalEditSheet: View {
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("Are you sure you want to delete this goal?")
+            }
+            .sheet(isPresented: $showCalendarScheduler) {
+                CalendarSchedulerSheet(
+                    goalTitle: title,
+                    goalNotes: notes,
+                    goalTargetDate: hasTargetDate ? targetDate : nil
+                ) { msg in
+                    scheduleMessage = msg
+                }
             }
         }
     }

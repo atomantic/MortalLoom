@@ -61,8 +61,10 @@
 		5B8D85CE47286826BA6E6AC7 /* BloodTrendEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1EEC8E756E144273D6BC24A /* BloodTrendEngine.swift */; };
 		64B0B5357DF80CDAEB3370A1 /* DeathClockEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4C6F3F7D27B38D804FA5B61 /* DeathClockEngine.swift */; };
 		65116D499A11D170E85D2AFF /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 215B069F66D7F15999E101D1 /* PrivacyInfo.xcprivacy */; };
+		6633A516902480FD38A7FD8D /* CalendarSchedulerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6A08FFA461E1F414C7EA92E /* CalendarSchedulerSheet.swift */; };
 		6B55E49F18136F5F6D016FAC /* AppearanceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 765271B94F125643F18F3646 /* AppearanceManager.swift */; };
 		6BF9BE408C71949F1E582340 /* HealthProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FCF31AF121B47E7C7DF22B1 /* HealthProfile.swift */; };
+		6CD8DD32AE3404B5D569A78F /* CalendarService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1BD7E4059D8DA23F02C1749 /* CalendarService.swift */; };
 		6DDDBC6D1AF751CD73AB2917 /* GaitEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93B5E80AB18D2FA91974ECB6 /* GaitEngine.swift */; };
 		6E9F84A23A6E864D78163091 /* LifeCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ABFE2DBE2C3A4FAFEE5EE6E /* LifeCalendarView.swift */; };
 		6EF9106333950CF8212C2EA0 /* GenomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71A0187A10BAA3CC7819A176 /* GenomeView.swift */; };
@@ -72,6 +74,7 @@
 		7E4E92253B912DCEDAAF3099 /* LocationEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E57DA8048A455E727B5CC4DB /* LocationEngineTests.swift */; };
 		8054925D9DFCF64D9F30523A /* HealthKitSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66616D81AC46D85C5D584F4F /* HealthKitSync.swift */; };
 		82CC4290606C361863AABCDA /* BloodTrendEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1EEC8E756E144273D6BC24A /* BloodTrendEngine.swift */; };
+		834FF54D0BF257F6224E354B /* CalendarService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1BD7E4059D8DA23F02C1749 /* CalendarService.swift */; };
 		8511F3B807C1BD9B498818D4 /* HealthMetricEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44962B353191269E702D9756 /* HealthMetricEntry.swift */; };
 		884893922D3689B12DC1E4C6 /* CuratedMarkers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69B73CEA0F3655CDD11A007C /* CuratedMarkers.swift */; };
 		89C3332067D295F52E472691 /* EyeExam.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6800ABC07A07655F56FA658 /* EyeExam.swift */; };
@@ -108,6 +111,7 @@
 		D3F7FE3DDE339E01DC4D299C /* StoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9A69DB778D8C239A47B3325 /* StoreManager.swift */; };
 		D4231700BA2C2B4F01C915A1 /* CitationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87EC582DBE00A4BCED918921 /* CitationsView.swift */; };
 		D5E3574C924FD3E0B15177A4 /* GenomeScanRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8BFDBF027486BC4AC7BF9D1 /* GenomeScanRecord.swift */; };
+		D8A1FB27A58BB9ED177A57D1 /* CalendarSchedulerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6A08FFA461E1F414C7EA92E /* CalendarSchedulerSheet.swift */; };
 		DD7B9C9787A28BAD1712D040 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A430A6D6F069A9C484A8BB2 /* Theme.swift */; };
 		DE453F18D91452A344184BB6 /* EyeExam.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6800ABC07A07655F56FA658 /* EyeExam.swift */; };
 		DF92AD1C9E4C28EED73F714D /* SleepEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AF84C540C7407CE0252EB08 /* SleepEngineTests.swift */; };
@@ -245,6 +249,7 @@
 		9C75EBA8B78FFDE7A1FC5925 /* MortalLoomWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = MortalLoomWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		9CE6AB7AF196CE255C4F84E9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		9F15E56CD7761DC17846A67A /* MortalLoom.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = MortalLoom.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A6A08FFA461E1F414C7EA92E /* CalendarSchedulerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarSchedulerSheet.swift; sourceTree = "<group>"; };
 		B4C6F3F7D27B38D804FA5B61 /* DeathClockEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeathClockEngine.swift; sourceTree = "<group>"; };
 		BC7FF09623E4F8E66F45E59F /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
 		BEB68C77C3325AF758E23E9D /* MortalLoomTests_iOS.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MortalLoomTests_iOS.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -252,6 +257,7 @@
 		C6800ABC07A07655F56FA658 /* EyeExam.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EyeExam.swift; sourceTree = "<group>"; };
 		C7F21F5108C9F766D56DE2AE /* GenomeEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenomeEngine.swift; sourceTree = "<group>"; };
 		CB2E368CC2CD70A93D9E7BAE /* DataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataStore.swift; sourceTree = "<group>"; };
+		D1BD7E4059D8DA23F02C1749 /* CalendarService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarService.swift; sourceTree = "<group>"; };
 		D5C2474BC3DD2C321255F1AB /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		D9A69DB778D8C239A47B3325 /* StoreManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreManager.swift; sourceTree = "<group>"; };
 		DFAFEF1D1D8E89AA3E949F4F /* LifestyleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifestyleView.swift; sourceTree = "<group>"; };
@@ -287,6 +293,7 @@
 			children = (
 				6BB3FF2B8EF635AAE437983D /* BloodView.swift */,
 				4711239695D8FA36364CFC90 /* BodyView.swift */,
+				A6A08FFA461E1F414C7EA92E /* CalendarSchedulerSheet.swift */,
 				87EC582DBE00A4BCED918921 /* CitationsView.swift */,
 				71A0187A10BAA3CC7819A176 /* GenomeView.swift */,
 				1F9ADA70E28A5E28CA55C63F /* GoalsView.swift */,
@@ -322,6 +329,7 @@
 			isa = PBXGroup;
 			children = (
 				E1EEC8E756E144273D6BC24A /* BloodTrendEngine.swift */,
+				D1BD7E4059D8DA23F02C1749 /* CalendarService.swift */,
 				F70D7D3B99416A3F8E976C2B /* CardioFitnessEngine.swift */,
 				46F952015050D53948006274 /* ClinVarService.swift */,
 				98CE91B429B04C112C38D411 /* CorrelationEngine.swift */,
@@ -664,6 +672,8 @@
 				C27099DAB0C46C3647878607 /* BloodView.swift in Sources */,
 				3C18B8B01E742711B45066D0 /* BodyEntry.swift in Sources */,
 				29AFDFA8BC814239784F41DC /* BodyView.swift in Sources */,
+				D8A1FB27A58BB9ED177A57D1 /* CalendarSchedulerSheet.swift in Sources */,
+				6CD8DD32AE3404B5D569A78F /* CalendarService.swift in Sources */,
 				E6954E8140C1420504BE3057 /* CardioFitnessEngine.swift in Sources */,
 				21A2A1DBCC8BE8414A650920 /* CitationsView.swift in Sources */,
 				9AC808701F50F51226019C84 /* ClinVarService.swift in Sources */,
@@ -729,6 +739,8 @@
 				3F2F2D1B90AB3A95141A9988 /* BloodView.swift in Sources */,
 				9D54A8470E4B66EA28F7DBE9 /* BodyEntry.swift in Sources */,
 				576B5647EBFAD63011F04625 /* BodyView.swift in Sources */,
+				6633A516902480FD38A7FD8D /* CalendarSchedulerSheet.swift in Sources */,
+				834FF54D0BF257F6224E354B /* CalendarService.swift in Sources */,
 				3784846CDE64B64804D199F5 /* CardioFitnessEngine.swift in Sources */,
 				D4231700BA2C2B4F01C915A1 /* CitationsView.swift in Sources */,
 				8A866D3F9F28D1004F1D6A92 /* ClinVarService.swift in Sources */,
@@ -842,7 +854,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 32;
+				CURRENT_PROJECT_VERSION = 33;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = TYQ32QCF6K;
@@ -1042,7 +1054,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 32;
+				CURRENT_PROJECT_VERSION = 33;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = TYQ32QCF6K;

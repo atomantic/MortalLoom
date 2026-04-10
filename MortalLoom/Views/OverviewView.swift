@@ -24,7 +24,17 @@ struct OverviewView: View {
     @State private var cachedSleepImpact: Double = 0
     @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
     @State private var showCitations = false
+    @State private var showAddGoal = false
+    @State private var editingGoal: Goal?
     private var isWide: Bool { containerWidth >= Layout.wideThreshold }
+
+    private var apexGoal: Goal? {
+        data.goals.first(where: { $0.goalType == .apex && $0.status == .active })
+    }
+
+    private var activeGoalCount: Int {
+        data.goals.filter { $0.status == .active }.count
+    }
 
     var body: some View {
         ScrollView {
@@ -49,11 +59,33 @@ struct OverviewView: View {
             Task { await loadData() }
         }
         .sheet(isPresented: $showCitations) { CitationsView() }
+        .sheet(isPresented: $showAddGoal) {
+            GoalEditSheet(goal: nil, allGoals: data.goals) { newGoal in
+                Task {
+                    await DataStore.shared.addGoal(newGoal)
+                    await loadData()
+                }
+            }
+        }
+        .sheet(item: $editingGoal) { goal in
+            GoalEditSheet(goal: goal, allGoals: data.goals, onSave: { updated in
+                Task {
+                    await DataStore.shared.updateGoal(updated)
+                    await loadData()
+                }
+            }, onDelete: {
+                Task {
+                    await DataStore.shared.removeGoal(id: goal.id)
+                    await loadData()
+                }
+            })
+        }
     }
 
     @ViewBuilder
     private var narrowContentStack: some View {
         VStack(spacing: 16) {
+            goalPromptCard
             deathClockCard
             if deathClock != nil { lifeExpectancyFactorsCard }
             if let lev { levCard(lev) }
@@ -67,6 +99,7 @@ struct OverviewView: View {
     @ViewBuilder
     private var wideContentStack: some View {
         VStack(spacing: 16) {
+                goalPromptCard
                 HStack(alignment: .top, spacing: 16) {
                 deathClockCard
                 if deathClock != nil {
@@ -160,6 +193,211 @@ struct OverviewView: View {
 
         cachedNormalPoints = normalTrajectory(currentYear: currentYear, deathYear: deathYear, currentHealth: cachedHealthScore)
         cachedLevPoints = levTrajectory(currentYear: currentYear, levYear: levYear, levDeathYear: levDeathYear, currentHealth: cachedHealthScore, normalPoints: cachedNormalPoints)
+    }
+
+    // MARK: - Goal Prompt Card
+
+    @ViewBuilder
+    private var goalPromptCard: some View {
+        if let apex = apexGoal {
+            apexGoalCard(apex)
+        } else {
+            setGoalCard
+        }
+    }
+
+    @ViewBuilder
+    private func apexGoalCard(_ goal: Goal) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "crown.fill")
+                    .foregroundStyle(LinearGradient(
+                        colors: [.yellow, .orange],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ))
+                    .font(.title3)
+                Text("Your North Star")
+                    .font(.caption).fontWeight(.semibold)
+                    .foregroundColor(.textSecondary)
+                    .tracking(0.5)
+                Spacer()
+                if let target = goal.targetDate,
+                   let targetDate = DateFormatting.dateFromString(target) {
+                    Text(targetDate.formatted(date: .abbreviated, time: .omitted))
+                        .font(.caption2)
+                        .foregroundColor(.textMuted)
+                }
+            }
+
+            Text(goal.title)
+                .font(.title3).fontWeight(.bold)
+                .foregroundColor(.textPrimary)
+
+            if !goal.notes.isEmpty {
+                Text(goal.notes)
+                    .font(.caption)
+                    .foregroundColor(.textSecondary)
+                    .lineLimit(2)
+            }
+
+            // Progress
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("Progress")
+                        .font(.caption).fontWeight(.semibold)
+                        .foregroundColor(.textSecondary)
+                    Spacer()
+                    Text(String(format: "%.0f%%", goal.progressPercent))
+                        .font(.caption).monospacedDigit()
+                        .foregroundColor(.accentColor)
+                }
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.bgInput)
+                            .frame(height: 8)
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(LinearGradient(
+                                colors: [.accentColor, .purple],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            ))
+                            .frame(width: geo.size.width * min(1, goal.progressPercent / 100), height: 8)
+                    }
+                }
+                .frame(height: 8)
+            }
+
+            // Milestones count + call to action
+            let milestoneCount = goal.milestones.count
+            let checkInCount = goal.checkIns.count
+            HStack(spacing: 12) {
+                statPill(icon: "flag.fill", value: "\(milestoneCount)", label: "milestones")
+                statPill(icon: "checkmark.circle.fill", value: "\(checkInCount)", label: "check-ins")
+                statPill(icon: "circle.grid.2x2.fill", value: "\(activeGoalCount)", label: "goals")
+            }
+
+            // Flesh out prompt if goal is thin
+            if milestoneCount == 0 || goal.notes.isEmpty {
+                Button {
+                    editingGoal = goal
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "pencil.and.outline")
+                        Text("Flesh out your goal — add milestones and plan")
+                            .font(.caption).fontWeight(.semibold)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                    }
+                    .padding(10)
+                    .frame(maxWidth: .infinity)
+                    .background(LinearGradient(
+                        colors: [.accentColor.opacity(0.15), .purple.opacity(0.15)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    ))
+                    .foregroundColor(.accentColor)
+                    .cornerRadius(8)
+                }
+                .buttonStyle(.plain)
+            } else {
+                Button {
+                    editingGoal = goal
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "calendar.badge.plus")
+                        Text("Schedule next work block")
+                            .font(.caption).fontWeight(.semibold)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                    }
+                    .padding(10)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.accentColor.opacity(0.15))
+                    .foregroundColor(.accentColor)
+                    .cornerRadius(8)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle()
+    }
+
+    @ViewBuilder
+    private var setGoalCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "crown.fill")
+                    .foregroundStyle(LinearGradient(
+                        colors: [.yellow, .orange],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ))
+                    .font(.title3)
+                Text("Set Your North Star")
+                    .font(.headline).fontWeight(.bold)
+                    .foregroundColor(.textPrimary)
+                Spacer()
+            }
+
+            Text("What\u{2019}s the one big thing you want to accomplish? Everything else builds toward it.")
+                .font(.subheadline)
+                .foregroundColor(.textSecondary)
+
+            Text("Examples: Write a novel, run a marathon, launch a business, learn a language fluently.")
+                .font(.caption)
+                .foregroundColor(.textMuted)
+
+            Button {
+                showAddGoal = true
+            } label: {
+                HStack {
+                    Image(systemName: "plus.circle.fill")
+                    Text("Set My North Star Goal")
+                        .fontWeight(.semibold)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity)
+                .background(LinearGradient(
+                    colors: [.accentColor, .purple],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                ))
+                .foregroundColor(.white)
+                .cornerRadius(10)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle()
+    }
+
+    @ViewBuilder
+    private func statPill(icon: String, value: String, label: String) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.caption2)
+                .foregroundColor(.textMuted)
+            Text(value)
+                .font(.caption).fontWeight(.bold).monospacedDigit()
+                .foregroundColor(.textPrimary)
+            Text(label)
+                .font(.caption2)
+                .foregroundColor(.textMuted)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Color.bgInput)
+        .cornerRadius(6)
     }
 
     // MARK: - Health Summary Hero Card

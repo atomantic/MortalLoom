@@ -16,7 +16,13 @@ struct OnboardingView: View {
     @State private var healthKitRequestFailed = false
     @State private var lifeExpectancyResult: DeathClockEngine.DeathClockResult?
 
-    private let totalSteps = 11
+    // Apex goal state
+    @State private var apexGoalTitle: String = ""
+    @State private var apexGoalNotes: String = ""
+    @State private var apexGoalTargetDate: Date = Calendar.current.date(byAdding: .year, value: 5, to: Date()) ?? Date()
+    @State private var apexGoalCategory: GoalCategory = .legacy
+
+    private let totalSteps = 12
 
     var body: some View {
         VStack(spacing: 0) {
@@ -32,6 +38,7 @@ struct OnboardingView: View {
                 sleepStep.tag(8)
                 dietStressStep.tag(9)
                 resultsStep.tag(10)
+                apexGoalStep.tag(11)
             }
             #if os(iOS)
             .tabViewStyle(.page(indexDisplayMode: .never))
@@ -685,7 +692,73 @@ struct OnboardingView: View {
 
             Spacer()
 
-            primaryButton("Start Your Journey") {
+            primaryButton("Next") {
+                advanceStep()
+            }
+        }
+    }
+
+    // MARK: - Step 11: Apex Goal
+
+    @ViewBuilder
+    private var apexGoalStep: some View {
+        stepContainer {
+            stepIcon("crown.fill")
+            stepTitle("Your North Star Goal")
+            stepDescription("What\u{2019}s the one big thing you want to accomplish? This is your apex goal — everything else builds toward it.")
+
+            VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Goal")
+                        .font(.caption).fontWeight(.semibold)
+                        .foregroundColor(.textSecondary)
+                    TextField("e.g. Write and publish my novel", text: $apexGoalTitle)
+                        .textFieldStyle(.plain)
+                        .padding(12)
+                        .background(Color.bgInput)
+                        .cornerRadius(10)
+                        .foregroundColor(.textPrimary)
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Why does it matter?")
+                        .font(.caption).fontWeight(.semibold)
+                        .foregroundColor(.textSecondary)
+                    TextField("Optional context", text: $apexGoalNotes, axis: .vertical)
+                        .textFieldStyle(.plain)
+                        .lineLimit(2...4)
+                        .padding(12)
+                        .background(Color.bgInput)
+                        .cornerRadius(10)
+                        .foregroundColor(.textPrimary)
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Category")
+                        .font(.caption).fontWeight(.semibold)
+                        .foregroundColor(.textSecondary)
+                    Picker("Category", selection: $apexGoalCategory) {
+                        ForEach(GoalCategory.allCases, id: \.self) { cat in
+                            Text(cat.label).tag(cat)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Target Date")
+                        .font(.caption).fontWeight(.semibold)
+                        .foregroundColor(.textSecondary)
+                    DatePicker("", selection: $apexGoalTargetDate, in: Date()..., displayedComponents: .date)
+                        .datePickerStyle(.compact)
+                        .labelsHidden()
+                }
+            }
+            .padding(.horizontal, 8)
+
+            Spacer()
+
+            primaryButton(apexGoalTitle.trimmingCharacters(in: .whitespaces).isEmpty ? "Skip" : "Start Your Journey") {
                 saveAndDismiss()
             }
         }
@@ -796,8 +869,24 @@ struct OnboardingView: View {
             biologicalSex: biologicalSex,
             lifestyle: lifestyle
         )
+
+        let trimmedTitle = apexGoalTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        let apexGoal: Goal? = trimmedTitle.isEmpty ? nil : Goal(
+            title: trimmedTitle,
+            notes: apexGoalNotes.trimmingCharacters(in: .whitespacesAndNewlines),
+            targetDate: DateFormatting.dateString(apexGoalTargetDate),
+            checkInIntervalDays: 7,
+            status: .active,
+            priority: .high,
+            category: apexGoalCategory,
+            goalType: .apex
+        )
+
         Task { @MainActor in
             await DataStore.shared.updateProfile(profile)
+            if let apexGoal {
+                await DataStore.shared.addGoal(apexGoal)
+            }
             UserDefaults.standard.set(true, forKey: AppConstants.hasCompletedOnboardingKey)
             NotificationCenter.default.post(name: .profileDidChange, object: nil)
             isPresented = false

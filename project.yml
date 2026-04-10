@@ -11,7 +11,7 @@ settings:
   base:
     DEVELOPMENT_TEAM: TYQ32QCF6K
     MARKETING_VERSION: "1.0.0"
-    CURRENT_PROJECT_VERSION: 32
+    CURRENT_PROJECT_VERSION: 33
     SWIFT_VERSION: "6.0"
     DEAD_CODE_STRIPPING: YES
     ENABLE_USER_SCRIPT_SANDBOXING: YES
@@ -89,6 +89,7 @@ targets:
         NSHealthShareUsageDescription: "MortalLoom reads your health data to display metrics, trends, and life expectancy calculations. Your data stays on your device."
         NSHealthUpdateUsageDescription: "MortalLoom may write health data to keep your records in sync across apps."
         NSLocationWhenInUseUsageDescription: "MortalLoom uses your location once to identify your country, which adjusts the life expectancy calculation based on local healthcare and environment. Only the country code is stored — coordinates are never saved or transmitted."
+        NSCalendarsFullAccessUsageDescription: "MortalLoom can schedule goal work blocks as events on your calendar so you can plan time for what matters most. Calendar access is only used when you tap 'Add to Calendar'."
         UILaunchScreen: {}
         ITSAppUsesNonExemptEncryption: false
         UISupportedInterfaceOrientations:
