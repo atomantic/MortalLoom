@@ -14,23 +14,24 @@ struct OnboardingView: View {
     @State private var healthKit = HealthKitService.shared
     @State private var healthKitRequested = false
     @State private var healthKitRequestFailed = false
-    @State private var deathClockResult: DeathClockEngine.DeathClockResult?
+    @State private var lifeExpectancyResult: DeathClockEngine.DeathClockResult?
 
-    private let totalSteps = 10
+    private let totalSteps = 11
 
     var body: some View {
         VStack(spacing: 0) {
             TabView(selection: $currentStep) {
                 welcomeStep.tag(0)
-                escapeVelocityStep.tag(1)
-                healthKitStep.tag(2)
-                birthDateStep.tag(3)
-                biologicalSexStep.tag(4)
-                smokingStep.tag(5)
-                exerciseStep.tag(6)
-                sleepStep.tag(7)
-                dietStressStep.tag(8)
-                resultsStep.tag(9)
+                planYourLifeStep.tag(1)
+                escapeVelocityStep.tag(2)
+                healthKitStep.tag(3)
+                birthDateStep.tag(4)
+                biologicalSexStep.tag(5)
+                smokingStep.tag(6)
+                exerciseStep.tag(7)
+                sleepStep.tag(8)
+                dietStressStep.tag(9)
+                resultsStep.tag(10)
             }
             #if os(iOS)
             .tabViewStyle(.page(indexDisplayMode: .never))
@@ -78,23 +79,23 @@ struct OnboardingView: View {
         stepContainer {
             stepIcon("heart.text.clipboard")
             stepTitle("Welcome to MortalLoom")
-            stepDescription("A privacy-first longevity tracker. See how long you might have left \u{2014} and what you can do about it.")
+            stepDescription("Plan your life around what matters. Track your health, set goals with real deadlines, and make every year count.")
 
             VStack(alignment: .leading, spacing: 14) {
                 privacyBullet(
+                    icon: "target",
+                    title: "Goals with real deadlines",
+                    detail: "Set life goals tied to your health trajectory. MortalLoom helps you plan with the time you actually have."
+                )
+                privacyBullet(
+                    icon: "chart.line.uptrend.xyaxis",
+                    title: "Track what moves the needle",
+                    detail: "Sleep, exercise, blood markers, genome \u{2014} see exactly how your habits affect your longevity estimate."
+                )
+                privacyBullet(
                     icon: "lock.shield.fill",
                     title: "Private by design",
-                    detail: "No accounts, no servers, no telemetry. Your health data is yours alone."
-                )
-                privacyBullet(
-                    icon: "icloud.fill",
-                    title: "Syncs through your iCloud",
-                    detail: "Encrypted end-to-end by Apple and shared only with your other Apple devices \u{2014} including the companion \(companionPlatformName) app."
-                )
-                privacyBullet(
-                    icon: "square.and.arrow.up",
-                    title: "Export anytime",
-                    detail: "Take your data with you. It never leaves your devices unless you explicitly share it."
+                    detail: "No accounts, no servers, no telemetry. Your data syncs via your iCloud and never leaves your devices."
                 )
             }
             .padding(.horizontal, 8)
@@ -128,7 +129,43 @@ struct OnboardingView: View {
         .accessibilityElement(children: .combine)
     }
 
-    // MARK: - Step 1: Longevity Escape Velocity
+    // MARK: - Step 1: Plan Your Life
+
+    @ViewBuilder
+    private var planYourLifeStep: some View {
+        stepContainer {
+            stepIcon("calendar.badge.clock")
+            stepTitle("Plan Your Life")
+            stepDescription("Your time is finite. MortalLoom helps you use it intentionally.")
+
+            VStack(alignment: .leading, spacing: 14) {
+                privacyBullet(
+                    icon: "book.fill",
+                    title: "Want to write a book?",
+                    detail: "That takes planning and time. Set it as a goal, give it a deadline, and MortalLoom shows you where it fits in your life."
+                )
+                privacyBullet(
+                    icon: "exclamationmark.triangle.fill",
+                    title: "Falling behind on goals?",
+                    detail: "Maybe it\u{2019}s time to reprioritize \u{2014} or examine the habits that are eating into your available years."
+                )
+                privacyBullet(
+                    icon: "arrow.trianglehead.counterclockwise.rotate.90",
+                    title: "Your habits shape your timeline",
+                    detail: "Every lifestyle choice shifts your projected lifespan. Improving your health doesn\u{2019}t just add years \u{2014} it adds years to accomplish what matters to you."
+                )
+            }
+            .padding(.horizontal, 8)
+            .padding(.top, 4)
+
+            Spacer()
+            primaryButton("Next") {
+                advanceStep()
+            }
+        }
+    }
+
+    // MARK: - Step 2: Longevity Escape Velocity
 
     @ViewBuilder
     private var escapeVelocityStep: some View {
@@ -233,7 +270,7 @@ struct OnboardingView: View {
             Spacer()
 
             if healthKit.isAvailable && !healthKitRequested {
-                primaryButton("Connect Apple Health") {
+                primaryButton("Continue") {
                     Task {
                         await healthKit.requestAuthorization()
                         healthKitRequestFailed = !healthKit.authorizationRequestCompleted
@@ -241,16 +278,6 @@ struct OnboardingView: View {
                         advanceStep()
                     }
                 }
-
-                Button {
-                    advanceStep()
-                } label: {
-                    Text("Skip for now")
-                        .font(.subheadline)
-                        .foregroundColor(.textSecondary)
-                }
-                .buttonStyle(.plain)
-                .padding(.top, 8)
             } else {
                 primaryButton("Next") {
                     advanceStep()
@@ -590,7 +617,7 @@ struct OnboardingView: View {
             stepIcon("clock")
             stepTitle("Your Life Expectancy")
 
-            if let result = deathClockResult {
+            if let result = lifeExpectancyResult {
                 let baseline = result.lifeExpectancy.baseline
                 let adjustment = result.lifeExpectancy.lifestyleAdjustment
                 let total = result.lifeExpectancy.total
@@ -647,25 +674,6 @@ struct OnboardingView: View {
                 .padding(.horizontal)
 
                 Spacer()
-
-                // Longevity clock countdown preview
-                let countdown = DeathClockEngine.countdown(to: result.deathDate)
-                VStack(spacing: 8) {
-                    Text("Time Remaining")
-                        .font(.caption).fontWeight(.semibold)
-                        .foregroundColor(.textMuted)
-                        .tracking(1)
-
-                    HStack(spacing: 12) {
-                        countdownUnit("\(countdown.years)", label: "YRS")
-                        countdownUnit("\(countdown.months)", label: "MO")
-                        countdownUnit("\(countdown.weeks)", label: "WK")
-                        countdownUnit("\(countdown.days)", label: "DAYS")
-                    }
-                }
-                .padding()
-                .cardStyle()
-                .padding(.horizontal)
             } else {
                 Spacer()
                 Text("Unable to calculate. Please go back and check your inputs.")
@@ -681,22 +689,6 @@ struct OnboardingView: View {
                 saveAndDismiss()
             }
         }
-    }
-
-    @ViewBuilder
-    private func countdownUnit(_ value: String, label: String) -> some View {
-        VStack(spacing: 4) {
-            Text(value)
-                .font(.system(size: 28, weight: .bold, design: .rounded))
-                .foregroundColor(.textPrimary)
-            Text(label)
-                .font(.caption2).fontWeight(.semibold)
-                .foregroundColor(.textMuted)
-                .tracking(0.5)
-        }
-        .frame(minWidth: 50)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(value) \(label)")
     }
 
     // MARK: - Shared Components
@@ -772,7 +764,7 @@ struct OnboardingView: View {
 
     private func advanceStep() {
         let nextStep = min(currentStep + 1, totalSteps - 1)
-        if nextStep == 9 {
+        if nextStep == 10 {
             let birthDateStr = DateFormatting.dateString(birthDate)
             let lifestyle = LifestyleData(
                 smokingStatus: smokingStatus,
@@ -782,7 +774,7 @@ struct OnboardingView: View {
                 stressLevel: stressLevel,
                 bmi: nil
             )
-            deathClockResult = DeathClockEngine.calculate(birthDateStr: birthDateStr, sex: biologicalSex, lifestyle: lifestyle)
+            lifeExpectancyResult = DeathClockEngine.calculate(birthDateStr: birthDateStr, sex: biologicalSex, lifestyle: lifestyle)
         }
         withAnimation(.easeInOut(duration: 0.3)) {
             currentStep = nextStep

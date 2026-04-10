@@ -277,9 +277,13 @@ struct SubstancesView: View {
                 .frame(maxWidth: .infinity)
             }
 
-            Text("Thresholds: NIAAA low-risk drinking limits")
-                .font(.caption2)
-                .foregroundColor(.textMuted)
+            HStack(spacing: 4) {
+                Image(systemName: "book.closed.fill")
+                    .font(.caption2)
+                Text("Source: NIAAA low-risk drinking limits")
+                    .font(.caption2)
+            }
+            .foregroundColor(.accentColor)
         }
         .padding()
         .cardStyle()

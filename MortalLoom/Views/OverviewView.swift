@@ -7,9 +7,7 @@ struct OverviewView: View {
     @State private var deathClock: DeathClockEngine.DeathClockResult?
     @State private var levDeathClock: DeathClockEngine.DeathClockResult?
     @State private var lev: DeathClockEngine.LEVResult?
-    @State private var countdown: DeathClockEngine.Countdown?
     @State private var countdownMode: CountdownMode = .standard
-    @State private var timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     @State private var isVisible = false
     @State private var todayStr: String = DateFormatting.todayString()
     @State private var weekAgoStr: String = DateFormatting.dateString(daysAgo: 7)
@@ -25,6 +23,7 @@ struct OverviewView: View {
     @State private var cachedRecommendations: [RecommendationEngine.Recommendation] = []
     @State private var cachedSleepImpact: Double = 0
     @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
+    @State private var showCitations = false
     private var isWide: Bool { containerWidth >= Layout.wideThreshold }
 
     var body: some View {
@@ -43,13 +42,13 @@ struct OverviewView: View {
         .task { await loadData() }
         .onAppear { isVisible = true }
         .onDisappear { isVisible = false }
-        .onReceive(timer) { _ in guard isVisible else { return }; updateCountdown() }
         .onReceive(NotificationCenter.default.publisher(for: .dataDidSync)) { _ in
             Task { await loadData() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .profileDidChange)) { _ in
             Task { await loadData() }
         }
+        .sheet(isPresented: $showCitations) { CitationsView() }
     }
 
     @ViewBuilder
@@ -109,7 +108,6 @@ struct OverviewView: View {
             deathClock = nil
             levDeathClock = nil
             lev = nil
-            countdown = nil
             return
         }
         countdownMode = data.profile.countdownMode
@@ -141,7 +139,6 @@ struct OverviewView: View {
                 birthDateStr: birthDate,
                 lifeExpectancy: dc.lifeExpectancy.total
             )
-            countdown = DeathClockEngine.countdown(to: activeDC?.deathDate ?? dc.deathDate)
             recomputeChartData(dc)
         }
     }
@@ -165,15 +162,7 @@ struct OverviewView: View {
         cachedLevPoints = levTrajectory(currentYear: currentYear, levYear: levYear, levDeathYear: levDeathYear, currentHealth: cachedHealthScore, normalPoints: cachedNormalPoints)
     }
 
-    private func updateCountdown() {
-        guard let dc = activeDC else { return }
-        let newCountdown = DeathClockEngine.countdown(to: dc.deathDate)
-        if newCountdown != countdown {
-            countdown = newCountdown
-        }
-    }
-
-    // MARK: - Longevity Clock Hero Card
+    // MARK: - Health Summary Hero Card
 
     private var activeDC: DeathClockEngine.DeathClockResult? {
         if countdownMode == .lev, let levDC = levDeathClock { return levDC }
@@ -183,62 +172,47 @@ struct OverviewView: View {
     @ViewBuilder
     private var deathClockCard: some View {
         VStack(spacing: 16) {
-            if let dc = activeDC, let cd = countdown {
+            if let dc = activeDC {
                 // Header
                 HStack {
-                    Image(systemName: countdownMode == .lev ? "bolt.shield.fill" : "clock.fill")
-                        .foregroundColor(countdownMode == .lev ? .success : .accentColor)
+                    Image(systemName: "heart.text.clipboard")
+                        .foregroundColor(.accentColor)
                         .font(.title3)
-                    Text("Time Remaining")
+                    Text("Health Summary")
                         .font(.title3).fontWeight(.bold)
                         .foregroundColor(.textPrimary)
                     Spacer()
-                    Text(dc.deathDate.formatted(date: .abbreviated, time: .omitted))
-                        .font(.caption)
+                }
+
+                // Health Score
+                HStack {
+                    Text("Health Score")
+                        .font(.subheadline)
                         .foregroundColor(.textSecondary)
-                }
-
-                if levDeathClock != nil {
-                    countdownModePicker
-                }
-
-                // Countdown
-                if cd.expired {
-                    Text("Time's up.")
-                        .font(.title).fontWeight(.bold)
-                        .foregroundColor(.danger)
-                        .accessibilityLabel("Time remaining has expired")
-                } else {
-                    countdownDisplay(cd)
-                        .accessibilityElement(children: .combine)
-                        .accessibilityLabel("Time remaining: \(cd.years) years, \(cd.months) months, \(cd.weeks) weeks, \(cd.days) days, \(cd.hours) hours, \(cd.minutes) minutes, \(cd.seconds) seconds")
+                    Spacer()
+                    Text(String(format: "%.0f / 100", cachedHealthScore))
+                        .font(.title2).fontWeight(.bold).monospacedDigit()
+                        .foregroundColor(healthScoreColor(cachedHealthScore))
                 }
 
                 Divider().background(Color.cardBorder)
 
                 // Life expectancy breakdown
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(countdownMode == .lev ? "LEV Life Expectancy" : "Life Expectancy Breakdown")
+                    Text("Life Expectancy Breakdown")
                         .font(.caption).fontWeight(.semibold)
                         .foregroundColor(.textSecondary)
-                    if countdownMode == .standard {
-                        leBreakdownRow("SSA Baseline", value: dc.lifeExpectancy.baseline, unit: "yr")
-                        leBreakdownRow("Genome Adjusted", value: dc.lifeExpectancy.genomeAdjusted, unit: "yr")
-                        leBreakdownRow("Lifestyle Adj.", value: dc.lifeExpectancy.lifestyleAdjustment, unit: "yr", signed: true)
-                        if dc.lifeExpectancy.locationAdjustment != 0 {
-                            leBreakdownRow("Location Adj.", value: dc.lifeExpectancy.locationAdjustment, unit: "yr", signed: true)
-                        }
-                        if dc.lifeExpectancy.healthMetricsAdjustment != 0 {
-                            leBreakdownRow("Health Metrics", value: dc.lifeExpectancy.healthMetricsAdjustment, unit: "yr", signed: true)
-                        }
-                        Divider().background(Color.cardBorder)
+                    leBreakdownRow("SSA Baseline", value: dc.lifeExpectancy.baseline, unit: "yr")
+                    leBreakdownRow("Genome Adjusted", value: dc.lifeExpectancy.genomeAdjusted, unit: "yr")
+                    leBreakdownRow("Lifestyle Adj.", value: dc.lifeExpectancy.lifestyleAdjustment, unit: "yr", signed: true)
+                    if dc.lifeExpectancy.locationAdjustment != 0 {
+                        leBreakdownRow("Location Adj.", value: dc.lifeExpectancy.locationAdjustment, unit: "yr", signed: true)
                     }
+                    if dc.lifeExpectancy.healthMetricsAdjustment != 0 {
+                        leBreakdownRow("Health Metrics", value: dc.lifeExpectancy.healthMetricsAdjustment, unit: "yr", signed: true)
+                    }
+                    Divider().background(Color.cardBorder)
                     leBreakdownRow("Total LE", value: dc.lifeExpectancy.total, unit: "yr", bold: true)
-                    if countdownMode == .lev {
-                        Text("Assumes longevity therapies extend healthy lifespan after 2045")
-                            .font(.system(size: 10))
-                            .foregroundColor(.textMuted)
-                    }
                 }
 
                 Divider().background(Color.cardBorder)
@@ -270,19 +244,28 @@ struct OverviewView: View {
                 .accessibilityLabel("Life progress")
                 .accessibilityValue(String(format: "%.1f percent complete", dc.percentComplete))
 
-                Text("Based on SSA Period Life Tables, WHO data, and peer-reviewed longevity research. See Sources & Citations in Settings.")
-                    .font(.system(size: 9))
-                    .foregroundColor(.textMuted)
+                Button {
+                    showCitations = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "book.closed.fill")
+                            .font(.caption2)
+                        Text("View Sources & Citations")
+                            .font(.caption2).fontWeight(.medium)
+                    }
+                    .foregroundColor(.accentColor)
+                }
+                .buttonStyle(.plain)
             } else {
                 // Not configured
                 VStack(spacing: 8) {
-                    Image(systemName: "clock.fill")
+                    Image(systemName: "heart.text.clipboard")
                         .font(.largeTitle)
                         .foregroundColor(.textMuted)
-                    Text("Life Progress")
+                    Text("Health Summary")
                         .font(.headline)
                         .foregroundColor(.textPrimary)
-                    Text("Configure your birth date and lifestyle in Settings to see your longevity clock.")
+                    Text("Configure your birth date and lifestyle in Settings to see your health summary.")
                         .font(.subheadline)
                         .foregroundColor(.textSecondary)
                         .multilineTextAlignment(.center)
@@ -292,63 +275,6 @@ struct OverviewView: View {
         .padding()
         .frame(maxWidth: .infinity)
         .cardStyle()
-    }
-
-    @ViewBuilder
-    private var countdownModePicker: some View {
-        Picker("Countdown", selection: $countdownMode) {
-            ForEach(CountdownMode.allCases, id: \.self) { mode in
-                Text(mode.pickerLabel).tag(mode)
-            }
-        }
-        .pickerStyle(.segmented)
-        .onChange(of: countdownMode) { _, newMode in
-            data.profile.countdownMode = newMode
-            Task { await DataStore.shared.save(data) }
-            NotificationCenter.default.post(name: .profileDidChange, object: nil)
-            if let dc = activeDC {
-                countdown = DeathClockEngine.countdown(to: dc.deathDate)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func countdownDisplay(_ cd: DeathClockEngine.Countdown) -> some View {
-        HStack(spacing: 4) {
-            countdownUnit(cd.years, label: "Y", color: .accentColor)
-            colonSeparator
-            countdownUnit(cd.months, label: "Mo", color: .purple)
-            colonSeparator
-            countdownUnit(cd.weeks, label: "W", color: .teal)
-            colonSeparator
-            countdownUnit(cd.days, label: "D", color: .green)
-            colonSeparator
-            countdownUnit(cd.hours, label: "H", color: .yellow)
-            colonSeparator
-            countdownUnit(cd.minutes, label: "M", color: .orange)
-            colonSeparator
-            countdownUnit(cd.seconds, label: "S", color: .red)
-        }
-    }
-
-    @ViewBuilder
-    private func countdownUnit(_ value: Int, label: String, color: Color) -> some View {
-        VStack(spacing: 2) {
-            Text("\(value)")
-                .font(.title2).fontWeight(.bold).monospacedDigit()
-                .foregroundColor(color)
-            Text(label)
-                .font(.system(size: 9)).fontWeight(.medium)
-                .foregroundColor(.textMuted)
-        }
-        .frame(minWidth: 30)
-    }
-
-    private var colonSeparator: some View {
-        Text(":")
-            .font(.title3).fontWeight(.bold)
-            .foregroundColor(.textMuted)
-            .padding(.bottom, 12)
     }
 
     @ViewBuilder

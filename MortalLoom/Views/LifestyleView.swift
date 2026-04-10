@@ -494,9 +494,13 @@ struct LifestyleView: View {
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Total lifestyle adjustment: \(String(format: "%+.1f", totalImpact)) years on life expectancy")
 
-            Text("Sources: SSA Period Life Table 2021; WHO Physical Activity Guidelines 2020; WHO BMI Classification")
-                .font(.caption2)
-                .foregroundColor(.textMuted)
+            HStack(spacing: 4) {
+                Image(systemName: "book.closed.fill")
+                    .font(.caption2)
+                Text("Sources: SSA Period Life Table 2021; WHO Physical Activity Guidelines 2020; WHO BMI Classification")
+                    .font(.caption2)
+            }
+            .foregroundColor(.accentColor)
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)

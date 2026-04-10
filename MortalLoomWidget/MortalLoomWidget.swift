@@ -3,41 +3,22 @@ import SwiftUI
 
 // MARK: - Snapshot Model (must match WidgetBridge.Snapshot in main app)
 
+struct WidgetGoal: Codable, Sendable {
+    let title: String
+    let targetDate: Date?
+    let progressPercent: Double
+    let isOverdue: Bool
+    let needsCheckIn: Bool
+    let category: String?
+}
+
 struct WidgetSnapshot: Codable, Sendable {
-    let deathDate: Date
-    let percentComplete: Double
-    let yearsRemaining: Double
+    let goals: [WidgetGoal]
+    let activeCount: Int
+    let overdueCount: Int
+    let needsCheckInCount: Int
     let healthScore: Double
-    let ageYears: Int
-    let lifeExpectancy: Double
     let updatedAt: Date
-    let countdownMode: String?
-    let levDeathDate: Date?
-    let levYearsRemaining: Double?
-    let levLifeExpectancy: Double?
-    let levPercentComplete: Double?
-
-    var isLEVMode: Bool { countdownMode == "LEV" }
-
-    var activeDeathDate: Date {
-        if isLEVMode, let levDate = levDeathDate { return levDate }
-        return deathDate
-    }
-
-    var activePercentComplete: Double {
-        if isLEVMode, let levPct = levPercentComplete { return levPct }
-        return percentComplete
-    }
-
-    var activeYearsRemaining: Double {
-        if isLEVMode, let levYears = levYearsRemaining { return levYears }
-        return yearsRemaining
-    }
-
-    var activeLifeExpectancy: Double {
-        if isLEVMode, let levLE = levLifeExpectancy { return levLE }
-        return lifeExpectancy
-    }
 }
 
 // MARK: - Data Loading
@@ -66,18 +47,15 @@ struct MortalLoomEntry: TimelineEntry {
     static let placeholder = MortalLoomEntry(
         date: Date(),
         snapshot: WidgetSnapshot(
-            deathDate: Calendar.current.date(byAdding: .year, value: 35, to: Date())!,
-            percentComplete: 55.0,
-            yearsRemaining: 35.2,
-            healthScore: 82.0,
-            ageYears: 43,
-            lifeExpectancy: 78.2,
-            updatedAt: Date(),
-            countdownMode: nil,
-            levDeathDate: nil,
-            levYearsRemaining: nil,
-            levLifeExpectancy: nil,
-            levPercentComplete: nil
+            goals: [
+                WidgetGoal(title: "Write a book", targetDate: Calendar.current.date(byAdding: .month, value: 6, to: Date()), progressPercent: 35, isOverdue: false, needsCheckIn: true, category: "creative"),
+                WidgetGoal(title: "Run a marathon", targetDate: Calendar.current.date(byAdding: .month, value: 3, to: Date()), progressPercent: 60, isOverdue: false, needsCheckIn: false, category: "health"),
+            ],
+            activeCount: 5,
+            overdueCount: 1,
+            needsCheckInCount: 2,
+            healthScore: 82,
+            updatedAt: Date()
         )
     )
 }
@@ -96,63 +74,47 @@ struct MortalLoomProvider: TimelineProvider {
         let snapshot = WidgetDataLoader.load()
         let now = Date()
         let entry = MortalLoomEntry(date: now, snapshot: snapshot)
-        let nextRefresh = Calendar.current.date(byAdding: .hour, value: 6, to: now) ?? now
+        let nextRefresh = Calendar.current.date(byAdding: .hour, value: 1, to: now) ?? now
         completion(Timeline(entries: [entry], policy: .after(nextRefresh)))
     }
 }
 
-// MARK: - Countdown
+// MARK: - Helpers
 
-struct CountdownComponents {
-    let years: Int
-    let months: Int
-    let weeks: Int
-    let days: Int
-    let hours: Int
-    let minutes: Int
-    let expired: Bool
-
-    init(from now: Date, to deathDate: Date) {
-        let diff = deathDate.timeIntervalSince(now)
-        guard diff > 0 else {
-            self.init(years: 0, months: 0, weeks: 0, days: 0, hours: 0, minutes: 0, expired: true)
-            return
-        }
-        let totalSeconds = Int(diff)
-        let totalMinutes = totalSeconds / 60
-        let totalHours = totalMinutes / 60
-        let totalDays = totalHours / 24
-
-        let y = Int(Double(totalDays) / 365.25)
-        let daysAfterYears = totalDays - Int(Double(y) * 365.25)
-        let mo = Int(Double(daysAfterYears) / 30.44)
-        let daysAfterMonths = daysAfterYears - Int(Double(mo) * 30.44)
-        let w = daysAfterMonths / 7
-        let d = daysAfterMonths - w * 7
-
-        self.init(
-            years: y, months: mo, weeks: w, days: d,
-            hours: totalHours % 24, minutes: totalMinutes % 60, expired: false
-        )
-    }
-
-    private init(years: Int, months: Int, weeks: Int, days: Int, hours: Int, minutes: Int, expired: Bool) {
-        self.years = years
-        self.months = months
-        self.weeks = weeks
-        self.days = days
-        self.hours = hours
-        self.minutes = minutes
-        self.expired = expired
-    }
+private func daysUntil(_ date: Date, from now: Date = Date()) -> Int {
+    Calendar.current.dateComponents([.day], from: now, to: date).day ?? 0
 }
 
-// MARK: - Color Helpers
+private func dueDateLabel(_ date: Date, from now: Date = Date()) -> String {
+    let days = daysUntil(date, from: now)
+    if days < 0 { return "\(abs(days))d overdue" }
+    if days == 0 { return "Due today" }
+    if days == 1 { return "Due tomorrow" }
+    if days < 7 { return "Due in \(days)d" }
+    if days < 30 { return "Due in \(days / 7)w" }
+    return "Due in \(days / 30)mo"
+}
 
-private func progressColor(_ percent: Double) -> Color {
-    if percent >= 80 { return .red }
-    if percent >= 60 { return .orange }
+private func urgencyColor(_ goal: WidgetGoal) -> Color {
+    if goal.isOverdue { return .red }
+    if goal.needsCheckIn { return .orange }
+    guard let target = goal.targetDate else { return .blue }
+    let days = daysUntil(target)
+    if days <= 7 { return .red }
+    if days <= 30 { return .orange }
     return .blue
+}
+
+private func categoryIcon(_ category: String?) -> String {
+    switch category {
+    case "health": return "heart.fill"
+    case "creative": return "paintbrush.fill"
+    case "family": return "person.2.fill"
+    case "financial": return "dollarsign.circle.fill"
+    case "legacy": return "star.fill"
+    case "mastery": return "graduationcap.fill"
+    default: return "target"
+    }
 }
 
 // MARK: - Entry View Router
@@ -185,76 +147,72 @@ struct SmallWidgetView: View {
     let entry: MortalLoomEntry
 
     var body: some View {
-        if let snapshot = entry.snapshot {
-            let cd = CountdownComponents(from: entry.date, to: snapshot.activeDeathDate)
-            let pct = snapshot.activePercentComplete
-            VStack(spacing: 4) {
-                ZStack {
-                    Circle()
-                        .stroke(Color.gray.opacity(0.2), lineWidth: 5)
-                    Circle()
-                        .trim(from: 0, to: min(1, pct / 100))
-                        .stroke(progressColor(pct),
-                                style: StrokeStyle(lineWidth: 5, lineCap: .round))
-                        .rotationEffect(.degrees(-90))
-                    VStack(spacing: 0) {
-                        Text(String(format: "%.1f%%", pct))
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
-                            .monospacedDigit()
-                        Text(snapshot.isLEVMode ? "LEV" : "lived")
-                            .font(.system(size: 9))
-                            .foregroundStyle(.secondary)
+        if let snapshot = entry.snapshot, !snapshot.goals.isEmpty {
+            let top = snapshot.goals.first!
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 4) {
+                    Image(systemName: categoryIcon(top.category))
+                        .font(.caption)
+                        .foregroundStyle(urgencyColor(top))
+                    Text("MortalLoom")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                }
+
+                Text(top.title)
+                    .font(.system(size: 14, weight: .bold))
+                    .lineLimit(2)
+
+                if let target = top.targetDate {
+                    Text(dueDateLabel(target, from: entry.date))
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(urgencyColor(top))
+                }
+
+                Spacer(minLength: 0)
+
+                // Progress bar
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(Color.gray.opacity(0.2))
+                            .frame(height: 6)
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(urgencyColor(top))
+                            .frame(width: geo.size.width * min(1, top.progressPercent / 100), height: 6)
                     }
                 }
-                .frame(width: 70, height: 70)
+                .frame(height: 6)
 
-                if cd.expired {
-                    Text("Time's up")
-                        .font(.caption).bold()
-                        .foregroundStyle(.red)
-                } else {
-                    HStack(spacing: 4) {
-                        pill(cd.years, "Y", .blue)
-                        pill(cd.months, "M", .purple)
-                        pill(cd.weeks, "W", .teal)
-                        pill(cd.days, "D", .green)
+                HStack {
+                    Text(String(format: "%.0f%%", top.progressPercent))
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                    Spacer()
+                    if snapshot.overdueCount > 0 {
+                        Text("\(snapshot.overdueCount) overdue")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.red)
+                    } else if snapshot.needsCheckInCount > 0 {
+                        Text("\(snapshot.needsCheckInCount) need check-in")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.orange)
                     }
-
-                    Text("\(String(format: "%.1f", snapshot.activeYearsRemaining)) years left")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
                 }
             }
             .containerBackground(.fill.tertiary, for: .widget)
         } else {
-            unconfiguredSmall
+            VStack(spacing: 8) {
+                Image(systemName: "target")
+                    .font(.title)
+                    .foregroundStyle(.secondary)
+                Text("Set goals in\nMortalLoom")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .containerBackground(.fill.tertiary, for: .widget)
         }
-    }
-
-    private func pill(_ value: Int, _ label: String, _ color: Color) -> some View {
-        VStack(spacing: 0) {
-            Text("\(value)")
-                .font(.system(size: 22, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(color)
-            Text(label)
-                .font(.system(size: 9, weight: .medium))
-                .foregroundStyle(.secondary)
-        }
-        .frame(minWidth: 30)
-    }
-
-    private var unconfiguredSmall: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "clock.fill")
-                .font(.title)
-                .foregroundStyle(.secondary)
-            Text("Open MortalLoom\nto configure")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-        }
-        .containerBackground(.fill.tertiary, for: .widget)
     }
 }
 
@@ -264,68 +222,43 @@ struct MediumWidgetView: View {
     let entry: MortalLoomEntry
 
     var body: some View {
-        if let snapshot = entry.snapshot {
-            let cd = CountdownComponents(from: entry.date, to: snapshot.activeDeathDate)
-            let pct = snapshot.activePercentComplete
-            HStack(spacing: 12) {
-                ZStack {
-                    Circle()
-                        .stroke(Color.gray.opacity(0.2), lineWidth: 6)
-                    Circle()
-                        .trim(from: 0, to: min(1, pct / 100))
-                        .stroke(progressColor(pct),
-                                style: StrokeStyle(lineWidth: 6, lineCap: .round))
-                        .rotationEffect(.degrees(-90))
-                    VStack(spacing: 1) {
-                        Text(String(format: "%.1f%%", pct))
-                            .font(.system(size: 17, weight: .bold, design: .rounded))
-                            .monospacedDigit()
-                        Text(snapshot.isLEVMode ? "LEV" : "lived")
-                            .font(.system(size: 10))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .frame(width: 88, height: 88)
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(snapshot.isLEVMode ? "LEV Time Remaining" : "Time Remaining")
+        if let snapshot = entry.snapshot, !snapshot.goals.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Image(systemName: "target")
+                        .font(.caption)
+                        .foregroundStyle(.blue)
+                    Text("Goals")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("\(snapshot.activeCount) active")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                }
 
-                    if cd.expired {
-                        Text("Time's up.")
-                            .font(.headline).bold()
+                ForEach(Array(snapshot.goals.prefix(3).enumerated()), id: \.offset) { _, goal in
+                    goalRow(goal)
+                }
+
+                if snapshot.overdueCount > 0 {
+                    HStack(spacing: 4) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 9))
                             .foregroundStyle(.red)
-                    } else {
-                        HStack(spacing: 3) {
-                            unit(cd.years, "Y", .blue)
-                            colon
-                            unit(cd.months, "Mo", .purple)
-                            colon
-                            unit(cd.weeks, "W", .teal)
-                            colon
-                            unit(cd.days, "D", .green)
-                            colon
-                            unit(cd.hours, "H", .yellow)
-                            colon
-                            unit(cd.minutes, "M", .orange)
-                        }
-                    }
-
-                    HStack(spacing: 16) {
-                        stat("Health", String(format: "%.0f", snapshot.healthScore), .green)
-                        stat("LE", String(format: "%.1fy", snapshot.activeLifeExpectancy), .blue)
-                        stat("Age", "\(snapshot.ageYears)", .purple)
+                        Text("\(snapshot.overdueCount) overdue")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(.red)
                     }
                 }
             }
             .containerBackground(.fill.tertiary, for: .widget)
         } else {
             HStack(spacing: 12) {
-                Image(systemName: "clock.fill")
+                Image(systemName: "target")
                     .font(.title)
                     .foregroundStyle(.secondary)
-                Text("Open MortalLoom to configure your longevity clock")
+                Text("Open MortalLoom to set your life goals")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -333,33 +266,28 @@ struct MediumWidgetView: View {
         }
     }
 
-    private func unit(_ value: Int, _ label: String, _ color: Color) -> some View {
-        VStack(spacing: 0) {
-            Text("\(value)")
-                .font(.system(size: 20, weight: .bold, design: .rounded))
-                .monospacedDigit()
-                .foregroundStyle(color)
-            Text(label)
-                .font(.system(size: 8, weight: .medium))
-                .foregroundStyle(.secondary)
-        }
-    }
+    private func goalRow(_ goal: WidgetGoal) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: categoryIcon(goal.category))
+                .font(.system(size: 10))
+                .foregroundStyle(urgencyColor(goal))
+                .frame(width: 14)
 
-    private var colon: some View {
-        Text(":")
-            .font(.system(size: 16, weight: .bold))
-            .foregroundStyle(.tertiary)
-            .padding(.bottom, 10)
-    }
+            Text(goal.title)
+                .font(.system(size: 12, weight: .medium))
+                .lineLimit(1)
 
-    private func stat(_ label: String, _ value: String, _ color: Color) -> some View {
-        VStack(spacing: 1) {
-            Text(value)
-                .font(.system(size: 14, weight: .bold, design: .rounded))
+            Spacer(minLength: 4)
+
+            if let target = goal.targetDate {
+                Text(dueDateLabel(target, from: entry.date))
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(urgencyColor(goal))
+            }
+
+            Text(String(format: "%.0f%%", goal.progressPercent))
+                .font(.system(size: 10, weight: .bold, design: .rounded))
                 .monospacedDigit()
-                .foregroundStyle(color)
-            Text(label)
-                .font(.system(size: 9))
                 .foregroundStyle(.secondary)
         }
     }
@@ -372,17 +300,31 @@ struct CircularWidgetView: View {
 
     var body: some View {
         if let snapshot = entry.snapshot {
-            let pct = snapshot.activePercentComplete
-            Gauge(value: min(1, pct / 100)) {
-                Image(systemName: snapshot.isLEVMode ? "bolt.shield.fill" : "clock.fill")
-            } currentValueLabel: {
-                Text(String(format: "%.0f%%", pct))
-                    .font(.system(size: 12, weight: .bold))
+            let overdue = snapshot.overdueCount
+            if overdue > 0 {
+                ZStack {
+                    Gauge(value: Double(overdue), in: 0...max(Double(snapshot.activeCount), 1)) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                    } currentValueLabel: {
+                        Text("\(overdue)")
+                            .font(.system(size: 14, weight: .bold))
+                    }
+                    .gaugeStyle(.accessoryCircular)
+                    .tint(.red)
+                }
+                .containerBackground(.fill.tertiary, for: .widget)
+            } else {
+                Gauge(value: Double(snapshot.activeCount), in: 0...max(Double(snapshot.activeCount), 1)) {
+                    Image(systemName: "target")
+                } currentValueLabel: {
+                    Text("\(snapshot.activeCount)")
+                        .font(.system(size: 14, weight: .bold))
+                }
+                .gaugeStyle(.accessoryCircular)
+                .containerBackground(.fill.tertiary, for: .widget)
             }
-            .gaugeStyle(.accessoryCircular)
-            .containerBackground(.fill.tertiary, for: .widget)
         } else {
-            Image(systemName: "clock.fill")
+            Image(systemName: "target")
                 .containerBackground(.fill.tertiary, for: .widget)
         }
     }
@@ -394,31 +336,28 @@ struct RectangularWidgetView: View {
     let entry: MortalLoomEntry
 
     var body: some View {
-        if let snapshot = entry.snapshot {
-            let cd = CountdownComponents(from: entry.date, to: snapshot.activeDeathDate)
+        if let snapshot = entry.snapshot, let top = snapshot.goals.first {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
-                    Image(systemName: snapshot.isLEVMode ? "bolt.shield.fill" : "clock.fill")
+                    Image(systemName: "target")
                         .font(.caption2)
-                    Text(snapshot.isLEVMode ? "MortalLoom LEV" : "MortalLoom")
+                    Text("MortalLoom")
                         .font(.caption2).bold()
                 }
 
-                if cd.expired {
-                    Text("Time's up.")
-                        .font(.headline)
-                } else {
-                    Text("\(cd.years)Y \(cd.months)Mo \(cd.weeks)W \(cd.days)D")
-                        .font(.system(.body, design: .rounded, weight: .bold))
-                        .monospacedDigit()
-                    Text(String(format: "%.1f years remaining", snapshot.activeYearsRemaining))
+                Text(top.title)
+                    .font(.system(.body, design: .rounded, weight: .bold))
+                    .lineLimit(1)
+
+                if let target = top.targetDate {
+                    Text(dueDateLabel(target, from: entry.date))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
             }
             .containerBackground(.fill.tertiary, for: .widget)
         } else {
-            Text("Configure MortalLoom")
+            Text("Set goals in MortalLoom")
                 .font(.caption)
                 .containerBackground(.fill.tertiary, for: .widget)
         }
@@ -432,12 +371,12 @@ struct InlineWidgetView: View {
 
     var body: some View {
         if let snapshot = entry.snapshot {
-            let cd = CountdownComponents(from: entry.date, to: snapshot.activeDeathDate)
-            if cd.expired {
-                Text("MortalLoom: Time's up")
+            if snapshot.overdueCount > 0 {
+                Text("\(snapshot.overdueCount) overdue goal\(snapshot.overdueCount == 1 ? "" : "s")")
+            } else if let top = snapshot.goals.first, let target = top.targetDate {
+                Text("\(top.title): \(dueDateLabel(target, from: entry.date))")
             } else {
-                let prefix = snapshot.isLEVMode ? "LEV " : ""
-                Text("\(prefix)\(cd.years)y \(cd.months)mo \(cd.weeks)w remaining")
+                Text("\(snapshot.activeCount) active goals")
             }
         } else {
             Text("MortalLoom")
@@ -454,8 +393,8 @@ struct MortalLoomWidget: Widget {
         StaticConfiguration(kind: kind, provider: MortalLoomProvider()) { entry in
             MortalLoomWidgetEntryView(entry: entry)
         }
-        .configurationDisplayName("Longevity Clock")
-        .description("Your life countdown and health score")
+        .configurationDisplayName("Goals")
+        .description("Track your life goals, deadlines, and check-ins")
         .supportedFamilies([
             .systemSmall,
             .systemMedium,

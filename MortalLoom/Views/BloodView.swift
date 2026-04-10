@@ -484,9 +484,13 @@ private struct BloodTestCardView: View {
                 }
             }
 
-            Text("Reference ranges: standard clinical laboratory values (Mayo Clinic / Quest Diagnostics)")
-                .font(.caption2)
-                .foregroundColor(.textMuted)
+            HStack(spacing: 4) {
+                Image(systemName: "book.closed.fill")
+                    .font(.caption2)
+                Text("Reference ranges: Mayo Clinic / Quest Diagnostics clinical standards")
+                    .font(.caption2)
+            }
+            .foregroundColor(.accentColor)
         }
         .padding()
         .cardStyle()
