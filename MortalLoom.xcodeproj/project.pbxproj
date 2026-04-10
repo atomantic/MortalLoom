@@ -59,6 +59,7 @@
 		5B1DCBE74E160B66EDF8B433 /* StoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9A69DB778D8C239A47B3325 /* StoreManager.swift */; };
 		5B8D85CE47286826BA6E6AC7 /* BloodTrendEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1EEC8E756E144273D6BC24A /* BloodTrendEngine.swift */; };
 		64B0B5357DF80CDAEB3370A1 /* DeathClockEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4C6F3F7D27B38D804FA5B61 /* DeathClockEngine.swift */; };
+		65116D499A11D170E85D2AFF /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 215B069F66D7F15999E101D1 /* PrivacyInfo.xcprivacy */; };
 		6B55E49F18136F5F6D016FAC /* AppearanceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 765271B94F125643F18F3646 /* AppearanceManager.swift */; };
 		6BF9BE408C71949F1E582340 /* HealthProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FCF31AF121B47E7C7DF22B1 /* HealthProfile.swift */; };
 		6DDDBC6D1AF751CD73AB2917 /* GaitEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93B5E80AB18D2FA91974ECB6 /* GaitEngine.swift */; };
@@ -115,6 +116,7 @@
 		E9CAFBE806754A59E91B2DBF /* ProBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17554F4F50A7084DE0587FE8 /* ProBadge.swift */; };
 		E9E92C07377B4F5069A8646E /* GoalsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F9ADA70E28A5E28CA55C63F /* GoalsView.swift */; };
 		ECB7A4227A693D793AA5C0FE /* SubstanceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C204F5FE0B519C1DEDB7AF47 /* SubstanceEngine.swift */; };
+		F28C81AC19C7622C2C4C4A5C /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 215B069F66D7F15999E101D1 /* PrivacyInfo.xcprivacy */; };
 		F6492A6DE3039DDD7AD27755 /* HealthProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FCF31AF121B47E7C7DF22B1 /* HealthProfile.swift */; };
 		F693696AC5E6CC72FC037C48 /* OverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86691FE1BB15DD7BDC355BE6 /* OverviewView.swift */; };
 		F70C90E5AEE5A80B621DDA0A /* OverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86691FE1BB15DD7BDC355BE6 /* OverviewView.swift */; };
@@ -196,6 +198,7 @@
 		17554F4F50A7084DE0587FE8 /* ProBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProBadge.swift; sourceTree = "<group>"; };
 		1B2CB5E984C7556ED4DE0610 /* ScreenshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotTests.swift; sourceTree = "<group>"; };
 		1F9ADA70E28A5E28CA55C63F /* GoalsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalsView.swift; sourceTree = "<group>"; };
+		215B069F66D7F15999E101D1 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		223CD2E2AB78B4665CCC4255 /* Products.storekit */ = {isa = PBXFileReference; path = Products.storekit; sourceTree = "<group>"; };
 		25A938EE48931E1A7D80455D /* MortalLoomApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MortalLoomApp.swift; sourceTree = "<group>"; };
 		29D32D124C715340FD2DC350 /* ICloudMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ICloudMonitor.swift; sourceTree = "<group>"; };
@@ -305,6 +308,7 @@
 				6106B8D7893DD34F5503FC93 /* MortalLoom-macOS.entitlements */,
 				9A913A076D3406287294E60C /* MortalLoom.entitlements */,
 				25A938EE48931E1A7D80455D /* MortalLoomApp.swift */,
+				215B069F66D7F15999E101D1 /* PrivacyInfo.xcprivacy */,
 				223CD2E2AB78B4665CCC4255 /* Products.storekit */,
 			);
 			path = App;
@@ -597,6 +601,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				95980F1A20C4AD1E940663E0 /* Assets.xcassets in Resources */,
+				65116D499A11D170E85D2AFF /* PrivacyInfo.xcprivacy in Resources */,
 				0A4B66907EB40284D5CBECD4 /* Products.storekit in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -606,6 +611,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				AD7F1DCB8D68FC9792B1F154 /* Assets.xcassets in Resources */,
+				F28C81AC19C7622C2C4C4A5C /* PrivacyInfo.xcprivacy in Resources */,
 				42C443814087787C3A0FA082 /* Products.storekit in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

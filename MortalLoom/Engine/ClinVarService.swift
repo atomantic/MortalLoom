@@ -10,14 +10,7 @@ enum ClinVarService {
 
     static let clinvarURL = "https://ftp.ncbi.nlm.nih.gov/pub/clinvar/tab_delimited/variant_summary.txt.gz"
 
-    /// Fails fast on first ClinVar access via `fatalError` if `clinvarURL` is malformed,
-    /// rather than crashing deeper inside the user's sync flow.
-    private static let downloadURL: URL = {
-        guard let url = URL(string: clinvarURL) else {
-            fatalError("ClinVarService.clinvarURL is malformed: \(clinvarURL)")
-        }
-        return url
-    }()
+    private static let downloadURL: URL? = URL(string: clinvarURL)
 
     /// Cached ISO8601 formatter — `ISO8601DateFormatter` is expensive to allocate,
     /// and sharing a single static instance avoids repeated setup work.
@@ -104,7 +97,8 @@ enum ClinVarService {
         onProgress("Downloading ClinVar database from NCBI...")
 
         // Download gzipped file to temp location
-        let (tempFileURL, response) = try await URLSession.shared.download(from: downloadURL)
+        guard let url = downloadURL else { throw ClinVarError.downloadFailed }
+        let (tempFileURL, response) = try await URLSession.shared.download(from: url)
 
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
             throw ClinVarError.downloadFailed

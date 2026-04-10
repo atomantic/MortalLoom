@@ -24,6 +24,13 @@ extension Color {
     static let success = Color.green
     static let warning = Color.orange
     static let danger = Color.red
+
+    // Table row alternating background
+    #if os(iOS)
+    static let tableRowAlt = Color(.systemGray5).opacity(0.5)
+    #else
+    static let tableRowAlt = Color(.separatorColor).opacity(0.12)
+    #endif
 }
 
 // MARK: - Shared Date Formatting

@@ -67,7 +67,10 @@ enum WidgetBridge: Sendable {
 
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
-        guard let encoded = try? encoder.encode(snapshot) else { return }
+        guard let encoded = try? encoder.encode(snapshot) else {
+            widgetLogger.error("🧩 Failed to encode widget snapshot")
+            return
+        }
         // .completeFileProtectionUntilFirstUserAuthentication — widget extensions need
         // to be able to open/read the snapshot while the device is locked after
         // the first unlock following boot, while still keeping the file encrypted

@@ -783,6 +783,11 @@ struct SettingsView: View {
                 Text("Your data stays on your device and in your iCloud — never on our servers.")
                     .font(.caption)
                     .foregroundColor(.textSecondary)
+                HStack(spacing: 16) {
+                    Link("Privacy Policy", destination: URL(string: "https://mortalloom.shadowpuppet.net/privacy.html")!)
+                    Link("Terms of Use", destination: URL(string: "https://mortalloom.shadowpuppet.net/terms.html")!)
+                }
+                .font(.caption)
             }
 
             Divider()

@@ -276,6 +276,11 @@ actor DataStore {
         let beforeNic = data.nicotineEntries.count
         let beforeSauna = data.saunaSessions.count
         let beforeMetrics = data.healthMetrics.count
+        let beforeBlood = data.bloodTests.count
+        let beforeEye = data.eyeExams.count
+        let beforeBody = data.bodyEntries.count
+        let beforeEpi = data.epigeneticTests.count
+        let beforeGoals = data.goals.count
 
         let merged = data.merged(with: decoded)
         data = merged
@@ -287,10 +292,10 @@ actor DataStore {
         let addedMetrics = merged.healthMetrics.count - beforeMetrics
         logger.info("☁️ merged iCloud update (+ \(addedDrinks) drinks, \(addedNic) nic, \(addedSauna) sauna, \(addedMetrics) metrics)")
 
-        // "Changed" = added entries OR the remote had content we didn't
-        // have mirrored locally yet. For simplicity we treat every merge
-        // as a change and let the caller debounce if needed.
         let didChange = addedDrinks != 0 || addedNic != 0 || addedSauna != 0 || addedMetrics != 0
+            || merged.bloodTests.count != beforeBlood || merged.eyeExams.count != beforeEye
+            || merged.bodyEntries.count != beforeBody || merged.epigeneticTests.count != beforeEpi
+            || merged.goals.count != beforeGoals
 
         // Mirror merged state to the local sandbox copy so the next launch
         // doesn't need to re-run the merge. Use the same protection class

@@ -234,7 +234,6 @@ struct SubstancesView: View {
         alcoholSleepCorrelation
         alcoholCustomForm
         alcoholHistory
-        manageAlcoholPresetsButton
     }
 
     // MARK: Alcohol Stats
@@ -598,12 +597,16 @@ struct SubstancesView: View {
 
     private var alcoholQuickAdd: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Quick Add")
-                .font(.headline)
-                .foregroundColor(.textPrimary)
+            HStack {
+                Text("Quick Add")
+                    .font(.headline)
+                    .foregroundColor(.textPrimary)
+                Spacer()
+                managePresetsLink { showAlcoholPresetManager = true }
+            }
 
             if alcoholPresets.isEmpty {
-                Text("No presets configured. Add some below.")
+                Text("No presets configured. Tap Manage Presets to add some.")
                     .font(.caption)
                     .foregroundColor(.textMuted)
             } else {
@@ -745,39 +748,37 @@ struct SubstancesView: View {
     // MARK: Alcohol History
 
     private var alcoholHistory: some View {
-        let grouped = Dictionary(grouping: alcoholDrinks.sorted { $0.date > $1.date }, by: \.date)
-        let sortedDates = grouped.keys.sorted(by: >)
+        let sorted = alcoholDrinks.sorted { $0.date > $1.date }
 
         return VStack(alignment: .leading, spacing: 8) {
             Text("Drink History")
                 .font(.headline)
                 .foregroundColor(.textPrimary)
 
-            if sortedDates.isEmpty {
+            if sorted.isEmpty {
                 Text("No drinks logged yet.")
                     .font(.caption)
                     .foregroundColor(.textMuted)
                     .padding(.vertical, 8)
             } else {
                 LazyVStack(spacing: 0) {
-                    ForEach(sortedDates, id: \.self) { date in
-                        Section {
-                            ForEach(grouped[date] ?? []) { drink in
-                                alcoholRow(drink)
-                            }
-                        } header: {
-                            HStack {
-                                Text(displayDate(date))
-                                    .font(.caption.bold())
-                                    .foregroundColor(.textMuted)
-                                Spacer()
-                                let dayGrams = (grouped[date] ?? []).reduce(0.0) { $0 + $1.gramsAlcohol }
-                                Text(String(format: "%.1fg", dayGrams))
-                                    .font(.caption)
-                                    .foregroundColor(.textSecondary)
-                            }
-                            .padding(.vertical, 4)
-                        }
+                    // Header row
+                    HStack(spacing: 0) {
+                        Text("Date").frame(width: 80, alignment: .leading)
+                        Text("Name").frame(maxWidth: .infinity, alignment: .leading)
+                        Text("Oz").frame(width: 44, alignment: .trailing)
+                        Text("ABV").frame(width: 48, alignment: .trailing)
+                        Text("Qty").frame(width: 32, alignment: .trailing)
+                        Text("Grams").frame(width: 52, alignment: .trailing)
+                        Text("Std").frame(width: 40, alignment: .trailing)
+                    }
+                    .font(.caption2.bold())
+                    .foregroundColor(.textMuted)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
+
+                    ForEach(Array(sorted.enumerated()), id: \.element.id) { index, drink in
+                        alcoholRow(drink, rowIndex: index)
                     }
                 }
             }
@@ -795,27 +796,31 @@ struct SubstancesView: View {
         editingDrink = drink
     }
 
-    private func alcoholRow(_ drink: AlcoholDrink) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(drink.name)
-                    .font(.subheadline)
-                    .foregroundColor(.textPrimary)
-                Text("\(String(format: "%.1f", drink.oz))oz, \(String(format: "%.1f", drink.abv))% ABV, x\(drink.count)")
-                    .font(.caption)
-                    .foregroundColor(.textMuted)
-            }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 2) {
-                Text(String(format: "%.1fg", drink.gramsAlcohol))
-                    .font(.subheadline.bold())
-                    .foregroundColor(.textPrimary)
-                Text(String(format: "%.1f std", drink.standardDrinks))
-                    .font(.caption)
-                    .foregroundColor(.textMuted)
-            }
+    private func alcoholRow(_ drink: AlcoholDrink, rowIndex: Int) -> some View {
+        HStack(spacing: 0) {
+            Text(displayDate(drink.date))
+                .frame(width: 80, alignment: .leading)
+                .lineLimit(1)
+            Text(drink.name)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .lineLimit(1)
+            Text(String(format: "%.1f", drink.oz))
+                .frame(width: 44, alignment: .trailing)
+            Text(String(format: "%.1f%%", drink.abv))
+                .frame(width: 48, alignment: .trailing)
+            Text("\(drink.count)")
+                .frame(width: 32, alignment: .trailing)
+            Text(String(format: "%.1f", drink.gramsAlcohol))
+                .frame(width: 52, alignment: .trailing)
+                .fontWeight(.semibold)
+            Text(String(format: "%.1f", drink.standardDrinks))
+                .frame(width: 40, alignment: .trailing)
         }
-        .padding(.vertical, 6)
+        .font(.caption)
+        .foregroundColor(.textPrimary)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 7)
+        .background(rowIndex.isMultiple(of: 2) ? Color.clear : Color.tableRowAlt)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(drink.name): \(String(format: "%.1f", drink.gramsAlcohol)) grams, \(String(format: "%.1f", drink.standardDrinks)) standard drinks")
@@ -837,9 +842,6 @@ struct SubstancesView: View {
         }
     }
 
-    private var manageAlcoholPresetsButton: some View {
-        managePresetsButton { showAlcoholPresetManager = true }
-    }
 
     // MARK: - Nicotine Section
 
@@ -851,7 +853,6 @@ struct SubstancesView: View {
         nicotineHeartRateCorrelation
         nicotineCustomForm
         nicotineHistory
-        manageNicotinePresetsButton
     }
 
     // MARK: Nicotine Stats
@@ -1095,12 +1096,16 @@ struct SubstancesView: View {
 
     private var nicotineQuickAdd: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Quick Add")
-                .font(.headline)
-                .foregroundColor(.textPrimary)
+            HStack {
+                Text("Quick Add")
+                    .font(.headline)
+                    .foregroundColor(.textPrimary)
+                Spacer()
+                managePresetsLink { showNicotinePresetManager = true }
+            }
 
             if nicotinePresets.isEmpty {
-                Text("No presets configured. Add some below.")
+                Text("No presets configured. Tap Manage Presets to add some.")
                     .font(.caption)
                     .foregroundColor(.textMuted)
             } else {
@@ -1223,39 +1228,35 @@ struct SubstancesView: View {
     // MARK: Nicotine History
 
     private var nicotineHistory: some View {
-        let grouped = Dictionary(grouping: nicotineEntries.sorted { $0.date > $1.date }, by: \.date)
-        let sortedDates = grouped.keys.sorted(by: >)
+        let sorted = nicotineEntries.sorted { $0.date > $1.date }
 
         return VStack(alignment: .leading, spacing: 8) {
             Text("Nicotine History")
                 .font(.headline)
                 .foregroundColor(.textPrimary)
 
-            if sortedDates.isEmpty {
+            if sorted.isEmpty {
                 Text("No entries logged yet.")
                     .font(.caption)
                     .foregroundColor(.textMuted)
                     .padding(.vertical, 8)
             } else {
                 LazyVStack(spacing: 0) {
-                    ForEach(sortedDates, id: \.self) { date in
-                        Section {
-                            ForEach(grouped[date] ?? []) { entry in
-                                nicotineRow(entry)
-                            }
-                        } header: {
-                            HStack {
-                                Text(displayDate(date))
-                                    .font(.caption.bold())
-                                    .foregroundColor(.textMuted)
-                                Spacer()
-                                let dayMg = (grouped[date] ?? []).reduce(0.0) { $0 + $1.totalMg }
-                                Text(String(format: "%.1fmg", dayMg))
-                                    .font(.caption)
-                                    .foregroundColor(.textSecondary)
-                            }
-                            .padding(.vertical, 4)
-                        }
+                    // Header row
+                    HStack(spacing: 0) {
+                        Text("Date").frame(width: 80, alignment: .leading)
+                        Text("Product").frame(maxWidth: .infinity, alignment: .leading)
+                        Text("mg/unit").frame(width: 60, alignment: .trailing)
+                        Text("Qty").frame(width: 36, alignment: .trailing)
+                        Text("Total mg").frame(width: 64, alignment: .trailing)
+                    }
+                    .font(.caption2.bold())
+                    .foregroundColor(.textMuted)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
+
+                    ForEach(Array(sorted.enumerated()), id: \.element.id) { index, entry in
+                        nicotineRow(entry, rowIndex: index)
                     }
                 }
             }
@@ -1272,22 +1273,27 @@ struct SubstancesView: View {
         editingNicotine = entry
     }
 
-    private func nicotineRow(_ entry: NicotineEntry) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(entry.product)
-                    .font(.subheadline)
-                    .foregroundColor(.textPrimary)
-                Text("\(String(format: "%.1f", entry.mgPerUnit))mg/unit, x\(entry.count)")
-                    .font(.caption)
-                    .foregroundColor(.textMuted)
-            }
-            Spacer()
-            Text(String(format: "%.1fmg", entry.totalMg))
-                .font(.subheadline.bold())
-                .foregroundColor(.textPrimary)
+    private func nicotineRow(_ entry: NicotineEntry, rowIndex: Int) -> some View {
+        HStack(spacing: 0) {
+            Text(displayDate(entry.date))
+                .frame(width: 80, alignment: .leading)
+                .lineLimit(1)
+            Text(entry.product)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .lineLimit(1)
+            Text(String(format: "%.1f", entry.mgPerUnit))
+                .frame(width: 60, alignment: .trailing)
+            Text("\(entry.count)")
+                .frame(width: 36, alignment: .trailing)
+            Text(String(format: "%.1f", entry.totalMg))
+                .frame(width: 64, alignment: .trailing)
+                .fontWeight(.semibold)
         }
-        .padding(.vertical, 6)
+        .font(.caption)
+        .foregroundColor(.textPrimary)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 7)
+        .background(rowIndex.isMultiple(of: 2) ? Color.clear : Color.tableRowAlt)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(entry.product): \(String(format: "%.1f", entry.totalMg)) milligrams total, \(String(format: "%.1f", entry.mgPerUnit)) mg per unit, \(entry.count) units")
@@ -1309,9 +1315,6 @@ struct SubstancesView: View {
         }
     }
 
-    private var manageNicotinePresetsButton: some View {
-        managePresetsButton { showNicotinePresetManager = true }
-    }
 
     // MARK: - Sauna Section
 
@@ -1323,7 +1326,6 @@ struct SubstancesView: View {
         saunaRecoveryCorrelation
         saunaCustomForm
         saunaHistory
-        manageSaunaPresetsButton
     }
 
     // MARK: Sauna Stats
@@ -1545,7 +1547,11 @@ struct SubstancesView: View {
 
     private var saunaQuickAdd: some View {
         VStack(alignment: .leading, spacing: 8) {
-            SectionLabel(text: "QUICK ADD")
+            HStack {
+                SectionLabel(text: "QUICK ADD")
+                Spacer()
+                managePresetsLink { showSaunaPresetManager = true }
+            }
             if saunaPresets.isEmpty {
                 Text("No presets. Tap Manage Presets to add some.")
                     .font(.caption)
@@ -1660,66 +1666,75 @@ struct SubstancesView: View {
 
     @ViewBuilder
     private var saunaHistory: some View {
-        let grouped = Dictionary(grouping: saunaSessions, by: \.date)
-        let sortedDates = grouped.keys.sorted(by: >)
+        let sorted = saunaSessions.sorted { $0.date > $1.date }
 
-        if !sortedDates.isEmpty {
+        if !sorted.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 SectionLabel(text: "HISTORY")
-                ForEach(sortedDates.prefix(30), id: \.self) { date in
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(displayDate(date))
-                            .font(.caption).fontWeight(.medium)
-                            .foregroundColor(.textSecondary)
-                        ForEach(grouped[date] ?? []) { session in
-                            HStack {
-                                Image(systemName: session.saunaType == .infrared ? "light.max" : "cloud.fill")
-                                    .font(.caption)
-                                    .foregroundColor(.orange)
-                                Text(session.saunaType.rawValue)
-                                    .font(.subheadline)
-                                    .foregroundColor(.textPrimary)
-                                Spacer()
-                                Text("\(session.temperatureF)\u{00B0}F")
-                                    .font(.subheadline)
-                                    .foregroundColor(.textSecondary)
-                                Text("\(session.durationMinutes) min")
-                                    .font(.subheadline)
-                                    .foregroundColor(.textPrimary)
-                            }
-                            .padding(.vertical, 6)
-                            .padding(.horizontal, 12)
-                            .background(Color.bgInput)
-                            .cornerRadius(8)
-                            .contentShape(Rectangle())
-                            .accessibilityElement(children: .combine)
-                            .accessibilityLabel("\(session.saunaType.rawValue) sauna: \(session.temperatureF) degrees Fahrenheit for \(session.durationMinutes) minutes")
-                            .accessibilityHint("Tap to edit")
-                            .accessibilityAddTraits(.isButton)
-                            .onTapGesture { startEditingSauna(session) }
-                            .contextMenu {
-                                Button { startEditingSauna(session) } label: {
-                                    Label("Edit", systemImage: "pencil")
-                                }
-                                Button(role: .destructive) {
-                                    Task {
-                                        await DataStore.shared.removeSaunaSession(id: session.id)
-                                        await loadData()
-                                    }
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
-                        }
+                LazyVStack(spacing: 0) {
+                    // Header row
+                    HStack(spacing: 0) {
+                        Text("Date").frame(width: 80, alignment: .leading)
+                        Text("Type").frame(maxWidth: .infinity, alignment: .leading)
+                        Text("Temp").frame(width: 56, alignment: .trailing)
+                        Text("Duration").frame(width: 64, alignment: .trailing)
+                    }
+                    .font(.caption2.bold())
+                    .foregroundColor(.textMuted)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
+
+                    ForEach(Array(sorted.prefix(30).enumerated()), id: \.element.id) { index, session in
+                        saunaRow(session, rowIndex: index)
                     }
                 }
             }
         }
     }
 
-    private var manageSaunaPresetsButton: some View {
-        managePresetsButton { showSaunaPresetManager = true }
+    private func saunaRow(_ session: SaunaSession, rowIndex: Int) -> some View {
+        HStack(spacing: 0) {
+            Text(displayDate(session.date))
+                .frame(width: 80, alignment: .leading)
+                .lineLimit(1)
+            HStack(spacing: 4) {
+                Image(systemName: session.saunaType == .infrared ? "light.max" : "cloud.fill")
+                    .font(.caption2)
+                    .foregroundColor(.orange)
+                Text(session.saunaType.rawValue)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Text("\(session.temperatureF)\u{00B0}F")
+                .frame(width: 56, alignment: .trailing)
+            Text("\(session.durationMinutes) min")
+                .frame(width: 64, alignment: .trailing)
+        }
+        .font(.caption)
+        .foregroundColor(.textPrimary)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 7)
+        .background(rowIndex.isMultiple(of: 2) ? Color.clear : Color.tableRowAlt)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(session.saunaType.rawValue) sauna: \(session.temperatureF) degrees Fahrenheit for \(session.durationMinutes) minutes")
+        .accessibilityHint("Tap to edit")
+        .accessibilityAddTraits(.isButton)
+        .onTapGesture { startEditingSauna(session) }
+        .contextMenu {
+            Button { startEditingSauna(session) } label: {
+                Label("Edit", systemImage: "pencil")
+            }
+            Button(role: .destructive) {
+                Task {
+                    await DataStore.shared.removeSaunaSession(id: session.id)
+                    await loadData()
+                }
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
     }
+
 
     // MARK: Sauna Edit Sheet
 
@@ -1792,22 +1807,14 @@ struct SubstancesView: View {
 
     // MARK: - Shared UI Components
 
-    private func managePresetsButton(action: @escaping () -> Void) -> some View {
+    private func managePresetsLink(action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack {
+            HStack(spacing: 4) {
                 Image(systemName: "slider.horizontal.3")
                 Text("Manage Presets")
             }
-            .font(.subheadline)
+            .font(.caption)
             .foregroundColor(.accentColor)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
-            .background(Color.bgInput)
-            .cornerRadius(8)
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.cardBorder, lineWidth: 1)
-            )
         }
         .buttonStyle(.plain)
     }

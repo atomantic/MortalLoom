@@ -503,22 +503,23 @@ struct LifestyleView: View {
 
     @ViewBuilder
     private func impactCard(icon: String, title: String, value: Double, detail: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Image(systemName: icon)
-                    .foregroundColor(.textSecondary)
-                    .font(.caption)
-                Spacer()
-                Text(formatYears(value))
-                    .font(.subheadline).fontWeight(.bold)
-                    .foregroundColor(impactColor(value))
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .foregroundColor(.textSecondary)
+                .font(.caption)
+                .frame(width: 16)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption).fontWeight(.medium)
+                    .foregroundColor(.textPrimary)
+                Text(detail)
+                    .font(.caption2)
+                    .foregroundColor(.textMuted)
             }
-            Text(title)
-                .font(.caption).fontWeight(.medium)
-                .foregroundColor(.textPrimary)
-            Text(detail)
-                .font(.caption2)
-                .foregroundColor(.textMuted)
+            Spacer(minLength: 4)
+            Text(formatYears(value))
+                .font(.subheadline).fontWeight(.bold)
+                .foregroundColor(impactColor(value))
         }
         .padding(10)
         .background(Color.bgInput)

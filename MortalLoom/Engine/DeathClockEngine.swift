@@ -166,7 +166,7 @@ enum DeathClockEngine {
         let deathDate = Calendar.current.date(byAdding: .day, value: Int((total - ageFraction) * 365.25), to: now) ?? now
         let yearsRemaining = max(0, total - ageFraction)
         let healthyYearsRemaining = max(0, yearsRemaining - 10) // Rough estimate: last 10 years may have declining health
-        let percentComplete = min(100, (ageFraction / total) * 100)
+        let percentComplete = total > 0 ? min(100, (ageFraction / total) * 100) : 100
 
         return DeathClockResult(
             deathDate: deathDate,
@@ -318,11 +318,11 @@ enum DeathClockEngine {
     }
 
     static func bmiImpact(_ bmi: Double?) -> Double {
-        guard let bmi else { return 0 }
+        guard let bmi, bmi > 0 else { return 0 }
+        if bmi < 18.5 { return -1.5 }
         if bmi >= 18.5 && bmi < 25 { return 0.5 }
-        else if bmi >= 25 && bmi < 30 { return -0.5 }
-        else if bmi >= 30 { return -3 }
-        return 0
+        if bmi >= 25 && bmi < 30 { return -0.5 }
+        return -3
     }
 
     // MARK: - Health Metrics Longevity Adjustment
