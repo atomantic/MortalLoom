@@ -70,7 +70,7 @@ final class ScreenshotTests: XCTestCase {
 
     /// Shared capture sequence used by both iPhone and iPad tests. The nav flow
     /// is identical on both idioms: 4 pages live in the bottom tab bar
-    /// (Overview, Goals, Habits, Body) and the rest are reached through the
+    /// (Overview, Goals, Calendar, Habits) and the rest are reached through the
     /// "More" button which opens the side menu.
     private func captureAppStoreScreenshots() {
         saveScreenshot("01_overview")
@@ -85,25 +85,25 @@ final class ScreenshotTests: XCTestCase {
         tapCustomTab("Goals")
         saveScreenshot("03_goals")
 
+        tapCustomTab("Calendar")
+        saveScreenshot("04_calendar")
+
         tapCustomTab("Habits")
-        saveScreenshot("04_habits_alcohol")
+        saveScreenshot("05_habits_alcohol")
 
         if app.buttons["Nicotine"].waitForExistence(timeout: 2) {
             app.buttons["Nicotine"].tap()
             Thread.sleep(forTimeInterval: 1)
-            saveScreenshot("05_habits_nicotine")
+            saveScreenshot("06_habits_nicotine")
         }
 
-        tapCustomTab("Body")
-        saveScreenshot("06_body")
+        openSideMenu()
+        tapSideMenuItem("Body")
+        saveScreenshot("07_body")
 
         openSideMenu()
         tapSideMenuItem("Blood")
-        saveScreenshot("07_blood")
-
-        openSideMenu()
-        tapSideMenuItem("Calendar")
-        saveScreenshot("08_calendar")
+        saveScreenshot("08_blood")
 
         openSideMenu()
         tapSideMenuItem("Sleep")

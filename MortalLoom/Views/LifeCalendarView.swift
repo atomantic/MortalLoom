@@ -11,6 +11,10 @@ struct LifeCalendarView: View {
     @State private var projectedWeekSet: Set<Int> = []
     @State private var tooltipInfo: CellTooltip?
     @State private var isLoaded = false
+    /// When false, lived weeks/months/years are rendered the same as future
+    /// (empty) cells — the grid becomes a forward-looking planning surface.
+    /// Defaults to hiding past time so goals stand out against remaining years.
+    @State private var showLived: Bool = false
 
     private struct CellTooltip: Equatable {
         let age: Int
@@ -294,12 +298,26 @@ struct LifeCalendarView: View {
 
     @ViewBuilder
     private var viewModePicker: some View {
-        Picker("View", selection: $viewMode) {
-            ForEach(ViewMode.allCases, id: \.self) { mode in
-                Text(mode.rawValue).tag(mode)
+        VStack(spacing: 8) {
+            Picker("View", selection: $viewMode) {
+                ForEach(ViewMode.allCases, id: \.self) { mode in
+                    Text(mode.rawValue).tag(mode)
+                }
             }
+            .pickerStyle(.segmented)
+
+            Toggle(isOn: $showLived) {
+                HStack(spacing: 6) {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .font(.caption)
+                    Text("Show lived time")
+                        .font(.caption)
+                }
+                .foregroundColor(.textSecondary)
+            }
+            .toggleStyle(.switch)
+            .controlSize(.mini)
         }
-        .pickerStyle(.segmented)
     }
 
     // MARK: - Years Grid
@@ -321,7 +339,9 @@ struct LifeCalendarView: View {
                 Spacer()
             }
 
-            Text("\(currentAgeYear) years lived, \(String(format: "%.1f", yearsRemaining)) remaining.")
+            Text(showLived
+                 ? "\(currentAgeYear) years lived, \(String(format: "%.1f", yearsRemaining)) remaining."
+                 : "\(String(format: "%.1f", yearsRemaining)) years remaining. Plan your goals below.")
                 .font(.caption)
                 .foregroundColor(.textSecondary)
 
@@ -380,9 +400,9 @@ struct LifeCalendarView: View {
         if isCurrent { return .accentColor }
         if isGoalTarget { return .teal }
         if isProjected { return .teal.opacity(0.5) }
-        if isMilestone && isSpent { return .purple.opacity(0.5) }
-        if isMilestone { return .purple.opacity(0.3) }
-        if isSpent { return .textPrimary.opacity(0.25) }
+        if isMilestone && isSpent && showLived { return .purple.opacity(0.5) }
+        if isMilestone && !isSpent { return .purple.opacity(0.3) }
+        if isSpent && showLived { return .textPrimary.opacity(0.25) }
         return .cardBorder.opacity(0.15)
     }
 
@@ -401,7 +421,9 @@ struct LifeCalendarView: View {
                 Spacer()
             }
 
-            Text("\(currentMonth) months lived, \(monthsRemaining) remaining.")
+            Text(showLived
+                 ? "\(currentMonth) months lived, \(monthsRemaining) remaining."
+                 : "\(monthsRemaining) months remaining. Plan your goals below.")
                 .font(.caption)
                 .foregroundColor(.textSecondary)
 
@@ -507,9 +529,9 @@ struct LifeCalendarView: View {
                     let expand: CGFloat = cellSize * 0.1
                     let expandedRect = CGRect(x: x - expand / 2, y: y - expand / 2, width: cellSize + expand, height: cellSize + expand)
                     context.fill(Path(roundedRect: expandedRect, cornerRadius: cornerRadius), with: projectedShading)
-                } else if milestoneMonths.contains(monthIndex) {
+                } else if milestoneMonths.contains(monthIndex) && (showLived || monthIndex >= currentMonth) {
                     context.fill(path, with: milestoneShading)
-                } else if monthIndex < currentMonth {
+                } else if monthIndex < currentMonth && showLived {
                     context.fill(path, with: spentShading)
                 } else if monthIndex < totalMonths {
                     context.stroke(path, with: futureStrokeShading, lineWidth: 0.5)
@@ -533,7 +555,9 @@ struct LifeCalendarView: View {
                 Spacer()
             }
 
-            Text("Each square = 1 week. \(formatLargeNumber(currentWeek)) weeks lived, \(formatLargeNumber(weeksRemaining)) remaining.")
+            Text(showLived
+                 ? "Each square = 1 week. \(formatLargeNumber(currentWeek)) weeks lived, \(formatLargeNumber(weeksRemaining)) remaining."
+                 : "Each square = 1 week remaining. \(formatLargeNumber(weeksRemaining)) weeks to plan.")
                 .font(.caption)
                 .foregroundColor(.textSecondary)
 
@@ -594,7 +618,9 @@ struct LifeCalendarView: View {
     @ViewBuilder
     private var yearMonthLegend: some View {
         HStack(spacing: 12) {
-            legendItem(color: .textPrimary.opacity(0.25), label: "Lived")
+            if showLived {
+                legendItem(color: .textPrimary.opacity(0.25), label: "Lived")
+            }
             legendItem(color: .accentColor, label: "Now")
             legendItem(color: .clear, borderColor: .cardBorder.opacity(0.2), label: "Future")
             legendItem(color: .purple.opacity(0.4), label: "Milestone")
@@ -608,7 +634,9 @@ struct LifeCalendarView: View {
     @ViewBuilder
     private var weeksLegend: some View {
         HStack(spacing: 12) {
-            legendItem(color: .textPrimary.opacity(0.25), label: "Lived")
+            if showLived {
+                legendItem(color: .textPrimary.opacity(0.25), label: "Lived")
+            }
             legendItem(color: .accentColor, label: "This Week")
             legendItem(color: .clear, borderColor: .cardBorder.opacity(0.2), label: "Future")
             legendItem(color: .purple.opacity(0.5), label: "Milestone")
@@ -687,11 +715,11 @@ struct LifeCalendarView: View {
                     let expand: CGFloat = cellSize * 0.15
                     let expandedRect = CGRect(x: x - expand / 2, y: y - expand / 2, width: cellSize + expand, height: cellSize + expand)
                     context.fill(Path(roundedRect: expandedRect, cornerRadius: cornerRadius * 1.1), with: projectedShading)
-                } else if milestoneWeeks.contains(weekIndex) {
+                } else if milestoneWeeks.contains(weekIndex) && (showLived || weekIndex >= currentWeek) {
                     context.fill(path, with: milestoneShading)
                 } else if weekIndex == totalWeeks {
                     context.fill(path, with: deathShading)
-                } else if weekIndex < currentWeek {
+                } else if weekIndex < currentWeek && showLived {
                     context.fill(path, with: spentShading)
                 } else {
                     context.stroke(path, with: futureStrokeShading, lineWidth: 0.5)

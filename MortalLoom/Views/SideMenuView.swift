@@ -49,7 +49,7 @@ enum AppPage: Int, CaseIterable, Hashable {
     }
 
     // Pages shown in the bottom tab bar; the "More" button is rendered separately.
-    static let tabBarPages: [AppPage] = [.overview, .goals, .habits, .body]
+    static let tabBarPages: [AppPage] = [.overview, .goals, .calendar, .habits]
 }
 
 // MARK: - Side Menu Sections
