@@ -303,7 +303,7 @@ struct WeeklyReviewSheet: View {
     /// before promising anything new.
     private func previousCommitments() -> [String]? {
         guard let apex else { return nil }
-        return apex.checkIns.reversed().first(where: { !$0.commitments.isEmpty })?.commitments
+        return apex.checkIns.last(where: { !$0.commitments.isEmpty })?.commitments
     }
 
     // MARK: Footer

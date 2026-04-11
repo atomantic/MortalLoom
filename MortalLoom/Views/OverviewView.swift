@@ -124,42 +124,58 @@ struct OverviewView: View {
         }
     }
 
+    // Narrow and wide stacks share the same top-of-page (setup recovery,
+    // goal prompt, weekly review CTA, attention card), the same health
+    // summary section, and the same recommendations card. Only the runway
+    // detail layout differs — wide puts death-clock and LE factors side
+    // by side; narrow stacks them. The shared chunks live in
+    // `topChromeStack` and `bottomChromeStack` so they only exist once.
+
+    @ViewBuilder
+    private var topChromeStack: some View {
+        if needsSetupRecovery { finishSetupBanner }
+        goalPromptCard
+        if WeeklyReview.isDue && apexGoal != nil { weeklyReviewCTA }
+        if !cachedStagnationSignals.isEmpty { attentionCard }
+
+        // Runway strip — compact summary of time remaining, expandable
+        // to the full longevity clock / LEV / factors detail.
+        collapsibleHeader(
+            title: "YOUR RUNWAY",
+            subtitle: runwaySubtitle,
+            expanded: $runwayExpanded
+        )
+    }
+
+    @ViewBuilder
+    private var bottomChromeStack: some View {
+        // Health summary — vital stats + health grid. Collapsible for
+        // users whose North Star doesn't touch health; they can still
+        // open it on demand.
+        collapsibleHeader(
+            title: "HEALTH SUMMARY",
+            subtitle: nil,
+            expanded: $healthExpanded
+        )
+        if healthExpanded {
+            vitalStatsRow
+            healthGrid
+        }
+
+        if !cachedRecommendations.isEmpty { recommendationsCard }
+    }
+
     @ViewBuilder
     private var narrowContentStack: some View {
         VStack(spacing: 16) {
-            if needsSetupRecovery { finishSetupBanner }
-            goalPromptCard
-            if WeeklyReview.isDue && apexGoal != nil { weeklyReviewCTA }
-            if !cachedStagnationSignals.isEmpty { attentionCard }
-
-            // Runway strip — compact summary of time remaining, expandable
-            // to the full longevity clock / LEV / factors detail.
-            collapsibleHeader(
-                title: "YOUR RUNWAY",
-                subtitle: runwaySubtitle,
-                expanded: $runwayExpanded
-            )
+            topChromeStack
             if runwayExpanded {
                 if let lev { levCard(lev) }
                 deathClockCard
                 if deathClock != nil { lifeExpectancyFactorsCard }
                 if let dc = deathClock { lifetimeHealthChart(dc) }
             }
-
-            // Health summary — vital stats + health grid. Collapsible for
-            // users whose North Star doesn't touch health; they can still
-            // open it on demand.
-            collapsibleHeader(
-                title: "HEALTH SUMMARY",
-                subtitle: nil,
-                expanded: $healthExpanded
-            )
-            if healthExpanded {
-                vitalStatsRow
-                healthGrid
-            }
-
-            if !cachedRecommendations.isEmpty { recommendationsCard }
+            bottomChromeStack
         }
     }
 
@@ -222,16 +238,7 @@ struct OverviewView: View {
     @ViewBuilder
     private var wideContentStack: some View {
         VStack(spacing: 16) {
-            if needsSetupRecovery { finishSetupBanner }
-            goalPromptCard
-            if WeeklyReview.isDue && apexGoal != nil { weeklyReviewCTA }
-            if !cachedStagnationSignals.isEmpty { attentionCard }
-
-            collapsibleHeader(
-                title: "YOUR RUNWAY",
-                subtitle: runwaySubtitle,
-                expanded: $runwayExpanded
-            )
+            topChromeStack
             if runwayExpanded {
                 if let lev { levCard(lev) }
                 HStack(alignment: .top, spacing: 16) {
@@ -245,18 +252,7 @@ struct OverviewView: View {
                         .frame(maxWidth: .infinity)
                 }
             }
-
-            collapsibleHeader(
-                title: "HEALTH SUMMARY",
-                subtitle: nil,
-                expanded: $healthExpanded
-            )
-            if healthExpanded {
-                vitalStatsRow
-                healthGrid
-            }
-
-            if !cachedRecommendations.isEmpty { recommendationsCard }
+            bottomChromeStack
         }
     }
 

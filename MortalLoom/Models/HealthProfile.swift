@@ -83,4 +83,11 @@ enum CountdownMode: String, Codable, Sendable, CaseIterable {
     case lev = "LEV"
 
     var pickerLabel: String { rawValue }
+
+    /// Short explainer strings shared by every place the Standard-vs-LEV
+    /// toggle appears (Calendar info popover, Settings countdown footnote,
+    /// future widget configuration). Keeping them here prevents the copy
+    /// from drifting as new surfaces adopt the toggle.
+    static let standardBlurb = "Standard: SSA actuarial life expectancy + lifestyle adjustments."
+    static let levBlurb = "LEV: Assumes longevity-escape-velocity therapies kick in around 2045 and extend lifespan to your target age."
 }

@@ -26,12 +26,9 @@ struct ReportsView: View {
     @State private var habitStats: [UUID: HabitStats] = [:]
     /// Goal being checked in from a tapped stagnation row or pillar.
     @State private var checkInGoal: Goal?
-    /// Goal being opened for edit (child-add / muted signals).
-    @State private var editingGoal: Goal?
     /// Sheet trigger for the new-goal flow from empty-state CTAs.
     @State private var showAddGoal = false
     @State private var newGoalDefaultType: GoalType?
-    @State private var newGoalDefaultParent: UUID?
     /// Sheet trigger for adding a habit from an empty-state CTA.
     @State private var showAddHabit = false
 
@@ -60,38 +57,16 @@ struct ReportsView: View {
                 }
             }
         }
-        .sheet(item: $editingGoal) { goal in
-            GoalEditSheet(
-                goal: goal,
-                allGoals: data.goals,
-                onSave: { updated in
-                    Task {
-                        await DataStore.shared.updateGoal(updated)
-                        await loadData()
-                    }
-                },
-                onDelete: {
-                    Task {
-                        await DataStore.shared.removeGoal(id: goal.id)
-                        await loadData()
-                    }
-                },
-                onAddChild: { newChild in
-                    Task {
-                        await DataStore.shared.addGoal(newChild)
-                        await loadData()
-                    }
-                }
-            )
-        }
         .sheet(isPresented: $showAddGoal) {
+            // GoalEditSheet's init auto-parents new standard goals to the
+            // active apex when no parent is passed, so we don't need to
+            // wire parent explicitly from Reports empty-state CTAs.
             GoalEditSheet(
                 goal: nil,
                 allGoals: data.goals,
                 defaultGoalType: newGoalDefaultType,
                 defaultHorizon: newGoalDefaultType == .apex ? .lifetime : nil,
                 defaultPriority: .high,
-                defaultParentId: newGoalDefaultParent,
                 onSave: { newGoal in
                     Task {
                         await DataStore.shared.addGoal(newGoal)
@@ -222,7 +197,6 @@ struct ReportsView: View {
                     ctaIcon: "plus.circle"
                 ) {
                     newGoalDefaultType = apexGoal == nil ? .apex : .standard
-                    newGoalDefaultParent = apexGoal?.id
                     showAddGoal = true
                 }
             }
@@ -347,7 +321,6 @@ struct ReportsView: View {
                     ctaIcon: "plus.circle"
                 ) {
                     newGoalDefaultType = apexGoal == nil ? .apex : .subApex
-                    newGoalDefaultParent = apexGoal?.id
                     showAddGoal = true
                 }
             } else {
@@ -534,7 +507,7 @@ struct ReportsView: View {
 
         for weekOffset in stride(from: weeks - 1, through: 0, by: -1) {
             guard let weekDate = calendar.date(byAdding: .weekOfYear, value: -weekOffset, to: now) else { continue }
-            let weekStart = calendar.date(from: calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: weekDate)) ?? weekDate
+            let weekStart = HabitEngine.startOfWeek(weekDate, calendar: calendar)
             let weekEnd = calendar.date(byAdding: .day, value: 7, to: weekStart) ?? weekDate
 
             let progressAvg = averageProgressFromCheckIns(leaves, through: weekEnd)

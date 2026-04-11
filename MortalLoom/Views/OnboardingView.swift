@@ -67,7 +67,6 @@ struct OnboardingView: View {
 
     // MARK: - Top Bar (back button)
 
-    @ViewBuilder
     private var topBar: some View {
         HStack {
             if currentStep > 0 {
@@ -740,7 +739,7 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Step 2: Apex Goal
+    // MARK: - Step 2: Apex Goal (tag 2)
 
     @ViewBuilder
     private var apexGoalStep: some View {
@@ -829,7 +828,7 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Step 3: First Reflection
+    // MARK: - Step 3: First Reflection (tag 3)
 
     /// Seed the Reflections journal with an initial reflection on the new
     /// North Star. The user answers one question and rates their current

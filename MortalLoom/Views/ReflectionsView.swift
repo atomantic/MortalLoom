@@ -49,6 +49,9 @@ struct ReflectionsView: View {
     /// Cached list of reflection-shaped check-ins. Rebuilt on loadData so
     /// the view body doesn't re-walk all goals × checkIns × sort per render.
     @State private var allReflections: [ReflectionEntry] = []
+    /// Cached "You've reflected N times across M weeks." string, rebuilt
+    /// in loadData so the header doesn't re-bucket ISO-weeks per render.
+    @State private var streakText: String?
     @State private var filter: ReflectionFilter = .all
     @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
 
@@ -82,6 +85,22 @@ struct ReflectionsView: View {
         entries.sort { $0.checkIn.date > $1.checkIn.date }
         data = loaded
         allReflections = entries
+        streakText = Self.buildStreakText(from: entries)
+    }
+
+    /// "You've reflected 23 times across 21 weeks." — pre-computed in
+    /// loadData so the view body doesn't re-bucket ISO-weeks per render.
+    private static func buildStreakText(from entries: [ReflectionEntry]) -> String? {
+        guard !entries.isEmpty else { return nil }
+        let count = entries.count
+        let weekAnchors: Set<Date> = Set(entries.compactMap { entry in
+            guard let date = DateFormatting.dateFromString(entry.checkIn.date) else { return nil }
+            return HabitEngine.startOfWeek(date)
+        })
+        let weeks = weekAnchors.count
+        let timesWord = count == 1 ? "time" : "times"
+        let weekWord = weeks == 1 ? "week" : "weeks"
+        return "You've reflected \(count) \(timesWord) across \(weeks) \(weekWord)."
     }
 
     private var filteredEntries: [ReflectionEntry] {
@@ -109,7 +128,7 @@ struct ReflectionsView: View {
                     .font(.headline).monospacedDigit()
                     .foregroundColor(.textMuted)
             }
-            if let streakText = reflectionsStreakText {
+            if let streakText {
                 Text(streakText)
                     .font(.caption).fontWeight(.semibold)
                     .foregroundColor(.accentColor)
@@ -122,23 +141,6 @@ struct ReflectionsView: View {
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
-    }
-
-    /// "You've reflected 23 times across 21 weeks. Keep going." — turns the
-    /// journal from a data dump into a momentum signal.
-    private var reflectionsStreakText: String? {
-        guard !allReflections.isEmpty else { return nil }
-        let count = allReflections.count
-        let calendar = Calendar.current
-        let weekKeys: Set<String> = Set(allReflections.compactMap { entry in
-            guard let date = DateFormatting.dateFromString(entry.checkIn.date) else { return nil }
-            let comp = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
-            return "\(comp.yearForWeekOfYear ?? 0)-\(comp.weekOfYear ?? 0)"
-        })
-        let weeks = weekKeys.count
-        let suffix = count == 1 ? "time" : "times"
-        let weekWord = weeks == 1 ? "week" : "weeks"
-        return "You've reflected \(count) \(suffix) across \(weeks) \(weekWord)."
     }
 
     private var filterPicker: some View {

@@ -414,10 +414,11 @@ struct SettingsView: View {
                     .foregroundColor(.textMuted)
                     .font(.caption)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Standard: SSA actuarial life expectancy + lifestyle adjustments")
+                    Text(CountdownMode.standardBlurb)
                         .font(.system(size: 10))
                         .foregroundColor(.textMuted)
-                    Text("LEV: Assumes longevity-escape-velocity therapies kick in around 2045 and extend lifespan to your target age.")
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(CountdownMode.levBlurb)
                         .font(.system(size: 10))
                         .foregroundColor(.textMuted)
                         .fixedSize(horizontal: false, vertical: true)

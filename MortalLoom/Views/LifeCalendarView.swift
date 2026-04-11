@@ -267,10 +267,11 @@ struct LifeCalendarView: View {
                         VStack(alignment: .leading, spacing: 10) {
                             Text("Longevity Escape Velocity")
                                 .font(.subheadline).fontWeight(.semibold)
-                            Text("Standard shows your projected life expectancy based on actuarial tables adjusted for your lifestyle.")
+                            Text(CountdownMode.standardBlurb)
                                 .font(.caption)
                                 .foregroundColor(.textSecondary)
-                            Text("LEV assumes geroscience and AI-driven diagnostics keep adding years faster than you age, kicking in around 2045. Reach that date in good health and the math tilts in your favor.")
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text(CountdownMode.levBlurb)
                                 .font(.caption)
                                 .foregroundColor(.textSecondary)
                                 .fixedSize(horizontal: false, vertical: true)

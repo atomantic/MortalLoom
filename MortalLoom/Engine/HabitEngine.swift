@@ -16,7 +16,10 @@ enum HabitEngine {
     }
 
     /// Start of the ISO week containing `date` (Monday-anchored by default).
-    private static func startOfWeek(_ date: Date, calendar: Calendar = .current) -> Date {
+    /// Exposed internal so views that need to bucket dates by ISO week
+    /// (Reflections streak header, Reports alignment trend) can share
+    /// the same bucketing logic instead of re-deriving it.
+    static func startOfWeek(_ date: Date, calendar: Calendar = .current) -> Date {
         var cal = calendar
         cal.firstWeekday = 2 // Monday
         let components = cal.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
