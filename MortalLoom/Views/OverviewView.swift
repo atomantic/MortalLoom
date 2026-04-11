@@ -55,7 +55,13 @@ struct OverviewView: View {
         }
         .sheet(isPresented: $showCitations) { CitationsView() }
         .sheet(isPresented: $showAddGoal) {
-            GoalEditSheet(goal: nil, allGoals: data.goals) { newGoal in
+            GoalEditSheet(
+                goal: nil,
+                allGoals: data.goals,
+                defaultGoalType: .apex,
+                defaultHorizon: .lifetime,
+                defaultPriority: .high
+            ) { newGoal in
                 Task {
                     await DataStore.shared.addGoal(newGoal)
                     await loadData()

@@ -751,6 +751,7 @@ struct GoalEditSheet: View {
     @State private var showDeleteConfirm = false
     @State private var showCalendarScheduler = false
     @State private var scheduleMessage: String?
+    @State private var showGoalHint = false
 
     private struct MilestoneRow: Identifiable {
         let id: UUID
@@ -758,7 +759,15 @@ struct GoalEditSheet: View {
         var completed: Bool
     }
 
-    init(goal: Goal?, allGoals: [Goal] = [], onSave: @escaping (Goal) -> Void, onDelete: (() -> Void)? = nil) {
+    init(
+        goal: Goal?,
+        allGoals: [Goal] = [],
+        defaultGoalType: GoalType? = nil,
+        defaultHorizon: GoalHorizon? = nil,
+        defaultPriority: GoalPriority? = nil,
+        onSave: @escaping (Goal) -> Void,
+        onDelete: (() -> Void)? = nil
+    ) {
         self.goal = goal
         self.allGoals = allGoals
         self.onSave = onSave
@@ -771,24 +780,64 @@ struct GoalEditSheet: View {
             if let t = g?.targetDate { return DateFormatting.dateFromString(t) ?? Date() }
             return Calendar.current.date(byAdding: .year, value: 1, to: Date()) ?? Date()
         }())
-        _priority = State(initialValue: g?.priority ?? .medium)
+        _priority = State(initialValue: g?.priority ?? defaultPriority ?? .medium)
         _checkInInterval = State(initialValue: g?.checkInIntervalDays ?? 7)
         _milestoneTexts = State(initialValue: g?.milestones.map {
             MilestoneRow(id: $0.id, text: $0.title, completed: $0.completed)
         } ?? [])
         _parentId = State(initialValue: g?.parentId)
-        _horizon = State(initialValue: g?.horizon)
+        _horizon = State(initialValue: g?.horizon ?? defaultHorizon)
         _category = State(initialValue: g?.category)
-        _goalType = State(initialValue: g?.goalType)
+        _goalType = State(initialValue: g?.goalType ?? defaultGoalType)
+    }
+
+    /// Placeholder text and hint example adapt to the selected goal type.
+    private var goalTitlePlaceholder: String {
+        switch goalType {
+        case .apex: return "e.g. Live Healthy for as Long as Possible"
+        case .subApex: return "e.g. Build strong physical fitness"
+        case .standard, .none: return "What do you want to achieve?"
+        }
+    }
+
+    private var goalHintExample: String {
+        switch goalType {
+        case .apex:
+            return "A North Star is your single biggest life ambition — broad and lifelong. Examples:\n\n• Live healthy for as long as possible\n• Leave a lasting creative legacy\n• Raise a loving, resilient family"
+        case .subApex:
+            return "A Life Pillar is a major area that supports your North Star. Examples:\n\n• Build strong physical fitness\n• Achieve financial independence\n• Develop deep expertise in my craft"
+        case .standard, .none:
+            return "A goal is something concrete you want to achieve by a target date. Examples:\n\n• Run a half-marathon this fall\n• Publish my first novel\n• Save $20,000 for a down payment"
+        }
     }
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Goal") {
-                    TextField("What do you want to achieve?", text: $title)
+                Section {
+                    TextField(goalTitlePlaceholder, text: $title)
                     TextField("Notes (optional)", text: $notes, axis: .vertical)
                         .lineLimit(3...6)
+                } header: {
+                    HStack(spacing: 6) {
+                        Text("Goal")
+                        Button {
+                            showGoalHint.toggle()
+                        } label: {
+                            Image(systemName: "info.circle")
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Goal examples")
+                        .popover(isPresented: $showGoalHint, arrowEdge: .bottom) {
+                            Text(goalHintExample)
+                                .font(.footnote)
+                                .foregroundColor(.textPrimary)
+                                .padding()
+                                .frame(maxWidth: 280, alignment: .leading)
+                                .presentationCompactAdaptation(.popover)
+                        }
+                    }
                 }
 
                 Section("Classification") {
