@@ -832,9 +832,11 @@ struct GoalEditSheet: View {
                         .popover(isPresented: $showGoalHint, arrowEdge: .bottom) {
                             Text(goalHintExample)
                                 .font(.footnote)
-                                .foregroundColor(.textPrimary)
+                                .foregroundColor(.primary)
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
                                 .padding()
-                                .frame(maxWidth: 280, alignment: .leading)
+                                .frame(width: 300, alignment: .leading)
                                 .presentationCompactAdaptation(.popover)
                         }
                     }
