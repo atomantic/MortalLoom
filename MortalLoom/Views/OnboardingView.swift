@@ -125,7 +125,14 @@ struct OnboardingView: View {
     @ViewBuilder
     private var welcomeStep: some View {
         stepContainer {
-            stepIcon("heart.text.clipboard")
+            Image("AppLogo")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 96, height: 96)
+                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
+                .padding(.bottom, 8)
+                .accessibilityHidden(true)
             stepTitle("Welcome to MortalLoom")
             stepDescription("Plan your life around what matters. Track your health, set goals with real deadlines, and make every year count.")
 

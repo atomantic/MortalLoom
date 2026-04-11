@@ -18,6 +18,8 @@ Pods/
 # Screenshots
 screenshots/
 *.png
+# …except asset catalog images — those must ship with the app.
+!MortalLoom/App/Assets.xcassets/**/*.png
 
 # Screenshot config (temp files from take_screenshots.sh)
 .screenshot_config.json
