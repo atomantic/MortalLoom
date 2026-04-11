@@ -282,6 +282,128 @@ Screenshots used in this audit are kept in `/tmp/mortalloom-ux-audit/` during th
 
 
 
+## Daily Engagement Loop & Polish — 2026-04-11 (PARTIAL)
+
+The goal-alignment reframing shipped the weekly cadence (Weekly Review, Reflections page, Reports). What's missing is the **daily** and **monthly** rhythm plus the polish that makes the weekly loop feel coherent. Without the daily touchpoint the app has no reason to be opened between Sunday reviews; without the monthly rethink the goals tree ossifies. This section also clears the deferred friction items from the UX audit and the technical debt flagged in Better Swift.
+
+**First pass shipped** (2026-04-11): URL scheme + `DeepLinkRouter`, daily post-habit nudge, Overview daily-streak chip, `StagnationEngine` severity escalation with `daysOverdue`, in-context stagnation prompts in `CheckInSheet`, inline check-in button on Goals list, GoalEditSheet save hint, Awake Days tooltip, Settings "Edit Health Profile" link. 14 new unit tests (`StagnationEngineTests` + `DeepLinkRouterTests`). iOS + macOS builds clean, full test suite passes.
+
+### Daily touchpoint — the 5-second interaction
+
+The app needs one interaction a user does *every* day that costs them <5 seconds and reinforces the alignment loop. Habit completions already exist; we layer one question on top.
+
+- [x] **One-tap post-habit nudge.** `HabitsSection.swift:completeHabit` — after the DataStore write, we check `apexNeedsReflectionToday()` and surface a bottom-attached `DailyNudgeCard` with Yes/Partially/No mapping to `alignmentRating` 8/5/2. Writes a minimal reflection-shaped `GoalCheckIn` on the apex with `promptAnswered: "Did today move toward your North Star?"`. Rate-limited via `@AppStorage("habits.dailyNudgeDismissedOn")` — the calendar-date string resets at midnight with no extra bookkeeping.
+- [ ] **Home screen widget tap-through.** The widget currently shows the alignment score statically. Add an `AppIntent` (or `WidgetURL`) that deep-links to the apex reflect sheet so the widget tap is a 2-tap reflection instead of a "launch the app and navigate" chore. URL scheme is ready; widget wiring still TODO.
+- [x] **Overview daily-streak chip.** `OverviewView.apexGoalCard` — small orange flame chip in the card header showing current consecutive-day reflection streak. `dailyReflectionStreak(for:)` walks backwards from today (or yesterday, if today isn't logged yet) counting days with any `isReflection` check-in. Hidden when `streak == 0`.
+
+### Monthly perspective — are these still the right goals?
+
+The mortality clock is the forcing function; monthly we have to re-verify the goals still point at something meaningful.
+
+- [ ] **End-of-month Overview card.** On days 28–31, show a "Monthly rethink" card above the apex card asking *"Are these still the right goals?"* — taps open a scoped flow that walks the goals tree (apex → pillars → standard goals) with three options per node: Keep / Edit / Archive. Drives `Goal.isArchived` flips and records one compound `GoalCheckIn` on the apex summarizing the review.
+- [ ] **Monthly report export.** One-tap "Export last month" button on the Reports page that generates a single markdown file (saved to the user's Files.app location, consistent with the existing export pattern) containing: alignment trend line for the month, reflection excerpts, stagnation signals encountered, habit streak summary. Privacy-first: no network, no server upload. Reuses `DataStore` export helpers.
+
+### Stagnation — severity escalation & in-context response
+
+`StagnationEngine` currently emits signals with fixed severity. A 3-day missed check-in and a 30-day missed check-in raise the same alert, so the Attention Needed card blurs real emergencies into noise.
+
+- [x] **`StagnationEngine` severity scaling.** `StagnationEngine.swift` — new pure `stagnationSeverity(daysOverdue:cadenceIntervalDays:)` function maps `ratio < 1.5 → .info`, `1.5–3 → .warn`, `>3 → .alert`. `StagnationSignal` carries a new `daysOverdue: Int?` field so the UI can render "18 days overdue" inline. Covered by 7 new `StagnationEngineTests`.
+- [x] **In-context stagnation prompts.** `CheckInSheet` takes an optional `stagnationSignal: StagnationSignal?`. When present, a dismissible banner at the top of the sheet shows the signal title, detail, and suggested prompt; the prompt also pre-fills the reflection field so the user starts where the engine thinks they should. `GoalsView.loadData()` computes the per-goal signal map in `signalByGoalId` and passes it when opening the check-in sheet.
+- [ ] **Ad-hoc stagnation resolution.** When the user answers the in-context prompt and submits, clear the signal by marking the goal's `lastCheckInDate` fresh. Partially addressed — saving a check-in appends a new `GoalCheckIn`, which naturally moves `daysSinceLastCheckIn` forward and clears the missed-cadence signal on next recompute. The dedicated "mark signal resolved" UX is still TODO.
+
+### Reflection cadence — user control
+
+Right now the cadence is hardcoded (weekly review, daily habit nudge, monthly rethink). Some users want to set their own rhythm.
+
+- [ ] **`SettingsView` → new "Reflection Cadence" card** on the General sub-tab. Three toggles + pickers:
+  - Daily nudge: on/off, plus time-of-day preference (morning / evening / off)
+  - Weekly review: on/off, plus day-of-week picker (default Sunday)
+  - Monthly rethink: on/off, plus day-of-month picker (default last day)
+- [ ] **`NotificationService` scheduling refactor.** Replace the current single-weekly repeating notification with a plan-based scheduler that reads the three cadence prefs and registers the right `UNCalendarNotificationTrigger` set. Clearing a toggle cancels its notifications immediately.
+- [ ] **Per-goal cadence override already exists** (`GoalEditSheet` "Use smart default" button from the Reframing milestone). Add a secondary "Follow my global cadence" button that clears the override and picks up the new Settings defaults.
+
+### Deep-linking URL scheme — `mortalloom://`
+
+Notifications, widgets, and the future monthly export all need a way to open a specific view. Right now none of that works because we have no URL scheme.
+
+- [x] **Register `mortalloom://` URL scheme** — `project.yml` now declares `CFBundleURLTypes` with scheme `mortalloom`. Verified via `xcodegen generate` + clean iOS and macOS builds.
+- [x] **URL handler** — `MortalLoomApp.swift` adds `.onOpenURL` to both iOS and macOS content roots. Routing delegates to `DeepLinkRouter.parse(_:)` (new `Engine/DeepLinkRouter.swift`), and `handleDeepLinkRoute(_:)` flips `selectedPage` + stashes pending sheet triggers on `DeepLinkCoordinator.shared`. Supported URLs:
+  - `mortalloom://<page>` — navigate to any `AppPage` by title (overview, goals, reflections, reports, etc.)
+  - `mortalloom://goal/<uuid>` — open goal edit sheet
+  - `mortalloom://goal/<uuid>/reflect` — open reflect / check-in sheet
+  - `mortalloom://review/weekly` — trigger weekly review
+
+  Parser covered by 6 new `DeepLinkRouterTests` (page route, goal edit, goal reflect, weekly review, unknown scheme, malformed UUID).
+- [ ] **Wire `NotificationService`** to embed these URLs in each notification's `userInfo["deepLinkURL"]`. Still TODO — the parser and `.onOpenURL` handlers are ready but the service hasn't been updated to attach them.
+- [ ] **Widget tap-through** uses the same URLs via `Link(destination:)` on each widget surface. Widget file untouched this pass.
+
+### Substances migration — out of the Habits tab
+
+From the UX audit (deferred): the Habits tab mixes user-authored daily habits with alcohol/nicotine/sauna substance trackers. Now that "My Habits" is the default tab and contributes to alignment scoring, the dissonance is worse — substances don't have streaks, aren't goal-linked, and clutter the daily engagement surface.
+
+- [ ] **New top-level page `Substances`** under the Health section of the drawer, between Sleep and Blood. Hosts the Alcohol / Nicotine / Sauna tabs currently in `SubstancesView.swift`. No logic changes, just a drawer move.
+- [ ] **Remove substance tabs** from `HabitsSection.swift`. The Habits page becomes user-authored habits only. Keep a small footer link on Habits: "Tracking alcohol, nicotine, or sauna? → Substances" for discoverability.
+- [ ] **Preserve deep-linking** — anywhere that opens Substances (onboarding, OverviewView, reports) should already route via `AppPage.substances`. Double-check `SideMenuView.tabBarPages` and both platform switch statements.
+- [ ] **No data migration** — the underlying `alcoholDrinks`, `nicotineEntries`, `saunaSessions` arrays in `AppData` don't move, only the view location does.
+
+### Goals list polish — the remaining friction items
+
+Deferred from the UX audit; picked up here as a batch.
+
+- [x] **Inline one-tap check-in on Goals list.** `GoalsView.goalCard` — active standard goals now render an accent-coloured `checkmark.circle` button next to the urgency badge that opens `CheckInSheet` directly. Swipe actions don't apply to the VStack-based tree layout, so the visible button is the iOS/macOS parity solution. Context menu still offers the same action for discoverability.
+- [x] **Save button hint on `GoalEditSheet`.** `GoalsView.swift:GoalEditSheet` — when the title field is empty we render a muted caption `"Give this goal a title to save."` directly under the title input. Removes the silent-disable mystery.
+- [ ] **Sheet progress header.** `GoalEditSheet` and `HabitEditSheet` get a small "Step 1 of 2" style hint when the content overflows one screen, so users know they can scroll. Deferred — low-value polish.
+- [ ] **Weekly review sparkline.** `WeeklyReviewSheet.reviewStep` — add a 7-day inline sparkline (daily `alignmentRating` values) using `Chart` from `Charts.framework`. Empty days render as gaps, not zeros.
+- [x] **Awake Days tooltip.** `LifeCalendarView.statsGrid` — Awake Days stat now has a topTrailing-overlay info button that opens a popover matching the LEV explainer pattern. Copy explains the calc: "Roughly how many waking days you have left, after subtracting time spent sleeping. Based on your lifestyle sleep-hours answer…"
+
+### Settings — completeness
+
+- [x] **Dedicated Edit Health Profile link in Settings.** `SettingsView.setupGuideSection` — second button below "Run Setup Wizard" that posts `.navigateToPage` with `AppPage.lifestyle` as the object. Both iOS `iOSContent` and macOS `MacContentView` subscribe to the notification and flip `selectedPage` to match. Covers the fast-path for users who only want to tweak lifestyle answers without re-running the 13-step onboarding.
+- [ ] **Reflection Cadence card** (see above) lives next to the Notifications card.
+
+### Technical polish — deferred from Better Swift
+
+These are the items explicitly listed as "Deferred / Out-of-Scope From This Cycle" in the Better Swift audit. Picking them up now that the feature work has stabilized.
+
+- [ ] **Engine test coverage.** Add test suites for `CardioFitnessEngine` (HR-recovery classification + VO2 max thresholds), `GaitEngine` (fall risk scoring, functional age), `GenomeEngine` (ClinVar cross-reference path matching, variant risk ranking). Follow the same pattern as the existing `SleepEngineTests` / `LocationEngineTests`. Target: 80% line coverage on the pure engines.
+- [ ] **Storage / HealthKit coverage** (the original "Next Up" placeholder from prior milestones). Unit tests for `DataStore` actor CRUD + merge paths, `HealthKitService` authorization-request completion states, and `ICloudMonitor` metadata-query handling.
+- [ ] **God-file decomposition.** `SubstancesView.swift` (2,351 lines), `OverviewView.swift` (1,743 lines), `GoalsView.swift` (1,601 lines), `GenomeView.swift` (1,522 lines) are each well past the single-responsibility line. Split into per-section view files under `Views/Overview/`, `Views/Goals/`, `Views/Substances/`, `Views/Genome/`. No logic changes — pure file-system refactor. Makes future audits tractable.
+- [ ] **Remaining `inlineNavigationTitle()` adoptions.** PaywallView, GoalsView, GenomeView, BodyView, BloodView still have raw `#if os(iOS) .navigationBarTitleDisplayMode(.inline) #endif` guards. Swap to the helper from `Theme/Theme.swift`.
+- [ ] **macOS window lifecycle hardening** (App Store guideline 4). `MortalLoomApp.swift` — implement `applicationShouldTerminateAfterLastWindowClosed` (return false), `applicationShouldHandleReopen` (reopen main window), and add a "Show Main Window" Commands menu entry. Prevents the classic "closed the window and now the app is stuck in the dock" macOS complaint.
+
+### Remaining Apple Health correlations
+
+From the Apple Health Data Expansion section, 5 correlations are still unshipped even though the underlying metrics are now synced.
+
+- [ ] **Nicotine → Cardio Recovery** chart on `SubstancesView` (post-migration: `SubstancesView` under Health). Bucketed scatter with regression line.
+- [ ] **Activity → Blood Markers** — extend `CorrelationEngine` to use `walkingRunningDistance` alongside step count. Surface on `BloodView` trend cards.
+- [ ] **Daylight → Sleep Consistency** — new correlation on `SleepView`. Requires adding a `sleepConsistencyScore` helper to `SleepEngine`.
+- [ ] **BMI → Breathing Disturbances** — on `BodyView`. Two-series chart with BMI trend and apnea-risk bars.
+- [ ] **Gait trends → Functional Age** — new `FunctionalAgeEngine` helper that takes walking speed + asymmetry + stair speed over 6 months and produces an estimated functional-age delta. Surface on `BodyView`.
+- [ ] **Exercise → Cardio Recovery** — on `SleepView` or a new fitness surface. Weekly exercise minutes × cardio recovery bpm scatter.
+
+### Implementation order
+
+1. Deep-linking URL scheme (unblocks daily nudge, widget tap-through, notifications routing)
+2. Daily nudge + Overview daily-streak chip (visible value the day it ships)
+3. Stagnation severity escalation + in-context prompts (sharpens the existing Reports page)
+4. Substances migration (isolated, low-risk, clears the biggest remaining UX dissonance)
+5. Reflection cadence Settings + `NotificationService` refactor (user control over the new daily rhythm)
+6. Monthly rethink card + export
+7. Goals list polish batch (swipe check-in, save hint, sparkline, Awake Days tooltip)
+8. Technical polish (engine tests, god-file decomposition, macOS lifecycle)
+9. Remaining Apple Health correlations
+
+### Success criteria
+
+- Daily active use metric: unique calendar days where the user either completes a habit or logs a reflection. Currently ~1–2/week for test users; target ≥5/week after the daily nudge ships.
+- Attention Needed signal-to-noise: the same Attention Needed list shouldn't surface a 3-day miss and a 45-day miss with equal weight.
+- Substances confusion incidents: zero reports of "where did my alcohol tracker go" after the migration ships — confirmed via a discoverability footer on the Habits tab.
+- Engine test coverage ≥80% on `CardioFitnessEngine`, `GaitEngine`, `GenomeEngine`.
+- No view file over 1,000 lines in `MortalLoom/Views/` after decomposition (current: 4 files over 1,500 lines).
+
+
+
 ## Better Swift Audit — 2026-04-06 (COMPLETE)
 
 Shipped 5 PRs against `main` covering 17 files + 2 new test suites (70 new test cases).

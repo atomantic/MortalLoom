@@ -952,6 +952,29 @@ struct SettingsView: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(.accentColor)
+
+            // Fast path for users who only want to tweak their lifestyle
+            // answers (birth date, smoking, exercise, sleep, diet, stress)
+            // without re-running the full 13-step onboarding flow.
+            Button {
+                NotificationCenter.default.post(name: .navigateToPage, object: AppPage.lifestyle)
+            } label: {
+                HStack {
+                    Image(systemName: "list.bullet.clipboard")
+                    Text("Edit Health Profile")
+                        .fontWeight(.semibold)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .padding(.horizontal, 12)
+                .background(Color.accentColor.opacity(0.12))
+                .foregroundColor(.accentColor)
+                .cornerRadius(8)
+            }
+            .buttonStyle(.plain)
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)

@@ -21,6 +21,13 @@ struct HabitsSection: View {
     @State private var showingAdd = false
     @State private var toastMessage: String?
     @State private var confirmDelete: Habit?
+    @State private var apexGoal: Goal?
+    @State private var showDailyNudge = false
+    /// Rate-limits the daily nudge to once per calendar day. The stored
+    /// value is a `YYYY-MM-DD` string so it auto-resets at midnight without
+    /// any explicit clearing.
+    static let dailyNudgeDismissedOnKey = "habits.dailyNudgeDismissedOn"
+    @AppStorage(Self.dailyNudgeDismissedOnKey) private var nudgeDismissedOn: String = ""
 
     var body: some View {
         VStack(spacing: 12) {
@@ -82,6 +89,19 @@ struct HabitsSection: View {
                 ToastView(message: msg)
             }
         }
+        .overlay(alignment: .bottom) {
+            if showDailyNudge, let apex = apexGoal {
+                DailyNudgeCard(
+                    apexTitle: apex.title,
+                    onRate: { logNudgeReflection(apex: apex, rating: $0) },
+                    onDismiss: dismissNudge
+                )
+                .padding(.horizontal)
+                .padding(.bottom, 12)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: showDailyNudge)
     }
 
     // MARK: Data loading
@@ -90,6 +110,7 @@ struct HabitsSection: View {
         let data = await DataStore.shared.getData()
         habits = data.habits
         goals = data.goals
+        apexGoal = data.goals.activeApex
         let now = Date()
         var stats: [UUID: HabitStats] = [:]
         for h in data.habits where h.isActive {
@@ -100,6 +121,32 @@ struct HabitsSection: View {
             )
         }
         habitStats = stats
+    }
+
+    private func apexNeedsReflectionToday() -> Bool {
+        guard let apex = apexGoal else { return false }
+        let today = DateFormatting.todayString()
+        return !apex.checkIns.contains { $0.isReflection && $0.date == today }
+    }
+
+    private func logNudgeReflection(apex: Goal, rating: Int) {
+        var updated = apex
+        updated.checkIns.append(GoalCheckIn(
+            progressPct: 0,
+            note: "",
+            alignmentRating: rating,
+            promptAnswered: ReflectionPrompts.dailyNudge
+        ))
+        Task {
+            await DataStore.shared.updateGoal(updated)
+            await loadData()
+        }
+        dismissNudge()
+    }
+
+    private func dismissNudge() {
+        nudgeDismissedOn = DateFormatting.todayString()
+        showDailyNudge = false
     }
 
     private var activeHabits: [Habit] {
@@ -310,10 +357,84 @@ struct HabitsSection: View {
             await loadData()
             await MainActor.run {
                 toastMessage = "\(habit.name) ✓"
+                if apexGoal != nil
+                    && apexNeedsReflectionToday()
+                    && nudgeDismissedOn != todayStr {
+                    showDailyNudge = true
+                }
             }
             try? await Task.sleep(for: .seconds(1.5))
             await MainActor.run { toastMessage = nil }
         }
+    }
+}
+
+// MARK: - DailyNudgeCard
+
+/// Three-tap reflection card shown after a habit completion — Yes / Partially /
+/// No map to alignment ratings 8 / 5 / 2. Rate-limited to once per calendar day
+/// via `HabitsSection.nudgeDismissedOn`.
+private struct DailyNudgeCard: View {
+    let apexTitle: String
+    let onRate: (Int) -> Void
+    let onDismiss: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: "crown.fill")
+                    .foregroundStyle(LinearGradient(
+                        colors: [.yellow, .orange],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ))
+                Text("Daily check")
+                    .font(.caption).fontWeight(.bold)
+                    .foregroundColor(.textSecondary)
+                    .tracking(1)
+                Spacer()
+                Button {
+                    onDismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.caption2)
+                        .foregroundColor(.textMuted)
+                        .padding(6)
+                        .background(Color.bgInput)
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Dismiss daily check")
+            }
+
+            Text("Did today move toward \(apexTitle)?")
+                .font(.subheadline).fontWeight(.semibold)
+                .foregroundColor(.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 8) {
+                nudgeButton(label: "Yes", rating: 8, color: .success)
+                nudgeButton(label: "Partially", rating: 5, color: .warning)
+                nudgeButton(label: "No", rating: 2, color: .danger)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle(border: .accentColor.opacity(0.3))
+        .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: 4)
+    }
+
+    private func nudgeButton(label: String, rating: Int, color: Color) -> some View {
+        Button { onRate(rating) } label: {
+            Text(label)
+                .font(.caption).fontWeight(.semibold)
+                .foregroundColor(color)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+                .background(color.opacity(0.12))
+                .cornerRadius(8)
+        }
+        .buttonStyle(.plain)
     }
 }
 

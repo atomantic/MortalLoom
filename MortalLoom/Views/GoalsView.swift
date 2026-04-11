@@ -21,6 +21,9 @@ struct GoalsView: View {
     @State private var activeCount = 0
     @State private var completedCount = 0
     @State private var attentionCount = 0
+    /// Per-goal stagnation signal (if any) — used to inject the suggested
+    /// prompt at the top of CheckInSheet when opening a stale goal.
+    @State private var signalByGoalId: [UUID: StagnationSignal] = [:]
 
     // Cached for reflatten without full reload
     @State private var cachedRoots: [Goal] = []
@@ -90,7 +93,10 @@ struct GoalsView: View {
             )
         }
         .sheet(item: $checkInGoal) { goal in
-            CheckInSheet(goal: goal) { updated in
+            CheckInSheet(
+                goal: goal,
+                stagnationSignal: signalByGoalId[goal.id]
+            ) { updated in
                 saveAndReload { await DataStore.shared.updateGoal(updated) }
             }
         }
@@ -191,6 +197,21 @@ struct GoalsView: View {
             roots.sort { goalTypeOrder($0) < goalTypeOrder($1) }
         }
 
+        // StagnationEngine sorts most-severe first, so taking the first
+        // hit per goalId naturally keeps the highest-severity signal.
+        let signals = StagnationEngine.signals(
+            goals: data.goals,
+            habits: data.habits,
+            deathDate: dc?.deathDate,
+            healthyCognitiveDate: cogDate
+        )
+        var byGoal: [UUID: StagnationSignal] = [:]
+        for s in signals {
+            if let gid = s.goalId, byGoal[gid] == nil {
+                byGoal[gid] = s
+            }
+        }
+
         goals = data.goals
         habits = data.habits
         deathClock = dc
@@ -203,6 +224,7 @@ struct GoalsView: View {
         activeCount = activeGoals.count
         completedCount = done.count { $0.status == .completed }
         attentionCount = activeGoals.count { $0.needsCheckIn || $0.isOverdue }
+        signalByGoalId = byGoal
         cachedRoots = roots
         cachedActiveByParent = activeByParent
         hierarchyItems = buildHierarchy(roots: roots, activeByParent: activeByParent)
@@ -519,6 +541,23 @@ struct GoalsView: View {
                     Image(systemName: "bell.badge.fill")
                         .font(.caption)
                         .foregroundColor(.warning)
+                }
+                // Inline one-tap check-in button for active standard goals.
+                // Sub-apex/apex use their own Reflect affordances; completed
+                // and abandoned goals have nothing to check in.
+                if !isLifelong && goal.status == .active {
+                    Button {
+                        checkInGoal = goal
+                    } label: {
+                        Image(systemName: "checkmark.circle")
+                            .font(.subheadline)
+                            .foregroundColor(.accentColor)
+                            .padding(6)
+                            .background(Color.accentColor.opacity(0.12))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Check in to \(goal.title)")
                 }
                 if !isLifelong {
                     urgencyBadge(projection.urgencyLevel, status: goal.status)
@@ -918,6 +957,11 @@ struct GoalEditSheet: View {
             Form {
                 Section {
                     TextField(goalTitlePlaceholder, text: $title)
+                    if title.trimmingCharacters(in: .whitespaces).isEmpty {
+                        Text("Give this goal a title to save.")
+                            .font(.caption2)
+                            .foregroundColor(.textMuted)
+                    }
                     TextField("Notes (optional)", text: $notes, axis: .vertical)
                         .lineLimit(3...6)
                 } header: {
@@ -1325,8 +1369,12 @@ struct GoalEditSheet: View {
 /// - Standard goals: progress slider + milestone checkboxes + note.
 /// - Apex / sub-apex lifelong goals: alignment rating + guided prompt +
 ///   blockers + commitments. Progress is not tracked on lifetime purposes.
+///
+/// Optional `stagnationSignal` surfaces an in-context prompt banner so
+/// users who open a stale goal directly (not via Reports) still get nudged.
 struct CheckInSheet: View {
     let goal: Goal
+    let stagnationSignal: StagnationSignal?
     let onSave: (Goal) -> Void
     @Environment(\.dismiss) private var dismiss
 
@@ -1334,6 +1382,7 @@ struct CheckInSheet: View {
     @State private var progressPct: Double
     @State private var note: String = ""
     @State private var milestoneStates: [UUID: Bool]
+    @State private var showStagnationBanner = true
 
     // Reflection state (lifelong goals). Default 5 ("Mixed") instead of 7
     // so the slider doesn't tell users how they feel before they engage.
@@ -1342,8 +1391,9 @@ struct CheckInSheet: View {
     @State private var blockersText: String = ""
     @State private var commitmentsText: String = ""
 
-    init(goal: Goal, onSave: @escaping (Goal) -> Void) {
+    init(goal: Goal, stagnationSignal: StagnationSignal? = nil, onSave: @escaping (Goal) -> Void) {
         self.goal = goal
+        self.stagnationSignal = stagnationSignal
         self.onSave = onSave
         _progressPct = State(initialValue: goal.progressPercent)
         _milestoneStates = State(initialValue: Dictionary(uniqueKeysWithValues: goal.milestones.map { ($0.id, $0.completed) }))
@@ -1356,6 +1406,9 @@ struct CheckInSheet: View {
     var body: some View {
         NavigationStack {
             Form {
+                if let signal = stagnationSignal, showStagnationBanner {
+                    stagnationBanner(signal)
+                }
                 if isLifelong {
                     reflectionForm
                 } else {
@@ -1375,10 +1428,56 @@ struct CheckInSheet: View {
                 }
             }
             .onAppear {
+                // Pre-fill the reflection prompt with the signal's suggested
+                // prompt if one was passed in — it's more relevant than a
+                // generic rotation when the user is opening a stale goal.
                 if isLifelong && selectedPrompt.isEmpty {
-                    selectedPrompt = ReflectionPrompts.nextPrompt(for: goal)
+                    selectedPrompt = stagnationSignal?.suggestedPrompt
+                        ?? ReflectionPrompts.nextPrompt(for: goal)
                 }
             }
+        }
+    }
+
+    /// Dismissible card shown at the top of the sheet when the user opened
+    /// this goal via a stagnation signal. Explains *why* the goal needs
+    /// attention and surfaces the suggested prompt inline.
+    @ViewBuilder
+    private func stagnationBanner(_ signal: StagnationSignal) -> some View {
+        Section {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 6) {
+                    Image(systemName: signal.severity.iconName)
+                        .foregroundColor(signal.severity.tintColor)
+                    Text(signal.title)
+                        .font(.caption).fontWeight(.bold)
+                        .foregroundColor(signal.severity.tintColor)
+                        .textCase(.uppercase)
+                        .tracking(0.8)
+                    Spacer()
+                    Button {
+                        withAnimation { showStagnationBanner = false }
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.caption2)
+                            .foregroundColor(.textMuted)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Dismiss")
+                }
+                Text(signal.detail)
+                    .font(.caption)
+                    .foregroundColor(.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                if !signal.suggestedPrompt.isEmpty {
+                    Text(signal.suggestedPrompt)
+                        .font(.caption).italic()
+                        .foregroundColor(.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 2)
+                }
+            }
+            .listRowBackground(signal.severity.tintColor.opacity(0.08))
         }
     }
 

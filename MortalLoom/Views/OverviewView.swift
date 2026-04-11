@@ -23,6 +23,7 @@ struct OverviewView: View {
     @State private var cachedRecommendations: [RecommendationEngine.Recommendation] = []
     @State private var cachedSleepImpact: Double = 0
     @State private var cachedStagnationSignals: [StagnationSignal] = []
+    @State private var cachedReflectionStreak: Int = 0
     @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
     @State private var showCitations = false
     @State private var showAddGoal = false
@@ -354,9 +355,9 @@ struct OverviewView: View {
             }
             ForEach(topSignals) { signal in
                 HStack(alignment: .top, spacing: 6) {
-                    Image(systemName: signalIcon(signal.severity))
+                    Image(systemName: signal.severity.iconName)
                         .font(.caption2)
-                        .foregroundColor(signalColor(signal.severity))
+                        .foregroundColor(signal.severity.tintColor)
                     VStack(alignment: .leading, spacing: 1) {
                         Text(signal.title)
                             .font(.caption).fontWeight(.semibold)
@@ -377,22 +378,6 @@ struct OverviewView: View {
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle(fill: .warning.opacity(0.06), border: .warning.opacity(0.2))
-    }
-
-    private func signalIcon(_ s: StagnationSeverity) -> String {
-        switch s {
-        case .info: "info.circle"
-        case .warn: "exclamationmark.triangle"
-        case .alert: "exclamationmark.octagon.fill"
-        }
-    }
-
-    private func signalColor(_ s: StagnationSeverity) -> Color {
-        switch s {
-        case .info: .accentColor
-        case .warn: .warning
-        case .alert: .danger
-        }
     }
 
     // MARK: - Data Loading
@@ -455,6 +440,7 @@ struct OverviewView: View {
             deathDate: deathClock?.deathDate,
             healthyCognitiveDate: GoalEngine.cognitiveDeadline(from: deathClock)
         )
+        cachedReflectionStreak = apexGoal.map { GoalEngine.dailyReflectionStreak(for: $0) } ?? 0
         // Reconcile local notifications against the latest signals so the
         // user isn't nagged about stagnation that no longer exists.
         let signalsSnapshot = cachedStagnationSignals
@@ -506,6 +492,7 @@ struct OverviewView: View {
         let alignment = alignmentScore(for: goal)
         let supportingCount = supportingGoalsCount(for: goal)
         let pillarCount = lifePillarCount(for: goal)
+        let streak = cachedReflectionStreak
 
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
@@ -521,6 +508,21 @@ struct OverviewView: View {
                     .foregroundColor(.textSecondary)
                     .tracking(0.5)
                 Spacer()
+                if streak > 0 {
+                    HStack(spacing: 3) {
+                        Image(systemName: "flame.fill")
+                            .font(.caption2)
+                            .foregroundColor(.orange)
+                        Text("\(streak)d")
+                            .font(.caption2).fontWeight(.bold).monospacedDigit()
+                            .foregroundColor(.orange)
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 3)
+                    .background(Color.orange.opacity(0.15))
+                    .cornerRadius(6)
+                    .accessibilityLabel("\(streak) day reflection streak")
+                }
                 Text("Lifetime")
                     .font(.caption2)
                     .foregroundColor(.textMuted)

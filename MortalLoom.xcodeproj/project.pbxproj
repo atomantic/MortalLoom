@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		045B4592F1B6474D46F77405 /* DeepLinkRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA5A7CE3AEC1DE3E57F0FF1B /* DeepLinkRouter.swift */; };
 		050980359F1180012E9D3CBC /* AppearanceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 765271B94F125643F18F3646 /* AppearanceManager.swift */; };
 		05B7DDCB6E4221E4BB2A84ED /* GaitEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93B5E80AB18D2FA91974ECB6 /* GaitEngine.swift */; };
 		082BE98CD23921F4AE51F134 /* SleepEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4866C551187394E53C4FA23A /* SleepEngine.swift */; };
@@ -89,6 +90,7 @@
 		8D3F0148D6280967FB75B579 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC7FF09623E4F8E66F45E59F /* PaywallView.swift */; };
 		8FDFE72F8975CD589E263A77 /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FD15E79DD0EC46F86D0506C /* LocationService.swift */; };
 		95980F1A20C4AD1E940663E0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8DFE4C5B3F84209835BAB96B /* Assets.xcassets */; };
+		967F36EB418C363A98C18B85 /* DeepLinkRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA5A7CE3AEC1DE3E57F0FF1B /* DeepLinkRouter.swift */; };
 		9AC808701F50F51226019C84 /* ClinVarService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46F952015050D53948006274 /* ClinVarService.swift */; };
 		9D54A8470E4B66EA28F7DBE9 /* BodyEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DE6F91C7E33B0F86F79570E /* BodyEntry.swift */; };
 		A17140154ACE65029AA7C02B /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C111B7B3DAB461735C8004F /* HealthKitService.swift */; };
@@ -297,6 +299,7 @@
 		F01753DF921942BEA30C5DD4 /* WidgetBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetBridge.swift; sourceTree = "<group>"; };
 		F70D7D3B99416A3F8E976C2B /* CardioFitnessEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardioFitnessEngine.swift; sourceTree = "<group>"; };
 		F8BFDBF027486BC4AC7BF9D1 /* GenomeScanRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenomeScanRecord.swift; sourceTree = "<group>"; };
+		FA5A7CE3AEC1DE3E57F0FF1B /* DeepLinkRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeepLinkRouter.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -371,6 +374,7 @@
 				98CE91B429B04C112C38D411 /* CorrelationEngine.swift */,
 				69B73CEA0F3655CDD11A007C /* CuratedMarkers.swift */,
 				B4C6F3F7D27B38D804FA5B61 /* DeathClockEngine.swift */,
+				FA5A7CE3AEC1DE3E57F0FF1B /* DeepLinkRouter.swift */,
 				93B5E80AB18D2FA91974ECB6 /* GaitEngine.swift */,
 				C7F21F5108C9F766D56DE2AE /* GenomeEngine.swift */,
 				118A5A1BB8FDFBEDDACD2E0C /* GoalEngine.swift */,
@@ -721,6 +725,7 @@
 				0A491EA766254514F8C2D373 /* CuratedMarkers.swift in Sources */,
 				4C31E78A1FDAC239E647CB2D /* DataStore.swift in Sources */,
 				47E4013FF9139533AA44FC4D /* DeathClockEngine.swift in Sources */,
+				045B4592F1B6474D46F77405 /* DeepLinkRouter.swift in Sources */,
 				285C3B38D82FDF5C57FDAA1E /* EpigeneticTest.swift in Sources */,
 				DE453F18D91452A344184BB6 /* EyeExam.swift in Sources */,
 				6DDDBC6D1AF751CD73AB2917 /* GaitEngine.swift in Sources */,
@@ -798,6 +803,7 @@
 				884893922D3689B12DC1E4C6 /* CuratedMarkers.swift in Sources */,
 				4E21F7279130B3025E25A8EA /* DataStore.swift in Sources */,
 				64B0B5357DF80CDAEB3370A1 /* DeathClockEngine.swift in Sources */,
+				967F36EB418C363A98C18B85 /* DeepLinkRouter.swift in Sources */,
 				706C426B98DE5CF39A715C7E /* EpigeneticTest.swift in Sources */,
 				89C3332067D295F52E472691 /* EyeExam.swift in Sources */,
 				05B7DDCB6E4221E4BB2A84ED /* GaitEngine.swift in Sources */,
@@ -914,7 +920,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 34;
+				CURRENT_PROJECT_VERSION = 35;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = TYQ32QCF6K;
@@ -1114,7 +1120,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 34;
+				CURRENT_PROJECT_VERSION = 35;
 				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = TYQ32QCF6K;

@@ -11,6 +11,7 @@ struct LifeCalendarView: View {
     // explicit preference sticks across launches.
     @AppStorage("calendar.viewMode") private var viewMode: ViewMode = .years
     @State private var showLEVExplainer = false
+    @State private var showAwakeDaysExplainer = false
     @State private var goalMarkers: [GoalMarker] = []
     @State private var goalWeekSet: Set<Int> = []
     @State private var projectedWeekSet: Set<Int> = []
@@ -293,7 +294,37 @@ struct LifeCalendarView: View {
                 statCard(value: formatLargeNumber(weeksRemaining), label: "Weeks", icon: "calendar.day.timeline.left", color: .teal)
                 statCard(value: formatLargeNumber(daysRemaining), label: "Days", icon: "sun.max.fill", color: .orange)
                 statCard(value: formatLargeNumber(saturdaysRemaining), label: "Saturdays", icon: "star.fill", color: .yellow)
-                statCard(value: formatLargeNumber(awakeDaysRemaining), label: "Awake Days", icon: "eye.fill", color: .blue)
+                statCard(
+                    value: formatLargeNumber(awakeDaysRemaining),
+                    label: "Awake Days",
+                    icon: "eye.fill",
+                    color: .blue
+                )
+                .overlay(alignment: .topTrailing) {
+                    Button {
+                        showAwakeDaysExplainer = true
+                    } label: {
+                        Image(systemName: "info.circle")
+                            .font(.system(size: 10))
+                            .foregroundColor(.textMuted)
+                            .padding(4)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("What are Awake Days?")
+                    .popover(isPresented: $showAwakeDaysExplainer, arrowEdge: .top) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Awake Days")
+                                .font(.subheadline).fontWeight(.semibold)
+                            Text("Roughly how many waking days you have left, after subtracting time spent sleeping. Based on your lifestyle sleep-hours answer: 8 hours of sleep a night means ⅓ of your remaining life is spent asleep.")
+                                .font(.caption)
+                                .foregroundColor(.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding()
+                        .frame(width: 260)
+                        .presentationCompactAdaptation(.popover)
+                    }
+                }
             }
         }
         .padding()

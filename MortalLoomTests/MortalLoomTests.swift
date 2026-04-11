@@ -3196,3 +3196,194 @@ final class BloodTrendEngineTests: XCTestCase {
         XCTAssertEqual(trends[0].previousValue, 90)
     }
 }
+
+// MARK: - StagnationEngine
+
+/// Pure severity-scaling and signal-emission tests for the stagnation engine.
+/// Verifies the new daysOverdue-based escalation so a 3-day miss and a
+/// 45-day miss don't raise identical alerts.
+final class StagnationEngineTests: XCTestCase {
+    func testSeverityScaleInfoTier() {
+        // 1.0–1.5x cadence ⇒ .info
+        XCTAssertEqual(stagnationSeverity(daysOverdue: 0, cadenceIntervalDays: 7), .info)
+        XCTAssertEqual(stagnationSeverity(daysOverdue: 3, cadenceIntervalDays: 7), .info)
+    }
+
+    func testSeverityScaleWarnTier() {
+        // 1.5–3x cadence ⇒ .warn
+        XCTAssertEqual(stagnationSeverity(daysOverdue: 11, cadenceIntervalDays: 7), .warn)
+        XCTAssertEqual(stagnationSeverity(daysOverdue: 20, cadenceIntervalDays: 7), .warn)
+    }
+
+    func testSeverityScaleAlertTier() {
+        // >3x cadence ⇒ .alert
+        XCTAssertEqual(stagnationSeverity(daysOverdue: 21, cadenceIntervalDays: 7), .alert)
+        XCTAssertEqual(stagnationSeverity(daysOverdue: 50, cadenceIntervalDays: 7), .alert)
+    }
+
+    func testSeverityScaleFallbackForZeroCadence() {
+        // Guard against divide-by-zero — engine should still return something sensible.
+        XCTAssertEqual(stagnationSeverity(daysOverdue: 5, cadenceIntervalDays: 0), .warn)
+    }
+
+    func testMissedCheckInSignalCarriesDaysOverdue() {
+        // Goal with a 7-day cadence, last check-in 25 days ago ⇒ 18 days overdue.
+        let lastCheckInDate = DateFormatting.dateString(daysAgo: 25)
+        var goal = Goal(
+            title: "Practice scales",
+            createdDate: DateFormatting.dateString(daysAgo: 100),
+            checkIns: [GoalCheckIn(date: lastCheckInDate, progressPct: 40)],
+            checkInIntervalDays: 7,
+            status: .active,
+            goalType: .standard
+        )
+        goal.mutedSignals = []
+
+        let signals = StagnationEngine.signals(goals: [goal], habits: [])
+        let checkInSignal = signals.first { $0.title == "Check-in overdue" }
+        XCTAssertNotNil(checkInSignal)
+        XCTAssertEqual(checkInSignal?.daysOverdue, 18) // 25 - 7
+        // 18 / 7 ≈ 2.57 ⇒ warn tier (1.5–3x)
+        XCTAssertEqual(checkInSignal?.severity, .warn)
+    }
+
+    func testMissedCheckInEscalatesToAlertWhenLongOverdue() {
+        // 45 days overdue on a 7-day cadence ⇒ ratio > 3 ⇒ .alert
+        let lastCheckInDate = DateFormatting.dateString(daysAgo: 60)
+        let goal = Goal(
+            title: "Old goal",
+            createdDate: DateFormatting.dateString(daysAgo: 200),
+            checkIns: [GoalCheckIn(date: lastCheckInDate, progressPct: 10)],
+            checkInIntervalDays: 7,
+            status: .active,
+            goalType: .standard
+        )
+
+        let signals = StagnationEngine.signals(goals: [goal], habits: [])
+        let checkInSignal = signals.first { $0.title == "Check-in overdue" }
+        XCTAssertEqual(checkInSignal?.severity, .alert)
+    }
+
+    func testApexWithoutSupportingGoalsEmitsWarnSignal() {
+        let apex = Goal(
+            title: "Live a long healthy life",
+            status: .active,
+            goalType: .apex
+        )
+        let signals = StagnationEngine.signals(goals: [apex], habits: [])
+        XCTAssertTrue(signals.contains { $0.title == "No supporting goals" })
+    }
+
+    func testMutedSignalsAreFiltered() {
+        let lastCheckInDate = DateFormatting.dateString(daysAgo: 30)
+        var goal = Goal(
+            title: "Muted goal",
+            createdDate: DateFormatting.dateString(daysAgo: 100),
+            checkIns: [GoalCheckIn(date: lastCheckInDate, progressPct: 20)],
+            checkInIntervalDays: 7,
+            status: .active,
+            goalType: .standard
+        )
+        goal.mutedSignals = ["Check-in overdue"]
+
+        let signals = StagnationEngine.signals(goals: [goal], habits: [])
+        XCTAssertFalse(signals.contains { $0.title == "Check-in overdue" })
+    }
+}
+
+// MARK: - GoalEngine.dailyReflectionStreak
+
+final class GoalEngineReflectionStreakTests: XCTestCase {
+    private func makeApex(reflectionDates: [String]) -> Goal {
+        let checkIns = reflectionDates.map { date in
+            GoalCheckIn(date: date, alignmentRating: 7)
+        }
+        return Goal(
+            title: "Live well",
+            checkIns: checkIns,
+            status: .active,
+            goalType: .apex
+        )
+    }
+
+    func testZeroWhenNoReflections() {
+        let goal = Goal(title: "Empty", status: .active, goalType: .apex)
+        XCTAssertEqual(GoalEngine.dailyReflectionStreak(for: goal, now: Date()), 0)
+    }
+
+    func testStreakCountsConsecutiveDays() {
+        let now = Date()
+        let goal = makeApex(reflectionDates: [
+            DateFormatting.dateString(daysAgo: 0, from: now),
+            DateFormatting.dateString(daysAgo: 1, from: now),
+            DateFormatting.dateString(daysAgo: 2, from: now),
+        ])
+        XCTAssertEqual(GoalEngine.dailyReflectionStreak(for: goal, now: now), 3)
+    }
+
+    func testStreakStopsAtGap() {
+        let now = Date()
+        let goal = makeApex(reflectionDates: [
+            DateFormatting.dateString(daysAgo: 0, from: now),
+            DateFormatting.dateString(daysAgo: 1, from: now),
+            DateFormatting.dateString(daysAgo: 3, from: now), // gap at day 2
+        ])
+        XCTAssertEqual(GoalEngine.dailyReflectionStreak(for: goal, now: now), 2)
+    }
+
+    func testStreakCountsYesterdayWhenTodayMissing() {
+        let now = Date()
+        let goal = makeApex(reflectionDates: [
+            DateFormatting.dateString(daysAgo: 1, from: now),
+            DateFormatting.dateString(daysAgo: 2, from: now),
+        ])
+        // Today not reflected yet, but yesterday + day-before still counts.
+        XCTAssertEqual(GoalEngine.dailyReflectionStreak(for: goal, now: now), 2)
+    }
+
+    func testProgressOnlyCheckInsDoNotCount() {
+        let goal = Goal(
+            title: "Project",
+            checkIns: [GoalCheckIn(date: DateFormatting.todayString(), progressPct: 50)],
+            status: .active,
+            goalType: .standard
+        )
+        XCTAssertEqual(GoalEngine.dailyReflectionStreak(for: goal), 0)
+    }
+}
+
+// MARK: - DeepLinkRouter
+
+final class DeepLinkRouterTests: XCTestCase {
+    func testParsesPageRoute() {
+        let url = URL(string: "mortalloom://reflections")!
+        XCTAssertEqual(DeepLinkRouter.parse(url), .page(.reflections))
+    }
+
+    func testParsesGoalEditRoute() {
+        let uuid = UUID()
+        let url = URL(string: "mortalloom://goal/\(uuid.uuidString)")!
+        XCTAssertEqual(DeepLinkRouter.parse(url), .goalEdit(uuid))
+    }
+
+    func testParsesGoalReflectRoute() {
+        let uuid = UUID()
+        let url = URL(string: "mortalloom://goal/\(uuid.uuidString)/reflect")!
+        XCTAssertEqual(DeepLinkRouter.parse(url), .goalReflect(uuid))
+    }
+
+    func testParsesWeeklyReviewRoute() {
+        let url = URL(string: "mortalloom://review/weekly")!
+        XCTAssertEqual(DeepLinkRouter.parse(url), .weeklyReview)
+    }
+
+    func testRejectsUnknownScheme() {
+        let url = URL(string: "https://example.com/goals")!
+        XCTAssertNil(DeepLinkRouter.parse(url))
+    }
+
+    func testRejectsMalformedGoalUUID() {
+        let url = URL(string: "mortalloom://goal/not-a-uuid")!
+        XCTAssertNil(DeepLinkRouter.parse(url))
+    }
+}

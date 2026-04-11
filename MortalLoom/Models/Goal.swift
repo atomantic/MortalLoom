@@ -223,6 +223,11 @@ enum AlignmentScale {
 /// Curated reflection prompt library used by guided check-ins and stagnation
 /// alerts. Rotates to avoid asking the same thing twice in a row.
 enum ReflectionPrompts {
+    /// Post-habit daily nudge — shared between the card copy in
+    /// `HabitsSection.DailyNudgeCard` and the `GoalCheckIn.promptAnswered`
+    /// field so the Reflections journal can attribute the entry correctly.
+    static let dailyNudge = "Did today move toward your North Star?"
+
     static let general: [String] = [
         "What's holding you back right now?",
         "Which tasks or habits are preventing you from moving toward your North Star?",

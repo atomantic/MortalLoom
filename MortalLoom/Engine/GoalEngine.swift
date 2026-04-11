@@ -80,6 +80,37 @@ enum GoalEngine {
         return goalScore * goalWeight + habitAvg * habitWeight
     }
 
+    // MARK: - Reflection Streak
+
+    /// Consecutive-calendar-day reflection streak on a goal. Walks
+    /// backwards from `now` and counts days with at least one
+    /// reflection-shaped check-in. Stops at the first gap.
+    ///
+    /// "Today counts" is optional: if the user hasn't reflected today yet
+    /// we still want to show the current run length, so we also accept a
+    /// streak that starts yesterday.
+    ///
+    /// Returns 0 when the goal has no reflection check-ins.
+    static func dailyReflectionStreak(for goal: Goal, now: Date = Date()) -> Int {
+        let reflectionDays: Set<String> = Set(
+            goal.checkIns.filter(\.isReflection).map(\.date)
+        )
+        guard !reflectionDays.isEmpty else { return 0 }
+        let calendar = Calendar.current
+        var probe = now
+        if !reflectionDays.contains(DateFormatting.dateString(probe)) {
+            guard let yesterday = calendar.date(byAdding: .day, value: -1, to: probe) else { return 0 }
+            probe = yesterday
+        }
+        var count = 0
+        while reflectionDays.contains(DateFormatting.dateString(probe)) {
+            count += 1
+            guard let prev = calendar.date(byAdding: .day, value: -1, to: probe) else { break }
+            probe = prev
+        }
+        return count
+    }
+
     // MARK: - Smart Cadence
 
     /// Derive a sensible default check-in cadence (in days) for a goal based

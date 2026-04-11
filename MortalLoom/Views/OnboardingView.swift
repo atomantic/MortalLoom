@@ -218,19 +218,33 @@ struct OnboardingView: View {
     @ViewBuilder
     private var escapeVelocityStep: some View {
         stepContainer {
-            Image("EscapeVelocity")
-                .resizable()
-                .aspectRatio(contentMode: .fill)
+            // Top-anchored crop shifted up 20pt so the arrow apex stays
+            // visible AND more of the trajectory line below is shown.
+            // The overlay + Color pattern is needed because
+            // `Image.frame(alignment:)` centers overflow regardless of
+            // alignment — we have to lay the image manually against a
+            // clipped container.
+            Color.clear
                 .frame(maxWidth: .infinity)
-                .frame(height: 180)
+                .frame(height: 130)
+                .overlay(alignment: .top) {
+                    Image("EscapeVelocity")
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .offset(y: -20)
+                }
                 .clipped()
                 .padding(.horizontal, -24)
-                .padding(.bottom, 4)
+                // Pull the image up into the stepContainer's top padding —
+                // this step has more content than the others and needs
+                // every vertical pt to keep the Next button clear of the
+                // last bullet on iPhone 16 Pro and smaller.
+                .padding(.top, -32)
                 .accessibilityLabel("A glowing DNA helix curving upward into an arrow, symbolizing accelerating longevity")
             stepTitle("Longevity Escape Velocity")
             stepDescription("The reason every healthy year right now matters more than the last.")
 
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 10) {
                 privacyBullet(
                     icon: "hourglass",
                     title: "You age 1 year per year",
@@ -253,9 +267,8 @@ struct OnboardingView: View {
                 )
             }
             .padding(.horizontal, 8)
-            .padding(.top, 4)
 
-            Spacer()
+            Spacer(minLength: 12)
             primaryButton("Next") {
                 advanceStep()
             }

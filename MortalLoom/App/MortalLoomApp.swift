@@ -129,6 +129,22 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .showOnboarding)) { _ in
             showOnboarding = true
         }
+        #if os(iOS)
+        // macOS routes through MacContentView's own selectedPage state —
+        // only iOS uses ContentView.selectedPage as the source of truth.
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToPage)) { notif in
+            if let page = notif.object as? AppPage {
+                selectedPage = page
+            }
+        }
+        .onOpenURL { url in
+            guard let route = DeepLinkRouter.parse(url) else {
+                appLogger.warning("🔗 unrecognised URL: \(url.absoluteString, privacy: .public)")
+                return
+            }
+            selectedPage = route.targetPage
+        }
+        #endif
         .task {
             if AppConstants.useSampleData {
                 // Sample-data mode: load fake data in-memory only, and skip
@@ -323,6 +339,15 @@ struct MacContentView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(Color.bg)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .navigateToPage)) { notif in
+            if let page = notif.object as? AppPage {
+                selectedPage = page
+            }
+        }
+        .onOpenURL { url in
+            guard let route = DeepLinkRouter.parse(url) else { return }
+            selectedPage = route.targetPage
         }
     }
 }

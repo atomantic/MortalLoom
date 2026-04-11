@@ -1,10 +1,15 @@
 import Foundation
+import SwiftUI
 
 // MARK: - StagnationSignal
 
 /// A single stagnation signal raised by `StagnationEngine`. Each signal
 /// identifies what is stalling, how serious it is, and a suggested prompt
 /// the user can answer to unstick themselves.
+///
+/// `daysOverdue` is populated for missed-cadence signals so the UI can
+/// escalate wording ("7 days overdue" vs. "45 days overdue") and so tests
+/// can assert severity scales with time.
 struct StagnationSignal: Identifiable, Sendable, Equatable {
     let id: UUID
     let severity: StagnationSeverity
@@ -13,6 +18,7 @@ struct StagnationSignal: Identifiable, Sendable, Equatable {
     let title: String
     let detail: String
     let suggestedPrompt: String
+    let daysOverdue: Int?
 
     init(
         id: UUID = UUID(),
@@ -21,7 +27,8 @@ struct StagnationSignal: Identifiable, Sendable, Equatable {
         habitId: UUID? = nil,
         title: String,
         detail: String,
-        suggestedPrompt: String
+        suggestedPrompt: String,
+        daysOverdue: Int? = nil
     ) {
         self.id = id
         self.severity = severity
@@ -30,7 +37,23 @@ struct StagnationSignal: Identifiable, Sendable, Equatable {
         self.title = title
         self.detail = detail
         self.suggestedPrompt = suggestedPrompt
+        self.daysOverdue = daysOverdue
     }
+}
+
+/// Scale a missed-cadence severity based on how many cadence intervals the
+/// user has blown past. Tuned so:
+/// - 1.0–1.5x cadence → `.info` (recent, recoverable)
+/// - 1.5–3x cadence   → `.warn`
+/// - >3x cadence      → `.alert`
+///
+/// Pure function, exposed for testing.
+func stagnationSeverity(daysOverdue: Int, cadenceIntervalDays: Int) -> StagnationSeverity {
+    guard cadenceIntervalDays > 0 else { return .warn }
+    let ratio = Double(daysOverdue) / Double(cadenceIntervalDays)
+    if ratio >= 3 { return .alert }
+    if ratio >= 1.5 { return .warn }
+    return .info
 }
 
 enum StagnationSeverity: String, Codable, Sendable, Comparable {
@@ -46,6 +69,26 @@ enum StagnationSeverity: String, Codable, Sendable, Comparable {
 
     static func < (lhs: StagnationSeverity, rhs: StagnationSeverity) -> Bool {
         lhs.order < rhs.order
+    }
+
+    /// SF Symbol name for this severity. Centralised so OverviewView,
+    /// CheckInSheet, and ReportsView all render the same icon for a given
+    /// signal without duplicating the mapping.
+    var iconName: String {
+        switch self {
+        case .info: "info.circle"
+        case .warn: "exclamationmark.triangle"
+        case .alert: "exclamationmark.octagon.fill"
+        }
+    }
+
+    /// Semantic tint color for this severity.
+    var tintColor: Color {
+        switch self {
+        case .info: .accentColor
+        case .warn: .warning
+        case .alert: .danger
+        }
     }
 }
 
@@ -108,17 +151,24 @@ enum StagnationEngine {
             }
         }
 
-        // 3. Goals that have missed their check-in cadence.
+        // 3. Goals that have missed their check-in cadence. Severity scales
+        // with how many cadence intervals the user has missed, so a 3-day
+        // miss and a 45-day miss don't raise identical alerts.
         for g in goals where g.status == .active && g.goalType != .apex && g.goalType != .subApex {
             if g.needsCheckIn {
                 let days = g.daysSinceLastCheckIn
-                let severity: StagnationSeverity = days >= (g.checkInIntervalDays * 2) ? .alert : .warn
+                let overdue = max(0, days - g.checkInIntervalDays)
+                let severity = stagnationSeverity(
+                    daysOverdue: overdue,
+                    cadenceIntervalDays: g.checkInIntervalDays
+                )
                 signals.append(StagnationSignal(
                     severity: severity,
                     goalId: g.id,
                     title: "Check-in overdue",
                     detail: "'\(g.title)' hasn't been checked in for \(days) day\(days == 1 ? "" : "s").",
-                    suggestedPrompt: ReflectionPrompts.pick(from: ReflectionPrompts.stagnation)
+                    suggestedPrompt: ReflectionPrompts.pick(from: ReflectionPrompts.stagnation),
+                    daysOverdue: overdue
                 ))
             }
         }
