@@ -157,6 +157,110 @@ Remove the flag to return to normal mode. The `-sample-data` flag (pre-existing)
 
 
 
+## New-User UX Audit — 2026-04-11 (ACTIVE)
+
+Walkthrough of the app as a brand-new user on a fresh iPhone 16 Pro install (`-fresh-start`), followed by a second pass with `-sample-data` to approximate an established user. Items are grouped **🚧 Blocker** (first-run user can't complete the intended task or is actively misled) vs **🔸 Friction** (they can, but it's annoying or compounds over time). Every item cites the exact file:line so the fix is unambiguous.
+
+### 🚧 Blockers
+
+- [ ] **Onboarding ends at step 4 of 13 — steps 5–13 never shown.** `MortalLoom/Views/OnboardingView.swift:840-842` — `firstReflectionStep`'s primary button calls `saveAndDismiss()` instead of `advanceStep()`, so Longevity Escape Velocity, Apple Health, Birth Date, Biological Sex, Smoking, Exercise, Sleep, Diet & Stress, and the Life Expectancy Results page are all skipped. Confirmed via screenshots during live walkthrough. The `// MARK: - Step N:` comments at lines 147, 183, 232, 304, 334, 396, 451, 500, 549, 627, 709, 792 still number against an earlier flow order — the TabView tags (lines 37-49) were reordered but `firstReflectionStep`'s action was never updated. Fix: change the reflection-step button to `advanceStep()`, and only call `saveAndDismiss()` from `resultsStep` (tag 12). Also re-number the stale MARK comments so the next refactor doesn't re-introduce this.
+- [ ] **Every downstream calculation uses fake default lifestyle values.** Because of the bug above, `saveAndDismiss` at `OnboardingView.swift:940-995` persists `smokingStatus = .never`, `exerciseMinutes = 150`, `sleepHours = 7.5`, `dietQuality = .good`, `stressLevel = .moderate`, `birthDate = 30 years ago`, `biologicalSex = nil` — the @State defaults at lines 6-12, not user answers. Death clock, longevity chart, LEV math, age-remaining countdowns, Calendar grid, Reports alignment — everything — runs against these fake defaults for users who never saw the form. Verification: fix the blocker above and this resolves automatically.
+- [ ] **13 progress dots promise a length the flow never delivers.** `OnboardingView.swift:29` (`totalSteps = 13`) + `OnboardingView.swift:68-79` (dot row). After Bug #1 is fixed this becomes accurate, but until then the user sees "4 of 13" and gets dumped on Overview. Make the dot count reflect `advanceStep()`-reachable steps.
+- [ ] **Reflections & Reports are buried behind the "More" drawer.** `MortalLoom/Views/SideMenuView.swift:58` — `tabBarPages = [.overview, .goals, .calendar, .habits]`. Reflections (the journal) and Reports (Attention Needed, Alignment Trend) are the payoff of the goal-alignment loop, yet a new user has to discover the "More" tab to find them. Recommend: swap `Calendar` and `Habits` into More, promote `Reflections` and `Reports` into the tab bar — the calendar/timeline is gorgeous but not a daily destination; reflections are.
+- [ ] **Stagnation rows in Reports are dead ends.** `MortalLoom/Views/ReportsView.swift:185-207` — `stagnationRow(_ signal)` renders a plain `HStack` with no `Button`. A user sees "'Run a marathon' hasn't been checked in for 14 days" and "What changed?" prompt — and literally cannot tap it. Wrap the row in a Button that jumps to the goal and opens the CheckInSheet, passing the suggested prompt as the seed answer.
+- [ ] **"Configure your birth date and lifestyle in Settings" is wrong — the editor lives in Lifestyle, not Settings.** `MortalLoom/Views/OverviewView.swift:737` and `MortalLoom/Views/LifeCalendarView.swift:215`. Settings has Pro/Appearance/Countdown/Notifications/iCloud/Data/About/Setup Guide — none of which let you edit your birth date. The real editor is `MortalLoom/Views/LifestyleView.swift` (birthDate state at line 5, form at ~99). Either rewrite the empty-state copy to point at the Lifestyle tab, or add a "Health Profile" section to Settings that deep-links there.
+- [ ] **Weekly Review CTA is gated on having an apex goal, which users aren't required to set.** `MortalLoom/Views/OverviewView.swift:124` and `:162` — `if WeeklyReview.isDue && apexGoal != nil { weeklyReviewCTA }`. Onboarding's apex step (tag 2) has a "Skip for now" button (`OnboardingView.swift:786`), so users who skip the apex never see the weekly-review card, which is the entire alignment loop. Either require an apex before finishing onboarding, or show a weekly-review CTA that walks the user through setting an apex when it fires.
+- [ ] **Weekly review silently drops user input when no apex exists.** `MortalLoom/Views/WeeklyReviewSheet.swift:291-299` — `finish()` returns early when `apex == nil`, discarding the user's answer, alignment rating, commitments AND still stamping `lastWeeklyReviewDate`. If somehow the sheet opens without an apex (e.g. apex deleted between CTA tap and Finish), the user gets told nothing and their data is gone. Either gate the sheet open on apex-present, or fall back to a general "Reflections" bucket.
+- [ ] **Sample data is stale — no apex, no pillars, no habits, no reflection-shaped check-ins.** `MortalLoom/Engine/SampleData.swift:357-451` has 4 standard goals (book/marathon/piano/garden) with zero `goalType: .apex` or `.subApex`, no `parentId` linkage, no `alignmentRating`/`blockers`/`commitments` on check-ins. `fullAppData` at `:483-495` never passes `habits:`. The Goal Alignment Reframing (see section above, dated 2026-04-11 COMPLETE) is invisible in `-sample-data`. Blocker for accurate App Store screenshots AND for QA — sample-data runs look like the pre-reframe app. Add: one apex, 2-3 pillars parented to it, habit list with mixed streaks, reflection-shaped check-ins across the last 12 weeks so Reports actually populates.
+
+### 🔸 Friction — Onboarding
+
+- [ ] **First reflection question is truncated on iPhone 16 Pro: "Right now, how aligned does your life feel wit..."** `OnboardingView.swift:820-822`. The `Text` uses `.font(.subheadline).fontWeight(.semibold)` without `.fixedSize(horizontal: false, vertical: true)` or an explicit `.lineLimit(nil)`, so the SwiftUI layout truncates rather than wrapping. Add the fixedSize modifier; already used correctly on the `rateStep` text at `WeeklyReviewSheet.swift:210`.
+- [ ] **Presumptuous default alignment rating = 7/10 "Mostly aligned".** Two places: `OnboardingView.swift:27` `firstReflectionRating: Double = 7` and `WeeklyReviewSheet.swift:28` `alignmentRating: Double = 7`. Slider lands on a strong positive before the user has engaged — the app is telling them how they feel. Default to 5 (neutral "Mixed") or require an explicit tap before the rating counts. Related: `saveAndDismiss` at `OnboardingView.swift:974` uses `firstReflectionRating != 7` as the "user touched it" signal, which means users who actually feel 7/10 get no check-in recorded.
+- [ ] **Apex category silently pre-selects Legacy.** `OnboardingView.swift:21` `apexGoalCategory: GoalCategory = .legacy` — the chip is highlighted before the user picks anything, confirmed in screenshot `/tmp/mortalloom-ux-audit/03-onboarding-apex.png`. Meanwhile `GoalEditSheet.init` at `MortalLoom/Views/GoalsView.swift:865` defaults `_category = State(initialValue: g?.category)` which is `nil` → "None". Pick one behaviour; inconsistency confuses users who try to match onboarding and edit-form defaults.
+- [ ] **"Skip for now" button label is ambiguous.** `OnboardingView.swift:786` — `primaryButton(apexGoalTitle.trimmingCharacters(in: .whitespaces).isEmpty ? "Skip for now" : "Next")`. Same button, two meanings depending on text-field state. A user tapping "Skip for now" to "save and move on" may or may not realise their partial input is being discarded. Split into a always-visible primary "Next" + a secondary "Skip this" text link when title is empty.
+- [ ] **No back button anywhere in the onboarding TabView.** `OnboardingView.swift:33-54` uses `.page(indexDisplayMode: .never)` and only `advanceStep()` is wired. Users who fat-finger the birth-date wheel or pick the wrong sex can't correct without quitting and running "Show Setup Guide" (which is itself buried — see Settings blockers). Add a header back chevron on steps >0.
+- [ ] **Longevity Escape Velocity step is the only place the term is defined — and users never reach it.** `OnboardingView.swift:186-230` (escapeVelocityStep, tag 4, currently unreachable per blocker #1). But the Calendar's "Standard / LEV" toggle (`LifeCalendarView.swift:240-251`) and Settings' "DEFAULT COUNTDOWN" toggle use the LEV acronym with no in-context explainer. Once the onboarding bug is fixed this resolves, but still: add an info-popover on the LEV chips so users who didn't do full onboarding aren't locked out.
+- [ ] **Keyboard-return key doesn't advance the primary button on single-field steps.** Minor SwiftUI nit: none of the onboarding text fields set `.onSubmit { advanceStep() }`. Users who finish typing their North Star expect Return to move on.
+
+### 🔸 Friction — First-session landing (Overview)
+
+- [ ] **"YOUR RUNWAY" and "HEALTH SUMMARY" sections default expanded with empty data.** `OverviewView.swift:31-32` — both `@AppStorage` flags default to `true`. On first launch with no profile, both sections render "—" placeholders (screenshot `/tmp/mortalloom-ux-audit/11-overview-sample.png`). Collapse them by default when `profile.birthDate == nil`, and surface a single "Set up your health profile →" card in their place.
+- [ ] **"HEALTH SUMMARY" label appears twice in close vertical proximity.** The collapsible `collapsibleHeader(title: "HEALTH SUMMARY", …)` at `OverviewView.swift:144-147` and a card labelled "Health Summary" rendered inside it. Confirmed visually in the sample-data Overview. De-dupe.
+- [ ] **Set-Goal CTA doesn't explain what an apex is until you tap in.** `OverviewView.swift:567-613` — the `setGoalCard` has a one-liner ("What's the one big thing…") + examples, then the button opens `GoalEditSheet` which has the "(i)" popover with the full explanation. Pull that explainer up onto the set-goal card itself (or add it as a 2nd line below the examples).
+- [ ] **"Set My North Star Goal" CTA and the onboarding's apex form produce goals with different defaults.** Overview CTA at `OverviewView.swift:61-81` passes `defaultGoalType: .apex, defaultHorizon: .lifetime, defaultPriority: .high` but no `defaultCategory`, so category shows "None". Onboarding's apex step at `OnboardingView.swift:21` defaults to `.legacy`. A user who skipped apex in onboarding and creates it from Overview gets a subtly different starting state. Align both.
+
+### 🔸 Friction — Goal creation & hierarchy
+
+- [ ] **Type picker includes a "None" option that produces broken goals.** `GoalsView.swift:935-944` — Picker includes `Text("None").tag(GoalType?.none)`. A user who picks None creates a goal with no type, which can't participate in the hierarchy or alignment scoring. Remove the None option; require a type on save.
+- [ ] **Default Parent Goal is "None (top-level)" even when an apex exists.** `GoalsView.swift:968-969` — `Picker("Parent Goal", selection: $parentId)` with `Text("None (top-level)").tag(UUID?.none)` as the first row. A new standard goal created from Goals page has no parent and therefore contributes zero to any alignment score. Default `parentId` to the user's apex (or the most recently-edited pillar) if one exists.
+- [ ] **Save button silent-disables when title is empty.** No explanatory subtext under the title field. A user who hasn't filled it in can't tell whether the form is broken, waiting, or expects them to scroll. Add a one-line hint: "Name your goal to save."
+- [ ] **No inline one-tap check-in on the Goals list.** `GoalsView.swift` goal rows — tapping opens the full edit sheet; to check in you need to open Check-In sheet separately. A user who just wants to bump progress % on a marathon goal has to tap goal → pencil → CheckInSheet → slider → Save. Add a swipe-action or compact inline "Check in" button on goal rows.
+- [ ] **Cancel/Save sheet header has no progress feedback.** New users spend a long time on the first goal form — add the section label ("Classification", "Priority") as a scroll anchor or a "3 of 7" progress strip like the weekly review.
+
+### 🔸 Friction — Daily loop (habits, check-ins, reflections)
+
+- [ ] **Habits tab mixes daily habits with Alcohol/Nicotine/Sauna substance trackers.** `MortalLoom/Views/SubstancesView.swift` sub-tab bar at the top is `My Habits / Alcohol / Nicotine / Sauna`. Substances belong in the Health surface, not the Habits daily loop. Screenshot `/tmp/mortalloom-ux-audit/14-habits-sample.png`. Move substance tracking into a separate page under Health (or merge substances as typed habits in the unified list).
+- [ ] **"No habits yet" empty state doesn't mention the parent-goal link.** `HabitsSection.swift` empty-state copy says "daily actions that move you toward your goals" but doesn't tell users that tying a habit to a parent goal is what makes it contribute to alignment. Add one line: "Link each habit to a goal so it shows up on your alignment score."
+- [ ] **Reflections journal is reverse-chronological with no "streak" or "weeks reflected" stat.** `MortalLoom/Views/ReflectionsView.swift` — a user who opens this after 6 months of weekly reviews sees a flat list. Add a header card: "You've reflected 23 times across 21 weeks. 🪴 Keep going."
+
+### 🔸 Friction — Weekly review
+
+- [ ] **Review step shows aggregate counts, not the actual items.** `WeeklyReviewSheet.swift:116-151` — "3 check-ins, 1 goal completed, 8 habit completions" as three `statRow`s. A user wants to feel the week, not read a tally. Show the titles: "✓ Marathon: ran half marathon", "✓ Garden bed built", "🔁 Writing practice ×4". Use the same data that `weekActivity()` at `:324-347` already iterates.
+- [ ] **No comparison to last week's commitments during the Commit step.** `WeeklyReviewSheet.swift:229-247` — users commit to "Two 45-minute writing sessions", next week there's no echo of that commitment or a "did you do it?" checkbox. Pull the previous week's commitments from the apex's prior `GoalCheckIn.commitments` and render them above the new commit field with checkboxes.
+- [ ] **"Next" button only gated on Reflect step.** `WeeklyReviewSheet.swift:284` — `.disabled(step == .reflect && answer.trimmingCharacters(in: .whitespaces).isEmpty)`. Rate can be left at the default 7 and Commit can be empty, both producing valid-but-meaningless saves. Gate Commit on at least one non-empty line too.
+- [ ] **Review step opening stat is raw `Int(score)` with no sparkline.** `WeeklyReviewSheet.swift:130-144` shows current alignment as a single large number. A week-over-week delta arrow or 4-week sparkline would turn the review step from a look-back into a narrative.
+
+### 🔸 Friction — Goal Timeline (Calendar)
+
+- [ ] **LEV toggle has no in-context explainer.** `LifeCalendarView.swift:240-251` — segmented picker labelled `Standard / LEV`. Add an info-icon `.popover` next to the picker with the 2-line LEV definition, same copy as `OnboardingView.swift:197-220`. Unblocks users who skipped the onboarding LEV step.
+- [ ] **Default view is 80-year Weeks grid, which is nearly-empty at first launch.** `LifeCalendarView.swift:253-264` — the grid renders 4,000+ cells but first-run users have no scheduled goals and the "Show lived time" toggle is off by default. They see a wall of grey boxes. Default to `years` mode on first open or scale the grid to zoom into the next-5-years range.
+- [ ] **"Awake Days" stat (8,747) conflates with "Days" (13,121) with no explanation of the 33% sleep assumption.** `LifeCalendarView.swift:263`. Add a `?` tooltip: "Awake Days = Days × 2/3, assuming 8 hours of sleep".
+
+### 🔸 Friction — Reports & stagnation
+
+- [ ] **Empty states have no CTA buttons, only descriptive text.** `ReportsView.swift:145-150` (alignment trend), `:231-235` (pillar breakdown), and the habit card empty state. A user sees "Add supporting goals and reflect on your North Star to start building an alignment history" and nothing to tap. Add primary buttons under each: "+ Add a supporting goal", "+ Add a life pillar", "+ Add a habit". Wire each to the appropriate pre-filled `GoalEditSheet` or `HabitEditSheet`.
+- [ ] **Piano goal in sample data flags as "759 days past its target".** `Engine/SampleData.swift:407-425` — `createdDate: dateStr(daysAgo: 200)` with `targetDate: dateStr(daysAgo: -180)` (i.e. 180 days in the future). StagnationEngine is computing 759 days past deadline, which means either the sample data's target math is off or the engine has a sign/offset bug. Investigate via `MortalLoom/Engine/StagnationEngine.swift` against the piano sample.
+- [ ] **Stagnation severity doesn't escalate over time.** Piano is 90 days behind check-in and still rendering at the same visual weight as marathon at 14 days (screenshot `/tmp/mortalloom-ux-audit/16-reflections-empty.png`). Promote 30+ days to `.alert` severity and surface an "Archive?" quick action.
+- [ ] **"ATTENTION NEEDED" count pill (`ReportsView.swift:164-167`) is `.textMuted` — visually indistinguishable from a disabled badge.** On a 3-item alert list the number "3" should be `.danger` or `.accentColor`.
+
+### 🔸 Friction — Settings & recovery
+
+- [ ] **"Show Setup Guide" is 5 taps deep and below "About".** `SettingsView.swift:128` — lives in the Settings sub-tab "More", which is itself inside the bottom-nav "More" drawer. For users who ended up on Overview without a health profile (common due to the step-4 blocker), this should be the most prominent action in Settings. Move to the top of the General sub-tab under a new `SETUP` section, with copy like "Finish your health profile to unlock the longevity clock."
+- [ ] **Notifications default to off.** `SettingsView.swift:notificationsSection` starts with `Weekly review reminder` and `Stagnation alerts` as unchecked toggles (screenshot `/tmp/mortalloom-ux-audit/17-settings.png`). The entire alignment loop depends on weekly reminders; turning them off by default guarantees users forget. Turn Weekly Review on during `saveAndDismiss()`; leave Stagnation opt-in.
+- [ ] **"More" label appears twice in the same screen (bottom nav + Settings sub-tab).** `SettingsView.swift:132` — the Settings TabView's third tab is labelled `"More"`, directly above the already-`More` bottom nav tab. Rename Settings sub-tab to `"About"` and move Setup Guide into General.
+- [ ] **DEFAULT COUNTDOWN LEV footnote is awkwardly worded.** Screenshot `/tmp/mortalloom-ux-audit/17-settings.png` shows `"(defaults to (past 2045))"` — nested parentheticals. Rewrite as "(defaults to 2045)" in `SettingsView.swift` countdownSection.
+- [ ] **No dedicated health-profile section in Settings.** Mirrors the blocker about wrong empty-state copy — Settings should at minimum have a one-tap "Edit Health Profile →" link that deep-jumps to `LifestyleView`.
+
+### 🔸 Friction — Cross-cutting
+
+- [ ] **No deep-linkable URLs for reflection or weekly-review entry.** CLAUDE.md says "All UI views must be deep-linkable routes (/page/sub-tab/edit), not modals without URLs" but the bottom tab bar only mutates state (`CustomTabBar` at `SideMenuView.swift:204`). A user who gets a "time to reflect" notification can't deep-link into the reflection sheet. Add a URL scheme for `mortalloom://weekly-review`, `mortalloom://goal/new?type=apex`, `mortalloom://reflections`.
+- [ ] **No "you've skipped onboarding — finish it" recovery banner.** For users currently stuck in the step-4 half-onboarded state, a one-time banner at the top of Overview ("Your longevity clock needs a few more answers to start ticking. Finish setup →") would recover them without forcing a full onboarding re-run. Once the step-4 blocker is fixed this becomes unnecessary, but it's cheap insurance.
+
+### Verification plan for this section
+
+Each fix should be verified by re-running this walkthrough against the same simulator state:
+
+```bash
+# Fresh-install walkthrough
+xcodebuild build -project MortalLoom.xcodeproj -scheme MortalLoom_iOS \
+  -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.6' \
+  -configuration Debug CODE_SIGNING_ALLOWED=NO -quiet
+xcrun simctl install booted <path>/MortalLoom.app
+xcrun simctl launch booted net.shadowpuppet.MeatSpaceTracker -fresh-start
+# Walk onboarding; screenshot every step; verify all 13 dots advance.
+
+# Sample-data walkthrough
+xcrun simctl terminate booted net.shadowpuppet.MeatSpaceTracker
+xcrun simctl launch booted net.shadowpuppet.MeatSpaceTracker -sample-data
+# Overview should now show a populated apex, pillars, active habits, and an
+# Alignment Trend chart with 12+ weeks of data in Reports.
+```
+
+Screenshots used in this audit are kept in `/tmp/mortalloom-ux-audit/` during the session and are **not** committed to the repo.
+
+
+
 ## Better Swift Audit — 2026-04-06 (COMPLETE)
 
 Shipped 5 PRs against `main` covering 17 files + 2 new test suites (70 new test cases).
