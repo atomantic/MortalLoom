@@ -352,63 +352,233 @@ enum SampleData {
                        ]),
     ]
 
-    // MARK: - Goals
+    // MARK: - Goal Hierarchy (post-reframe)
+    //
+    // After the 2026-04-11 Goal Alignment Reframing, the app's data model is
+    // a three-tier tree: North Star (apex) → Life Pillars (sub-apex) → concrete
+    // Standard goals. Habits attach to any level. Reflection-shaped check-ins
+    // carry alignment ratings, blockers, and commitments.
+    //
+    // This sample set populates the full hierarchy plus ~6 months of weekly
+    // reflections so Reports, Reflections, and the alignment trend chart
+    // have realistic-looking content in demo/screenshot builds.
+
+    // Stable IDs so parent/child links don't change across builds.
+    static let apexId = UUID(uuidString: "A0000000-0000-0000-0000-000000000001")!
+    static let healthPillarId = UUID(uuidString: "A0000000-0000-0000-0000-000000000002")!
+    static let craftPillarId = UUID(uuidString: "A0000000-0000-0000-0000-000000000003")!
+    static let legacyPillarId = UUID(uuidString: "A0000000-0000-0000-0000-000000000004")!
 
     static let goals: [Goal] = {
-        let today = DateFormatting.todayString()
+        // MARK: - Apex (North Star)
 
-        // Goal 1: Publish a book — 35% done, on track
+        let apexReflections: [GoalCheckIn] = [
+            GoalCheckIn(
+                date: dateStr(daysAgo: 168),
+                note: "The book is why I get up before the kids wake. The body is what keeps me able to write it.",
+                alignmentRating: 6,
+                commitments: ["Write 4 mornings this week", "No wine on weeknights"],
+                promptAnswered: "Why does this matter to you?"
+            ),
+            GoalCheckIn(
+                date: dateStr(daysAgo: 140),
+                note: "Hit every morning writing session. Skipped one run. Commitments matter — these aren't aspirational any more.",
+                alignmentRating: 8,
+                commitments: ["Keep the morning cadence", "Run 3x this week"],
+                promptAnswered: "What's the most important thing you've done this week toward your goals?"
+            ),
+            GoalCheckIn(
+                date: dateStr(daysAgo: 112),
+                note: "Sick for half the week, everything slipped. Noticed I'm fine with skipping runs but feel guilty about skipping writing.",
+                alignmentRating: 5,
+                blockers: ["Flu", "Travel next week"],
+                commitments: ["Pack running shoes", "One hour of writing minimum"],
+                promptAnswered: "What's holding you back right now?"
+            ),
+            GoalCheckIn(
+                date: dateStr(daysAgo: 84),
+                note: "Finished chapter 4 ahead of schedule. Marathon training is landing.",
+                alignmentRating: 9,
+                commitments: ["Don't coast — start outlining chapter 5"],
+                promptAnswered: "What surprised you about your alignment this month?"
+            ),
+            GoalCheckIn(
+                date: dateStr(daysAgo: 56),
+                note: "Piano has been stalled for weeks. Accepting it's not an alignment-priority right now.",
+                alignmentRating: 7,
+                blockers: ["Piano is a distraction — should I archive it?"],
+                commitments: ["Decide whether to keep piano active"],
+                promptAnswered: "What would you retire from your goals if you could?"
+            ),
+            GoalCheckIn(
+                date: dateStr(daysAgo: 28),
+                note: "Book is past the half-way point. Health is the best it's been in years. This is what alignment feels like.",
+                alignmentRating: 9,
+                commitments: ["Keep the rhythm — don't add new things"],
+                promptAnswered: "What's the most important thing you've done this week toward your goals?"
+            ),
+            GoalCheckIn(
+                date: dateStr(daysAgo: 7),
+                note: "Still on track. Noticed stress creeping in around book deadline — want to protect sleep.",
+                alignmentRating: 8,
+                commitments: ["8 hours of sleep 5 nights this week", "One hard run"],
+                promptAnswered: "What could you clear from your calendar this week?"
+            ),
+        ]
+
+        let apex = Goal(
+            id: apexId,
+            title: "Live healthy long enough to finish the work that matters",
+            notes: "Write the books, raise the family, stay strong enough to enjoy it all.",
+            createdDate: dateStr(daysAgo: 200),
+            checkIns: apexReflections,
+            checkInIntervalDays: 14,
+            status: .active,
+            priority: .high,
+            horizon: .lifetime,
+            category: .legacy,
+            goalType: .apex
+        )
+
+        // MARK: - Life Pillars (sub-apex)
+
+        let healthPillar = Goal(
+            id: healthPillarId,
+            title: "Strong, resilient body",
+            notes: "The runway extender. Sleep, movement, substances under control.",
+            createdDate: dateStr(daysAgo: 195),
+            checkIns: [
+                GoalCheckIn(
+                    date: dateStr(daysAgo: 120),
+                    note: "Sleep is the weakest link. Exercise is solid, diet drifts on travel weeks.",
+                    alignmentRating: 6,
+                    promptAnswered: "Which life pillar has had the most attention this month?"
+                ),
+                GoalCheckIn(
+                    date: dateStr(daysAgo: 60),
+                    note: "Back on 7.5 hours, running 3x/week, almost no alcohol during the week.",
+                    alignmentRating: 8
+                ),
+            ],
+            checkInIntervalDays: 14,
+            status: .active,
+            priority: .high,
+            parentId: apexId,
+            horizon: .lifetime,
+            category: .health,
+            goalType: .subApex
+        )
+
+        let craftPillar = Goal(
+            id: craftPillarId,
+            title: "Deep practice at my craft",
+            notes: "Writing, thinking, shipping work I'm proud of.",
+            createdDate: dateStr(daysAgo: 195),
+            checkIns: [
+                GoalCheckIn(
+                    date: dateStr(daysAgo: 90),
+                    note: "Morning writing cadence unlocked everything. Protect it.",
+                    alignmentRating: 9
+                ),
+            ],
+            checkInIntervalDays: 14,
+            status: .active,
+            priority: .high,
+            parentId: apexId,
+            horizon: .lifetime,
+            category: .creative,
+            goalType: .subApex
+        )
+
+        let legacyPillar = Goal(
+            id: legacyPillarId,
+            title: "Present for the family",
+            notes: "Show up — meals, bedtime, weekend adventures.",
+            createdDate: dateStr(daysAgo: 195),
+            checkIns: [
+                GoalCheckIn(
+                    date: dateStr(daysAgo: 45),
+                    note: "Work creep is the main threat here. Evenings are sacred.",
+                    alignmentRating: 7,
+                    blockers: ["Late-day meetings"]
+                ),
+            ],
+            checkInIntervalDays: 14,
+            status: .active,
+            priority: .medium,
+            parentId: apexId,
+            horizon: .lifetime,
+            category: .family,
+            goalType: .subApex
+        )
+
+        // MARK: - Standard Goals (concrete, dated, nested under pillars)
+
+        // Book — under craft pillar, on track
         let bookGoal = Goal(
             title: "Publish a book",
             notes: "Technical book on distributed systems",
-            createdDate: dateStr(daysAgo: 120),
-            targetDate: dateStr(daysAgo: -365), // 1 year from now
+            createdDate: dateStr(daysAgo: 150),
+            targetDate: dateStr(daysAgo: -215), // ~7 months from today
             checkIns: [
-                GoalCheckIn(date: dateStr(daysAgo: 110), progressPct: 5, note: "Outlined chapters"),
-                GoalCheckIn(date: dateStr(daysAgo: 90), progressPct: 12, note: "First two chapters drafted"),
-                GoalCheckIn(date: dateStr(daysAgo: 60), progressPct: 22, note: "Chapters 3-4 complete"),
-                GoalCheckIn(date: dateStr(daysAgo: 30), progressPct: 30, note: "Hit chapter 5, added diagrams"),
-                GoalCheckIn(date: dateStr(daysAgo: 5), progressPct: 35, note: "Chapter 6 draft done"),
+                GoalCheckIn(date: dateStr(daysAgo: 140), progressPct: 5, note: "Outlined chapters"),
+                GoalCheckIn(date: dateStr(daysAgo: 112), progressPct: 12, note: "First two chapters drafted"),
+                GoalCheckIn(date: dateStr(daysAgo: 84), progressPct: 22, note: "Chapters 3-4 complete"),
+                GoalCheckIn(date: dateStr(daysAgo: 56), progressPct: 32, note: "Chapter 5 + diagrams"),
+                GoalCheckIn(date: dateStr(daysAgo: 28), progressPct: 48, note: "Past the halfway point"),
+                GoalCheckIn(date: dateStr(daysAgo: 7), progressPct: 55, note: "Chapter 7 drafted"),
             ],
             milestones: [
-                GoalMilestone(title: "Outline complete", completed: true, completedDate: dateStr(daysAgo: 110)),
+                GoalMilestone(title: "Outline complete", completed: true, completedDate: dateStr(daysAgo: 140)),
                 GoalMilestone(title: "First draft (10 chapters)", completed: false),
                 GoalMilestone(title: "Technical review", completed: false),
                 GoalMilestone(title: "Final edits", completed: false),
                 GoalMilestone(title: "Submit to publisher", completed: false),
             ],
             checkInIntervalDays: 7,
-            priority: .high
+            priority: .high,
+            parentId: craftPillarId,
+            horizon: .oneYear,
+            category: .creative,
+            goalType: .standard
         )
 
-        // Goal 2: Run a marathon — needs check-in
+        // Marathon — under health pillar, slightly overdue check-in
         let marathonGoal = Goal(
             title: "Run a marathon",
             notes: "Target: Portland Marathon",
-            createdDate: dateStr(daysAgo: 60),
-            targetDate: dateStr(daysAgo: -200),
+            createdDate: dateStr(daysAgo: 90),
+            targetDate: dateStr(daysAgo: -120), // ~4 months out
             checkIns: [
-                GoalCheckIn(date: dateStr(daysAgo: 55), progressPct: 10, note: "Started C25K"),
-                GoalCheckIn(date: dateStr(daysAgo: 30), progressPct: 25, note: "Can run 10K now"),
-                GoalCheckIn(date: dateStr(daysAgo: 14), progressPct: 35, note: "Half marathon distance reached"),
+                GoalCheckIn(date: dateStr(daysAgo: 84), progressPct: 10, note: "Started C25K"),
+                GoalCheckIn(date: dateStr(daysAgo: 56), progressPct: 25, note: "Can run 10K now"),
+                GoalCheckIn(date: dateStr(daysAgo: 28), progressPct: 38, note: "Half marathon distance reached"),
+                GoalCheckIn(date: dateStr(daysAgo: 12), progressPct: 45, note: "18 mile long run"),
             ],
             milestones: [
-                GoalMilestone(title: "Run 5K", completed: true, completedDate: dateStr(daysAgo: 45)),
-                GoalMilestone(title: "Run 10K", completed: true, completedDate: dateStr(daysAgo: 30)),
-                GoalMilestone(title: "Run half marathon", completed: true, completedDate: dateStr(daysAgo: 14)),
+                GoalMilestone(title: "Run 5K", completed: true, completedDate: dateStr(daysAgo: 70)),
+                GoalMilestone(title: "Run 10K", completed: true, completedDate: dateStr(daysAgo: 56)),
+                GoalMilestone(title: "Run half marathon", completed: true, completedDate: dateStr(daysAgo: 28)),
                 GoalMilestone(title: "Run 30K", completed: false),
                 GoalMilestone(title: "Complete marathon", completed: false),
             ],
             checkInIntervalDays: 7,
-            priority: .medium
+            priority: .high,
+            parentId: healthPillarId,
+            horizon: .oneYear,
+            category: .health,
+            goalType: .standard
         )
 
-        // Goal 3: Learn piano — stalled, slipping
+        // Piano — stalled, surfaces in stagnation signals
+        // Bug fix (audit finding): target was -180 (past) paired with
+        // createdDate 200, which StagnationEngine reads as "759 days overdue".
+        // Keep a stale check-in cadence but set a realistic future target.
         let pianoGoal = Goal(
-            title: "Learn to play piano",
-            notes: "Classical repertoire — start with Chopin nocturnes",
+            title: "Learn Chopin Nocturne Op.9 No.2",
+            notes: "A concrete piece I can actually play end-to-end.",
             createdDate: dateStr(daysAgo: 200),
-            targetDate: dateStr(daysAgo: -180),
+            targetDate: dateStr(daysAgo: -60), // 2 months from today
             checkIns: [
                 GoalCheckIn(date: dateStr(daysAgo: 190), progressPct: 5, note: "Bought keyboard, started lessons"),
                 GoalCheckIn(date: dateStr(daysAgo: 150), progressPct: 15, note: "Scales and basic chords"),
@@ -421,10 +591,14 @@ enum SampleData {
                 GoalMilestone(title: "Perform for someone", completed: false),
             ],
             checkInIntervalDays: 14,
-            priority: .low
+            priority: .low,
+            parentId: craftPillarId,
+            horizon: .oneYear,
+            category: .creative,
+            goalType: .standard
         )
 
-        // Goal 4: Completed goal
+        // Garden — completed, shows recent win
         let gardenGoal = Goal(
             title: "Build a raised garden bed",
             notes: "Cedar 4x8, with drip irrigation",
@@ -444,10 +618,109 @@ enum SampleData {
             ],
             checkInIntervalDays: 7,
             status: .completed,
-            priority: .medium
+            priority: .medium,
+            parentId: legacyPillarId,
+            horizon: .oneYear,
+            category: .family,
+            goalType: .standard
         )
 
-        return [bookGoal, marathonGoal, pianoGoal, gardenGoal]
+        return [apex, healthPillar, craftPillar, legacyPillar, bookGoal, marathonGoal, pianoGoal, gardenGoal]
+    }()
+
+    // MARK: - Habits (post-reframe daily loop)
+
+    static let habits: [Habit] = {
+        // Morning writing — under craft pillar, strong ~28-day streak
+        let writingCompletions: [HabitCompletion] = (0..<84).compactMap { day in
+            // Skip weekends and an occasional miss for realism.
+            let weekday = Calendar.current.component(.weekday, from:
+                Calendar.current.date(byAdding: .day, value: -day, to: Date()) ?? Date())
+            let isWeekend = weekday == 1 || weekday == 7
+            if isWeekend { return nil }
+            // Miss every ~13 days
+            if day % 13 == 5 { return nil }
+            return HabitCompletion(date: dateStr(daysAgo: day), count: 1, note: "")
+        }
+        let writingHabit = Habit(
+            name: "Morning writing",
+            detail: "45 minutes before the kids wake up",
+            icon: "pencil.and.scribble",
+            colorHex: "#7F5AF0",
+            category: .creative,
+            kind: .positive,
+            cadence: HabitCadence(period: .daily, target: 1),
+            parentGoalId: craftPillarId,
+            createdDate: dateStr(daysAgo: 90),
+            completions: writingCompletions
+        )
+
+        // Run — under health pillar, 3x/week
+        let runCompletions: [HabitCompletion] = (0..<84).compactMap { day in
+            // ~3 days per week: Tue, Thu, Sat
+            let weekday = Calendar.current.component(.weekday, from:
+                Calendar.current.date(byAdding: .day, value: -day, to: Date()) ?? Date())
+            let isRunDay = weekday == 3 || weekday == 5 || weekday == 7
+            if !isRunDay { return nil }
+            // Miss one every ~10 days
+            if day % 23 == 7 { return nil }
+            return HabitCompletion(date: dateStr(daysAgo: day), count: 1, note: "")
+        }
+        let runHabit = Habit(
+            name: "Run",
+            detail: "30+ minutes, easy pace unless track day",
+            icon: "figure.run",
+            colorHex: "#22C55E",
+            category: .health,
+            kind: .positive,
+            cadence: HabitCadence(period: .weekly, target: 3),
+            parentGoalId: healthPillarId,
+            createdDate: dateStr(daysAgo: 90),
+            completions: runCompletions
+        )
+
+        // Meditate — wellness, daily, recently broken
+        let meditateCompletions: [HabitCompletion] = (10..<50).compactMap { day in
+            if day % 3 == 0 { return nil } // patchy
+            return HabitCompletion(date: dateStr(daysAgo: day), count: 1, note: "")
+        }
+        let meditateHabit = Habit(
+            name: "Meditate",
+            detail: "10 minutes, Waking Up app",
+            icon: "leaf.fill",
+            colorHex: "#06B6D4",
+            category: .wellness,
+            kind: .positive,
+            cadence: HabitCadence(period: .daily, target: 1),
+            parentGoalId: healthPillarId,
+            createdDate: dateStr(daysAgo: 120),
+            completions: meditateCompletions
+        )
+
+        // No wine on weeknights — negative/avoid habit, mostly holding
+        let noWineCompletions: [HabitCompletion] = (0..<60).compactMap { day in
+            let weekday = Calendar.current.component(.weekday, from:
+                Calendar.current.date(byAdding: .day, value: -day, to: Date()) ?? Date())
+            let isWeeknight = weekday >= 2 && weekday <= 6
+            if !isWeeknight { return nil }
+            // ~90% success
+            if day % 11 == 3 { return nil }
+            return HabitCompletion(date: dateStr(daysAgo: day), count: 1, note: "")
+        }
+        let noWineHabit = Habit(
+            name: "No wine on weeknights",
+            detail: "Weekdays only — weekends are fair game",
+            icon: "wineglass",
+            colorHex: "#F59E0B",
+            category: .health,
+            kind: .negative,
+            cadence: HabitCadence(period: .daily, target: 1),
+            parentGoalId: healthPillarId,
+            createdDate: dateStr(daysAgo: 75),
+            completions: noWineCompletions
+        )
+
+        return [writingHabit, runHabit, meditateHabit, noWineHabit]
     }()
 
     // MARK: - Genome Variants (sample 23andMe-format data)
@@ -491,7 +764,8 @@ enum SampleData {
         epigeneticTests: epigeneticTests,
         bodyEntries: bodyEntries,
         healthMetrics: healthMetrics,
-        goals: goals
+        goals: goals,
+        habits: habits
     )
 }
 

@@ -5,7 +5,12 @@ struct LifeCalendarView: View {
     @State private var deathClock: DeathClockEngine.DeathClockResult?
     @State private var levDeathClock: DeathClockEngine.DeathClockResult?
     @State private var countdownMode: CountdownMode = .standard
-    @State private var viewMode: ViewMode = .weeks
+    // Default to years on first launch — the 80-year weeks grid is cool but
+    // nearly-empty for users with no scheduled goals. Years gives them a
+    // sense of the span without the scale shock. Persisted so the user's
+    // explicit preference sticks across launches.
+    @AppStorage("calendar.viewMode") private var viewMode: ViewMode = .years
+    @State private var showLEVExplainer = false
     @State private var goalMarkers: [GoalMarker] = []
     @State private var goalWeekSet: Set<Int> = []
     @State private var projectedWeekSet: Set<Int> = []
@@ -212,7 +217,7 @@ struct LifeCalendarView: View {
             Text("Life Calendar")
                 .font(.title2).fontWeight(.bold)
                 .foregroundColor(.textPrimary)
-            Text("Configure your birth date in Settings to see your life as a grid of weeks.")
+            Text("Add your birth date in the Lifestyle page (or re-run the setup wizard) to see your life as a grid of weeks.")
                 .font(.subheadline)
                 .foregroundColor(.textSecondary)
                 .multilineTextAlignment(.center)
@@ -237,16 +242,43 @@ struct LifeCalendarView: View {
             }
 
             if levDeathClock != nil {
-                Picker("Countdown", selection: $countdownMode) {
-                    ForEach(CountdownMode.allCases, id: \.self) { mode in
-                        Text(mode.pickerLabel).tag(mode)
+                HStack(spacing: 8) {
+                    Picker("Countdown", selection: $countdownMode) {
+                        ForEach(CountdownMode.allCases, id: \.self) { mode in
+                            Text(mode.pickerLabel).tag(mode)
+                        }
                     }
-                }
-                .pickerStyle(.segmented)
-                .onChange(of: countdownMode) { _, newMode in
-                    data.profile.countdownMode = newMode
-                    Task { await DataStore.shared.save(data) }
-                    NotificationCenter.default.post(name: .profileDidChange, object: nil)
+                    .pickerStyle(.segmented)
+                    .onChange(of: countdownMode) { _, newMode in
+                        data.profile.countdownMode = newMode
+                        Task { await DataStore.shared.save(data) }
+                        NotificationCenter.default.post(name: .profileDidChange, object: nil)
+                    }
+
+                    Button {
+                        showLEVExplainer = true
+                    } label: {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(.textMuted)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("What is LEV?")
+                    .popover(isPresented: $showLEVExplainer, arrowEdge: .top) {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Longevity Escape Velocity")
+                                .font(.subheadline).fontWeight(.semibold)
+                            Text("Standard shows your projected life expectancy based on actuarial tables adjusted for your lifestyle.")
+                                .font(.caption)
+                                .foregroundColor(.textSecondary)
+                            Text("LEV assumes geroscience and AI-driven diagnostics keep adding years faster than you age, kicking in around 2045. Reach that date in good health and the math tilts in your favor.")
+                                .font(.caption)
+                                .foregroundColor(.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding()
+                        .frame(width: 280)
+                        .presentationCompactAdaptation(.popover)
+                    }
                 }
             }
 

@@ -41,9 +41,19 @@ actor DataStore {
 
     /// Debug-only: replace the in-memory data without persisting. Paired with
     /// enableSampleDataMode() for the screenshot-capture flow.
+    ///
+    /// Posts `.dataDidSync` + `.profileDidChange` after replacing so any
+    /// views that already called `getData()` and cached an empty result
+    /// will refresh. Without this, `-sample-data` races OverviewView's
+    /// first `loadData()` and the user sees the empty-state Overview
+    /// even though sample data is loaded.
     func setInMemory(_ newData: AppData) {
         data = newData
         loaded = true
+        Task { @MainActor in
+            NotificationCenter.default.post(name: .dataDidSync, object: nil)
+            NotificationCenter.default.post(name: .profileDidChange, object: nil)
+        }
     }
 
     // File locations

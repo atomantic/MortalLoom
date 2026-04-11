@@ -109,13 +109,36 @@ struct ReflectionsView: View {
                     .font(.headline).monospacedDigit()
                     .foregroundColor(.textMuted)
             }
+            if let streakText = reflectionsStreakText {
+                Text(streakText)
+                    .font(.caption).fontWeight(.semibold)
+                    .foregroundColor(.accentColor)
+            }
             Text("How you've been thinking about your goals over time. A reflection is a check-in that captures alignment, blockers, and commitments — not just progress.")
                 .font(.caption)
                 .foregroundColor(.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
+    }
+
+    /// "You've reflected 23 times across 21 weeks. Keep going." — turns the
+    /// journal from a data dump into a momentum signal.
+    private var reflectionsStreakText: String? {
+        guard !allReflections.isEmpty else { return nil }
+        let count = allReflections.count
+        let calendar = Calendar.current
+        let weekKeys: Set<String> = Set(allReflections.compactMap { entry in
+            guard let date = DateFormatting.dateFromString(entry.checkIn.date) else { return nil }
+            let comp = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: date)
+            return "\(comp.yearForWeekOfYear ?? 0)-\(comp.weekOfYear ?? 0)"
+        })
+        let weeks = weekKeys.count
+        let suffix = count == 1 ? "time" : "times"
+        let weekWord = weeks == 1 ? "week" : "weeks"
+        return "You've reflected \(count) \(suffix) across \(weeks) \(weekWord)."
     }
 
     private var filterPicker: some View {

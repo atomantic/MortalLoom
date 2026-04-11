@@ -835,6 +835,7 @@ struct GoalEditSheet: View {
         defaultHorizon: GoalHorizon? = nil,
         defaultPriority: GoalPriority? = nil,
         defaultParentId: UUID? = nil,
+        defaultCategory: GoalCategory? = nil,
         onSave: @escaping (Goal) -> Void,
         onDelete: (() -> Void)? = nil,
         onAddChild: ((Goal) -> Void)? = nil
@@ -857,12 +858,24 @@ struct GoalEditSheet: View {
         _milestoneTexts = State(initialValue: g?.milestones.map {
             MilestoneRow(id: $0.id, text: $0.title, completed: $0.completed)
         } ?? [])
-        _parentId = State(initialValue: g?.parentId ?? defaultParentId)
+        // For new standard goals, default parent to the user's apex if one
+        // exists and no explicit default was passed. Top-level standard goals
+        // contribute nothing to the alignment tree, so landing at apex-root
+        // is almost always what the user wants.
+        let resolvedType = g?.goalType ?? defaultGoalType ?? .standard
+        let resolvedParent: UUID? = {
+            if let existing = g?.parentId { return existing }
+            if let explicit = defaultParentId { return explicit }
+            if resolvedType == .standard, let inferredApex = allGoals.first(where: { $0.goalType == .apex && $0.status == .active }) {
+                return inferredApex.id
+            }
+            return nil
+        }()
+        _parentId = State(initialValue: resolvedParent)
         // Apex is always lifetime; sub-apex defaults to lifetime but stays editable for standard goals.
-        let resolvedType = g?.goalType ?? defaultGoalType
         let resolvedHorizon: GoalHorizon? = (resolvedType == .apex) ? .lifetime : (g?.horizon ?? defaultHorizon)
         _horizon = State(initialValue: resolvedHorizon)
-        _category = State(initialValue: g?.category)
+        _category = State(initialValue: g?.category ?? defaultCategory)
         _goalType = State(initialValue: resolvedType)
         _mutedSignals = State(initialValue: Set(g?.mutedSignals ?? []))
     }
@@ -932,8 +945,9 @@ struct GoalEditSheet: View {
                 }
 
                 Section("Classification") {
+                    // Type is required — an untyped goal can't participate in
+                    // the hierarchy or alignment scoring. Default is `.standard`.
                     Picker("Type", selection: $goalType) {
-                        Text("None").tag(GoalType?.none)
                         ForEach(GoalType.allCases, id: \.self) { t in
                             Label(t.label, systemImage: t.icon).tag(GoalType?.some(t))
                         }
@@ -1321,8 +1335,9 @@ struct CheckInSheet: View {
     @State private var note: String = ""
     @State private var milestoneStates: [UUID: Bool]
 
-    // Reflection state (lifelong goals)
-    @State private var alignmentRating: Double = 7
+    // Reflection state (lifelong goals). Default 5 ("Mixed") instead of 7
+    // so the slider doesn't tell users how they feel before they engage.
+    @State private var alignmentRating: Double = 5
     @State private var selectedPrompt: String = ""
     @State private var blockersText: String = ""
     @State private var commitmentsText: String = ""

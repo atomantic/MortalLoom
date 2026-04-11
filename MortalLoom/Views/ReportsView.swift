@@ -24,6 +24,16 @@ struct ReportsView: View {
     @State private var pillarAlignments: [UUID: Double] = [:]
     /// Pre-computed per-habit stats for the Habit Streaks card.
     @State private var habitStats: [UUID: HabitStats] = [:]
+    /// Goal being checked in from a tapped stagnation row or pillar.
+    @State private var checkInGoal: Goal?
+    /// Goal being opened for edit (child-add / muted signals).
+    @State private var editingGoal: Goal?
+    /// Sheet trigger for the new-goal flow from empty-state CTAs.
+    @State private var showAddGoal = false
+    @State private var newGoalDefaultType: GoalType?
+    @State private var newGoalDefaultParent: UUID?
+    /// Sheet trigger for adding a habit from an empty-state CTA.
+    @State private var showAddHabit = false
 
     var body: some View {
         ScrollView {
@@ -41,6 +51,68 @@ struct ReportsView: View {
         .task { await loadData() }
         .onReceive(NotificationCenter.default.publisher(for: .dataDidSync)) { _ in
             Task { await loadData() }
+        }
+        .sheet(item: $checkInGoal) { goal in
+            CheckInSheet(goal: goal) { updated in
+                Task {
+                    await DataStore.shared.updateGoal(updated)
+                    await loadData()
+                }
+            }
+        }
+        .sheet(item: $editingGoal) { goal in
+            GoalEditSheet(
+                goal: goal,
+                allGoals: data.goals,
+                onSave: { updated in
+                    Task {
+                        await DataStore.shared.updateGoal(updated)
+                        await loadData()
+                    }
+                },
+                onDelete: {
+                    Task {
+                        await DataStore.shared.removeGoal(id: goal.id)
+                        await loadData()
+                    }
+                },
+                onAddChild: { newChild in
+                    Task {
+                        await DataStore.shared.addGoal(newChild)
+                        await loadData()
+                    }
+                }
+            )
+        }
+        .sheet(isPresented: $showAddGoal) {
+            GoalEditSheet(
+                goal: nil,
+                allGoals: data.goals,
+                defaultGoalType: newGoalDefaultType,
+                defaultHorizon: newGoalDefaultType == .apex ? .lifetime : nil,
+                defaultPriority: .high,
+                defaultParentId: newGoalDefaultParent,
+                onSave: { newGoal in
+                    Task {
+                        await DataStore.shared.addGoal(newGoal)
+                        await loadData()
+                    }
+                },
+                onAddChild: { newChild in
+                    Task {
+                        await DataStore.shared.addGoal(newChild)
+                        await loadData()
+                    }
+                }
+            )
+        }
+        .sheet(isPresented: $showAddHabit) {
+            HabitEditSheet(habit: nil, goals: data.goals) { newHabit in
+                Task {
+                    await DataStore.shared.addHabit(newHabit)
+                    await loadData()
+                }
+            }
         }
     }
 
@@ -143,10 +215,16 @@ struct ReportsView: View {
                     }
                 }
             } else {
-                emptyInline(
+                emptyInlineWithCTA(
                     icon: "chart.line.uptrend.xyaxis",
-                    text: "Add supporting goals and reflect on your North Star to start building an alignment history."
-                )
+                    text: "Add supporting goals and reflect on your North Star to start building an alignment history.",
+                    ctaLabel: apexGoal == nil ? "Set a North Star" : "Add a supporting goal",
+                    ctaIcon: "plus.circle"
+                ) {
+                    newGoalDefaultType = apexGoal == nil ? .apex : .standard
+                    newGoalDefaultParent = apexGoal?.id
+                    showAddGoal = true
+                }
             }
         }
         .padding()
@@ -161,9 +239,11 @@ struct ReportsView: View {
             HStack {
                 SectionLabel(text: "ATTENTION NEEDED")
                 Spacer()
+                // Count pill: use the highest-severity color so a wall of
+                // alerts doesn't look like a disabled badge.
                 Text("\(stagnationSignals.count)")
                     .font(.caption).fontWeight(.semibold)
-                    .foregroundColor(.textMuted)
+                    .foregroundColor(stagnationCountColor)
             }
 
             if stagnationSignals.isEmpty {
@@ -182,28 +262,59 @@ struct ReportsView: View {
         .cardStyle()
     }
 
+    private var stagnationCountColor: Color {
+        if stagnationSignals.contains(where: { $0.severity == .alert }) { return .danger }
+        if stagnationSignals.contains(where: { $0.severity == .warn }) { return .warning }
+        if stagnationSignals.isEmpty { return .textMuted }
+        return .accentColor
+    }
+
+    @ViewBuilder
     private func stagnationRow(_ signal: StagnationSignal) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: severityIcon(signal.severity))
-                .foregroundColor(severityColor(signal.severity))
-                .font(.body)
-                .frame(width: 24)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(signal.title)
-                    .font(.subheadline).fontWeight(.semibold)
-                    .foregroundColor(.textPrimary)
-                Text(signal.detail)
-                    .font(.caption)
-                    .foregroundColor(.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(signal.suggestedPrompt)
-                    .font(.caption2).italic()
+        // Tappable: jumps to the relevant goal's check-in sheet if we have
+        // one, otherwise opens the editor. Dead-end rows were a blocker.
+        Button {
+            openSignalTarget(signal)
+        } label: {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: severityIcon(signal.severity))
+                    .foregroundColor(severityColor(signal.severity))
+                    .font(.body)
+                    .frame(width: 24)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(signal.title)
+                        .font(.subheadline).fontWeight(.semibold)
+                        .foregroundColor(.textPrimary)
+                    Text(signal.detail)
+                        .font(.caption)
+                        .foregroundColor(.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(signal.suggestedPrompt)
+                        .font(.caption2).italic()
+                        .foregroundColor(.textMuted)
+                        .padding(.top, 2)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption2)
                     .foregroundColor(.textMuted)
-                    .padding(.top, 2)
             }
-            Spacer()
+            .padding(.vertical, 6)
+            .contentShape(Rectangle())
         }
-        .padding(.vertical, 4)
+        .buttonStyle(.plain)
+    }
+
+    private func openSignalTarget(_ signal: StagnationSignal) {
+        guard let goalId = signal.goalId,
+              let goal = data.goals.first(where: { $0.id == goalId }) else {
+            // No goal target (e.g. habit-orphan signals) — fall through.
+            return
+        }
+        // Lifelong goals (apex/sub-apex) open to the reflect flow; standard
+        // goals open to the progress check-in flow. Both paths live in
+        // CheckInSheet, which already branches on goalType.
+        checkInGoal = goal
     }
 
     private func severityIcon(_ s: StagnationSeverity) -> String {
@@ -229,10 +340,16 @@ struct ReportsView: View {
             SectionLabel(text: "PILLAR ALIGNMENT")
 
             if pillars.isEmpty {
-                emptyInline(
+                emptyInlineWithCTA(
                     icon: "star",
-                    text: "Add life pillars under your North Star to see per-pillar alignment."
-                )
+                    text: "Add life pillars under your North Star to see per-pillar alignment.",
+                    ctaLabel: apexGoal == nil ? "Set a North Star first" : "Add a life pillar",
+                    ctaIcon: "plus.circle"
+                ) {
+                    newGoalDefaultType = apexGoal == nil ? .apex : .subApex
+                    newGoalDefaultParent = apexGoal?.id
+                    showAddGoal = true
+                }
             } else {
                 VStack(spacing: 8) {
                     ForEach(pillars) { pillar in
@@ -289,10 +406,14 @@ struct ReportsView: View {
 
             let active = data.habits.filter { $0.isActive }
             if active.isEmpty {
-                emptyInline(
+                emptyInlineWithCTA(
                     icon: "repeat.circle",
-                    text: "Add habits to track daily or weekly actions that move you toward your goals."
-                )
+                    text: "Link daily or weekly habits to a goal so their streak health contributes to your alignment.",
+                    ctaLabel: "Add a habit",
+                    ctaIcon: "plus.circle"
+                ) {
+                    showAddHabit = true
+                }
             } else {
                 VStack(spacing: 6) {
                     ForEach(active) { habit in
@@ -345,6 +466,47 @@ struct ReportsView: View {
                 .foregroundColor(.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer()
+        }
+    }
+
+    /// Inline empty state with a primary CTA. Every "you don't have
+    /// any X yet" card should surface the action that would fix it.
+    @ViewBuilder
+    private func emptyInlineWithCTA(
+        icon: String,
+        text: String,
+        ctaLabel: String,
+        ctaIcon: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Image(systemName: icon)
+                    .foregroundColor(.textMuted)
+                Text(text)
+                    .font(.caption)
+                    .foregroundColor(.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer()
+            }
+            Button(action: action) {
+                HStack(spacing: 6) {
+                    Image(systemName: ctaIcon)
+                    Text(ctaLabel)
+                        .fontWeight(.semibold)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption2)
+                }
+                .font(.caption)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .frame(maxWidth: .infinity)
+                .background(Color.accentColor.opacity(0.12))
+                .foregroundColor(.accentColor)
+                .cornerRadius(8)
+            }
+            .buttonStyle(.plain)
         }
     }
 

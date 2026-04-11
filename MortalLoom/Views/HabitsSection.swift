@@ -142,10 +142,11 @@ struct HabitsSection: View {
             Text("No habits yet")
                 .font(.headline)
                 .foregroundColor(.textPrimary)
-            Text("Habits are the daily actions that move you toward your goals. Writing practice, meditation, exercise, reading — anything you want to do regularly.")
+            Text("Habits are the daily actions that move you toward your goals — writing, meditation, exercise, reading. Link each one to a goal or life pillar so its streak health contributes to your alignment score.")
                 .font(.caption)
                 .foregroundColor(.textSecondary)
                 .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 24)
             Button {
                 showingAdd = true

@@ -28,8 +28,14 @@ struct OverviewView: View {
     @State private var showAddGoal = false
     @State private var editingGoal: Goal?
     @State private var showWeeklyReview = false
+    // Sections start expanded. For users with no profile yet we override
+    // these to `false` in `loadData()` so the empty-data sections don't
+    // dominate the first-launch screen.
     @AppStorage("overview.runwaySectionExpanded") private var runwayExpanded: Bool = true
     @AppStorage("overview.healthSectionExpanded") private var healthExpanded: Bool = true
+    // One-shot flag so we only auto-collapse on a given device once; if the
+    // user expands them again we won't override their choice on the next load.
+    @AppStorage("overview.hasCollapsedEmptySections") private var hasCollapsedEmptySections: Bool = false
     private var isWide: Bool { containerWidth >= Layout.wideThreshold }
 
     private var apexGoal: Goal? { data.goals.activeApex }
@@ -65,6 +71,7 @@ struct OverviewView: View {
                 defaultGoalType: .apex,
                 defaultHorizon: .lifetime,
                 defaultPriority: .high,
+                defaultCategory: .legacy,
                 onSave: { newGoal in
                     Task {
                         await DataStore.shared.addGoal(newGoal)
@@ -120,6 +127,7 @@ struct OverviewView: View {
     @ViewBuilder
     private var narrowContentStack: some View {
         VStack(spacing: 16) {
+            if needsSetupRecovery { finishSetupBanner }
             goalPromptCard
             if WeeklyReview.isDue && apexGoal != nil { weeklyReviewCTA }
             if !cachedStagnationSignals.isEmpty { attentionCard }
@@ -155,9 +163,66 @@ struct OverviewView: View {
         }
     }
 
+    /// True when the user has finished onboarding but lacks the key inputs
+    /// that drive the longevity clock (birth date) — e.g. users who bailed
+    /// out of the 13-step flow before the lifestyle questions. Shows a
+    /// banner that offers to re-run the setup wizard without erasing data.
+    private var needsSetupRecovery: Bool {
+        data.profile.birthDate == nil
+    }
+
+    @ViewBuilder
+    private var finishSetupBanner: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "info.circle.fill")
+                .foregroundColor(.warning)
+                .font(.title3)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Finish your setup")
+                    .font(.subheadline).fontWeight(.semibold)
+                    .foregroundColor(.textPrimary)
+                Text("Your longevity clock needs your birth date and a few lifestyle answers to start ticking.")
+                    .font(.caption)
+                    .foregroundColor(.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 8) {
+                    Button {
+                        UserDefaults.standard.set(false, forKey: AppConstants.hasCompletedOnboardingKey)
+                        NotificationCenter.default.post(name: .showOnboarding, object: nil)
+                    } label: {
+                        Text("Run setup wizard")
+                            .font(.caption).fontWeight(.semibold)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.accentColor)
+                            .foregroundColor(.white)
+                            .cornerRadius(6)
+                    }
+                    .buttonStyle(.plain)
+                    Button {
+                        selectedTab = AppPage.lifestyle.rawValue
+                    } label: {
+                        Text("Open Lifestyle")
+                            .font(.caption).fontWeight(.semibold)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.accentColor.opacity(0.12))
+                            .foregroundColor(.accentColor)
+                            .cornerRadius(6)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            Spacer()
+        }
+        .padding()
+        .cardStyle(fill: .warning.opacity(0.08), border: .warning.opacity(0.25))
+    }
+
     @ViewBuilder
     private var wideContentStack: some View {
         VStack(spacing: 16) {
+            if needsSetupRecovery { finishSetupBanner }
             goalPromptCard
             if WeeklyReview.isDue && apexGoal != nil { weeklyReviewCTA }
             if !cachedStagnationSignals.isEmpty { attentionCard }
@@ -342,6 +407,16 @@ struct OverviewView: View {
         sortedBloodTests = loaded.bloodTests.sorted(by: { $0.date > $1.date })
         sortedEpigeneticTests = loaded.epigeneticTests.sorted(by: { $0.date > $1.date })
         sortedEyeExams = loaded.eyeExams.sorted(by: { $0.date > $1.date })
+        // First-launch collapse: if the user hasn't set a birth date yet
+        // the runway/health sections would render empty "—" placeholders.
+        // Collapse them by default so the set-North-Star CTA dominates
+        // the screen. Once a profile exists we leave the user's explicit
+        // preference alone.
+        if loaded.profile.birthDate == nil, !hasCollapsedEmptySections {
+            runwayExpanded = false
+            healthExpanded = false
+            hasCollapsedEmptySections = true
+        }
         recalculate()
     }
 
@@ -583,10 +658,12 @@ struct OverviewView: View {
             Text("What\u{2019}s the one big thing you want to accomplish? Everything else builds toward it.")
                 .font(.subheadline)
                 .foregroundColor(.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
 
-            Text("Examples: Write a novel, run a marathon, launch a business, learn a language fluently.")
+            Text("A North Star is broad and lifelong — not a project. Examples: live healthy as long as possible, leave a lasting creative legacy, raise a loving resilient family.")
                 .font(.caption)
                 .foregroundColor(.textMuted)
+                .fixedSize(horizontal: false, vertical: true)
 
             Button {
                 showAddGoal = true
@@ -727,17 +804,42 @@ struct OverviewView: View {
                 .buttonStyle(.plain)
             } else {
                 // Not configured
-                VStack(spacing: 8) {
+                VStack(spacing: 10) {
                     Image(systemName: "heart.text.clipboard")
                         .font(.largeTitle)
                         .foregroundColor(.textMuted)
                     Text("Health Summary")
                         .font(.headline)
                         .foregroundColor(.textPrimary)
-                    Text("Configure your birth date and lifestyle in Settings to see your health summary.")
+                    Text("Add your birth date and lifestyle to see your longevity clock, runway, and health summary.")
                         .font(.subheadline)
                         .foregroundColor(.textSecondary)
                         .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button {
+                        selectedTab = AppPage.lifestyle.rawValue
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "list.bullet.clipboard")
+                            Text("Open Lifestyle")
+                                .fontWeight(.semibold)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.accentColor.opacity(0.15))
+                        .foregroundColor(.accentColor)
+                        .cornerRadius(8)
+                    }
+                    .buttonStyle(.plain)
+                    Button {
+                        UserDefaults.standard.set(false, forKey: AppConstants.hasCompletedOnboardingKey)
+                        NotificationCenter.default.post(name: .showOnboarding, object: nil)
+                    } label: {
+                        Text("Or run the setup wizard")
+                            .font(.caption)
+                            .foregroundColor(.textMuted)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }
@@ -1257,12 +1359,9 @@ struct OverviewView: View {
         let columns = isWide
             ? [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())]
             : [GridItem(.flexible()), GridItem(.flexible())]
+        // No local title here — the section already has a collapsible
+        // "HEALTH SUMMARY" header above this grid.
         VStack(alignment: .leading, spacing: 8) {
-            Text("Health Summary")
-                .font(.headline)
-                .foregroundColor(.textPrimary)
-                .padding(.horizontal, 4)
-
             LazyVGrid(columns: columns, spacing: 12) {
                 alcoholTile
                 bodyTile

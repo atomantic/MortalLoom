@@ -1006,11 +1006,13 @@ final class AdditionalModelTests: XCTestCase {
         )
         let cogDate = GoalEngine.cognitiveDeadline(from: dc)
 
-        for goal in SampleData.goals where goal.status == .active {
+        // Only standard goals have progress trajectories. Apex and sub-apex
+        // goals are lifetime purposes with reflection-shaped check-ins and
+        // no percent-complete, so projections don't apply to them.
+        for goal in SampleData.goals where goal.status == .active && goal.goalType == .standard {
             let projection = GoalEngine.project(
                 goal: goal, deathDate: dc?.deathDate, healthyCognitiveDate: cogDate
             )
-            // Active goals with check-ins should produce a projection
             if !goal.checkIns.isEmpty {
                 XCTAssertNotNil(projection.projectedCompletionDate, "Goal '\(goal.title)' should have projection")
                 XCTAssertGreaterThan(projection.weeklyProgressRate, 0, "Goal '\(goal.title)' should have positive rate")

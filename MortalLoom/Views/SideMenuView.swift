@@ -55,7 +55,10 @@ enum AppPage: Int, CaseIterable, Hashable {
     }
 
     // Pages shown in the bottom tab bar; the "More" button is rendered separately.
-    static let tabBarPages: [AppPage] = [.overview, .goals, .calendar, .habits]
+    // Reflections and Reports are the core daily/weekly loop of the alignment app
+    // and belong in the primary nav. Calendar (goal timeline) and Habits remain
+    // reachable via the More drawer, but they're not first-touch destinations.
+    static let tabBarPages: [AppPage] = [.overview, .goals, .reflections, .reports]
 }
 
 // MARK: - Side Menu Sections

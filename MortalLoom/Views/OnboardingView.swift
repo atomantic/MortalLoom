@@ -18,18 +18,21 @@ struct OnboardingView: View {
 
     @State private var apexGoalTitle: String = ""
     @State private var apexGoalNotes: String = ""
-    @State private var apexGoalCategory: GoalCategory = .legacy
+    @State private var apexGoalCategory: GoalCategory? = nil
 
     // First reflection seed — answered after the user names their North Star.
     // Stored as an initial reflection-shaped GoalCheckIn on the new apex so
     // the Reflections journal has content from day one.
     @State private var firstReflectionAnswer: String = ""
-    @State private var firstReflectionRating: Double = 7
+    // Default 5 ("Mixed") rather than 7 ("Mostly aligned") so we don't tell
+    // the user how they feel before they've engaged.
+    @State private var firstReflectionRating: Double = 5
 
     private let totalSteps = 13
 
     var body: some View {
         VStack(spacing: 0) {
+            topBar
             TabView(selection: $currentStep) {
                 // Order reflects the app's framing: start with what matters
                 // to the user (North Star → first reflection), then introduce
@@ -62,6 +65,37 @@ struct OnboardingView: View {
         #endif
     }
 
+    // MARK: - Top Bar (back button)
+
+    @ViewBuilder
+    private var topBar: some View {
+        HStack {
+            if currentStep > 0 {
+                Button {
+                    goBack()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.body.weight(.semibold))
+                        .foregroundColor(.accentColor)
+                        .padding(8)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Back")
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 12)
+        .frame(height: 44)
+    }
+
+    private func goBack() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            currentStep = max(currentStep - 1, 0)
+        }
+    }
+
     // MARK: - Progress Dots
 
     @ViewBuilder
@@ -79,7 +113,7 @@ struct OnboardingView: View {
         .accessibilityLabel("Step \(currentStep + 1) of \(totalSteps)")
     }
 
-    // MARK: - Step 0: Welcome
+    // MARK: - Step 0: Welcome (tag 0)
 
     private var companionPlatformName: String {
         #if os(macOS)
@@ -144,7 +178,7 @@ struct OnboardingView: View {
         .accessibilityElement(children: .combine)
     }
 
-    // MARK: - Step 1: Plan Your Life
+    // MARK: - Step 1: Plan Your Life (tag 1)
 
     @ViewBuilder
     private var planYourLifeStep: some View {
@@ -180,7 +214,7 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Step 2: Longevity Escape Velocity
+    // MARK: - Step 4: Longevity Escape Velocity (tag 4)
 
     @ViewBuilder
     private var escapeVelocityStep: some View {
@@ -229,7 +263,7 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Step 2: Apple Health
+    // MARK: - Step 5: Apple Health (tag 5)
 
     @ViewBuilder
     private var healthKitStep: some View {
@@ -301,7 +335,7 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Step 3: Birth Date
+    // MARK: - Step 6: Birth Date (tag 6)
 
     @ViewBuilder
     private var birthDateStep: some View {
@@ -331,7 +365,7 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Step 4: Biological Sex
+    // MARK: - Step 7: Biological Sex (tag 7)
 
     @ViewBuilder
     private var biologicalSexStep: some View {
@@ -393,7 +427,7 @@ struct OnboardingView: View {
         .accessibilityAddTraits(biologicalSex == sex ? .isSelected : [])
     }
 
-    // MARK: - Step 5: Smoking
+    // MARK: - Step 8: Smoking (tag 8)
 
     @ViewBuilder
     private var smokingStep: some View {
@@ -448,7 +482,7 @@ struct OnboardingView: View {
         .accessibilityAddTraits(smokingStatus == status ? .isSelected : [])
     }
 
-    // MARK: - Step 6: Exercise
+    // MARK: - Step 9: Exercise (tag 9)
 
     @ViewBuilder
     private var exerciseStep: some View {
@@ -497,7 +531,7 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Step 7: Sleep
+    // MARK: - Step 10: Sleep (tag 10)
 
     @ViewBuilder
     private var sleepStep: some View {
@@ -546,7 +580,7 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Step 8: Diet & Stress
+    // MARK: - Step 11: Diet & Stress (tag 11)
 
     @ViewBuilder
     private var dietStressStep: some View {
@@ -624,7 +658,7 @@ struct OnboardingView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Step 9: Results
+    // MARK: - Step 12: Results (tag 12)
 
     @ViewBuilder
     private var resultsStep: some View {
@@ -700,13 +734,13 @@ struct OnboardingView: View {
 
             Spacer()
 
-            primaryButton("Next") {
-                advanceStep()
+            primaryButton("Start Your Journey") {
+                saveAndDismiss()
             }
         }
     }
 
-    // MARK: - Step 11: Apex Goal
+    // MARK: - Step 2: Apex Goal
 
     @ViewBuilder
     private var apexGoalStep: some View {
@@ -722,6 +756,8 @@ struct OnboardingView: View {
                         .foregroundColor(.textSecondary)
                     TextField("e.g. Leave a lasting creative legacy", text: $apexGoalTitle)
                         .textFieldStyle(.plain)
+                        .submitLabel(.next)
+                        .onSubmit { advanceStep() }
                         .padding(12)
                         .background(Color.bgInput)
                         .cornerRadius(10)
@@ -754,7 +790,9 @@ struct OnboardingView: View {
                     ) {
                         ForEach(GoalCategory.allCases, id: \.self) { cat in
                             Button {
-                                apexGoalCategory = cat
+                                // Tap to select, tap again to clear — no
+                                // preselected category nudges the user.
+                                apexGoalCategory = (apexGoalCategory == cat) ? nil : cat
                             } label: {
                                 HStack(spacing: 4) {
                                     Image(systemName: cat.icon)
@@ -783,13 +821,15 @@ struct OnboardingView: View {
 
             Spacer()
 
-            primaryButton(apexGoalTitle.trimmingCharacters(in: .whitespaces).isEmpty ? "Skip for now" : "Next") {
+            // Always "Next" — whether or not the user filled anything in.
+            // Empty-state handling happens in `saveAndDismiss()`.
+            primaryButton("Next") {
                 advanceStep()
             }
         }
     }
 
-    // MARK: - Step 12: First Reflection
+    // MARK: - Step 3: First Reflection
 
     /// Seed the Reflections journal with an initial reflection on the new
     /// North Star. The user answers one question and rates their current
@@ -807,6 +847,7 @@ struct OnboardingView: View {
                     Text("Why does this matter to you?")
                         .font(.subheadline).fontWeight(.semibold)
                         .foregroundColor(.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
                     TextField("The real reason — not the tidy one", text: $firstReflectionAnswer, axis: .vertical)
                         .textFieldStyle(.plain)
                         .lineLimit(3...6)
@@ -820,6 +861,7 @@ struct OnboardingView: View {
                     Text("Right now, how aligned does your life feel with this?")
                         .font(.subheadline).fontWeight(.semibold)
                         .foregroundColor(.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
                     HStack {
                         Text("\(Int(firstReflectionRating))/10")
                             .font(.title3).fontWeight(.bold)
@@ -837,8 +879,14 @@ struct OnboardingView: View {
 
             Spacer()
 
-            primaryButton("Start Your Journey") {
-                saveAndDismiss()
+            // Historical bug: this step was once the final step, so its button
+            // called `saveAndDismiss()`. When the flow was reordered to put the
+            // lifestyle steps after reflection, the button action was never
+            // updated — causing every new user to skip the entire longevity
+            // profile collection. Reflection is now step 3 of 13; the final
+            // save happens on the Results step.
+            primaryButton("Next") {
+                advanceStep()
             }
         }
     }
@@ -878,6 +926,10 @@ struct OnboardingView: View {
             .font(.subheadline)
             .foregroundColor(.textSecondary)
             .multilineTextAlignment(.center)
+            // Without fixedSize, SwiftUI prefers horizontal truncation when
+            // space is tight — e.g. "matters more..." becomes "matt..." on
+            // the LEV step. Lock vertical growth instead.
+            .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 16)
     }
 
@@ -971,7 +1023,10 @@ struct OnboardingView: View {
                 goalType: .apex
             )
             let trimmedReflection = firstReflectionAnswer.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !trimmedReflection.isEmpty || firstReflectionRating != 7 {
+            // Seed the reflections journal if the user typed an answer.
+            // The rating defaults to 5 (neutral "Mixed") so even users who
+            // never touched the slider get a reasonable baseline.
+            if !trimmedReflection.isEmpty {
                 g.checkIns.append(GoalCheckIn(
                     progressPct: 0,
                     note: trimmedReflection,
@@ -983,6 +1038,11 @@ struct OnboardingView: View {
             }
             apexGoal = g
         }
+
+        // Turn on the weekly review reminder by default — the entire goal
+        // alignment loop hinges on it, and users who missed onboarding
+        // notifications would otherwise never see a review prompt.
+        UserDefaults.standard.set(true, forKey: NotificationService.weeklyReviewEnabledKey)
 
         Task { @MainActor in
             await DataStore.shared.updateProfile(profile)

@@ -89,9 +89,11 @@ struct ContentView: View {
     @State private var selectedPage: AppPage = .overview
     @State private var showSideMenu = false
     // Fresh-start mode (simulator only, DEBUG builds) forces onboarding to run
-    // and prevents any persistence. Anything not in -fresh-start honours the
-    // stored onboarding flag so normal use is unaffected.
+    // and prevents any persistence. Sample-data mode pre-seeds a fake user
+    // and always skips onboarding. Anything else honours the stored onboarding
+    // flag so normal use is unaffected.
     @State private var showOnboarding: Bool = {
+        if AppConstants.useSampleData { return false }
         if AppConstants.useFreshStart { return true }
         return !UserDefaults.standard.bool(forKey: AppConstants.hasCompletedOnboardingKey)
     }()

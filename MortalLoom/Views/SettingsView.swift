@@ -39,8 +39,11 @@ struct SettingsView: View {
     @State private var proCodeInput = ""
     @State private var proCodeFeedback: String?
 
+    // Default on — the entire goal-alignment loop depends on a weekly
+    // review. Users who want silence can still turn it off here, but we
+    // don't start them out silent.
     @AppStorage(NotificationService.weeklyReviewEnabledKey)
-    private var weeklyReviewEnabled: Bool = false
+    private var weeklyReviewEnabled: Bool = true
     @AppStorage(NotificationService.weeklyReviewWeekdayKey)
     private var weeklyReviewWeekday: Int = 1  // Sunday
     @AppStorage(NotificationService.weeklyReviewHourKey)
@@ -100,6 +103,10 @@ struct SettingsView: View {
         TabView {
             ScrollView {
                 VStack(spacing: 16) {
+                    // Setup Guide lives at the top of General so users who
+                    // bailed partway through onboarding can finish setup in
+                    // one tap rather than hunting through a sub-tab.
+                    setupGuideSection
                     proSection
                     appearanceSection
                     countdownSection
@@ -125,11 +132,12 @@ struct SettingsView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     aboutSection
-                    setupGuideSection
                 }
                 .padding()
             }
-            .tabItem { Label("More", systemImage: "ellipsis.circle") }
+            // Sub-tab is labelled "About" — the bottom nav already has a
+            // "More" tab, and the duplicate label was confusing.
+            .tabItem { Label("About", systemImage: "info.circle") }
         }
     }
     #endif
@@ -164,6 +172,7 @@ struct SettingsView: View {
 
     private var col1: some View {
         VStack(spacing: 16) {
+            setupGuideSection
             proSection
             appearanceSection
             countdownSection
@@ -184,7 +193,6 @@ struct SettingsView: View {
     private var col3: some View {
         VStack(spacing: 16) {
             aboutSection
-            setupGuideSection
         }
     }
     #endif
@@ -409,9 +417,10 @@ struct SettingsView: View {
                     Text("Standard: SSA actuarial life expectancy + lifestyle adjustments")
                         .font(.system(size: 10))
                         .foregroundColor(.textMuted)
-                    Text("LEV: Assumes longevity escape velocity therapies extend lifespan to the target age (requires LE past 2045)")
+                    Text("LEV: Assumes longevity-escape-velocity therapies kick in around 2045 and extend lifespan to your target age.")
                         .font(.system(size: 10))
                         .foregroundColor(.textMuted)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
@@ -923,13 +932,18 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             SectionLabel(text: "SETUP")
 
+            Text("Finish or re-run the onboarding wizard to update your North Star, lifestyle profile, or life expectancy baseline.")
+                .font(.caption)
+                .foregroundColor(.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+
             Button {
                 UserDefaults.standard.set(false, forKey: AppConstants.hasCompletedOnboardingKey)
                 NotificationCenter.default.post(name: .showOnboarding, object: nil)
             } label: {
                 HStack {
                     Image(systemName: "arrow.counterclockwise")
-                    Text("Show Setup Guide")
+                    Text("Run Setup Wizard")
                         .fontWeight(.semibold)
                 }
                 .frame(maxWidth: .infinity)
@@ -937,10 +951,6 @@ struct SettingsView: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(.accentColor)
-
-            Text("Re-run the onboarding wizard to update your profile data.")
-                .font(.caption)
-                .foregroundColor(.textSecondary)
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)

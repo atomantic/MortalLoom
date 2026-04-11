@@ -25,7 +25,9 @@ struct WeeklyReviewSheet: View {
     @State private var step: Step = .review
     @State private var selectedPrompt: String = ""
     @State private var answer: String = ""
-    @State private var alignmentRating: Double = 7
+    // Default 5 ("Mixed") — don't assume the user feels "mostly aligned"
+    // before they've even touched the slider.
+    @State private var alignmentRating: Double = 5
     @State private var commitmentsText: String = ""
 
     enum Step: Int, CaseIterable {
@@ -122,10 +124,16 @@ struct WeeklyReviewSheet: View {
                     .padding(.bottom, 4)
             }
 
-            let (checkIns, completions, habitHits) = weekActivity()
-            statRow(icon: "pencil.and.list.clipboard", label: "Check-ins", value: "\(checkIns)")
-            statRow(icon: "checkmark.seal.fill", label: "Goals completed", value: "\(completions)")
-            statRow(icon: "repeat.circle.fill", label: "Habit completions", value: "\(habitHits)")
+            let activity = weekActivity()
+            statRow(icon: "pencil.and.list.clipboard", label: "Check-ins", value: "\(activity.checkIns.count)")
+            if !activity.checkIns.isEmpty {
+                itemList(activity.checkIns, color: .accentColor)
+            }
+            statRow(icon: "checkmark.seal.fill", label: "Goals completed", value: "\(activity.completions.count)")
+            if !activity.completions.isEmpty {
+                itemList(activity.completions, color: .success)
+            }
+            statRow(icon: "repeat.circle.fill", label: "Habit completions", value: "\(activity.habitHits)")
 
             if let score = currentAlignment() {
                 Divider().padding(.vertical, 4)
@@ -163,6 +171,27 @@ struct WeeklyReviewSheet: View {
                 .font(.headline).monospacedDigit()
                 .foregroundColor(.textPrimary)
         }
+    }
+
+    /// Bulleted list of goal titles under a stat row — turns "3 check-ins"
+    /// from a number into a narrative the user actually remembers.
+    private func itemList(_ titles: [String], color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ForEach(titles, id: \.self) { title in
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(color)
+                        .frame(width: 4, height: 4)
+                    Text(title)
+                        .font(.caption)
+                        .foregroundColor(.textSecondary)
+                        .lineLimit(1)
+                    Spacer()
+                }
+            }
+        }
+        .padding(.leading, 34)
+        .padding(.bottom, 2)
     }
 
     // MARK: Reflect step
@@ -229,6 +258,29 @@ struct WeeklyReviewSheet: View {
     @ViewBuilder
     private var commitStep: some View {
         VStack(alignment: .leading, spacing: 12) {
+            if let lastCommitments = previousCommitments(), !lastCommitments.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Last week you committed to…")
+                        .font(.caption).fontWeight(.semibold)
+                        .foregroundColor(.textSecondary)
+                    ForEach(lastCommitments, id: \.self) { c in
+                        HStack(alignment: .top, spacing: 6) {
+                            Image(systemName: "arrowtriangle.forward.fill")
+                                .font(.caption2)
+                                .foregroundColor(.textMuted)
+                            Text(c)
+                                .font(.caption)
+                                .foregroundColor(.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Spacer()
+                        }
+                    }
+                }
+                .padding(10)
+                .background(Color.bgInput)
+                .cornerRadius(10)
+            }
+
             Text("What will you commit to this week to move your goals forward? One line per commitment.")
                 .font(.subheadline)
                 .foregroundColor(.textPrimary)
@@ -244,6 +296,14 @@ struct WeeklyReviewSheet: View {
                 .font(.caption).italic()
                 .foregroundColor(.textMuted)
         }
+    }
+
+    /// The most-recent commitments list attached to the apex — shown on
+    /// the Commit step so the user can see what they promised last time
+    /// before promising anything new.
+    private func previousCommitments() -> [String]? {
+        guard let apex else { return nil }
+        return apex.checkIns.reversed().first(where: { !$0.commitments.isEmpty })?.commitments
     }
 
     // MARK: Footer
@@ -281,22 +341,36 @@ struct WeeklyReviewSheet: View {
                 .cornerRadius(10)
             }
             .buttonStyle(.plain)
-            .disabled(step == .reflect && answer.trimmingCharacters(in: .whitespaces).isEmpty)
+            .disabled(nextDisabled)
         }
         .padding()
+    }
+
+    /// Next/Finish is gated on having input at each meaningful step:
+    /// Reflect needs an answer, Commit needs at least one line, Finish
+    /// needs an apex to attach to (otherwise the reflection has no home).
+    private var nextDisabled: Bool {
+        switch step {
+        case .review:
+            return false
+        case .reflect:
+            return answer.trimmingCharacters(in: .whitespaces).isEmpty
+        case .rate:
+            return false
+        case .commit:
+            let hasCommitments = commitmentsText
+                .split(separator: "\n")
+                .contains { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+            return !hasCommitments || apex == nil
+        }
     }
 
     // MARK: Finish
 
     private func finish() {
-        guard let apex else {
-            // No apex — drop the review on the floor but mark it done so
-            // the Overview doesn't keep nagging. The user can set a North
-            // Star later and future reviews will attach to it.
-            UserDefaults.standard.set(DateFormatting.todayString(), forKey: WeeklyReview.lastDateKey)
-            dismiss()
-            return
-        }
+        // Guarded by `nextDisabled`, but keep a defensive check so a future
+        // code path can't silently drop reflections on the floor.
+        guard let apex else { return }
 
         let commitmentsList = commitmentsText
             .split(separator: "\n")
@@ -319,23 +393,24 @@ struct WeeklyReviewSheet: View {
 
     // MARK: Computed metrics
 
-    /// Count of reflective activity in the last 7 days across all goals and
-    /// habits. Used in the review step to surface the week's signal.
-    private func weekActivity() -> (checkIns: Int, completions: Int, habitHits: Int) {
+    /// Reflective activity in the last 7 days — returns the actual check-in
+    /// and completion titles (not just counts) so the review step can render
+    /// them as a narrative the user remembers.
+    private func weekActivity() -> (checkIns: [String], completions: [String], habitHits: Int) {
         let calendar = Calendar.current
         guard let weekAgo = calendar.date(byAdding: .day, value: -7, to: Date()) else {
-            return (0, 0, 0)
+            return ([], [], 0)
         }
         let weekAgoStr = DateFormatting.dateString(weekAgo)
 
-        var checkIns = 0
-        var completions = 0
+        var checkIns: [String] = []
+        var completions: [String] = []
         for g in allGoals {
-            for c in g.checkIns where c.date >= weekAgoStr {
-                checkIns += 1
+            if g.checkIns.contains(where: { $0.date >= weekAgoStr }) {
+                checkIns.append(g.title)
             }
             if g.status == .completed, let completed = g.completedDate, completed >= weekAgoStr {
-                completions += 1
+                completions.append(g.title)
             }
         }
         let habitHits = habits
