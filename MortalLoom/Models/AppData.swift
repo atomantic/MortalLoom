@@ -22,7 +22,7 @@ struct AppData: Codable, Sendable {
         alcoholDrinks: [],
         alcoholPresets: AlcoholPreset.defaults,
         nicotineEntries: [],
-        nicotinePresets: [],
+        nicotinePresets: NicotinePreset.defaults,
         bloodTests: [],
         eyeExams: [],
         epigeneticTests: [],

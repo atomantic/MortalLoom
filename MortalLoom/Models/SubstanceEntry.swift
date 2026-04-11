@@ -62,6 +62,17 @@ struct NicotinePreset: Codable, Sendable, Equatable, Identifiable {
     init(id: UUID = UUID(), name: String, mgPerUnit: Double) {
         self.id = id; self.name = name; self.mgPerUnit = mgPerUnit
     }
+
+    /// Default quick-add presets seeded for new installs. Mirrors the
+    /// `AlcoholPreset.defaults` / `SaunaPreset.defaults` pattern so that
+    /// `AppData.empty` and fresh-start onboarding start with a useful list
+    /// instead of an empty Nicotine tab.
+    static let defaults: [NicotinePreset] = [
+        NicotinePreset(name: "Stokes Pick 5mg", mgPerUnit: 5),
+        NicotinePreset(name: "Zyn 6mg", mgPerUnit: 6),
+        NicotinePreset(name: "Zyn 3mg", mgPerUnit: 3),
+        NicotinePreset(name: "Lucy 4mg", mgPerUnit: 4),
+    ]
 }
 
 // MARK: - Sauna

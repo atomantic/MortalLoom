@@ -104,11 +104,7 @@ enum SampleData {
 
     static let alcoholPresets = AlcoholPreset.defaults
 
-    static let nicotinePresets: [NicotinePreset] = [
-        NicotinePreset(name: "Zyn 6mg", mgPerUnit: 6),
-        NicotinePreset(name: "Lucy 4mg", mgPerUnit: 4),
-        NicotinePreset(name: "Zyn 3mg", mgPerUnit: 3),
-    ]
+    static let nicotinePresets: [NicotinePreset] = NicotinePreset.defaults
 
     // MARK: - Body Entries (90 days of weight, some with body fat)
 
