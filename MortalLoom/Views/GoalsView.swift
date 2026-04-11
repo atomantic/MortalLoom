@@ -4,6 +4,7 @@ import SwiftUI
 
 struct GoalsView: View {
     @State private var goals: [Goal] = []
+    @State private var habits: [Habit] = []
     @State private var deathClock: DeathClockEngine.DeathClockResult?
     @State private var levDeathClock: DeathClockEngine.DeathClockResult?
     @State private var projections: [UUID: GoalEngine.GoalProjection] = [:]
@@ -11,6 +12,7 @@ struct GoalsView: View {
     @State private var showingAddGoal = false
     @State private var editingGoal: Goal?
     @State private var checkInGoal: Goal?
+    @State private var pillarDashboardGoal: Goal?
 
     @State private var apexGoal: Goal?
     @State private var hierarchyItems: [HierarchyItem] = []
@@ -61,20 +63,61 @@ struct GoalsView: View {
         }
         #endif
         .sheet(isPresented: $showingAddGoal) {
-            GoalEditSheet(goal: nil, allGoals: goals) { newGoal in
-                saveAndReload { await DataStore.shared.addGoal(newGoal) }
-            }
+            GoalEditSheet(
+                goal: nil,
+                allGoals: goals,
+                onSave: { newGoal in
+                    saveAndReload { await DataStore.shared.addGoal(newGoal) }
+                },
+                onAddChild: { newChild in
+                    saveAndReload { await DataStore.shared.addGoal(newChild) }
+                }
+            )
         }
         .sheet(item: $editingGoal) { goal in
-            GoalEditSheet(goal: goal, allGoals: goals, onSave: { updated in
-                saveAndReload { await DataStore.shared.updateGoal(updated) }
-            }, onDelete: {
-                saveAndReload { await DataStore.shared.removeGoal(id: goal.id) }
-            })
+            GoalEditSheet(
+                goal: goal,
+                allGoals: goals,
+                onSave: { updated in
+                    saveAndReload { await DataStore.shared.updateGoal(updated) }
+                },
+                onDelete: {
+                    saveAndReload { await DataStore.shared.removeGoal(id: goal.id) }
+                },
+                onAddChild: { newChild in
+                    saveAndReload { await DataStore.shared.addGoal(newChild) }
+                }
+            )
         }
         .sheet(item: $checkInGoal) { goal in
             CheckInSheet(goal: goal) { updated in
                 saveAndReload { await DataStore.shared.updateGoal(updated) }
+            }
+        }
+        .sheet(item: $pillarDashboardGoal) { pillar in
+            NavigationStack {
+                PillarDashboardView(
+                    pillar: pillar,
+                    allGoals: goals,
+                    allHabits: habits,
+                    onEditGoal: { g in
+                        pillarDashboardGoal = nil
+                        DispatchQueue.main.async { editingGoal = g }
+                    },
+                    onReflect: { g in
+                        pillarDashboardGoal = nil
+                        DispatchQueue.main.async { checkInGoal = g }
+                    },
+                    onEditHabit: { _ in
+                        // Habit edit from the pillar dashboard not yet wired —
+                        // user can still manage habits from the Habits page.
+                    }
+                )
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Done") { pillarDashboardGoal = nil }
+                    }
+                }
             }
         }
         .task { await loadData() }
@@ -149,6 +192,7 @@ struct GoalsView: View {
         }
 
         goals = data.goals
+        habits = data.habits
         deathClock = dc
         levDeathClock = levDc
         cognitiveDeadline = cogDate
@@ -274,6 +318,18 @@ struct GoalsView: View {
                     .textCase(.uppercase)
                     .tracking(1)
                 Spacer()
+                Button {
+                    checkInGoal = goal
+                } label: {
+                    Label("Reflect", systemImage: "bubble.left.and.bubble.right")
+                        .font(.caption).fontWeight(.semibold)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color.warning.opacity(0.15))
+                        .foregroundColor(.warning)
+                        .cornerRadius(8)
+                }
+                .buttonStyle(.plain)
             }
 
             Text(goal.title)
@@ -293,6 +349,13 @@ struct GoalsView: View {
             if count > 0 {
                 Text("\(count) supporting goal\(count == 1 ? "" : "s")")
                     .font(.caption)
+                    .foregroundColor(.textMuted)
+            }
+
+            let reflectionCount = goal.checkIns.filter { $0.isReflection }.count
+            if reflectionCount > 0 {
+                Text("\(reflectionCount) reflection\(reflectionCount == 1 ? "" : "s")")
+                    .font(.caption2)
                     .foregroundColor(.textMuted)
             }
         }
@@ -532,8 +595,10 @@ struct GoalsView: View {
         )
         .contextMenu { goalContextMenu(for: goal, isLifelong: isLifelong) }
         .onTapGesture {
-            if isLifelong {
-                editingGoal = goal
+            // Sub-apex (life pillar) opens its drill-in dashboard.
+            // Standard goals tap to check in; edit is available via context menu.
+            if goal.goalType == .subApex {
+                pillarDashboardGoal = goal
             } else if goal.status == .active {
                 checkInGoal = goal
             } else {
@@ -580,9 +645,10 @@ struct GoalsView: View {
 
     @ViewBuilder
     private func goalContextMenu(for goal: Goal, isLifelong: Bool) -> some View {
-        if goal.status == .active && !isLifelong {
+        if goal.status == .active {
             Button { checkInGoal = goal } label: {
-                Label("Check In", systemImage: "pencil.and.list.clipboard")
+                Label(isLifelong ? "Reflect" : "Check In",
+                      systemImage: isLifelong ? "bubble.left.and.bubble.right" : "pencil.and.list.clipboard")
             }
         }
         Button { editingGoal = goal } label: {
@@ -735,6 +801,7 @@ struct GoalEditSheet: View {
     let allGoals: [Goal]
     let onSave: (Goal) -> Void
     let onDelete: (() -> Void)?
+    let onAddChild: ((Goal) -> Void)?
     @Environment(\.dismiss) private var dismiss
 
     @State private var title: String
@@ -752,6 +819,8 @@ struct GoalEditSheet: View {
     @State private var showCalendarScheduler = false
     @State private var scheduleMessage: String?
     @State private var showGoalHint = false
+    @State private var showingAddChild = false
+    @State private var mutedSignals: Set<String> = []
 
     private struct MilestoneRow: Identifiable {
         let id: UUID
@@ -765,13 +834,16 @@ struct GoalEditSheet: View {
         defaultGoalType: GoalType? = nil,
         defaultHorizon: GoalHorizon? = nil,
         defaultPriority: GoalPriority? = nil,
+        defaultParentId: UUID? = nil,
         onSave: @escaping (Goal) -> Void,
-        onDelete: (() -> Void)? = nil
+        onDelete: (() -> Void)? = nil,
+        onAddChild: ((Goal) -> Void)? = nil
     ) {
         self.goal = goal
         self.allGoals = allGoals
         self.onSave = onSave
         self.onDelete = onDelete
+        self.onAddChild = onAddChild
         let g = goal
         _title = State(initialValue: g?.title ?? "")
         _notes = State(initialValue: g?.notes ?? "")
@@ -785,10 +857,27 @@ struct GoalEditSheet: View {
         _milestoneTexts = State(initialValue: g?.milestones.map {
             MilestoneRow(id: $0.id, text: $0.title, completed: $0.completed)
         } ?? [])
-        _parentId = State(initialValue: g?.parentId)
-        _horizon = State(initialValue: g?.horizon ?? defaultHorizon)
+        _parentId = State(initialValue: g?.parentId ?? defaultParentId)
+        // Apex is always lifetime; sub-apex defaults to lifetime but stays editable for standard goals.
+        let resolvedType = g?.goalType ?? defaultGoalType
+        let resolvedHorizon: GoalHorizon? = (resolvedType == .apex) ? .lifetime : (g?.horizon ?? defaultHorizon)
+        _horizon = State(initialValue: resolvedHorizon)
         _category = State(initialValue: g?.category)
-        _goalType = State(initialValue: g?.goalType ?? defaultGoalType)
+        _goalType = State(initialValue: resolvedType)
+        _mutedSignals = State(initialValue: Set(g?.mutedSignals ?? []))
+    }
+
+    /// Apex (North Star) and Sub-Apex (Life Pillar) goals are lifetime purposes:
+    /// no end date, no progress %, no calendar work blocks, no text milestones.
+    /// Their structure comes from supporting child goals in the tree.
+    private var isLifelong: Bool {
+        goalType == .apex || goalType == .subApex
+    }
+
+    /// Active supporting (child) goals for the goal being edited.
+    private var supportingGoals: [Goal] {
+        guard let g = goal else { return [] }
+        return allGoals.filter { $0.parentId == g.id && $0.status == .active }
     }
 
     /// Placeholder text and hint example adapt to the selected goal type.
@@ -849,6 +938,10 @@ struct GoalEditSheet: View {
                             Label(t.label, systemImage: t.icon).tag(GoalType?.some(t))
                         }
                     }
+                    .onChange(of: goalType) { _, newValue in
+                        // North Star is always a lifetime purpose.
+                        if newValue == .apex { horizon = .lifetime }
+                    }
 
                     Picker("Category", selection: $category) {
                         Text("None").tag(GoalCategory?.none)
@@ -857,10 +950,18 @@ struct GoalEditSheet: View {
                         }
                     }
 
-                    Picker("Horizon", selection: $horizon) {
-                        Text("None").tag(GoalHorizon?.none)
-                        ForEach(GoalHorizon.allCases, id: \.self) { h in
-                            Text(h.label).tag(GoalHorizon?.some(h))
+                    if goalType == .apex {
+                        HStack {
+                            Text("Horizon")
+                            Spacer()
+                            Text("Lifetime").foregroundColor(.secondary)
+                        }
+                    } else {
+                        Picker("Horizon", selection: $horizon) {
+                            Text("None").tag(GoalHorizon?.none)
+                            ForEach(GoalHorizon.allCases, id: \.self) { h in
+                                Text(h.label).tag(GoalHorizon?.some(h))
+                            }
                         }
                     }
 
@@ -881,61 +982,93 @@ struct GoalEditSheet: View {
                     .pickerStyle(.segmented)
                 }
 
-                Section("Deadline") {
-                    Toggle("Set target date", isOn: $hasTargetDate)
-                    if hasTargetDate {
-                        DatePicker("Target", selection: $targetDate, displayedComponents: .date)
-                    }
-                }
-
-                Section("Check-in Frequency") {
-                    Picker("Remind every", selection: $checkInInterval) {
-                        Text("3 days").tag(3)
-                        Text("1 week").tag(7)
-                        Text("2 weeks").tag(14)
-                        Text("1 month").tag(30)
-                    }
-                }
-
-                Section("Milestones") {
-                    ForEach($milestoneTexts) { $row in
-                        HStack {
-                            if goal != nil {
-                                Button {
-                                    row.completed.toggle()
-                                } label: {
-                                    Image(systemName: row.completed ? "checkmark.circle.fill" : "circle")
-                                        .foregroundColor(row.completed ? .success : .textMuted)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                            TextField("Milestone", text: $row.text)
+                if !isLifelong {
+                    Section("Deadline") {
+                        Toggle("Set target date", isOn: $hasTargetDate)
+                        if hasTargetDate {
+                            DatePicker("Target", selection: $targetDate, displayedComponents: .date)
                         }
                     }
-                    .onDelete { indices in
-                        milestoneTexts.remove(atOffsets: indices)
-                    }
-                    Button {
-                        milestoneTexts.append(MilestoneRow(id: UUID(), text: "", completed: false))
-                    } label: {
-                        Label("Add milestone", systemImage: "plus")
+
+                    Section {
+                        Picker("Remind every", selection: $checkInInterval) {
+                            Text("2 days").tag(2)
+                            Text("3 days").tag(3)
+                            Text("5 days").tag(5)
+                            Text("1 week").tag(7)
+                            Text("2 weeks").tag(14)
+                            Text("1 month").tag(30)
+                        }
+                        Button {
+                            // Reset to the timeline-derived smart default.
+                            let provisional = Goal(
+                                title: title,
+                                targetDate: hasTargetDate ? DateFormatting.dateString(targetDate) : nil,
+                                goalType: goalType
+                            )
+                            checkInInterval = GoalEngine.defaultCheckInIntervalDays(for: provisional)
+                        } label: {
+                            Label("Use smart default for this timeline",
+                                  systemImage: "sparkles")
+                                .font(.caption)
+                        }
+                    } header: {
+                        Text("Check-in Frequency")
+                    } footer: {
+                        Text("Shorter goals deserve shorter cadence. A 7-day goal should probably be checked in every 2 days, not every 2 weeks.")
+                            .font(.caption2)
                     }
                 }
 
-                Section("Schedule on Calendar") {
-                    Button {
-                        showCalendarScheduler = true
-                    } label: {
-                        Label("Add Work Block to Calendar", systemImage: "calendar.badge.plus")
+                if isLifelong {
+                    supportingGoalsSection
+                } else {
+                    Section("Milestones") {
+                        ForEach($milestoneTexts) { $row in
+                            HStack {
+                                if goal != nil {
+                                    Button {
+                                        row.completed.toggle()
+                                    } label: {
+                                        Image(systemName: row.completed ? "checkmark.circle.fill" : "circle")
+                                            .foregroundColor(row.completed ? .success : .textMuted)
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                                TextField("Milestone", text: $row.text)
+                            }
+                        }
+                        .onDelete { indices in
+                            milestoneTexts.remove(atOffsets: indices)
+                        }
+                        Button {
+                            milestoneTexts.append(MilestoneRow(id: UUID(), text: "", completed: false))
+                        } label: {
+                            Label("Add milestone", systemImage: "plus")
+                        }
                     }
-                    if let msg = scheduleMessage {
-                        Text(msg)
-                            .font(.caption)
-                            .foregroundColor(.success)
+                }
+
+                if !isLifelong {
+                    Section("Schedule on Calendar") {
+                        Button {
+                            showCalendarScheduler = true
+                        } label: {
+                            Label("Add Work Block to Calendar", systemImage: "calendar.badge.plus")
+                        }
+                        if let msg = scheduleMessage {
+                            Text(msg)
+                                .font(.caption)
+                                .foregroundColor(.success)
+                        }
+                        Text("Schedule time on your Apple Calendar to work on this goal. MortalLoom can create one-time or recurring blocks.")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
                     }
-                    Text("Schedule time on your Apple Calendar to work on this goal. MortalLoom can create one-time or recurring blocks.")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                }
+
+                if goal != nil {
+                    signalMutingSection
                 }
 
                 if onDelete != nil {
@@ -973,6 +1106,7 @@ struct GoalEditSheet: View {
             }
             .sheet(isPresented: $showCalendarScheduler) {
                 CalendarSchedulerSheet(
+                    goalId: goal?.id,
                     goalTitle: title,
                     goalNotes: notes,
                     goalTargetDate: hasTargetDate ? targetDate : nil
@@ -980,6 +1114,127 @@ struct GoalEditSheet: View {
                     scheduleMessage = msg
                 }
             }
+            .sheet(isPresented: $showingAddChild) {
+                if let parent = goal, let addChild = onAddChild {
+                    // Apex → adds sub-apex (Life Pillar); sub-apex → adds standard goal.
+                    let childType: GoalType = (parent.goalType == .apex) ? .subApex : .standard
+                    GoalEditSheet(
+                        goal: nil,
+                        allGoals: allGoals,
+                        defaultGoalType: childType,
+                        defaultParentId: parent.id,
+                        onSave: { newChild in addChild(newChild) },
+                        onAddChild: onAddChild
+                    )
+                }
+            }
+        }
+    }
+
+    /// Show the list of stagnation signal titles currently firing for this
+    /// goal, with a toggle to mute each one. Muted signals are filtered out
+    /// of StagnationEngine output for this specific goal. Global signals
+    /// (apex-wide) can't be muted here because they apply across goals.
+    @ViewBuilder
+    private var signalMutingSection: some View {
+        let firing = currentSignalsForGoal
+        let mutedNotFiring = mutedSignals.filter { title in !firing.contains { $0.title == title } }
+
+        if !firing.isEmpty || !mutedNotFiring.isEmpty {
+            Section {
+                ForEach(firing) { signal in
+                    Toggle(isOn: Binding(
+                        get: { !mutedSignals.contains(signal.title) },
+                        set: { on in
+                            if on { mutedSignals.remove(signal.title) }
+                            else { mutedSignals.insert(signal.title) }
+                        }
+                    )) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(signal.title)
+                                .font(.caption).fontWeight(.semibold)
+                            Text(signal.detail)
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                                .lineLimit(2)
+                        }
+                    }
+                }
+                ForEach(Array(mutedNotFiring), id: \.self) { title in
+                    Toggle(isOn: Binding(
+                        get: { !mutedSignals.contains(title) },
+                        set: { on in
+                            if on { mutedSignals.remove(title) }
+                            else { mutedSignals.insert(title) }
+                        }
+                    )) {
+                        Text("\(title) (muted)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            } header: {
+                Text("Stagnation Alerts")
+            } footer: {
+                Text("Toggle off to mute a specific alert for this goal. You can re-enable it any time.")
+                    .font(.caption2)
+            }
+        }
+    }
+
+    /// Stagnation signals currently applicable to the goal being edited.
+    /// Used to present the muting toggles. Computed against the current
+    /// state of the goal list, not the edited fields, so live edits don't
+    /// flip alerts mid-form.
+    private var currentSignalsForGoal: [StagnationSignal] {
+        guard let goalId = goal?.id else { return [] }
+        let all = StagnationEngine.signals(goals: allGoals, habits: [])
+        return all.filter { $0.goalId == goalId }
+    }
+
+    @ViewBuilder
+    private var supportingGoalsSection: some View {
+        Section {
+            if goal == nil {
+                Text("Save this \(goalType?.label ?? "goal") first, then add supporting goals that feed into it.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else if supportingGoals.isEmpty {
+                Text("No supporting goals yet. Add concrete goals that feed into this \(goalType?.label.lowercased() ?? "goal").")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else {
+                ForEach(supportingGoals, id: \.id) { g in
+                    HStack {
+                        if let iconName = g.goalType?.icon {
+                            Image(systemName: iconName)
+                                .font(.caption)
+                                .foregroundColor(.accentColor)
+                        }
+                        Text(g.title)
+                            .foregroundColor(.primary)
+                        Spacer()
+                        if g.goalType != .apex && g.goalType != .subApex {
+                            Text("\(Int(g.progressPercent))%")
+                                .font(.caption)
+                                .monospacedDigit()
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+            }
+            if goal != nil && onAddChild != nil {
+                Button {
+                    showingAddChild = true
+                } label: {
+                    Label("Add supporting goal", systemImage: "plus")
+                }
+            }
+        } header: {
+            Text("Supporting Goals")
+        } footer: {
+            Text("Lifetime purposes don't have a progress bar — they're measured by the alignment of supporting goals feeding into them.")
+                .font(.caption2)
         }
     }
 
@@ -1018,19 +1273,30 @@ struct GoalEditSheet: View {
         var result = goal ?? Goal(title: title)
         result.title = title.trimmingCharacters(in: .whitespaces)
         result.notes = notes.trimmingCharacters(in: .whitespaces)
-        result.targetDate = hasTargetDate ? DateFormatting.dateString(targetDate) : nil
         result.priority = priority
-        result.checkInIntervalDays = checkInInterval
-        result.milestones = milestones
         result.parentId = parentId
-        result.horizon = horizon
         result.category = category
         result.goalType = goalType
+        result.mutedSignals = Array(mutedSignals).sorted()
 
-        if !milestones.isEmpty, let lastCheckIn = result.checkIns.last {
-            let milestonePct = Double(milestones.filter(\.completed).count) / Double(milestones.count) * 100
-            if milestonePct != lastCheckIn.progressPct {
-                result.checkIns.append(GoalCheckIn(progressPct: milestonePct, note: "Updated milestones"))
+        if isLifelong {
+            // Lifetime purposes: no end date, no text milestones, no progress check-ins.
+            // Their structure comes from supporting child goals in the tree.
+            result.targetDate = nil
+            result.milestones = []
+            result.horizon = goalType == .apex ? .lifetime : (horizon ?? .lifetime)
+            result.checkInIntervalDays = checkInInterval // retained for future reflection cadence
+        } else {
+            result.targetDate = hasTargetDate ? DateFormatting.dateString(targetDate) : nil
+            result.checkInIntervalDays = checkInInterval
+            result.milestones = milestones
+            result.horizon = horizon
+
+            if !milestones.isEmpty, let lastCheckIn = result.checkIns.last {
+                let milestonePct = Double(milestones.filter(\.completed).count) / Double(milestones.count) * 100
+                if milestonePct != lastCheckIn.progressPct {
+                    result.checkIns.append(GoalCheckIn(progressPct: milestonePct, note: "Updated milestones"))
+                }
             }
         }
 
@@ -1041,14 +1307,25 @@ struct GoalEditSheet: View {
 
 // MARK: - Check-In Sheet
 
-private struct CheckInSheet: View {
+/// Unified check-in sheet that branches by goal type:
+/// - Standard goals: progress slider + milestone checkboxes + note.
+/// - Apex / sub-apex lifelong goals: alignment rating + guided prompt +
+///   blockers + commitments. Progress is not tracked on lifetime purposes.
+struct CheckInSheet: View {
     let goal: Goal
     let onSave: (Goal) -> Void
     @Environment(\.dismiss) private var dismiss
 
+    // Standard-goal state
     @State private var progressPct: Double
     @State private var note: String = ""
     @State private var milestoneStates: [UUID: Bool]
+
+    // Reflection state (lifelong goals)
+    @State private var alignmentRating: Double = 7
+    @State private var selectedPrompt: String = ""
+    @State private var blockersText: String = ""
+    @State private var commitmentsText: String = ""
 
     init(goal: Goal, onSave: @escaping (Goal) -> Void) {
         self.goal = goal
@@ -1057,71 +1334,20 @@ private struct CheckInSheet: View {
         _milestoneStates = State(initialValue: Dictionary(uniqueKeysWithValues: goal.milestones.map { ($0.id, $0.completed) }))
     }
 
+    private var isLifelong: Bool {
+        goal.goalType == .apex || goal.goalType == .subApex
+    }
+
     var body: some View {
         NavigationStack {
             Form {
-                Section("Progress") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text("Progress: \(Int(progressPct))%")
-                                .font(.headline)
-                            Spacer()
-                            if progressPct > goal.progressPercent {
-                                Text("+\(Int(progressPct - goal.progressPercent))%")
-                                    .font(.caption).foregroundColor(.success)
-                            }
-                        }
-                        Slider(value: $progressPct, in: 0...100, step: 5)
-                    }
-                }
-
-                if !goal.milestones.isEmpty {
-                    Section("Milestones") {
-                        ForEach(goal.milestones) { milestone in
-                            Button {
-                                milestoneStates[milestone.id]?.toggle()
-                                updateProgressFromMilestones()
-                            } label: {
-                                HStack {
-                                    Image(systemName: milestoneStates[milestone.id] == true ? "checkmark.circle.fill" : "circle")
-                                        .foregroundColor(milestoneStates[milestone.id] == true ? .success : .textMuted)
-                                    Text(milestone.title)
-                                        .foregroundColor(.textPrimary)
-                                    Spacer()
-                                }
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
-
-                Section("Note") {
-                    TextField("What did you work on?", text: $note, axis: .vertical)
-                        .lineLimit(2...4)
-                }
-
-                if goal.checkIns.count > 1 {
-                    Section("Recent Check-ins") {
-                        ForEach(goal.checkIns.suffix(5).reversed()) { checkIn in
-                            HStack {
-                                Text(DateFormatting.displayDate(checkIn.date))
-                                    .font(.caption)
-                                    .foregroundColor(.textSecondary)
-                                Spacer()
-                                Text("\(Int(checkIn.progressPct))%")
-                                    .font(.caption).fontWeight(.medium)
-                                    .foregroundColor(.textPrimary)
-                            }
-                            if !checkIn.note.isEmpty {
-                                Text(checkIn.note)
-                                    .font(.caption2)
-                                    .foregroundColor(.textMuted)
-                            }
-                        }
-                    }
+                if isLifelong {
+                    reflectionForm
+                } else {
+                    progressForm
                 }
             }
-            .navigationTitle("Check In: \(goal.title)")
+            .navigationTitle(isLifelong ? "Reflect" : "Check In")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -1133,8 +1359,175 @@ private struct CheckInSheet: View {
                     Button("Save") { save() }
                 }
             }
+            .onAppear {
+                if isLifelong && selectedPrompt.isEmpty {
+                    selectedPrompt = ReflectionPrompts.nextPrompt(for: goal)
+                }
+            }
         }
     }
+
+    // MARK: Standard-goal form
+
+    @ViewBuilder
+    private var progressForm: some View {
+        Section("Progress") {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Progress: \(Int(progressPct))%")
+                        .font(.headline)
+                    Spacer()
+                    if progressPct > goal.progressPercent {
+                        Text("+\(Int(progressPct - goal.progressPercent))%")
+                            .font(.caption).foregroundColor(.success)
+                    }
+                }
+                Slider(value: $progressPct, in: 0...100, step: 5)
+            }
+        }
+
+        if !goal.milestones.isEmpty {
+            Section("Milestones") {
+                ForEach(goal.milestones) { milestone in
+                    Button {
+                        milestoneStates[milestone.id]?.toggle()
+                        updateProgressFromMilestones()
+                    } label: {
+                        HStack {
+                            Image(systemName: milestoneStates[milestone.id] == true ? "checkmark.circle.fill" : "circle")
+                                .foregroundColor(milestoneStates[milestone.id] == true ? .success : .textMuted)
+                            Text(milestone.title)
+                                .foregroundColor(.textPrimary)
+                            Spacer()
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+
+        Section("Note") {
+            TextField("What did you work on?", text: $note, axis: .vertical)
+                .lineLimit(2...4)
+        }
+
+        if goal.checkIns.count > 1 {
+            Section("Recent Check-ins") {
+                ForEach(goal.checkIns.suffix(5).reversed()) { checkIn in
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text(DateFormatting.displayDate(checkIn.date))
+                                .font(.caption)
+                                .foregroundColor(.textSecondary)
+                            Spacer()
+                            Text("\(Int(checkIn.progressPct))%")
+                                .font(.caption).fontWeight(.medium)
+                                .foregroundColor(.textPrimary)
+                        }
+                        if !checkIn.note.isEmpty {
+                            Text(checkIn.note)
+                                .font(.caption2)
+                                .foregroundColor(.textMuted)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: Reflection form (lifelong goals)
+
+    @ViewBuilder
+    private var reflectionForm: some View {
+        Section {
+            Text(goal.title)
+                .font(.headline)
+                .foregroundColor(.textPrimary)
+            Text("Reflect on how aligned your recent time has been with this \(goal.goalType?.label.lowercased() ?? "goal").")
+                .font(.caption)
+                .foregroundColor(.textSecondary)
+        }
+
+        Section("How aligned are you feeling?") {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("\(Int(alignmentRating))/10")
+                        .font(.title2).fontWeight(.bold)
+                        .monospacedDigit()
+                    Spacer()
+                    Text(AlignmentScale.label(for: Int(alignmentRating)))
+                        .font(.caption)
+                        .foregroundColor(.textSecondary)
+                }
+                Slider(value: $alignmentRating, in: 1...10, step: 1)
+            }
+        }
+
+        Section("Guided prompt") {
+            Text(selectedPrompt)
+                .font(.subheadline)
+                .foregroundColor(.textPrimary)
+            TextField("Your answer", text: $note, axis: .vertical)
+                .lineLimit(3...6)
+            Button {
+                rotatePrompt()
+            } label: {
+                Label("Different prompt", systemImage: "arrow.triangle.2.circlepath")
+                    .font(.caption)
+            }
+        }
+
+        Section {
+            TextField("One blocker per line", text: $blockersText, axis: .vertical)
+                .lineLimit(2...5)
+        } header: {
+            Text("What's holding you back?")
+        } footer: {
+            Text("Each line becomes a separate entry.")
+                .font(.caption2)
+        }
+
+        Section {
+            TextField("One commitment per line", text: $commitmentsText, axis: .vertical)
+                .lineLimit(2...5)
+        } header: {
+            Text("What will you commit to this period?")
+        }
+
+        let reflections = goal.checkIns.filter { $0.isReflection }
+        if !reflections.isEmpty {
+            Section("Recent Reflections") {
+                ForEach(reflections.suffix(3).reversed()) { c in
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text(DateFormatting.displayDate(c.date))
+                                .font(.caption)
+                                .foregroundColor(.textSecondary)
+                            Spacer()
+                            if let rating = c.alignmentRating {
+                                Text("\(rating)/10")
+                                    .font(.caption).fontWeight(.medium)
+                                    .monospacedDigit()
+                                    .foregroundColor(.textPrimary)
+                            }
+                        }
+                        if !c.note.isEmpty {
+                            Text(c.note)
+                                .font(.caption2)
+                                .foregroundColor(.textMuted)
+                                .lineLimit(2)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func rotatePrompt() {
+        selectedPrompt = ReflectionPrompts.nextPrompt(for: goal, excluding: selectedPrompt)
+    }
+
+    // MARK: Save
 
     private func updateProgressFromMilestones() {
         let total = goal.milestones.count
@@ -1146,25 +1539,45 @@ private struct CheckInSheet: View {
     private func save() {
         var updated = goal
 
-        for i in updated.milestones.indices {
-            let wasCompleted = updated.milestones[i].completed
-            let nowCompleted = milestoneStates[updated.milestones[i].id] ?? wasCompleted
-            updated.milestones[i].completed = nowCompleted
-            if nowCompleted && !wasCompleted {
-                updated.milestones[i].completedDate = DateFormatting.todayString()
-            } else if !nowCompleted {
-                updated.milestones[i].completedDate = nil
+        if isLifelong {
+            let blockersList = blockersText
+                .split(separator: "\n")
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+            let commitmentsList = commitmentsText
+                .split(separator: "\n")
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+
+            updated.checkIns.append(GoalCheckIn(
+                progressPct: 0,
+                note: note.trimmingCharacters(in: .whitespaces),
+                alignmentRating: Int(alignmentRating),
+                blockers: blockersList,
+                commitments: commitmentsList,
+                promptAnswered: selectedPrompt
+            ))
+        } else {
+            for i in updated.milestones.indices {
+                let wasCompleted = updated.milestones[i].completed
+                let nowCompleted = milestoneStates[updated.milestones[i].id] ?? wasCompleted
+                updated.milestones[i].completed = nowCompleted
+                if nowCompleted && !wasCompleted {
+                    updated.milestones[i].completedDate = DateFormatting.todayString()
+                } else if !nowCompleted {
+                    updated.milestones[i].completedDate = nil
+                }
             }
-        }
 
-        updated.checkIns.append(GoalCheckIn(
-            progressPct: progressPct,
-            note: note.trimmingCharacters(in: .whitespaces)
-        ))
+            updated.checkIns.append(GoalCheckIn(
+                progressPct: progressPct,
+                note: note.trimmingCharacters(in: .whitespaces)
+            ))
 
-        if progressPct >= 100 && updated.status == .active {
-            updated.status = .completed
-            updated.completedDate = DateFormatting.todayString()
+            if progressPct >= 100 && updated.status == .active {
+                updated.status = .completed
+                updated.completedDate = DateFormatting.todayString()
+            }
         }
 
         onSave(updated)

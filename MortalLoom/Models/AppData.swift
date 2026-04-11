@@ -12,6 +12,7 @@ struct AppData: Codable, Sendable {
     var bodyEntries: [BodyEntry]
     var healthMetrics: [HealthMetricEntry]
     var goals: [Goal]
+    var habits: [Habit]
     var genomeScanRecord: GenomeScanRecord?
     var saunaSessions: [SaunaSession]
     var saunaPresets: [SaunaPreset]
@@ -28,6 +29,7 @@ struct AppData: Codable, Sendable {
         bodyEntries: [],
         healthMetrics: [],
         goals: [],
+        habits: [],
         genomeScanRecord: nil,
         saunaSessions: [],
         saunaPresets: SaunaPreset.defaults
@@ -37,7 +39,8 @@ struct AppData: Codable, Sendable {
          nicotineEntries: [NicotineEntry], nicotinePresets: [NicotinePreset],
          bloodTests: [BloodTest], eyeExams: [EyeExam], epigeneticTests: [EpigeneticTest],
          bodyEntries: [BodyEntry] = [], healthMetrics: [HealthMetricEntry] = [],
-         goals: [Goal] = [], genomeScanRecord: GenomeScanRecord? = nil,
+         goals: [Goal] = [], habits: [Habit] = [],
+         genomeScanRecord: GenomeScanRecord? = nil,
          saunaSessions: [SaunaSession] = [], saunaPresets: [SaunaPreset] = SaunaPreset.defaults) {
         self.profile = profile
         self.alcoholDrinks = alcoholDrinks
@@ -50,6 +53,7 @@ struct AppData: Codable, Sendable {
         self.bodyEntries = bodyEntries
         self.healthMetrics = healthMetrics
         self.goals = goals
+        self.habits = habits
         self.genomeScanRecord = genomeScanRecord
         self.saunaSessions = saunaSessions
         self.saunaPresets = saunaPresets
@@ -67,13 +71,14 @@ struct AppData: Codable, Sendable {
         || !bodyEntries.isEmpty
         || !healthMetrics.isEmpty
         || !goals.isEmpty
+        || !habits.isEmpty
         || genomeScanRecord != nil
     }
 
     // Support decoding files saved before newer fields were added
     enum CodingKeys: String, CodingKey {
         case profile, alcoholDrinks, alcoholPresets, nicotineEntries, nicotinePresets
-        case bloodTests, eyeExams, epigeneticTests, bodyEntries, healthMetrics, goals
+        case bloodTests, eyeExams, epigeneticTests, bodyEntries, healthMetrics, goals, habits
         case genomeScanRecord, saunaSessions, saunaPresets
     }
 
@@ -90,6 +95,7 @@ struct AppData: Codable, Sendable {
         bodyEntries = try c.decodeIfPresent([BodyEntry].self, forKey: .bodyEntries) ?? []
         healthMetrics = try c.decodeIfPresent([HealthMetricEntry].self, forKey: .healthMetrics) ?? []
         goals = try c.decodeIfPresent([Goal].self, forKey: .goals) ?? []
+        habits = try c.decodeIfPresent([Habit].self, forKey: .habits) ?? []
         genomeScanRecord = try c.decodeIfPresent(GenomeScanRecord.self, forKey: .genomeScanRecord)
         saunaSessions = try c.decodeIfPresent([SaunaSession].self, forKey: .saunaSessions) ?? []
         saunaPresets = try c.decodeIfPresent([SaunaPreset].self, forKey: .saunaPresets) ?? SaunaPreset.defaults
@@ -135,6 +141,7 @@ extension AppData {
         result.epigeneticTests  = mergeByID(self.epigeneticTests,  remote.epigeneticTests)
         result.bodyEntries      = mergeByID(self.bodyEntries,      remote.bodyEntries)
         result.goals            = mergeByID(self.goals,            remote.goals)
+        result.habits           = mergeByID(self.habits,           remote.habits)
 
         // healthMetrics is logically keyed by date, not by uuid. Merge per
         // date using HealthMetricEntry.mergeFields which preserves non-nil

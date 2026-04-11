@@ -40,6 +40,22 @@ enum AppConstants {
         return nil
         #endif
     }
+
+    /// Launch with -fresh-start to simulate a brand-new install in the
+    /// simulator without touching the real iCloud container. In this mode:
+    /// - DataStore enters sample-data mode (nothing written to disk/iCloud)
+    /// - In-memory state starts at `AppData.empty`
+    /// - Onboarding flag is forced to false so onboarding runs
+    /// - HealthKit sync is skipped
+    /// Debug-only — shipped binaries ignore the flag so a user's real device
+    /// can't be coerced into throwing away their data via launch arguments.
+    static var useFreshStart: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.arguments.contains("-fresh-start")
+        #else
+        return false
+        #endif
+    }
 }
 
 extension Notification.Name {
@@ -72,7 +88,13 @@ struct ContentView: View {
     @State private var store = StoreManager.shared
     @State private var selectedPage: AppPage = .overview
     @State private var showSideMenu = false
-    @State private var showOnboarding = !UserDefaults.standard.bool(forKey: AppConstants.hasCompletedOnboardingKey)
+    // Fresh-start mode (simulator only, DEBUG builds) forces onboarding to run
+    // and prevents any persistence. Anything not in -fresh-start honours the
+    // stored onboarding flag so normal use is unaffected.
+    @State private var showOnboarding: Bool = {
+        if AppConstants.useFreshStart { return true }
+        return !UserDefaults.standard.bool(forKey: AppConstants.hasCompletedOnboardingKey)
+    }()
 
     // Bridge for OverviewView's Int-based selectedTab binding
     private var selectedTabBinding: Binding<Int> {
@@ -115,6 +137,22 @@ struct ContentView: View {
                 await DataStore.shared.enableSampleDataMode()
                 await DataStore.shared.setInMemory(SampleData.fullAppData)
                 UserDefaults.standard.set(true, forKey: AppConstants.hasCompletedOnboardingKey)
+                return
+            }
+
+            if AppConstants.useFreshStart {
+                // Fresh-start mode: simulate a brand-new install. Uses the
+                // same no-persistence guarantee as sample-data mode, but
+                // seeds empty data and forces onboarding to run. Used in
+                // the simulator when the developer wants to test the full
+                // new-user flow without touching their real iCloud container.
+                appLogger.warning("⚠️ -fresh-start flag present: empty in-memory state, onboarding forced, iCloud & HealthKit disabled")
+                await DataStore.shared.enableSampleDataMode()
+                await DataStore.shared.setInMemory(AppData.empty)
+                // Reset onboarding so the flow actually runs this session.
+                // Writes to UserDefaults are fine — they live in the
+                // simulator's sandbox, not the real device or iCloud.
+                UserDefaults.standard.set(false, forKey: AppConstants.hasCompletedOnboardingKey)
                 return
             }
 
@@ -178,6 +216,10 @@ struct ContentView: View {
             GoalsView()
         case .sleep:
             SleepView()
+        case .reflections:
+            ReflectionsView()
+        case .reports:
+            ReportsView()
         }
     }
     #endif
@@ -227,14 +269,14 @@ struct MacContentView: View {
                 .listRowSeparator(.hidden)
                 .padding(.vertical, 4)
 
-                Section("Health") {
-                    ForEach([AppPage.overview, .body, .sleep, .blood, .calendar, .genome], id: \.self) { page in
+                Section("Goals") {
+                    ForEach([AppPage.overview, .goals, .calendar, .habits, .reflections, .reports], id: \.self) { page in
                         Label(page.title, systemImage: page.icon).tag(page)
                     }
                 }
 
-                Section("Tracking") {
-                    ForEach([AppPage.goals, .habits, .lifestyle], id: \.self) { page in
+                Section("Health") {
+                    ForEach([AppPage.body, .sleep, .blood, .lifestyle, .genome], id: \.self) { page in
                         Label(page.title, systemImage: page.icon).tag(page)
                     }
                 }
@@ -271,6 +313,10 @@ struct MacContentView: View {
                     SleepView()
                 case .settings:
                     SettingsView()
+                case .reflections:
+                    ReflectionsView()
+                case .reports:
+                    ReportsView()
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

@@ -19,6 +19,52 @@ struct WidgetSnapshot: Codable, Sendable {
     let needsCheckInCount: Int
     let healthScore: Double
     let updatedAt: Date
+    let apexTitle: String?
+    let alignmentScore: Double?
+    let todaysPrompt: String?
+
+    // Back-compat decoder: older snapshot files (written by pre-alignment
+    // builds) don't have the new fields. Default them to nil.
+    private enum CodingKeys: String, CodingKey {
+        case goals, activeCount, overdueCount, needsCheckInCount, healthScore, updatedAt
+        case apexTitle, alignmentScore, todaysPrompt
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        goals = try c.decode([WidgetGoal].self, forKey: .goals)
+        activeCount = try c.decode(Int.self, forKey: .activeCount)
+        overdueCount = try c.decode(Int.self, forKey: .overdueCount)
+        needsCheckInCount = try c.decode(Int.self, forKey: .needsCheckInCount)
+        healthScore = try c.decode(Double.self, forKey: .healthScore)
+        updatedAt = try c.decode(Date.self, forKey: .updatedAt)
+        apexTitle = try c.decodeIfPresent(String.self, forKey: .apexTitle)
+        alignmentScore = try c.decodeIfPresent(Double.self, forKey: .alignmentScore)
+        todaysPrompt = try c.decodeIfPresent(String.self, forKey: .todaysPrompt)
+    }
+
+    // Explicit init so the placeholder can construct one.
+    init(
+        goals: [WidgetGoal],
+        activeCount: Int,
+        overdueCount: Int,
+        needsCheckInCount: Int,
+        healthScore: Double,
+        updatedAt: Date,
+        apexTitle: String? = nil,
+        alignmentScore: Double? = nil,
+        todaysPrompt: String? = nil
+    ) {
+        self.goals = goals
+        self.activeCount = activeCount
+        self.overdueCount = overdueCount
+        self.needsCheckInCount = needsCheckInCount
+        self.healthScore = healthScore
+        self.updatedAt = updatedAt
+        self.apexTitle = apexTitle
+        self.alignmentScore = alignmentScore
+        self.todaysPrompt = todaysPrompt
+    }
 }
 
 // MARK: - Data Loading
@@ -55,7 +101,10 @@ struct MortalLoomEntry: TimelineEntry {
             overdueCount: 1,
             needsCheckInCount: 2,
             healthScore: 82,
-            updatedAt: Date()
+            updatedAt: Date(),
+            apexTitle: "Leave a lasting creative legacy",
+            alignmentScore: 62,
+            todaysPrompt: "What's holding you back right now?"
         )
     )
 }
@@ -147,8 +196,42 @@ struct SmallWidgetView: View {
     let entry: MortalLoomEntry
 
     var body: some View {
-        if let snapshot = entry.snapshot, !snapshot.goals.isEmpty {
-            let top = snapshot.goals.first!
+        if let snapshot = entry.snapshot, let apexTitle = snapshot.apexTitle {
+            // North Star mode: lead with apex title + alignment %
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 4) {
+                    Image(systemName: "crown.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.yellow)
+                    Text("North Star")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .tracking(0.5)
+                }
+                Text(apexTitle)
+                    .font(.system(size: 12, weight: .bold))
+                    .lineLimit(2)
+
+                Spacer(minLength: 0)
+
+                if let alignment = snapshot.alignmentScore {
+                    Text("\(Int(alignment))%")
+                        .font(.system(size: 32, weight: .heavy, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(alignmentColor(alignment))
+                    Text("aligned")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+                        .tracking(0.5)
+                } else {
+                    Text("Tap to add\nsupporting goals")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .containerBackground(.fill.tertiary, for: .widget)
+        } else if let snapshot = entry.snapshot, let top = snapshot.goals.first {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 4) {
                     Image(systemName: categoryIcon(top.category))
@@ -171,7 +254,6 @@ struct SmallWidgetView: View {
 
                 Spacer(minLength: 0)
 
-                // Progress bar
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
                         RoundedRectangle(cornerRadius: 3)
@@ -216,13 +298,72 @@ struct SmallWidgetView: View {
     }
 }
 
+/// Color for the alignment percentage on the widget. Mirrors the main-app
+/// scale (off-track → drifting → mostly → on track → deeply).
+private func alignmentColor(_ score: Double) -> Color {
+    switch score {
+    case ..<30: .red
+    case 30..<50: .orange
+    case 50..<70: .blue
+    default: .green
+    }
+}
+
 // MARK: - Medium Widget (Home Screen)
 
 struct MediumWidgetView: View {
     let entry: MortalLoomEntry
 
     var body: some View {
-        if let snapshot = entry.snapshot, !snapshot.goals.isEmpty {
+        if let snapshot = entry.snapshot, let apexTitle = snapshot.apexTitle {
+            // North Star + top goals
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "crown.fill")
+                                .font(.caption2)
+                                .foregroundStyle(.yellow)
+                            Text("NORTH STAR")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(.secondary)
+                                .tracking(0.5)
+                        }
+                        Text(apexTitle)
+                            .font(.system(size: 13, weight: .bold))
+                            .lineLimit(1)
+                    }
+                    Spacer()
+                    if let alignment = snapshot.alignmentScore {
+                        VStack(alignment: .trailing, spacing: 0) {
+                            Text("\(Int(alignment))%")
+                                .font(.system(size: 20, weight: .heavy, design: .rounded))
+                                .monospacedDigit()
+                                .foregroundStyle(alignmentColor(alignment))
+                            Text("aligned")
+                                .font(.system(size: 8, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                Divider()
+
+                ForEach(Array(snapshot.goals.prefix(2).enumerated()), id: \.offset) { _, goal in
+                    goalRow(goal)
+                }
+
+                if let prompt = snapshot.todaysPrompt {
+                    Text(prompt)
+                        .font(.system(size: 9, weight: .medium))
+                        .italic()
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .padding(.top, 2)
+                }
+            }
+            .containerBackground(.fill.tertiary, for: .widget)
+        } else if let snapshot = entry.snapshot, !snapshot.goals.isEmpty {
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     Image(systemName: "target")

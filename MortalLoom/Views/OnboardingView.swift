@@ -18,26 +18,35 @@ struct OnboardingView: View {
 
     @State private var apexGoalTitle: String = ""
     @State private var apexGoalNotes: String = ""
-    @State private var apexGoalTargetDate: Date = Calendar.current.date(byAdding: .year, value: 5, to: Date()) ?? Date()
     @State private var apexGoalCategory: GoalCategory = .legacy
 
-    private let totalSteps = 12
+    // First reflection seed — answered after the user names their North Star.
+    // Stored as an initial reflection-shaped GoalCheckIn on the new apex so
+    // the Reflections journal has content from day one.
+    @State private var firstReflectionAnswer: String = ""
+    @State private var firstReflectionRating: Double = 7
+
+    private let totalSteps = 13
 
     var body: some View {
         VStack(spacing: 0) {
             TabView(selection: $currentStep) {
+                // Order reflects the app's framing: start with what matters
+                // to the user (North Star → first reflection), then introduce
+                // longevity as the way to extend the runway for those goals.
                 welcomeStep.tag(0)
                 planYourLifeStep.tag(1)
-                escapeVelocityStep.tag(2)
-                healthKitStep.tag(3)
-                birthDateStep.tag(4)
-                biologicalSexStep.tag(5)
-                smokingStep.tag(6)
-                exerciseStep.tag(7)
-                sleepStep.tag(8)
-                dietStressStep.tag(9)
-                resultsStep.tag(10)
-                apexGoalStep.tag(11)
+                apexGoalStep.tag(2)
+                firstReflectionStep.tag(3)
+                escapeVelocityStep.tag(4)
+                healthKitStep.tag(5)
+                birthDateStep.tag(6)
+                biologicalSexStep.tag(7)
+                smokingStep.tag(8)
+                exerciseStep.tag(9)
+                sleepStep.tag(10)
+                dietStressStep.tag(11)
+                resultsStep.tag(12)
             }
             #if os(iOS)
             .tabViewStyle(.page(indexDisplayMode: .never))
@@ -703,15 +712,15 @@ struct OnboardingView: View {
     private var apexGoalStep: some View {
         stepContainer {
             stepIcon("crown.fill")
-            stepTitle("Your North Star Goal")
-            stepDescription("What\u{2019}s the one big thing you want to accomplish? This is your apex goal — everything else builds toward it.")
+            stepTitle("Your North Star")
+            stepDescription("Your single biggest life purpose — the thing everything else serves. Broad, lifelong, no end date. Examples: \u{201C}Live healthy for as long as possible\u{201D}, \u{201C}Leave a lasting creative legacy\u{201D}, \u{201C}Raise a loving resilient family.\u{201D}")
 
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Goal")
+                    Text("Your North Star")
                         .font(.caption).fontWeight(.semibold)
                         .foregroundColor(.textSecondary)
-                    TextField("e.g. Write and publish my novel", text: $apexGoalTitle)
+                    TextField("e.g. Leave a lasting creative legacy", text: $apexGoalTitle)
                         .textFieldStyle(.plain)
                         .padding(12)
                         .background(Color.bgInput)
@@ -720,10 +729,10 @@ struct OnboardingView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Why does it matter?")
+                    Text("Notes (optional)")
                         .font(.caption).fontWeight(.semibold)
                         .foregroundColor(.textSecondary)
-                    TextField("Optional context", text: $apexGoalNotes, axis: .vertical)
+                    TextField("How would you know you're living it?", text: $apexGoalNotes, axis: .vertical)
                         .textFieldStyle(.plain)
                         .lineLimit(2...4)
                         .padding(12)
@@ -736,28 +745,99 @@ struct OnboardingView: View {
                     Text("Category")
                         .font(.caption).fontWeight(.semibold)
                         .foregroundColor(.textSecondary)
-                    Picker("Category", selection: $apexGoalCategory) {
+                    // A 3-column chip grid — a segmented Picker truncates
+                    // 6 full-word labels like "Creative" and "Financial" at
+                    // iPhone widths. Chips wrap and keep the full label.
+                    LazyVGrid(
+                        columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())],
+                        spacing: 8
+                    ) {
                         ForEach(GoalCategory.allCases, id: \.self) { cat in
-                            Text(cat.label).tag(cat)
+                            Button {
+                                apexGoalCategory = cat
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: cat.icon)
+                                        .font(.caption2)
+                                    Text(cat.label)
+                                        .font(.caption).fontWeight(.medium)
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.8)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                                .background(apexGoalCategory == cat ? Color.accentColor.opacity(0.2) : Color.bgInput)
+                                .foregroundColor(apexGoalCategory == cat ? .accentColor : .textSecondary)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(apexGoalCategory == cat ? Color.accentColor : Color.clear, lineWidth: 1)
+                                )
+                                .cornerRadius(8)
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
-                    .pickerStyle(.segmented)
-                }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Target Date")
-                        .font(.caption).fontWeight(.semibold)
-                        .foregroundColor(.textSecondary)
-                    DatePicker("", selection: $apexGoalTargetDate, in: Date()..., displayedComponents: .date)
-                        .datePickerStyle(.compact)
-                        .labelsHidden()
                 }
             }
             .padding(.horizontal, 8)
 
             Spacer()
 
-            primaryButton(apexGoalTitle.trimmingCharacters(in: .whitespaces).isEmpty ? "Skip" : "Start Your Journey") {
+            primaryButton(apexGoalTitle.trimmingCharacters(in: .whitespaces).isEmpty ? "Skip for now" : "Next") {
+                advanceStep()
+            }
+        }
+    }
+
+    // MARK: - Step 12: First Reflection
+
+    /// Seed the Reflections journal with an initial reflection on the new
+    /// North Star. The user answers one question and rates their current
+    /// alignment. This gives the app a baseline to compare future reviews
+    /// against, and teaches the user what a reflection feels like before
+    /// they encounter the weekly review loop.
+    private var firstReflectionStep: some View {
+        stepContainer {
+            stepIcon("bubble.left.and.bubble.right.fill")
+            stepTitle("Your first reflection")
+            stepDescription("MortalLoom's core loop is reflecting on how well you\u{2019}re living your North Star — not just logging tasks. Let\u{2019}s start with one honest answer.")
+
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Why does this matter to you?")
+                        .font(.subheadline).fontWeight(.semibold)
+                        .foregroundColor(.textPrimary)
+                    TextField("The real reason — not the tidy one", text: $firstReflectionAnswer, axis: .vertical)
+                        .textFieldStyle(.plain)
+                        .lineLimit(3...6)
+                        .padding(12)
+                        .background(Color.bgInput)
+                        .cornerRadius(10)
+                        .foregroundColor(.textPrimary)
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Right now, how aligned does your life feel with this?")
+                        .font(.subheadline).fontWeight(.semibold)
+                        .foregroundColor(.textPrimary)
+                    HStack {
+                        Text("\(Int(firstReflectionRating))/10")
+                            .font(.title3).fontWeight(.bold)
+                            .monospacedDigit()
+                            .foregroundColor(.accentColor)
+                        Spacer()
+                        Text(AlignmentScale.label(for: Int(firstReflectionRating)))
+                            .font(.caption)
+                            .foregroundColor(.textSecondary)
+                    }
+                    Slider(value: $firstReflectionRating, in: 1...10, step: 1)
+                }
+            }
+            .padding(.horizontal, 8)
+
+            Spacer()
+
+            primaryButton("Start Your Journey") {
                 saveAndDismiss()
             }
         }
@@ -836,7 +916,11 @@ struct OnboardingView: View {
 
     private func advanceStep() {
         let nextStep = min(currentStep + 1, totalSteps - 1)
-        if nextStep == 10 {
+        // Results step (now step 12) renders the calculated life expectancy,
+        // so compute it when transitioning into it. Done here rather than in
+        // a task on the step itself so the result is ready the moment the
+        // step animates in.
+        if nextStep == 12 {
             let birthDateStr = DateFormatting.dateString(birthDate)
             let lifestyle = LifestyleData(
                 smokingStatus: smokingStatus,
@@ -870,16 +954,35 @@ struct OnboardingView: View {
         )
 
         let trimmedTitle = apexGoalTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        let apexGoal: Goal? = trimmedTitle.isEmpty ? nil : Goal(
-            title: trimmedTitle,
-            notes: apexGoalNotes.trimmingCharacters(in: .whitespacesAndNewlines),
-            targetDate: DateFormatting.dateString(apexGoalTargetDate),
-            checkInIntervalDays: 7,
-            status: .active,
-            priority: .high,
-            category: apexGoalCategory,
-            goalType: .apex
-        )
+        // Apex goals are lifetime purposes: no targetDate, lifetime horizon.
+        // Seed with the first reflection as an initial check-in so the
+        // Reflections journal has content from day one.
+        var apexGoal: Goal? = nil
+        if !trimmedTitle.isEmpty {
+            var g = Goal(
+                title: trimmedTitle,
+                notes: apexGoalNotes.trimmingCharacters(in: .whitespacesAndNewlines),
+                targetDate: nil,
+                checkInIntervalDays: 14,
+                status: .active,
+                priority: .high,
+                horizon: .lifetime,
+                category: apexGoalCategory,
+                goalType: .apex
+            )
+            let trimmedReflection = firstReflectionAnswer.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmedReflection.isEmpty || firstReflectionRating != 7 {
+                g.checkIns.append(GoalCheckIn(
+                    progressPct: 0,
+                    note: trimmedReflection,
+                    alignmentRating: Int(firstReflectionRating),
+                    blockers: [],
+                    commitments: [],
+                    promptAnswered: "Why does this matter to you?"
+                ))
+            }
+            apexGoal = g
+        }
 
         Task { @MainActor in
             await DataStore.shared.updateProfile(profile)

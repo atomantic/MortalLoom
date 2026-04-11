@@ -4,6 +4,7 @@ import Charts
 // MARK: - Substance Tab Enum
 
 private enum SubstanceTab: String, CaseIterable {
+    case myHabits = "My Habits"
     case alcohol = "Alcohol"
     case nicotine = "Nicotine"
     case sauna = "Sauna"
@@ -70,13 +71,7 @@ private struct DailyAmount: Identifiable {
 // MARK: - SubstancesView
 
 struct SubstancesView: View {
-    @State private var selectedTab: SubstanceTab = {
-        if let arg = AppConstants.startSubstanceTab,
-           let tab = SubstanceTab.allCases.first(where: { $0.rawValue.lowercased() == arg }) {
-            return tab
-        }
-        return .alcohol
-    }()
+    @AppStorage("substances.selectedTab") private var selectedTab: SubstanceTab = .myHabits
 
     // Alcohol state
     @State private var alcoholDrinks: [AlcoholDrink] = []
@@ -159,6 +154,8 @@ struct SubstancesView: View {
                 .padding(.horizontal)
 
                 switch selectedTab {
+                case .myHabits:
+                    HabitsSection()
                 case .alcohol:
                     alcoholSection
                 case .nicotine:
@@ -171,7 +168,13 @@ struct SubstancesView: View {
             .readContainerWidth { containerWidth = $0 }
         }
         .background(Color.bg)
-        .task { await loadData() }
+        .task {
+            if let arg = AppConstants.startSubstanceTab,
+               let tab = SubstanceTab.allCases.first(where: { $0.rawValue.lowercased() == arg }) {
+                selectedTab = tab
+            }
+            await loadData()
+        }
         .onReceive(NotificationCenter.default.publisher(for: .dataDidSync)) { _ in
             Task { await loadData() }
         }

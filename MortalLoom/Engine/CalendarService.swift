@@ -43,7 +43,23 @@ final class CalendarService {
         }
     }
 
+    /// URL scheme used to tag events with a MortalLoom goal id. Storing the
+    /// goal id in `event.url` keeps the event round-trippable — we can read
+    /// any calendar event back later and know which goal it was scheduled
+    /// for (see `TimeAllocationEngine`).
+    static let goalURLScheme = "mortalloom"
+    static func goalURL(for goalId: UUID) -> URL? {
+        URL(string: "\(goalURLScheme)://goal/\(goalId.uuidString)")
+    }
+    static func goalId(from url: URL?) -> UUID? {
+        guard let url, url.scheme == goalURLScheme,
+              url.host == "goal" else { return nil }
+        let component = url.pathComponents.first(where: { $0 != "/" }) ?? ""
+        return UUID(uuidString: component)
+    }
+
     private func makeBaseEvent(
+        goalId: UUID?,
         goalTitle: String,
         notes: String,
         startDate: Date,
@@ -56,12 +72,16 @@ final class CalendarService {
         event.endDate = startDate.addingTimeInterval(TimeInterval(durationMinutes * 60))
         event.calendar = store.defaultCalendarForNewEvents
         event.addAlarm(EKAlarm(relativeOffset: Self.tenMinutesBeforeStart))
+        if let goalId {
+            event.url = Self.goalURL(for: goalId)
+        }
         return event
     }
 
     /// Schedule a single work block for a goal.
     /// Returns the EKEvent's eventIdentifier on success.
     func scheduleWorkBlock(
+        goalId: UUID?,
         goalTitle: String,
         notes: String,
         startDate: Date,
@@ -69,6 +89,7 @@ final class CalendarService {
     ) -> String? {
         guard isAuthorized else { return nil }
         let event = makeBaseEvent(
+            goalId: goalId,
             goalTitle: goalTitle,
             notes: notes,
             startDate: startDate,
@@ -88,6 +109,7 @@ final class CalendarService {
     /// Schedule a recurring work block for a goal over a date range.
     /// Returns the EKEvent's eventIdentifier on success.
     func scheduleRecurringWorkBlock(
+        goalId: UUID?,
         goalTitle: String,
         notes: String,
         startDate: Date,
@@ -97,6 +119,7 @@ final class CalendarService {
     ) -> String? {
         guard isAuthorized else { return nil }
         let event = makeBaseEvent(
+            goalId: goalId,
             goalTitle: goalTitle,
             notes: notes,
             startDate: startDate,
@@ -144,6 +167,23 @@ final class CalendarService {
             calendarLogger.error("⚠️ Failed to schedule recurring work block: \(error.localizedDescription, privacy: .private)")
             return nil
         }
+    }
+
+    /// Read MortalLoom-tagged events from the calendar over a date range.
+    /// Returns lightweight `(goalId, startDate, durationMinutes)` tuples so
+    /// the engine layer doesn't depend on EventKit types.
+    func tagged(from: Date, to: Date) -> [(goalId: UUID, startDate: Date, durationMinutes: Int)] {
+        guard isAuthorized else { return [] }
+        let calendars = store.calendars(for: .event)
+        let predicate = store.predicateForEvents(withStart: from, end: to, calendars: calendars)
+        let events = store.events(matching: predicate)
+        var result: [(goalId: UUID, startDate: Date, durationMinutes: Int)] = []
+        for e in events {
+            guard let id = Self.goalId(from: e.url) else { continue }
+            let minutes = Int(e.endDate.timeIntervalSince(e.startDate) / 60)
+            result.append((id, e.startDate, max(0, minutes)))
+        }
+        return result
     }
 }
 

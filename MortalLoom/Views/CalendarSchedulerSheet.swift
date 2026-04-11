@@ -2,6 +2,7 @@ import SwiftUI
 import EventKit
 
 struct CalendarSchedulerSheet: View {
+    let goalId: UUID?
     let goalTitle: String
     let goalNotes: String
     let goalTargetDate: Date?
@@ -129,6 +130,7 @@ struct CalendarSchedulerSheet: View {
             let result: String?
             if isRecurring {
                 result = calendarService.scheduleRecurringWorkBlock(
+                    goalId: goalId,
                     goalTitle: title,
                     notes: goalNotes,
                     startDate: startDate,
@@ -138,6 +140,7 @@ struct CalendarSchedulerSheet: View {
                 )
             } else {
                 result = calendarService.scheduleWorkBlock(
+                    goalId: goalId,
                     goalTitle: title,
                     notes: goalNotes,
                     startDate: startDate,

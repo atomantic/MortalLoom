@@ -19,6 +19,10 @@ struct Goal: Codable, Identifiable, Sendable, Equatable {
     var horizon: GoalHorizon?
     var category: GoalCategory?
     var goalType: GoalType?
+    /// Stagnation signal titles the user has explicitly muted for this goal.
+    /// StagnationEngine filters out any signal whose title is in this set so
+    /// the user can silence a specific nag without disabling alerts entirely.
+    var mutedSignals: [String]
 
     init(
         id: UUID = UUID(),
@@ -35,7 +39,8 @@ struct Goal: Codable, Identifiable, Sendable, Equatable {
         parentId: UUID? = nil,
         horizon: GoalHorizon? = nil,
         category: GoalCategory? = nil,
-        goalType: GoalType? = nil
+        goalType: GoalType? = nil,
+        mutedSignals: [String] = []
     ) {
         self.id = id
         self.title = title
@@ -52,6 +57,34 @@ struct Goal: Codable, Identifiable, Sendable, Equatable {
         self.horizon = horizon
         self.category = category
         self.goalType = goalType
+        self.mutedSignals = mutedSignals
+    }
+
+    // Back-compat decoder so pre-existing files (without `mutedSignals`) decode.
+    private enum CodingKeys: String, CodingKey {
+        case id, title, notes, createdDate, targetDate, completedDate, checkIns
+        case milestones, checkInIntervalDays, status, priority, parentId
+        case horizon, category, goalType, mutedSignals
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        title = try c.decode(String.self, forKey: .title)
+        notes = try c.decodeIfPresent(String.self, forKey: .notes) ?? ""
+        createdDate = try c.decode(String.self, forKey: .createdDate)
+        targetDate = try c.decodeIfPresent(String.self, forKey: .targetDate)
+        completedDate = try c.decodeIfPresent(String.self, forKey: .completedDate)
+        checkIns = try c.decodeIfPresent([GoalCheckIn].self, forKey: .checkIns) ?? []
+        milestones = try c.decodeIfPresent([GoalMilestone].self, forKey: .milestones) ?? []
+        checkInIntervalDays = try c.decodeIfPresent(Int.self, forKey: .checkInIntervalDays) ?? 7
+        status = try c.decodeIfPresent(GoalStatus.self, forKey: .status) ?? .active
+        priority = try c.decodeIfPresent(GoalPriority.self, forKey: .priority) ?? .medium
+        parentId = try c.decodeIfPresent(UUID.self, forKey: .parentId)
+        horizon = try c.decodeIfPresent(GoalHorizon.self, forKey: .horizon)
+        category = try c.decodeIfPresent(GoalCategory.self, forKey: .category)
+        goalType = try c.decodeIfPresent(GoalType.self, forKey: .goalType)
+        mutedSignals = try c.decodeIfPresent([String].self, forKey: .mutedSignals) ?? []
     }
 
     var progressPercent: Double {
@@ -79,17 +112,162 @@ struct Goal: Codable, Identifiable, Sendable, Equatable {
 
 // MARK: - Check-In
 
+/// A goal check-in — unified model that carries both progress tracking (for
+/// standard goals) and reflection content (for apex/sub-apex lifelong goals).
+/// The rendering UI branches on goal type and on which fields are populated.
+///
+/// Standard goals: `progressPct` + `note` are the primary fields.
+/// Lifelong goals (apex, sub-apex): `alignmentRating`, `blockers`, `commitments`,
+/// and `promptAnswered` capture the reflection. `progressPct` is ignored for
+/// lifelong goals since they have no completion percentage.
 struct GoalCheckIn: Codable, Identifiable, Sendable, Equatable {
     let id: UUID
     var date: String              // "YYYY-MM-DD"
-    var progressPct: Double       // 0-100
+    var progressPct: Double       // 0-100 (meaningful for standard goals only)
     var note: String
 
-    init(id: UUID = UUID(), date: String = DateFormatting.todayString(), progressPct: Double, note: String = "") {
+    // Reflection fields — optional, populated primarily on lifelong goals
+    // but not restricted: a standard goal can also carry reflection context.
+    var alignmentRating: Int?     // 1-10 self-rating
+    var blockers: [String]        // "what's holding me back"
+    var commitments: [String]     // "what I'll do this period"
+    var promptAnswered: String?   // which guided prompt was answered
+
+    init(
+        id: UUID = UUID(),
+        date: String = DateFormatting.todayString(),
+        progressPct: Double = 0,
+        note: String = "",
+        alignmentRating: Int? = nil,
+        blockers: [String] = [],
+        commitments: [String] = [],
+        promptAnswered: String? = nil
+    ) {
         self.id = id
         self.date = date
         self.progressPct = min(100, max(0, progressPct))
         self.note = note
+        self.alignmentRating = alignmentRating.map { min(10, max(1, $0)) }
+        self.blockers = blockers
+        self.commitments = commitments
+        self.promptAnswered = promptAnswered
+    }
+
+    /// True when this check-in carries reflection content (alignment rating,
+    /// blockers, commitments, or a prompt answer). Used to filter the
+    /// Reflections page from progress-only check-ins.
+    var isReflection: Bool {
+        alignmentRating != nil
+            || !blockers.isEmpty
+            || !commitments.isEmpty
+            || promptAnswered != nil
+    }
+
+    // Back-compat decoder: older files may lack the reflection fields.
+    private enum CodingKeys: String, CodingKey {
+        case id, date, progressPct, note
+        case alignmentRating, blockers, commitments, promptAnswered
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        date = try c.decode(String.self, forKey: .date)
+        progressPct = try c.decodeIfPresent(Double.self, forKey: .progressPct) ?? 0
+        note = try c.decodeIfPresent(String.self, forKey: .note) ?? ""
+        alignmentRating = try c.decodeIfPresent(Int.self, forKey: .alignmentRating)
+        blockers = try c.decodeIfPresent([String].self, forKey: .blockers) ?? []
+        commitments = try c.decodeIfPresent([String].self, forKey: .commitments) ?? []
+        promptAnswered = try c.decodeIfPresent(String.self, forKey: .promptAnswered)
+    }
+}
+
+// MARK: - Alignment Scale
+
+/// The 1–10 alignment self-rating scale used across CheckInSheet,
+/// WeeklyReviewSheet, Reflections, Pillar Dashboards, Onboarding, and the
+/// Widget. Centralised so the labels and colours can't drift out of sync.
+enum AlignmentScale {
+    static func label(for rating: Int) -> String {
+        switch rating {
+        case ..<4: "Off track"
+        case 4...5: "Drifting"
+        case 6...7: "Mostly aligned"
+        case 8...9: "On track"
+        default:    "Deeply aligned"
+        }
+    }
+
+    static func color(for rating: Int) -> Color {
+        switch rating {
+        case ..<4: .danger
+        case 4...5: .warning
+        case 6...7: .accentColor
+        default:    .success
+        }
+    }
+
+    /// Convert a 0–100 alignment *percentage* (Overview/Widget/Reports style)
+    /// to the same 1–10 bucket so labels/colors are reused without duplication.
+    static func label(forPercent percent: Double) -> String {
+        label(for: Int((percent / 10).rounded()))
+    }
+
+    static func color(forPercent percent: Double) -> Color {
+        color(for: Int((percent / 10).rounded()))
+    }
+}
+
+// MARK: - Reflection Prompts
+
+/// Curated reflection prompt library used by guided check-ins and stagnation
+/// alerts. Rotates to avoid asking the same thing twice in a row.
+enum ReflectionPrompts {
+    static let general: [String] = [
+        "What's holding you back right now?",
+        "Which tasks or habits are preventing you from moving toward your North Star?",
+        "What could you clear from your calendar this week to make room?",
+        "What did you give time to last week that didn't serve your North Star?",
+        "What's one small thing you could do today that would matter?",
+        "Who or what is competing for your attention right now?",
+        "If you had one extra hour today, where would it go — and is that the right answer?",
+        "What's the most important thing you've done this week toward your goals?"
+    ]
+
+    static let monthly: [String] = [
+        "Are these still the right goals?",
+        "Which life pillar has had the most attention this month? Is that right?",
+        "What would you retire from your goals if you could?",
+        "What surprised you about your alignment this month?"
+    ]
+
+    static let stagnation: [String] = [
+        "You haven't touched this in a while. What changed?",
+        "Is this goal still alive for you, or is it time to let it go?",
+        "What would make it easy to take one small step this week?",
+        "What's the smallest version of this goal you could commit to?"
+    ]
+
+    /// Pick a prompt avoiding ones already answered recently. Deterministic
+    /// given the same inputs so tests are stable.
+    static func pick(from pool: [String] = ReflectionPrompts.general,
+                     excludingRecent recent: Set<String> = []) -> String {
+        let candidates = pool.filter { !recent.contains($0) }
+        return candidates.first ?? pool.first ?? ""
+    }
+
+    /// Pick the next prompt for a goal, excluding any prompts the user has
+    /// answered in their last 5 check-ins on that goal, plus an optional
+    /// currently-displayed prompt (for the "rotate" button). Centralises the
+    /// rotation pattern repeated across CheckInSheet and WeeklyReviewSheet.
+    static func nextPrompt(
+        for goal: Goal?,
+        excluding current: String? = nil,
+        pool: [String] = ReflectionPrompts.general
+    ) -> String {
+        var recent = Set((goal?.checkIns ?? []).suffix(5).compactMap { $0.promptAnswered })
+        if let current { recent.insert(current) }
+        return pick(from: pool, excludingRecent: recent)
     }
 }
 

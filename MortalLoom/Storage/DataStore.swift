@@ -573,6 +573,44 @@ actor DataStore {
         save(d)
     }
 
+    // MARK: - Habits
+
+    func addHabit(_ habit: Habit) {
+        var d = load()
+        d.habits.append(habit)
+        save(d)
+    }
+
+    func updateHabit(_ habit: Habit) {
+        var d = load()
+        if let idx = d.habits.firstIndex(where: { $0.id == habit.id }) {
+            d.habits[idx] = habit
+            save(d)
+        }
+    }
+
+    func removeHabit(id: UUID) {
+        var d = load()
+        d.habits.removeAll { $0.id == id }
+        save(d)
+    }
+
+    /// Append a completion to a habit. If the habit doesn't exist, this is a no-op.
+    func logHabitCompletion(habitId: UUID, completion: HabitCompletion) {
+        var d = load()
+        guard let idx = d.habits.firstIndex(where: { $0.id == habitId }) else { return }
+        d.habits[idx].completions.append(completion)
+        save(d)
+    }
+
+    /// Remove a single completion by id from a habit. Used for undo.
+    func removeHabitCompletion(habitId: UUID, completionId: UUID) {
+        var d = load()
+        guard let idx = d.habits.firstIndex(where: { $0.id == habitId }) else { return }
+        d.habits[idx].completions.removeAll { $0.id == completionId }
+        save(d)
+    }
+
     // MARK: - Genome File
 
     func saveGenomeFile(_ content: String) {

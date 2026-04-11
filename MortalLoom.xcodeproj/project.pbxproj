@@ -16,6 +16,7 @@
 		0D87387D9625A5E0D6645E02 /* ICloudMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29D32D124C715340FD2DC350 /* ICloudMonitor.swift */; };
 		0F7F142E18D533C8791C697B /* MortalLoomApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25A938EE48931E1A7D80455D /* MortalLoomApp.swift */; };
 		102EC106BBDF1BC27CB3AC74 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A430A6D6F069A9C484A8BB2 /* Theme.swift */; };
+		1727883C988E3F00C32C1CB3 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6976E3AC9EEB633364E7ABA0 /* NotificationService.swift */; };
 		17B7AFAED17D2200F9677430 /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C111B7B3DAB461735C8004F /* HealthKitService.swift */; };
 		193B171336A15EE178F25D61 /* ICloudMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29D32D124C715340FD2DC350 /* ICloudMonitor.swift */; };
 		1AE9A257527D4CA585A0F209 /* WidgetBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = F01753DF921942BEA30C5DD4 /* WidgetBridge.swift */; };
@@ -37,9 +38,12 @@
 		3EB4BFEEC7B0A7546C3AA212 /* MortalLoomApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25A938EE48931E1A7D80455D /* MortalLoomApp.swift */; };
 		3ED7DB9F890E096685B588FA /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5C2474BC3DD2C321255F1AB /* OnboardingView.swift */; };
 		3F2F2D1B90AB3A95141A9988 /* BloodView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BB3FF2B8EF635AAE437983D /* BloodView.swift */; };
+		420F9A53897EA75BC769EA26 /* StagnationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B460A824B27B5049B354A64C /* StagnationEngine.swift */; };
 		42C443814087787C3A0FA082 /* Products.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 223CD2E2AB78B4665CCC4255 /* Products.storekit */; };
 		43F16D78B1B0322352E79E50 /* HealthKitSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66616D81AC46D85C5D584F4F /* HealthKitSync.swift */; };
+		472FBA98C7AE733D34A7EE46 /* WeeklyReviewSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BB08E31839DCECA66643126 /* WeeklyReviewSheet.swift */; };
 		47E4013FF9139533AA44FC4D /* DeathClockEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4C6F3F7D27B38D804FA5B61 /* DeathClockEngine.swift */; };
+		48D971E79DA87AC45340A752 /* ReportsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B81EE02F7137DDBE81E8675 /* ReportsView.swift */; };
 		4C31E78A1FDAC239E647CB2D /* DataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB2E368CC2CD70A93D9E7BAE /* DataStore.swift */; };
 		4C7D365FE00B06FD6BEF3568 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5C2474BC3DD2C321255F1AB /* OnboardingView.swift */; };
 		4D083D606DB0957171834D76 /* LocationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FFA7BCC54AF267C06B3057C /* LocationEngine.swift */; };
@@ -49,6 +53,7 @@
 		515DD50D2EF016BD9377F88E /* HealthMetricEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44962B353191269E702D9756 /* HealthMetricEntry.swift */; };
 		528323E013ED0AE7CB0D781A /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 581A48FA229D5FCAD176458F /* SampleData.swift */; };
 		53B90A52CDA6CC6EAEF56C54 /* AppData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76AFC65F04DD19B1C921A47F /* AppData.swift */; };
+		568A38CA2CF472B1359D955C /* StagnationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B460A824B27B5049B354A64C /* StagnationEngine.swift */; };
 		576B5647EBFAD63011F04625 /* BodyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4711239695D8FA36364CFC90 /* BodyView.swift */; };
 		5852551AD2EEBFDFE712CD43 /* WidgetBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = F01753DF921942BEA30C5DD4 /* WidgetBridge.swift */; };
 		5856806DFBD48F39BDC89F9B /* GenomeVariant.swift in Sources */ = {isa = PBXBuildFile; fileRef = E07FD891E4CD098ECED55779 /* GenomeVariant.swift */; };
@@ -59,6 +64,7 @@
 		5A899756D6699F992ED25C16 /* GoalsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F9ADA70E28A5E28CA55C63F /* GoalsView.swift */; };
 		5B1DCBE74E160B66EDF8B433 /* StoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9A69DB778D8C239A47B3325 /* StoreManager.swift */; };
 		5B8D85CE47286826BA6E6AC7 /* BloodTrendEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1EEC8E756E144273D6BC24A /* BloodTrendEngine.swift */; };
+		5DA6962CE68196E0E6DB3693 /* ReflectionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96374925D1E172E0CA886433 /* ReflectionsView.swift */; };
 		64B0B5357DF80CDAEB3370A1 /* DeathClockEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4C6F3F7D27B38D804FA5B61 /* DeathClockEngine.swift */; };
 		65116D499A11D170E85D2AFF /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 215B069F66D7F15999E101D1 /* PrivacyInfo.xcprivacy */; };
 		6633A516902480FD38A7FD8D /* CalendarSchedulerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6A08FFA461E1F414C7EA92E /* CalendarSchedulerSheet.swift */; };
@@ -70,6 +76,7 @@
 		6EF9106333950CF8212C2EA0 /* GenomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71A0187A10BAA3CC7819A176 /* GenomeView.swift */; };
 		706C426B98DE5CF39A715C7E /* EpigeneticTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DE7B02859718A26B4B9906E /* EpigeneticTest.swift */; };
 		74DDF95780AC8638A23077D4 /* CorrelationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98CE91B429B04C112C38D411 /* CorrelationEngine.swift */; };
+		75359CA085894781A55437A6 /* WeeklyReviewSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BB08E31839DCECA66643126 /* WeeklyReviewSheet.swift */; };
 		7D38505891F5B07AC8858FDD /* MortalLoomWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30EE7BA4A05136BEC466F9B5 /* MortalLoomWidget.swift */; };
 		7E4E92253B912DCEDAAF3099 /* LocationEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E57DA8048A455E727B5CC4DB /* LocationEngineTests.swift */; };
 		8054925D9DFCF64D9F30523A /* HealthKitSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66616D81AC46D85C5D584F4F /* HealthKitSync.swift */; };
@@ -89,23 +96,31 @@
 		A73CD34088229F306FF7618D /* SubstanceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C204F5FE0B519C1DEDB7AF47 /* SubstanceEngine.swift */; };
 		A99F77F33CA23F911825433B /* MortalLoomWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9C75EBA8B78FFDE7A1FC5925 /* MortalLoomWidget.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		AA6C2E9E92FDD28CC9446059 /* SideMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50C5058BFC45EAA680969317 /* SideMenuView.swift */; };
+		ABC2A447EFD1536C3D71CEE2 /* PillarDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00277E45B8AC0A7DCCD718D0 /* PillarDashboardView.swift */; };
+		ACE2E4DB9B71C91FFD0CAFB4 /* HabitsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = E111F446BEE46519945A5B55 /* HabitsSection.swift */; };
 		AD7F1DCB8D68FC9792B1F154 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8DFE4C5B3F84209835BAB96B /* Assets.xcassets */; };
 		B2CE1D6C0BEB308A94BD55AB /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FD15E79DD0EC46F86D0506C /* LocationService.swift */; };
 		B3659A5C2BA5BA416D41B210 /* RecommendationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12327161D8F5EC268793ADF5 /* RecommendationEngine.swift */; };
 		B46128ADB3D0C5B1F130CCC9 /* SleepView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CA94632A9BE9FBBCFD7A7DD /* SleepView.swift */; };
 		B7F6281A505841E019DE76FA /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 581A48FA229D5FCAD176458F /* SampleData.swift */; };
+		B88C8B0A483C960B3A068C5A /* PillarDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00277E45B8AC0A7DCCD718D0 /* PillarDashboardView.swift */; };
 		B9C3E940ECEF8AACF05AB138 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC7FF09623E4F8E66F45E59F /* PaywallView.swift */; };
 		B9CD04929700DA3CFF13A92E /* SubstanceEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14643E58DFCB5BCF7D13DC86 /* SubstanceEntry.swift */; };
 		B9F53FBE8CD41370F1F66ACD /* AppDataMergeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 859D4E25FD093A28421D8FC3 /* AppDataMergeTests.swift */; };
+		BA5F2BC308CC3D66B5A00342 /* TimeAllocationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60C5885AC1B7FC80D46EFD30 /* TimeAllocationEngine.swift */; };
+		BB3751369AE54B5A1D338E64 /* Habit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02C324CF3FE8BFA8C6F99EFA /* Habit.swift */; };
 		BB734E45988022F6F6C80BF3 /* SubstanceEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14643E58DFCB5BCF7D13DC86 /* SubstanceEntry.swift */; };
 		BC7C7D186F1EE75C2A4DFCC9 /* LocationEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E57DA8048A455E727B5CC4DB /* LocationEngineTests.swift */; };
 		BC9F06AB8669B7D311190D1B /* GenomeEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7F21F5108C9F766D56DE2AE /* GenomeEngine.swift */; };
 		BEE388BE5DE93624D6A2303B /* GenomeScanRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8BFDBF027486BC4AC7BF9D1 /* GenomeScanRecord.swift */; };
 		BF7F05D82A45630BCC732BDD /* SleepView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CA94632A9BE9FBBCFD7A7DD /* SleepView.swift */; };
 		C27099DAB0C46C3647878607 /* BloodView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BB3FF2B8EF635AAE437983D /* BloodView.swift */; };
+		C389F96C64CCE6A9E5706FB2 /* HabitEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 879315E40D95F4453EFFC676 /* HabitEngine.swift */; };
 		C505D8C48C08E5ECEAE8215B /* BloodTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92F50631566FFE40D88FAD5C /* BloodTest.swift */; };
 		C7A81B14FF7FBF1AC44A8087 /* Goal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13547F14B9304DE2AE925ED2 /* Goal.swift */; };
 		C880829A818791EC492E79A8 /* CorrelationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98CE91B429B04C112C38D411 /* CorrelationEngine.swift */; };
+		C8FF438E86372CF809EB9062 /* ReportsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B81EE02F7137DDBE81E8675 /* ReportsView.swift */; };
+		CA766A70F00D482B07ADFCD1 /* HabitEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 879315E40D95F4453EFFC676 /* HabitEngine.swift */; };
 		CAE4E3026BDDD0FF4A4CBBA1 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37A71E4A0A8F1CD94F8E00BB /* SettingsView.swift */; };
 		CD491375649F5117BA797FD4 /* ProBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17554F4F50A7084DE0587FE8 /* ProBadge.swift */; };
 		D3F7FE3DDE339E01DC4D299C /* StoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9A69DB778D8C239A47B3325 /* StoreManager.swift */; };
@@ -113,6 +128,8 @@
 		D5E3574C924FD3E0B15177A4 /* GenomeScanRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8BFDBF027486BC4AC7BF9D1 /* GenomeScanRecord.swift */; };
 		D8A1FB27A58BB9ED177A57D1 /* CalendarSchedulerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6A08FFA461E1F414C7EA92E /* CalendarSchedulerSheet.swift */; };
 		DD7B9C9787A28BAD1712D040 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A430A6D6F069A9C484A8BB2 /* Theme.swift */; };
+		DDCFBE5821603C2282544537 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6976E3AC9EEB633364E7ABA0 /* NotificationService.swift */; };
+		DE2DA4266099DFAC105409F9 /* HabitsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = E111F446BEE46519945A5B55 /* HabitsSection.swift */; };
 		DE453F18D91452A344184BB6 /* EyeExam.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6800ABC07A07655F56FA658 /* EyeExam.swift */; };
 		DF92AD1C9E4C28EED73F714D /* SleepEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AF84C540C7407CE0252EB08 /* SleepEngineTests.swift */; };
 		E118CBAF40777154C639267F /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37A71E4A0A8F1CD94F8E00BB /* SettingsView.swift */; };
@@ -121,7 +138,10 @@
 		E7899B9BBD38F6820A45779D /* SubstancesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04C1C61D4BD2F3E4B50538F2 /* SubstancesView.swift */; };
 		E9CAFBE806754A59E91B2DBF /* ProBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17554F4F50A7084DE0587FE8 /* ProBadge.swift */; };
 		E9E92C07377B4F5069A8646E /* GoalsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F9ADA70E28A5E28CA55C63F /* GoalsView.swift */; };
+		EB21DC7DD79B1721F735B262 /* TimeAllocationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60C5885AC1B7FC80D46EFD30 /* TimeAllocationEngine.swift */; };
 		ECB7A4227A693D793AA5C0FE /* SubstanceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C204F5FE0B519C1DEDB7AF47 /* SubstanceEngine.swift */; };
+		EEB3ADC7A5DDD3EE840B6AAA /* ReflectionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96374925D1E172E0CA886433 /* ReflectionsView.swift */; };
+		F105B03D056A11378D9C492A /* Habit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02C324CF3FE8BFA8C6F99EFA /* Habit.swift */; };
 		F28C81AC19C7622C2C4C4A5C /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 215B069F66D7F15999E101D1 /* PrivacyInfo.xcprivacy */; };
 		F6492A6DE3039DDD7AD27755 /* HealthProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FCF31AF121B47E7C7DF22B1 /* HealthProfile.swift */; };
 		F693696AC5E6CC72FC037C48 /* OverviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 86691FE1BB15DD7BDC355BE6 /* OverviewView.swift */; };
@@ -195,6 +215,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		00277E45B8AC0A7DCCD718D0 /* PillarDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PillarDashboardView.swift; sourceTree = "<group>"; };
+		02C324CF3FE8BFA8C6F99EFA /* Habit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Habit.swift; sourceTree = "<group>"; };
 		04C1C61D4BD2F3E4B50538F2 /* SubstancesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubstancesView.swift; sourceTree = "<group>"; };
 		060756B48008BEC8E34A98B9 /* MortalLoomWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MortalLoomWidget.entitlements; sourceTree = "<group>"; };
 		118A5A1BB8FDFBEDDACD2E0C /* GoalEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalEngine.swift; sourceTree = "<group>"; };
@@ -218,15 +240,18 @@
 		46F952015050D53948006274 /* ClinVarService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClinVarService.swift; sourceTree = "<group>"; };
 		4711239695D8FA36364CFC90 /* BodyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyView.swift; sourceTree = "<group>"; };
 		4866C551187394E53C4FA23A /* SleepEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepEngine.swift; sourceTree = "<group>"; };
+		4BB08E31839DCECA66643126 /* WeeklyReviewSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReviewSheet.swift; sourceTree = "<group>"; };
 		4FCF31AF121B47E7C7DF22B1 /* HealthProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthProfile.swift; sourceTree = "<group>"; };
 		50C5058BFC45EAA680969317 /* SideMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideMenuView.swift; sourceTree = "<group>"; };
 		565672385B1B8A18B64FC8A8 /* MortalLoomUITests_iOS.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MortalLoomUITests_iOS.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		581A48FA229D5FCAD176458F /* SampleData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleData.swift; sourceTree = "<group>"; };
 		5ABFE2DBE2C3A4FAFEE5EE6E /* LifeCalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifeCalendarView.swift; sourceTree = "<group>"; };
 		5C8ED8531BC086732C92DA9B /* MortalLoomTests_macOS.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MortalLoomTests_macOS.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		60C5885AC1B7FC80D46EFD30 /* TimeAllocationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeAllocationEngine.swift; sourceTree = "<group>"; };
 		6106B8D7893DD34F5503FC93 /* MortalLoom-macOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "MortalLoom-macOS.entitlements"; sourceTree = "<group>"; };
 		63EFA7304632982F7F2C834D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		66616D81AC46D85C5D584F4F /* HealthKitSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitSync.swift; sourceTree = "<group>"; };
+		6976E3AC9EEB633364E7ABA0 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
 		69B73CEA0F3655CDD11A007C /* CuratedMarkers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CuratedMarkers.swift; sourceTree = "<group>"; };
 		6BB3FF2B8EF635AAE437983D /* BloodView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BloodView.swift; sourceTree = "<group>"; };
 		6DE7B02859718A26B4B9906E /* EpigeneticTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpigeneticTest.swift; sourceTree = "<group>"; };
@@ -234,8 +259,10 @@
 		765271B94F125643F18F3646 /* AppearanceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceManager.swift; sourceTree = "<group>"; };
 		76AFC65F04DD19B1C921A47F /* AppData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppData.swift; sourceTree = "<group>"; };
 		7AF84C540C7407CE0252EB08 /* SleepEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepEngineTests.swift; sourceTree = "<group>"; };
+		7B81EE02F7137DDBE81E8675 /* ReportsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportsView.swift; sourceTree = "<group>"; };
 		859D4E25FD093A28421D8FC3 /* AppDataMergeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDataMergeTests.swift; sourceTree = "<group>"; };
 		86691FE1BB15DD7BDC355BE6 /* OverviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverviewView.swift; sourceTree = "<group>"; };
+		879315E40D95F4453EFFC676 /* HabitEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitEngine.swift; sourceTree = "<group>"; };
 		87EC582DBE00A4BCED918921 /* CitationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CitationsView.swift; sourceTree = "<group>"; };
 		8A430A6D6F069A9C484A8BB2 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		8B7AF9F6502500320E7D9D44 /* MortalLoom.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MortalLoom.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -244,12 +271,14 @@
 		92F50631566FFE40D88FAD5C /* BloodTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BloodTest.swift; sourceTree = "<group>"; };
 		93B5E80AB18D2FA91974ECB6 /* GaitEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GaitEngine.swift; sourceTree = "<group>"; };
 		93CDAC363DF57A04037AECCA /* MortalLoomTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MortalLoomTests.swift; sourceTree = "<group>"; };
+		96374925D1E172E0CA886433 /* ReflectionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReflectionsView.swift; sourceTree = "<group>"; };
 		98CE91B429B04C112C38D411 /* CorrelationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CorrelationEngine.swift; sourceTree = "<group>"; };
 		9A913A076D3406287294E60C /* MortalLoom.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MortalLoom.entitlements; sourceTree = "<group>"; };
 		9C75EBA8B78FFDE7A1FC5925 /* MortalLoomWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = MortalLoomWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		9CE6AB7AF196CE255C4F84E9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		9F15E56CD7761DC17846A67A /* MortalLoom.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = MortalLoom.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A6A08FFA461E1F414C7EA92E /* CalendarSchedulerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarSchedulerSheet.swift; sourceTree = "<group>"; };
+		B460A824B27B5049B354A64C /* StagnationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StagnationEngine.swift; sourceTree = "<group>"; };
 		B4C6F3F7D27B38D804FA5B61 /* DeathClockEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeathClockEngine.swift; sourceTree = "<group>"; };
 		BC7FF09623E4F8E66F45E59F /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
 		BEB68C77C3325AF758E23E9D /* MortalLoomTests_iOS.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MortalLoomTests_iOS.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -262,6 +291,7 @@
 		D9A69DB778D8C239A47B3325 /* StoreManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreManager.swift; sourceTree = "<group>"; };
 		DFAFEF1D1D8E89AA3E949F4F /* LifestyleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifestyleView.swift; sourceTree = "<group>"; };
 		E07FD891E4CD098ECED55779 /* GenomeVariant.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenomeVariant.swift; sourceTree = "<group>"; };
+		E111F446BEE46519945A5B55 /* HabitsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitsSection.swift; sourceTree = "<group>"; };
 		E1EEC8E756E144273D6BC24A /* BloodTrendEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BloodTrendEngine.swift; sourceTree = "<group>"; };
 		E57DA8048A455E727B5CC4DB /* LocationEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationEngineTests.swift; sourceTree = "<group>"; };
 		F01753DF921942BEA30C5DD4 /* WidgetBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetBridge.swift; sourceTree = "<group>"; };
@@ -281,6 +311,7 @@
 				F8BFDBF027486BC4AC7BF9D1 /* GenomeScanRecord.swift */,
 				E07FD891E4CD098ECED55779 /* GenomeVariant.swift */,
 				13547F14B9304DE2AE925ED2 /* Goal.swift */,
+				02C324CF3FE8BFA8C6F99EFA /* Habit.swift */,
 				44962B353191269E702D9756 /* HealthMetricEntry.swift */,
 				4FCF31AF121B47E7C7DF22B1 /* HealthProfile.swift */,
 				14643E58DFCB5BCF7D13DC86 /* SubstanceEntry.swift */,
@@ -297,16 +328,21 @@
 				87EC582DBE00A4BCED918921 /* CitationsView.swift */,
 				71A0187A10BAA3CC7819A176 /* GenomeView.swift */,
 				1F9ADA70E28A5E28CA55C63F /* GoalsView.swift */,
+				E111F446BEE46519945A5B55 /* HabitsSection.swift */,
 				5ABFE2DBE2C3A4FAFEE5EE6E /* LifeCalendarView.swift */,
 				DFAFEF1D1D8E89AA3E949F4F /* LifestyleView.swift */,
 				D5C2474BC3DD2C321255F1AB /* OnboardingView.swift */,
 				86691FE1BB15DD7BDC355BE6 /* OverviewView.swift */,
 				BC7FF09623E4F8E66F45E59F /* PaywallView.swift */,
+				00277E45B8AC0A7DCCD718D0 /* PillarDashboardView.swift */,
 				17554F4F50A7084DE0587FE8 /* ProBadge.swift */,
+				96374925D1E172E0CA886433 /* ReflectionsView.swift */,
+				7B81EE02F7137DDBE81E8675 /* ReportsView.swift */,
 				37A71E4A0A8F1CD94F8E00BB /* SettingsView.swift */,
 				50C5058BFC45EAA680969317 /* SideMenuView.swift */,
 				8CA94632A9BE9FBBCFD7A7DD /* SleepView.swift */,
 				04C1C61D4BD2F3E4B50538F2 /* SubstancesView.swift */,
+				4BB08E31839DCECA66643126 /* WeeklyReviewSheet.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -338,15 +374,19 @@
 				93B5E80AB18D2FA91974ECB6 /* GaitEngine.swift */,
 				C7F21F5108C9F766D56DE2AE /* GenomeEngine.swift */,
 				118A5A1BB8FDFBEDDACD2E0C /* GoalEngine.swift */,
+				879315E40D95F4453EFFC676 /* HabitEngine.swift */,
 				3C111B7B3DAB461735C8004F /* HealthKitService.swift */,
 				66616D81AC46D85C5D584F4F /* HealthKitSync.swift */,
 				2FFA7BCC54AF267C06B3057C /* LocationEngine.swift */,
 				2FD15E79DD0EC46F86D0506C /* LocationService.swift */,
+				6976E3AC9EEB633364E7ABA0 /* NotificationService.swift */,
 				12327161D8F5EC268793ADF5 /* RecommendationEngine.swift */,
 				581A48FA229D5FCAD176458F /* SampleData.swift */,
 				4866C551187394E53C4FA23A /* SleepEngine.swift */,
+				B460A824B27B5049B354A64C /* StagnationEngine.swift */,
 				D9A69DB778D8C239A47B3325 /* StoreManager.swift */,
 				C204F5FE0B519C1DEDB7AF47 /* SubstanceEngine.swift */,
+				60C5885AC1B7FC80D46EFD30 /* TimeAllocationEngine.swift */,
 				F01753DF921942BEA30C5DD4 /* WidgetBridge.swift */,
 			);
 			path = Engine;
@@ -691,6 +731,9 @@
 				C7A81B14FF7FBF1AC44A8087 /* Goal.swift in Sources */,
 				5A3E8008092B76059EE64CB5 /* GoalEngine.swift in Sources */,
 				E9E92C07377B4F5069A8646E /* GoalsView.swift in Sources */,
+				BB3751369AE54B5A1D338E64 /* Habit.swift in Sources */,
+				CA766A70F00D482B07ADFCD1 /* HabitEngine.swift in Sources */,
+				ACE2E4DB9B71C91FFD0CAFB4 /* HabitsSection.swift in Sources */,
 				17B7AFAED17D2200F9677430 /* HealthKitService.swift in Sources */,
 				8054925D9DFCF64D9F30523A /* HealthKitSync.swift in Sources */,
 				8511F3B807C1BD9B498818D4 /* HealthMetricEntry.swift in Sources */,
@@ -701,21 +744,28 @@
 				4DA69A63521BEA2D096D6042 /* LocationEngine.swift in Sources */,
 				8FDFE72F8975CD589E263A77 /* LocationService.swift in Sources */,
 				0F7F142E18D533C8791C697B /* MortalLoomApp.swift in Sources */,
+				DDCFBE5821603C2282544537 /* NotificationService.swift in Sources */,
 				3ED7DB9F890E096685B588FA /* OnboardingView.swift in Sources */,
 				F693696AC5E6CC72FC037C48 /* OverviewView.swift in Sources */,
 				B9C3E940ECEF8AACF05AB138 /* PaywallView.swift in Sources */,
+				ABC2A447EFD1536C3D71CEE2 /* PillarDashboardView.swift in Sources */,
 				E9CAFBE806754A59E91B2DBF /* ProBadge.swift in Sources */,
 				B3659A5C2BA5BA416D41B210 /* RecommendationEngine.swift in Sources */,
+				5DA6962CE68196E0E6DB3693 /* ReflectionsView.swift in Sources */,
+				48D971E79DA87AC45340A752 /* ReportsView.swift in Sources */,
 				528323E013ED0AE7CB0D781A /* SampleData.swift in Sources */,
 				E118CBAF40777154C639267F /* SettingsView.swift in Sources */,
 				32B20B696284DEE2E3ED3ED6 /* SideMenuView.swift in Sources */,
 				082BE98CD23921F4AE51F134 /* SleepEngine.swift in Sources */,
 				B46128ADB3D0C5B1F130CCC9 /* SleepView.swift in Sources */,
+				420F9A53897EA75BC769EA26 /* StagnationEngine.swift in Sources */,
 				D3F7FE3DDE339E01DC4D299C /* StoreManager.swift in Sources */,
 				ECB7A4227A693D793AA5C0FE /* SubstanceEngine.swift in Sources */,
 				BB734E45988022F6F6C80BF3 /* SubstanceEntry.swift in Sources */,
 				F94DC225DE842B1FBDB919DC /* SubstancesView.swift in Sources */,
 				102EC106BBDF1BC27CB3AC74 /* Theme.swift in Sources */,
+				BA5F2BC308CC3D66B5A00342 /* TimeAllocationEngine.swift in Sources */,
+				472FBA98C7AE733D34A7EE46 /* WeeklyReviewSheet.swift in Sources */,
 				5852551AD2EEBFDFE712CD43 /* WidgetBridge.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -758,6 +808,9 @@
 				0C79D35D1C1B65C542D61330 /* Goal.swift in Sources */,
 				2CB9A37BB736198316B44405 /* GoalEngine.swift in Sources */,
 				5A899756D6699F992ED25C16 /* GoalsView.swift in Sources */,
+				F105B03D056A11378D9C492A /* Habit.swift in Sources */,
+				C389F96C64CCE6A9E5706FB2 /* HabitEngine.swift in Sources */,
+				DE2DA4266099DFAC105409F9 /* HabitsSection.swift in Sources */,
 				A17140154ACE65029AA7C02B /* HealthKitService.swift in Sources */,
 				43F16D78B1B0322352E79E50 /* HealthKitSync.swift in Sources */,
 				515DD50D2EF016BD9377F88E /* HealthMetricEntry.swift in Sources */,
@@ -768,21 +821,28 @@
 				4D083D606DB0957171834D76 /* LocationEngine.swift in Sources */,
 				B2CE1D6C0BEB308A94BD55AB /* LocationService.swift in Sources */,
 				3EB4BFEEC7B0A7546C3AA212 /* MortalLoomApp.swift in Sources */,
+				1727883C988E3F00C32C1CB3 /* NotificationService.swift in Sources */,
 				4C7D365FE00B06FD6BEF3568 /* OnboardingView.swift in Sources */,
 				F70C90E5AEE5A80B621DDA0A /* OverviewView.swift in Sources */,
 				8D3F0148D6280967FB75B579 /* PaywallView.swift in Sources */,
+				B88C8B0A483C960B3A068C5A /* PillarDashboardView.swift in Sources */,
 				CD491375649F5117BA797FD4 /* ProBadge.swift in Sources */,
 				E373A1B3BD5FBCA02184189E /* RecommendationEngine.swift in Sources */,
+				EEB3ADC7A5DDD3EE840B6AAA /* ReflectionsView.swift in Sources */,
+				C8FF438E86372CF809EB9062 /* ReportsView.swift in Sources */,
 				B7F6281A505841E019DE76FA /* SampleData.swift in Sources */,
 				CAE4E3026BDDD0FF4A4CBBA1 /* SettingsView.swift in Sources */,
 				AA6C2E9E92FDD28CC9446059 /* SideMenuView.swift in Sources */,
 				1B2B2671E1C0C2AA0CD99025 /* SleepEngine.swift in Sources */,
 				BF7F05D82A45630BCC732BDD /* SleepView.swift in Sources */,
+				568A38CA2CF472B1359D955C /* StagnationEngine.swift in Sources */,
 				5B1DCBE74E160B66EDF8B433 /* StoreManager.swift in Sources */,
 				A73CD34088229F306FF7618D /* SubstanceEngine.swift in Sources */,
 				B9CD04929700DA3CFF13A92E /* SubstanceEntry.swift in Sources */,
 				E7899B9BBD38F6820A45779D /* SubstancesView.swift in Sources */,
 				DD7B9C9787A28BAD1712D040 /* Theme.swift in Sources */,
+				EB21DC7DD79B1721F735B262 /* TimeAllocationEngine.swift in Sources */,
+				75359CA085894781A55437A6 /* WeeklyReviewSheet.swift in Sources */,
 				1AE9A257527D4CA585A0F209 /* WidgetBridge.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

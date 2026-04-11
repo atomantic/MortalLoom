@@ -22,10 +22,14 @@ struct OverviewView: View {
     @State private var cachedLevPoints: [TrajectoryPoint] = []
     @State private var cachedRecommendations: [RecommendationEngine.Recommendation] = []
     @State private var cachedSleepImpact: Double = 0
+    @State private var cachedStagnationSignals: [StagnationSignal] = []
     @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
     @State private var showCitations = false
     @State private var showAddGoal = false
     @State private var editingGoal: Goal?
+    @State private var showWeeklyReview = false
+    @AppStorage("overview.runwaySectionExpanded") private var runwayExpanded: Bool = true
+    @AppStorage("overview.healthSectionExpanded") private var healthExpanded: Bool = true
     private var isWide: Bool { containerWidth >= Layout.wideThreshold }
 
     private var apexGoal: Goal? { data.goals.activeApex }
@@ -60,26 +64,56 @@ struct OverviewView: View {
                 allGoals: data.goals,
                 defaultGoalType: .apex,
                 defaultHorizon: .lifetime,
-                defaultPriority: .high
-            ) { newGoal in
-                Task {
-                    await DataStore.shared.addGoal(newGoal)
-                    await loadData()
+                defaultPriority: .high,
+                onSave: { newGoal in
+                    Task {
+                        await DataStore.shared.addGoal(newGoal)
+                        await loadData()
+                    }
+                },
+                onAddChild: { newChild in
+                    Task {
+                        await DataStore.shared.addGoal(newChild)
+                        await loadData()
+                    }
                 }
-            }
+            )
         }
         .sheet(item: $editingGoal) { goal in
-            GoalEditSheet(goal: goal, allGoals: data.goals, onSave: { updated in
+            GoalEditSheet(
+                goal: goal,
+                allGoals: data.goals,
+                onSave: { updated in
+                    Task {
+                        await DataStore.shared.updateGoal(updated)
+                        await loadData()
+                    }
+                },
+                onDelete: {
+                    Task {
+                        await DataStore.shared.removeGoal(id: goal.id)
+                        await loadData()
+                    }
+                },
+                onAddChild: { newChild in
+                    Task {
+                        await DataStore.shared.addGoal(newChild)
+                        await loadData()
+                    }
+                }
+            )
+        }
+        .sheet(isPresented: $showWeeklyReview) {
+            WeeklyReviewSheet(
+                apex: apexGoal,
+                allGoals: data.goals,
+                habits: data.habits
+            ) { updated in
                 Task {
                     await DataStore.shared.updateGoal(updated)
                     await loadData()
                 }
-            }, onDelete: {
-                Task {
-                    await DataStore.shared.removeGoal(id: goal.id)
-                    await loadData()
-                }
-            })
+            }
         }
     }
 
@@ -87,12 +121,36 @@ struct OverviewView: View {
     private var narrowContentStack: some View {
         VStack(spacing: 16) {
             goalPromptCard
-            if let lev { levCard(lev) }
-            deathClockCard
-            if deathClock != nil { lifeExpectancyFactorsCard }
-            if let dc = deathClock { lifetimeHealthChart(dc) }
-            vitalStatsRow
-            healthGrid
+            if WeeklyReview.isDue && apexGoal != nil { weeklyReviewCTA }
+            if !cachedStagnationSignals.isEmpty { attentionCard }
+
+            // Runway strip — compact summary of time remaining, expandable
+            // to the full longevity clock / LEV / factors detail.
+            collapsibleHeader(
+                title: "YOUR RUNWAY",
+                subtitle: runwaySubtitle,
+                expanded: $runwayExpanded
+            )
+            if runwayExpanded {
+                if let lev { levCard(lev) }
+                deathClockCard
+                if deathClock != nil { lifeExpectancyFactorsCard }
+                if let dc = deathClock { lifetimeHealthChart(dc) }
+            }
+
+            // Health summary — vital stats + health grid. Collapsible for
+            // users whose North Star doesn't touch health; they can still
+            // open it on demand.
+            collapsibleHeader(
+                title: "HEALTH SUMMARY",
+                subtitle: nil,
+                expanded: $healthExpanded
+            )
+            if healthExpanded {
+                vitalStatsRow
+                healthGrid
+            }
+
             if !cachedRecommendations.isEmpty { recommendationsCard }
         }
     }
@@ -101,20 +159,178 @@ struct OverviewView: View {
     private var wideContentStack: some View {
         VStack(spacing: 16) {
             goalPromptCard
-            if let lev { levCard(lev) }
-            HStack(alignment: .top, spacing: 16) {
-                deathClockCard
-                if deathClock != nil {
-                    lifeExpectancyFactorsCard
+            if WeeklyReview.isDue && apexGoal != nil { weeklyReviewCTA }
+            if !cachedStagnationSignals.isEmpty { attentionCard }
+
+            collapsibleHeader(
+                title: "YOUR RUNWAY",
+                subtitle: runwaySubtitle,
+                expanded: $runwayExpanded
+            )
+            if runwayExpanded {
+                if let lev { levCard(lev) }
+                HStack(alignment: .top, spacing: 16) {
+                    deathClockCard
+                    if deathClock != nil {
+                        lifeExpectancyFactorsCard
+                    }
+                }
+                if let dc = deathClock {
+                    lifetimeHealthChart(dc)
+                        .frame(maxWidth: .infinity)
                 }
             }
-            vitalStatsRow
-            if let dc = deathClock {
-                lifetimeHealthChart(dc)
-                    .frame(maxWidth: .infinity)
+
+            collapsibleHeader(
+                title: "HEALTH SUMMARY",
+                subtitle: nil,
+                expanded: $healthExpanded
+            )
+            if healthExpanded {
+                vitalStatsRow
+                healthGrid
             }
-            healthGrid
+
             if !cachedRecommendations.isEmpty { recommendationsCard }
+        }
+    }
+
+    /// A compact "remaining X years • LEV in Y" strip shown above the runway
+    /// section when collapsed, so the user always sees the time framing even
+    /// if they've hidden the detail.
+    private var runwaySubtitle: String? {
+        guard let dc = deathClock else { return nil }
+        let years = Int(dc.yearsRemaining)
+        if years <= 0 { return nil }
+        return "~\(years) years estimated remaining"
+    }
+
+    /// Reusable collapsible section header. Tapping the row toggles the
+    /// binding. Chevron rotates smoothly for affordance.
+    private func collapsibleHeader(
+        title: String,
+        subtitle: String?,
+        expanded: Binding<Bool>
+    ) -> some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) { expanded.wrappedValue.toggle() }
+        } label: {
+            HStack(spacing: 8) {
+                Text(title)
+                    .font(.caption).fontWeight(.bold)
+                    .foregroundColor(.textSecondary)
+                    .tracking(1)
+                if let subtitle {
+                    Text("• \(subtitle)")
+                        .font(.caption)
+                        .foregroundColor(.textMuted)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption2)
+                    .foregroundColor(.textMuted)
+                    .rotationEffect(.degrees(expanded.wrappedValue ? 90 : 0))
+            }
+            .contentShape(Rectangle())
+            .padding(.top, 4)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(title) section. \(expanded.wrappedValue ? "Expanded" : "Collapsed"). Tap to toggle.")
+    }
+
+    // MARK: - Weekly Review CTA
+
+    @ViewBuilder
+    private var weeklyReviewCTA: some View {
+        Button {
+            showWeeklyReview = true
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "calendar.badge.clock")
+                    .font(.title2)
+                    .foregroundColor(.white)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Weekly Review")
+                        .font(.headline).fontWeight(.bold)
+                        .foregroundColor(.white)
+                    Text("5 minutes to reset alignment and plan the week")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.9))
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundColor(.white.opacity(0.7))
+            }
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(LinearGradient.proBrand)
+            .cornerRadius(14)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Attention card (Reports mirror)
+
+    /// Compact "Attention Needed" card showing the top stagnation signals on
+    /// the Overview. Mirrors the Reports page stagnation card but collapsed
+    /// to a 2-row preview. Tapping jumps to Reports for the full list.
+    @ViewBuilder
+    private var attentionCard: some View {
+        let topSignals = Array(cachedStagnationSignals.prefix(3))
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "exclamationmark.bubble.fill")
+                    .foregroundColor(.warning)
+                Text("ATTENTION NEEDED")
+                    .font(.caption).fontWeight(.bold)
+                    .foregroundColor(.warning)
+                    .textCase(.uppercase)
+                    .tracking(1)
+                Spacer()
+                Text("\(cachedStagnationSignals.count)")
+                    .font(.caption).fontWeight(.semibold)
+                    .foregroundColor(.textMuted)
+            }
+            ForEach(topSignals) { signal in
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: signalIcon(signal.severity))
+                        .font(.caption2)
+                        .foregroundColor(signalColor(signal.severity))
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(signal.title)
+                            .font(.caption).fontWeight(.semibold)
+                            .foregroundColor(.textPrimary)
+                        Text(signal.detail)
+                            .font(.caption2)
+                            .foregroundColor(.textSecondary)
+                            .lineLimit(2)
+                    }
+                }
+            }
+            if cachedStagnationSignals.count > 3 {
+                Text("+\(cachedStagnationSignals.count - 3) more in Reports")
+                    .font(.caption2)
+                    .foregroundColor(.textMuted)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle(fill: .warning.opacity(0.06), border: .warning.opacity(0.2))
+    }
+
+    private func signalIcon(_ s: StagnationSeverity) -> String {
+        switch s {
+        case .info: "info.circle"
+        case .warn: "exclamationmark.triangle"
+        case .alert: "exclamationmark.octagon.fill"
+        }
+    }
+
+    private func signalColor(_ s: StagnationSeverity) -> Color {
+        switch s {
+        case .info: .accentColor
+        case .warn: .warning
+        case .alert: .danger
         }
     }
 
@@ -162,6 +378,18 @@ struct OverviewView: View {
             hasEpigeneticData: !data.epigeneticTests.isEmpty,
             hasBloodTests: !data.bloodTests.isEmpty
         )
+        cachedStagnationSignals = StagnationEngine.signals(
+            goals: data.goals,
+            habits: data.habits,
+            deathDate: deathClock?.deathDate,
+            healthyCognitiveDate: GoalEngine.cognitiveDeadline(from: deathClock)
+        )
+        // Reconcile local notifications against the latest signals so the
+        // user isn't nagged about stagnation that no longer exists.
+        let signalsSnapshot = cachedStagnationSignals
+        Task { @MainActor in
+            await NotificationService.shared.reconcileStagnationAlerts(signalsSnapshot)
+        }
         if let dc = deathClock {
             levDeathClock = DeathClockEngine.calculateLEVResult(standardResult: dc, birthDateStr: birthDate, levTargetAge: data.profile.levTargetAge)
             lev = DeathClockEngine.calculateLEV(
@@ -204,6 +432,10 @@ struct OverviewView: View {
 
     @ViewBuilder
     private func apexGoalCard(_ goal: Goal) -> some View {
+        let alignment = alignmentScore(for: goal)
+        let supportingCount = supportingGoalsCount(for: goal)
+        let pillarCount = lifePillarCount(for: goal)
+
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Image(systemName: "crown.fill")
@@ -218,12 +450,9 @@ struct OverviewView: View {
                     .foregroundColor(.textSecondary)
                     .tracking(0.5)
                 Spacer()
-                if let target = goal.targetDate,
-                   let targetDate = DateFormatting.dateFromString(target) {
-                    Text(targetDate.formatted(date: .abbreviated, time: .omitted))
-                        .font(.caption2)
-                        .foregroundColor(.textMuted)
-                }
+                Text("Lifetime")
+                    .font(.caption2)
+                    .foregroundColor(.textMuted)
             }
 
             Text(goal.title)
@@ -237,48 +466,57 @@ struct OverviewView: View {
                     .lineLimit(2)
             }
 
-            // Progress
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text("Progress")
-                        .font(.caption).fontWeight(.semibold)
-                        .foregroundColor(.textSecondary)
-                    Spacer()
-                    Text(String(format: "%.0f%%", goal.progressPercent))
-                        .font(.caption).monospacedDigit()
-                        .foregroundColor(.accentColor)
-                }
-                GeometryReader { geo in
-                    ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(Color.bgInput)
-                            .frame(height: 8)
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(LinearGradient.proBrand)
-                            .frame(width: geo.size.width * min(1, goal.progressPercent / 100), height: 8)
+            // Alignment — how well recent concrete goals are tracking toward this North Star.
+            // Unlike progress (which implies an end), alignment is ongoing: the average of
+            // active standard descendants' progress percentages.
+            if let score = alignment {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("Alignment")
+                            .font(.caption).fontWeight(.semibold)
+                            .foregroundColor(.textSecondary)
+                        Spacer()
+                        Text(String(format: "%.0f%%", score))
+                            .font(.caption).monospacedDigit()
+                            .foregroundColor(.accentColor)
                     }
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(Color.bgInput)
+                                .frame(height: 8)
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(LinearGradient.proBrand)
+                                .frame(width: geo.size.width * min(1, score / 100), height: 8)
+                        }
+                    }
+                    .frame(height: 8)
+                    Text("Average progress across your active supporting goals.")
+                        .font(.caption2)
+                        .foregroundColor(.textMuted)
                 }
-                .frame(height: 8)
+            } else {
+                Text("Add supporting goals to see how aligned your recent work is with this North Star.")
+                    .font(.caption)
+                    .foregroundColor(.textSecondary)
             }
 
-            let milestoneCount = goal.milestones.count
-            let checkInCount = goal.checkIns.count
             HStack(spacing: 12) {
-                statPill(icon: "flag.fill", value: "\(milestoneCount)", label: "milestones")
-                statPill(icon: "checkmark.circle.fill", value: "\(checkInCount)", label: "check-ins")
-                statPill(icon: "circle.grid.2x2.fill", value: "\(activeGoalCount)", label: "goals")
+                statPill(icon: "star.fill", value: "\(pillarCount)", label: pillarCount == 1 ? "pillar" : "pillars")
+                statPill(icon: "target", value: "\(supportingCount)", label: supportingCount == 1 ? "goal" : "goals")
+                statPill(icon: "circle.grid.2x2.fill", value: "\(activeGoalCount)", label: "total")
             }
 
-            if milestoneCount == 0 || goal.notes.isEmpty {
+            if supportingCount == 0 {
                 goalCTAButton(
-                    icon: "pencil.and.outline",
-                    text: "Flesh out your goal — add milestones and plan",
+                    icon: "plus.circle",
+                    text: "Add a supporting goal",
                     background: AnyShapeStyle(LinearGradient.proBrandSubtleDiagonal)
                 ) { editingGoal = goal }
             } else {
                 goalCTAButton(
-                    icon: "calendar.badge.plus",
-                    text: "Schedule next work block",
+                    icon: "pencil.and.outline",
+                    text: "Review supporting goals",
                     background: AnyShapeStyle(Color.accentColor.opacity(0.15))
                 ) { editingGoal = goal }
             }
@@ -286,6 +524,18 @@ struct OverviewView: View {
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
+    }
+
+    private func alignmentScore(for apex: Goal) -> Double? {
+        GoalEngine.alignmentScore(for: apex, in: data.goals)
+    }
+
+    private func supportingGoalsCount(for apex: Goal) -> Int {
+        GoalEngine.activeDescendants(of: apex, in: data.goals).count
+    }
+
+    private func lifePillarCount(for apex: Goal) -> Int {
+        data.goals.filter { $0.parentId == apex.id && $0.goalType == .subApex && $0.status == .active }.count
     }
 
     @ViewBuilder

@@ -3,6 +3,160 @@
 For project mission and milestones, see [GOALS.md](./GOALS.md).
 For completed work, see [DONE.md](./DONE.md).
 
+## Goal Alignment Reframing — 2026-04-11 (ACTIVE)
+
+GOALS.md was rewritten to reflect the real thesis: **MortalLoom is a goal alignment app where the mortality clock is the forcing function and health tracking is the runway extender.** Alignment keeps you from wasting time, longevity extends the time you have. Each reinforces the other.
+
+This section tracks the work to bring the code in line with the reframed mission. It's large — expect it to span multiple milestones.
+
+### Apex / North Star cleanup — COMPLETE (2026-04-11)
+
+- [x] Slimmed the apex/sub-apex goal edit form: hidden deadline, text milestones, calendar scheduler, check-in frequency. Horizon locked to "Lifetime" for apex. Milestones replaced with a "Supporting Goals" section listing real child goals and an "Add supporting goal" button (nested sheet wired through `onAddChild` callback).
+- [x] Replaced the Overview apex "Progress" bar with an **Alignment Score**: average `progressPercent` across active *standard* descendants of the apex. Empty state shows "Add supporting goals" prompt instead of a zero bar.
+- [x] Rewired apex card CTA: "Schedule next work block" → "Add a supporting goal" / "Review supporting goals". Calendar scheduling is now gated to standard goals only (hidden in the apex/sub-apex edit form).
+- [x] `GoalEditSheet.save()` forces `targetDate = nil`, clears text milestones, and skips auto-progress-from-milestones for lifelong goals.
+- [x] Nav reorganization: **Goals** section (Overview, Goals, Calendar, Habits) leads the drawer. **Health** section (Body, Sleep, Blood, Lifestyle, Genome) follows. Both `SideMenuView` and `MacContentView` sidebar updated.
+
+### Habits as daily engagement loop — COMPLETE (2026-04-11)
+
+- [x] `Habit`, `HabitCompletion`, `HabitCategory`, `HabitKind`, `HabitCadence` models in `MortalLoom/Models/Habit.swift`. Streaks derived at read time from the completions array — no cached state to desync.
+- [x] `AppData.habits` + `DataStore` CRUD (add/update/remove/logCompletion/removeCompletion). Merge-by-ID integrated into iCloud sync.
+- [x] `HabitEngine` pure functions: `completionsInPeriod`, `currentStreak`, `targetHitRate`, `alignmentContribution`, `isStagnant`. Weekly cadences bucket by ISO week; daily by local day.
+- [x] "My Habits" tab added to the Habits page (`HabitsSection.swift`). Default-selected tab for new installs. Existing Alcohol / Nicotine / Sauna tabs preserved intact.
+- [x] Habitica-style habit cards with streak flame, 30-day hit rate, today's count, and a round tap-to-complete button. Optional parent goal link.
+- [x] `HabitEditSheet` — icon + color picker (16 SF Symbols, 8 colors), build/break kind toggle, category, daily/weekly cadence with target count, parent goal picker, archive toggle.
+
+### Unified check-in model (reflection + progress) — COMPLETE (2026-04-11)
+
+- [x] `GoalCheckIn` extended with optional `alignmentRating`, `blockers`, `commitments`, `promptAnswered`. Back-compat decoder handles pre-existing check-ins. `isReflection` helper distinguishes reflection-shaped check-ins for filtering.
+- [x] `ReflectionPrompts` curated library (general, monthly, stagnation buckets) with `pick(excludingRecent:)` rotation.
+- [x] `CheckInSheet` branches by goal type:
+  - **Standard goals**: progress slider + milestone checkboxes + note (existing behaviour preserved).
+  - **Apex / sub-apex**: alignment rating 1–10, guided prompt picker with rotate button, blockers list, commitments list, note. Progress slider hidden.
+- [x] Apex card gets a prominent "Reflect" button. Sub-apex reachable via context menu ("Reflect").
+- [x] Recent reflections list inside the check-in sheet shows rating history for lifelong goals.
+
+### Configurable cadence and smart stagnation thresholds — PARTIAL (2026-04-11)
+
+- [x] `GoalEngine.defaultCheckInIntervalDays(for:)` derives cadence from goal timeline. 7-day goal → 2-day cadence; 30-day goal → every 5; 30+ day goal → weekly; lifelong → 14 day reflection default.
+- [x] `StagnationEngine` pure function returning `[StagnationSignal]` sorted by severity. Detects: apex with no supporting goals, pillar with no concrete descendants, missed check-in cadence, projected deadline slippage (via `GoalEngine.project`), and habits missing cadence 3+ periods.
+- [x] Each signal carries a `suggestedPrompt` from `ReflectionPrompts.stagnation` so the user always gets a way out of the stall.
+- [ ] **Remaining**: per-goal threshold override ("mute this signal"), push-notification surfacing, cadence override UI in edit form (smart default is computed but not yet shown to the user).
+
+### Reflections page — COMPLETE (2026-04-11)
+
+- [x] `ReflectionsView.swift` — chronological journal grouped and filtered to check-ins with reflection content (filter pills: All / North Star / Pillars / Goals).
+- [x] Each reflection card shows: goal title with type icon, date, alignment rating with color-coded label, prompt answered, note, blockers list, commitments list.
+- [x] Empty state prompts the user to tap Reflect on their North Star.
+- [x] New `AppPage.reflections` wired into drawer, macOS sidebar, and both platform switch statements.
+
+### Reports page MVP — COMPLETE (2026-04-11)
+
+- [x] `ReportsView.swift` with four widgets:
+  - **Alignment trend chart**: 12-week line+area chart combining 70% standard-goal progress + 30% reflection ratings, plus week-over-week delta.
+  - **Attention Needed (stagnation alerts)**: grouped list from `StagnationEngine` with severity icon, detail, and suggested prompt.
+  - **Pillar alignment breakdown**: horizontal bars showing each life pillar's sub-alignment score.
+  - **Habit streaks**: compact table of active habits with streak flame + 30-day hit rate.
+- [x] New `AppPage.reports` wired into drawer, macOS sidebar, and switch statements.
+- [x] **Overview mirror**: compact "Attention Needed" card on Overview (narrow + wide stacks) showing top 3 stagnation signals. Only renders when signals exist.
+- [ ] **Later**: goal velocity chart, time allocation analysis, at-risk goal projections beyond the projection-slippage signal already in StagnationEngine, habit streak heat map, monthly/yearly review export.
+
+### Pillar Dashboards — COMPLETE (2026-04-11)
+
+- [x] `PillarDashboardView.swift` — drill-in detail for any sub-apex (life pillar).
+- [x] Header with pillar title, notes, category, reflect CTA.
+- [x] Pillar-level **sub-alignment** score = 70% average of active standard descendants + 30% habit streak health across linked habits (same weighting as the Overview apex rollup).
+- [x] Supporting goals list with per-goal progress bars, tap to edit.
+- [x] Linked habits section with streak + 30-day hit rate. Deep pillar ↔ habit link via `Habit.parentGoalId`.
+- [x] Recent reflections list scoped to the pillar.
+- [x] Opened from GoalsView via tap on any sub-apex in the hierarchy. Presented as a sheet with `NavigationStack` so inner edit/reflect sheets work naturally.
+- [ ] **Remaining**: "Add supporting goal" / "Add habit" CTAs on the dashboard itself (currently must navigate back to GoalsView or HabitsView); time allocation summary (requires `TimeAllocationEngine` from the Calendar Integration phase).
+
+### Next — Reflection flow (the core weekly loop)
+
+The daily/weekly/monthly cadence is the app's heartbeat. Implementation lives on top of the unified check-in model and the Reflections/Reports pages above.
+
+- [ ] **Daily lightweight nudge**: one-line prompt after the user logs a habit completion. "Did today move toward your North Star? Yes / Partially / No" — writes a light-touch `GoalCheckIn` with `alignmentRating` set, no other fields. Dismissible.
+- [ ] **Weekly Review** *(substantive)*: guided 5-minute modal flow, triggered from Overview CTA or notification:
+  1. Show last week's calendar blocks tagged to goals, plus progress deltas on active goals.
+  2. Show current alignment score and week-over-week delta.
+  3. Prompt the user to answer one of 3–5 rotating reflection prompts.
+  4. Plan next week's work blocks: suggest slots for top-priority goals, let the user accept/modify/skip.
+- [ ] **Monthly perspective** *(light)*: end-of-month card on Overview asking "Are these still the right goals?" — links to a monthly reflection entry and opens the goals tree for editing.
+- [ ] **Ad hoc stagnation response**: when `StagnationEngine` raises a signal, surface a targeted reflection prompt ("You haven't logged progress on your Creative pillar in 23 days. What's blocking you?").
+- [ ] **Configurable cadence**: user chooses daily/weekly/monthly rhythms in Settings → Reflection Cadence.
+
+### Next — Calendar integration verification
+
+Calendar ↔ goal tagging exists in `CalendarSchedulerSheet` but has not been tested end-to-end. Needs verification before Reports can trust "time allocation per pillar" data.
+
+- [ ] Audit `CalendarSchedulerSheet` — confirm it writes a goal ID reference on the created calendar event (custom URL, notes field, or a local mapping table).
+- [ ] Build a `TimeAllocationEngine` that reads recent calendar events and maps them to goals/pillars via the tag, producing minutes-per-pillar rollups.
+- [ ] Surface time allocation on Pillar Dashboards and as a secondary Reports widget.
+- [ ] Test on both iOS (EventKit) and macOS (EventKit) — the integration may differ.
+
+### Later — Goal-centered Overview
+
+The Overview currently leads with the Longevity Clock / LEV card. Under the reframed mission it should lead with **the North Star + Alignment Score + today's prompt** and treat longevity as a supporting strip.
+
+- [ ] Reorder Overview so the apex/alignment card is the first card (both narrow and wide layouts). Partially done via recent commits; audit and finalize.
+- [ ] Reposition Longevity Clock / LEV card as a "time remaining" strip rather than the hero.
+- [ ] Make Health Summary collapsible / demotable for users whose North Star doesn't touch health.
+- [ ] Goal-centered empty states for users with no apex set — today's empty Overview is still health-first.
+- [ ] Surface Reports widgets (alignment this week + attention needed) in their compact form on Overview.
+
+### Later — Cross-cutting features
+
+- [ ] **Home screen widget**: alignment score + today's reflection prompt as a 1-tap entry point. Extends existing MortalLoomWidget.
+- [ ] **Notifications**: weekly review reminder (opt-in), stagnation alerts as detected.
+- [ ] **Onboarding extensions**: after the user names their North Star and first life pillar during onboarding, immediately prompt a first reflection ("Why does this matter to you?") to seed the journal and ground the experience. See also the `shadowpuppet-onboarding` skill for shared patterns across the net.shadowpuppet.* app family.
+- [ ] **Non-health pillar support**: category-specific goal templates (creative projects, financial milestones, relationship rituals, legacy artifacts). Pillar dashboards make non-health pillars feel first-class.
+- [ ] **Bottom tab bar rethink**: currently `[Overview, Goals, Calendar, Habits]`. With Reflections and Reports coming, consider `[Overview, Goals, Habits, Reports]` or similar. Defer decision until Reports ships.
+
+### Implementation order and status
+
+1. ✅ **Unified check-in model** — `GoalCheckIn` extended; CheckInSheet branches; Reflect button on apex.
+2. ✅ **Smart cadence + `StagnationEngine` skeleton** — `defaultCheckInIntervalDays` + 5-signal engine.
+3. ✅ **Habits expansion** — full custom habit model, My Habits tab, edit sheet, HabitEngine streak math.
+4. ✅ **Reflections page** — read-only chronological journal with scope filters.
+5. ✅ **Reports page MVP** — alignment trend, stagnation alerts, pillar breakdown, habit streaks.
+6. ✅ **Pillar Dashboards** — per-pillar sub-alignment, supporting goals, habits, reflections.
+7. ✅ **Overview Reports mirror** — compact Attention Needed card on Overview.
+8. ✅ **Weekly Review flow** — 4-step guided modal triggered from Overview when due.
+9. ✅ **Calendar integration** — `CalendarService` tags events with `mortalloom://goal/<uuid>` URL; `TimeAllocationEngine` rolls up minutes through the goal tree; Pillar Dashboards surface a 30-day time-allocated card.
+10. ✅ **Overview restructure** — collapsible "Your Runway" and "Health Summary" sections with @AppStorage persistence. Goal-first hero (apex card + alignment + attention) leads.
+11. ✅ **Widget alignment view** — Small and Medium widgets lead with North Star title + alignment score + today's prompt when an apex is set.
+12. ✅ **Notifications** — `NotificationService` schedules repeating weekly-review reminder + reconciled one-shot stagnation alerts. Opt-in via Settings → General → Notifications.
+13. ✅ **Onboarding reordered + first reflection** — North Star + first reflection step moved ahead of LEV / health questionnaire so longevity lands as "how to extend the runway for the thing you just named." Category picker swapped from truncating segmented control to a 3-column chip grid. Reflection rating is seeded as the first `GoalCheckIn` on the apex.
+14. ✅ **Cadence override UI** — GoalEditSheet exposes "Use smart default" button that derives cadence from timeline.
+15. ✅ **Per-goal signal muting** — `Goal.mutedSignals` array + toggles in GoalEditSheet. StagnationEngine filters muted signals before sorting.
+16. ✅ **Fresh-start simulator mode** — `-fresh-start` launch flag for DEBUG builds: empty in-memory state, onboarding forced, no writes to disk or iCloud.
+
+### Data migration safety (TestFlight → new fields)
+
+All model changes this milestone are **additive with decodeIfPresent fallbacks**, so the TestFlight JSON file decodes cleanly:
+
+- `AppData.habits: [Habit]` — decoded with `decodeIfPresent` default `[]`. A TestFlight file without this field loads as "no custom habits yet."
+- `GoalCheckIn.alignmentRating / blockers / commitments / promptAnswered` — custom decoder uses `decodeIfPresent` with safe defaults (nil, [], [], nil). Old check-ins remain progress-only.
+- `Goal.mutedSignals: [String]` — custom decoder uses `decodeIfPresent` default `[]`. Old goals have no muted signals.
+- `WidgetBridge.Snapshot.apexTitle / alignmentScore / todaysPrompt` — the widget's copy of the Snapshot struct has a custom decoder that defaults these to nil. Old widget snapshot files (if still cached) decode without issue.
+
+**No breaking changes** to existing fields. Your TestFlight habit data (alcohol, nicotine, sauna) is stored in `alcoholDrinks`, `nicotineEntries`, `saunaSessions` — none of which were touched this milestone. Restoring from backup or continuing with the upgraded build is safe.
+
+### Fresh-start simulator usage
+
+In Xcode simulator, edit the MortalLoom_iOS scheme → Run → Arguments → add `-fresh-start` under Arguments Passed On Launch. The app will:
+
+- Skip iCloud monitoring entirely (no chance of touching your real container)
+- Skip HealthKit sync
+- Load `AppData.empty` in memory
+- Force the onboarding flow to run on every launch
+- Write no files to the local Documents directory
+
+Remove the flag to return to normal mode. The `-sample-data` flag (pre-existing) still works the same way but seeds realistic fake data instead of empty state.
+
+
+
 ## Better Swift Audit — 2026-04-06 (COMPLETE)
 
 Shipped 5 PRs against `main` covering 17 files + 2 new test suites (70 new test cases).

@@ -39,6 +39,15 @@ struct SettingsView: View {
     @State private var proCodeInput = ""
     @State private var proCodeFeedback: String?
 
+    @AppStorage(NotificationService.weeklyReviewEnabledKey)
+    private var weeklyReviewEnabled: Bool = false
+    @AppStorage(NotificationService.weeklyReviewWeekdayKey)
+    private var weeklyReviewWeekday: Int = 1  // Sunday
+    @AppStorage(NotificationService.weeklyReviewHourKey)
+    private var weeklyReviewHour: Int = 18
+    @AppStorage(NotificationService.stagnationAlertsEnabledKey)
+    private var stagnationAlertsEnabled: Bool = false
+
     var body: some View {
         settingsContent
             .background(Color.bg)
@@ -94,6 +103,7 @@ struct SettingsView: View {
                     proSection
                     appearanceSection
                     countdownSection
+                    notificationsSection
                 }
                 .padding()
             }
@@ -106,6 +116,7 @@ struct SettingsView: View {
                     dataExportSection
                     dataImportSection
                     dataRestoreSection
+                    dangerZoneSection
                 }
                 .padding()
             }
@@ -115,7 +126,6 @@ struct SettingsView: View {
                 VStack(spacing: 16) {
                     aboutSection
                     setupGuideSection
-                    dangerZoneSection
                 }
                 .padding()
             }
@@ -157,6 +167,7 @@ struct SettingsView: View {
             proSection
             appearanceSection
             countdownSection
+            notificationsSection
         }
     }
 
@@ -166,6 +177,7 @@ struct SettingsView: View {
             dataExportSection
             dataImportSection
             dataRestoreSection
+            dangerZoneSection
         }
     }
 
@@ -173,7 +185,6 @@ struct SettingsView: View {
         VStack(spacing: 16) {
             aboutSection
             setupGuideSection
-            dangerZoneSection
         }
     }
     #endif
@@ -251,6 +262,77 @@ struct SettingsView: View {
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
+    }
+
+    // MARK: - Notifications
+
+    @ViewBuilder
+    private var notificationsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionLabel(text: "NOTIFICATIONS")
+
+            Text("Local reminders only — nothing leaves your device.")
+                .font(.caption)
+                .foregroundColor(.textSecondary)
+
+            Toggle("Weekly review reminder", isOn: $weeklyReviewEnabled)
+                .onChange(of: weeklyReviewEnabled) { _, enabled in
+                    Task { await NotificationService.shared.setWeeklyReviewEnabled(enabled) }
+                }
+
+            if weeklyReviewEnabled {
+                HStack {
+                    Text("Day")
+                        .font(.subheadline)
+                    Spacer()
+                    Picker("Day", selection: $weeklyReviewWeekday) {
+                        Text("Sunday").tag(1)
+                        Text("Monday").tag(2)
+                        Text("Tuesday").tag(3)
+                        Text("Wednesday").tag(4)
+                        Text("Thursday").tag(5)
+                        Text("Friday").tag(6)
+                        Text("Saturday").tag(7)
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                }
+                HStack {
+                    Text("Hour")
+                        .font(.subheadline)
+                    Spacer()
+                    Stepper(value: $weeklyReviewHour, in: 0...23) {
+                        Text("\(formatHour(weeklyReviewHour))")
+                            .monospacedDigit()
+                    }
+                }
+                .onChange(of: weeklyReviewWeekday) { _, _ in
+                    Task { await NotificationService.shared.scheduleWeeklyReviewReminder() }
+                }
+                .onChange(of: weeklyReviewHour) { _, _ in
+                    Task { await NotificationService.shared.scheduleWeeklyReviewReminder() }
+                }
+            }
+
+            Toggle("Stagnation alerts", isOn: $stagnationAlertsEnabled)
+                .onChange(of: stagnationAlertsEnabled) { _, enabled in
+                    Task { await NotificationService.shared.setStagnationAlertsEnabled(enabled) }
+                }
+
+            Text("Fires ~15 minutes after the app detects a stalling goal or habit. Mute specific alerts per goal in the Goal editor.")
+                .font(.caption2)
+                .foregroundColor(.textMuted)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle()
+    }
+
+    private func formatHour(_ hour: Int) -> String {
+        let h = hour % 24
+        let period = h < 12 ? "AM" : "PM"
+        let display = h == 0 ? 12 : (h > 12 ? h - 12 : h)
+        return "\(display):00 \(period)"
     }
 
     // MARK: - Countdown Mode

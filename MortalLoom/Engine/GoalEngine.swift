@@ -2,6 +2,109 @@ import Foundation
 
 enum GoalEngine {
 
+    // MARK: - Tree walking
+
+    /// All active descendants of `root` in the goal list, collected via BFS.
+    /// Walks through any goal type (apex, sub-apex, standard) and returns
+    /// only the nodes that are themselves active. `root` itself is not
+    /// included in the result.
+    static func activeDescendants(of root: Goal, in goals: [Goal]) -> [Goal] {
+        var result: [Goal] = []
+        var queue: [UUID] = [root.id]
+        while let id = queue.popLast() {
+            for g in goals where g.parentId == id && g.status == .active {
+                queue.append(g.id)
+                result.append(g)
+            }
+        }
+        return result
+    }
+
+    /// Active standard-goal descendants of `root` (leaf nodes with real
+    /// progress). Used for alignment rollups where only concrete goals
+    /// contribute. Apex and sub-apex descendants are traversed but not
+    /// included in the result since they don't have meaningful `progressPercent`.
+    static func standardDescendants(of root: Goal, in goals: [Goal]) -> [Goal] {
+        var leaves: [Goal] = []
+        var queue: [UUID] = [root.id]
+        while let id = queue.popLast() {
+            for g in goals where g.parentId == id && g.status == .active {
+                queue.append(g.id)
+                if g.goalType == .standard || g.goalType == nil {
+                    leaves.append(g)
+                }
+            }
+        }
+        return leaves
+    }
+
+    // MARK: - Alignment Score
+
+    /// Alignment Score = average `progressPercent` across active standard
+    /// descendants of `root`. Returns nil when there are no descendants so
+    /// callers can show an empty-state CTA instead of a misleading 0%.
+    ///
+    /// This is the canonical definition — Overview, Widget, Reports, and
+    /// Weekly Review all call it so the number is consistent across the app.
+    static func alignmentScore(for root: Goal, in goals: [Goal]) -> Double? {
+        let leaves = standardDescendants(of: root, in: goals)
+        guard !leaves.isEmpty else { return nil }
+        return leaves.reduce(0.0) { $0 + $1.progressPercent } / Double(leaves.count)
+    }
+
+    /// Weighted alignment score combining goal progress (70%) with habit
+    /// streak health (30%). Used by Pillar Dashboards and other surfaces
+    /// that want to reflect both tracked progress and daily engagement.
+    ///
+    /// If no standard descendants exist, returns habit-only score.
+    /// If no habits are linked, returns goal-only score.
+    /// If neither is present, returns nil.
+    static func alignmentScore(
+        for root: Goal,
+        in goals: [Goal],
+        habits: [Habit],
+        habitWeight: Double = 0.3
+    ) -> Double? {
+        let goalScore = alignmentScore(for: root, in: goals)
+        let descendantIds: Set<UUID> = Set([root.id] + activeDescendants(of: root, in: goals).map(\.id))
+        let linkedHabits = habits.filter { h in
+            guard h.isActive, let parent = h.parentGoalId else { return false }
+            return descendantIds.contains(parent)
+        }
+        guard !linkedHabits.isEmpty else { return goalScore }
+        let habitAvg = linkedHabits
+            .reduce(0.0) { $0 + HabitEngine.alignmentContribution($1) }
+            / Double(linkedHabits.count)
+        guard let goalScore else { return habitAvg }
+        let goalWeight = 1.0 - habitWeight
+        return goalScore * goalWeight + habitAvg * habitWeight
+    }
+
+    // MARK: - Smart Cadence
+
+    /// Derive a sensible default check-in cadence (in days) for a goal based
+    /// on its timeline. A 7-day goal should be checked in every couple days,
+    /// not every two weeks. A multi-month goal can check in weekly.
+    ///
+    /// - Returns: an integer number of days, minimum 1.
+    ///
+    /// Rules:
+    /// - No target date (apex/sub-apex): 14 days (biweekly reflection default).
+    /// - Target within 7 days: every 2 days.
+    /// - Target within 30 days: every duration / 6, min 3 days.
+    /// - Longer: weekly.
+    static func defaultCheckInIntervalDays(for goal: Goal, now: Date = Date()) -> Int {
+        guard let targetStr = goal.targetDate,
+              let targetDate = DateFormatting.dateFromString(targetStr) else {
+            return 14
+        }
+        let days = Calendar.current.dateComponents([.day], from: now, to: targetDate).day ?? 7
+        if days <= 0 { return 1 }
+        if days <= 7 { return max(1, days / 3) }
+        if days <= 30 { return max(3, days / 6) }
+        return 7
+    }
+
     struct GoalProjection: Sendable {
         let projectedCompletionDate: Date?
         let daysToCompletion: Int?

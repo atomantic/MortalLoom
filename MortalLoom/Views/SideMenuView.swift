@@ -13,6 +13,8 @@ enum AppPage: Int, CaseIterable, Hashable {
     case settings = 7
     case goals = 8
     case sleep = 9
+    case reflections = 10
+    case reports = 11
 
     var icon: String {
         switch self {
@@ -26,6 +28,8 @@ enum AppPage: Int, CaseIterable, Hashable {
         case .settings: "gear"
         case .goals: "target"
         case .sleep: "bed.double.fill"
+        case .reflections: "bubble.left.and.bubble.right"
+        case .reports: "chart.line.uptrend.xyaxis"
         }
     }
 
@@ -41,6 +45,8 @@ enum AppPage: Int, CaseIterable, Hashable {
         case .settings: "Settings"
         case .goals: "Goals"
         case .sleep: "Sleep"
+        case .reflections: "Reflections"
+        case .reports: "Reports"
         }
     }
 
@@ -59,9 +65,13 @@ private struct MenuSection {
     let pages: [AppPage]
 }
 
+// Section ordering reflects the app's primary purpose: aligning time with goals.
+// Goals pages lead, including Habits — habits are the daily engagement loop that
+// drives alignment (health habits AND custom goal-tied habits like writing or practice).
+// Health pages follow as the "runway extender" surface area for longevity tracking.
 private let menuSections: [MenuSection] = [
-    MenuSection(title: "Health", pages: [.overview, .body, .sleep, .blood, .calendar, .genome]),
-    MenuSection(title: "Tracking", pages: [.goals, .habits, .lifestyle]),
+    MenuSection(title: "Goals", pages: [.overview, .goals, .calendar, .habits, .reflections, .reports]),
+    MenuSection(title: "Health", pages: [.body, .sleep, .blood, .lifestyle, .genome]),
     MenuSection(title: "App", pages: [.settings]),
 ]
 

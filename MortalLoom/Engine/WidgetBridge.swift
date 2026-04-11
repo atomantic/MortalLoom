@@ -23,6 +23,16 @@ enum WidgetBridge: Sendable {
         let needsCheckInCount: Int
         let healthScore: Double
         let updatedAt: Date
+        /// North Star goal title, if set. The widget uses this to frame
+        /// the alignment score with the user's actual apex.
+        let apexTitle: String?
+        /// Current alignment score (0-100) derived from active standard
+        /// descendants of the apex. Nil when the user has no apex or no
+        /// standard goals to compute from.
+        let alignmentScore: Double?
+        /// One rotating reflection prompt surfaced on the widget so the
+        /// user has a one-tap reflection entry point from the home screen.
+        let todaysPrompt: String?
     }
 
     static func update(data: AppData) {
@@ -73,13 +83,25 @@ enum WidgetBridge: Sendable {
             )
         }
 
+        // Compute North Star alignment from active standard descendants.
+        let apex = data.goals.first { $0.goalType == .apex && $0.status == .active }
+        let alignment: Double? = apex.flatMap { GoalEngine.alignmentScore(for: $0, in: data.goals) }
+
+        // Rotating prompt for the widget — excludes any answered on the apex
+        // in the last 5 check-ins so the user doesn't see the same question
+        // repeatedly.
+        let todaysPrompt = apex != nil ? ReflectionPrompts.nextPrompt(for: apex) : nil
+
         let snapshot = Snapshot(
             goals: widgetGoals,
             activeCount: activeGoals.count,
             overdueCount: activeGoals.filter(\.isOverdue).count,
             needsCheckInCount: activeGoals.filter(\.needsCheckIn).count,
             healthScore: healthScore,
-            updatedAt: Date()
+            updatedAt: Date(),
+            apexTitle: apex?.title,
+            alignmentScore: alignment,
+            todaysPrompt: todaysPrompt
         )
 
         guard let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID)?
@@ -100,4 +122,5 @@ enum WidgetBridge: Sendable {
         }
         #endif
     }
+
 }
