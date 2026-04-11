@@ -81,9 +81,9 @@ struct OverviewView: View {
     private var narrowContentStack: some View {
         VStack(spacing: 16) {
             goalPromptCard
+            if let lev { levCard(lev) }
             deathClockCard
             if deathClock != nil { lifeExpectancyFactorsCard }
-            if let lev { levCard(lev) }
             if let dc = deathClock { lifetimeHealthChart(dc) }
             vitalStatsRow
             healthGrid
@@ -94,26 +94,21 @@ struct OverviewView: View {
     @ViewBuilder
     private var wideContentStack: some View {
         VStack(spacing: 16) {
-                goalPromptCard
-                HStack(alignment: .top, spacing: 16) {
+            goalPromptCard
+            if let lev { levCard(lev) }
+            HStack(alignment: .top, spacing: 16) {
                 deathClockCard
                 if deathClock != nil {
                     lifeExpectancyFactorsCard
                 }
             }
-                vitalStatsRow
-                if let dc = deathClock {
-                HStack(alignment: .top, spacing: 16) {
-                    lifetimeHealthChart(dc)
-                        .frame(maxWidth: .infinity)
-                    if let lev {
-                        levCard(lev)
-                            .frame(width: containerWidth * 0.32)
-                    }
-                }
+            vitalStatsRow
+            if let dc = deathClock {
+                lifetimeHealthChart(dc)
+                    .frame(maxWidth: .infinity)
             }
-                healthGrid
-                if !cachedRecommendations.isEmpty { recommendationsCard }
+            healthGrid
+            if !cachedRecommendations.isEmpty { recommendationsCard }
         }
     }
 
