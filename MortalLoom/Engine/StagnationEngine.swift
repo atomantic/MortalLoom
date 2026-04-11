@@ -123,6 +123,10 @@ enum StagnationEngine {
             childrenByParent[pid, default: []].append(g)
         }
 
+        // Precompute effective latest check-in dates once so every goal
+        // loop below can reuse it (parent goals inherit descendant credit).
+        let effectiveLatestDates = goals.effectiveLatestCheckInDates()
+
         // 1. Apex with no active supporting goals.
         for apex in goals where apex.goalType == .apex && apex.status == .active {
             let children = childrenByParent[apex.id] ?? []
@@ -139,7 +143,7 @@ enum StagnationEngine {
 
         // 2. Sub-apex (life pillar) with no active standard descendants.
         for pillar in goals where pillar.goalType == .subApex && pillar.status == .active {
-            let leaves = standardDescendants(of: pillar.id, in: goals, childrenByParent: childrenByParent)
+            let leaves = GoalEngine.standardDescendants(of: pillar, in: goals)
             if leaves.isEmpty {
                 signals.append(StagnationSignal(
                     severity: .info,
@@ -153,10 +157,12 @@ enum StagnationEngine {
 
         // 3. Goals that have missed their check-in cadence. Severity scales
         // with how many cadence intervals the user has missed, so a 3-day
-        // miss and a 45-day miss don't raise identical alerts.
+        // miss and a 45-day miss don't raise identical alerts. Parent goals
+        // inherit check-in credit from their descendants — if the user has
+        // been checking in on sub-goals, the parent isn't considered stale.
         for g in goals where g.status == .active && g.goalType != .apex && g.goalType != .subApex {
-            if g.needsCheckIn {
-                let days = g.daysSinceLastCheckIn
+            let days = DateFormatting.daysSince(effectiveLatestDates[g.id] ?? g.createdDate, now: now)
+            if days >= g.checkInIntervalDays {
                 let overdue = max(0, days - g.checkInIntervalDays)
                 let severity = stagnationSeverity(
                     daysOverdue: overdue,
@@ -173,12 +179,19 @@ enum StagnationEngine {
             }
         }
 
-        // 4. Standard goals projected to slip past their deadline.
+        // 4. Standard goals projected to slip past their deadline. Pass
+        // the effective days-since-last-check-in so sub-goal activity
+        // shortens the "missed check-in" penalty on parents too.
         for g in goals where g.status == .active && g.goalType != .apex && g.goalType != .subApex {
+            let effectiveDays = DateFormatting.daysSince(
+                effectiveLatestDates[g.id] ?? g.createdDate, now: now
+            )
             let projection = GoalEngine.project(
                 goal: g,
                 deathDate: deathDate,
-                healthyCognitiveDate: healthyCognitiveDate
+                healthyCognitiveDate: healthyCognitiveDate,
+                now: now,
+                daysSinceLastCheckInOverride: effectiveDays
             )
             if projection.slippageDays > 0 {
                 signals.append(StagnationSignal(
@@ -229,26 +242,5 @@ enum StagnationEngine {
             if lhs.severity != rhs.severity { return lhs.severity > rhs.severity }
             return lhs.title < rhs.title
         }
-    }
-
-    /// Walk the subtree rooted at `rootId`, collecting active standard (or
-    /// untyped) descendants. Used to determine whether a pillar has concrete
-    /// goals feeding into it.
-    private static func standardDescendants(
-        of rootId: UUID,
-        in goals: [Goal],
-        childrenByParent: [UUID: [Goal]]
-    ) -> [Goal] {
-        var leaves: [Goal] = []
-        var queue: [UUID] = [rootId]
-        while let id = queue.popLast() {
-            for child in childrenByParent[id] ?? [] {
-                queue.append(child.id)
-                if child.goalType == .standard || child.goalType == nil {
-                    leaves.append(child)
-                }
-            }
-        }
-        return leaves
     }
 }

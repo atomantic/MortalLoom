@@ -99,9 +99,7 @@ struct Goal: Codable, Identifiable, Sendable, Equatable {
     }
 
     var daysSinceLastCheckIn: Int {
-        guard let lastDate = checkIns.last?.date ?? Optional(createdDate),
-              let last = DateFormatting.dateFromString(lastDate) else { return 0 }
-        return Calendar.current.dateComponents([.day], from: last, to: Date()).day ?? 0
+        DateFormatting.daysSince(checkIns.last?.date ?? createdDate)
     }
 
     var needsCheckIn: Bool {
@@ -398,5 +396,49 @@ extension Array where Element == Goal {
 
     var activeCount: Int {
         filter { $0.status == .active }.count
+    }
+
+    /// Precomputes the effective "latest check-in date" for every active
+    /// goal in one pass. Parent goals inherit the newest check-in across
+    /// their subtree so callers can suppress overdue nags when sub-goals
+    /// are being worked on. Lexicographic string max is safe because the
+    /// format is fixed-width ISO "yyyy-MM-dd".
+    ///
+    /// Result maps goalId → latest date string (own or any active descendant).
+    /// Goals with no check-ins in their subtree fall back to `createdDate`.
+    func effectiveLatestCheckInDates() -> [UUID: String] {
+        var childrenByParent: [UUID: [Goal]] = [:]
+        for g in self where g.status == .active {
+            guard let pid = g.parentId else { continue }
+            childrenByParent[pid, default: []].append(g)
+        }
+        var result: [UUID: String] = [:]
+        func walk(_ goal: Goal) -> String {
+            if let cached = result[goal.id] { return cached }
+            var latest = goal.checkIns.last?.date ?? goal.createdDate
+            for child in childrenByParent[goal.id] ?? [] {
+                let childLatest = walk(child)
+                if childLatest > latest { latest = childLatest }
+            }
+            result[goal.id] = latest
+            return latest
+        }
+        for g in self where g.status == .active {
+            _ = walk(g)
+        }
+        return result
+    }
+
+    /// One-off convenience; loops should call `effectiveLatestCheckInDates`
+    /// once and reuse the map instead of paying O(n) per goal.
+    func effectiveDaysSinceLastCheckIn(for goal: Goal) -> Int {
+        let latest = effectiveLatestCheckInDates()
+        return DateFormatting.daysSince(latest[goal.id] ?? goal.createdDate)
+    }
+
+    /// One-off convenience — see `effectiveDaysSinceLastCheckIn(for:)`.
+    func effectiveNeedsCheckIn(for goal: Goal) -> Bool {
+        guard goal.status == .active else { return false }
+        return effectiveDaysSinceLastCheckIn(for: goal) >= goal.checkInIntervalDays
     }
 }

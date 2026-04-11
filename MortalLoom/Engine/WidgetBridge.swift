@@ -39,10 +39,24 @@ enum WidgetBridge: Sendable {
         #if os(iOS)
         let activeGoals = data.goals.filter { $0.status == .active }
 
-        // Sort: overdue first, then by nearest target date, then by needsCheckIn
+        // Single-pass hierarchy walk — parent goals inherit check-in credit
+        // from active descendants so the widget doesn't over-nag.
+        let effectiveLatestDates = data.goals.effectiveLatestCheckInDates()
+        var needsCheckInCount = 0
+        var needsCheckInById: [UUID: Bool] = [:]
+        for g in activeGoals {
+            let days = DateFormatting.daysSince(effectiveLatestDates[g.id] ?? g.createdDate)
+            let needs = days >= g.checkInIntervalDays
+            needsCheckInById[g.id] = needs
+            if needs { needsCheckInCount += 1 }
+        }
+
+        // Sort: overdue first, then by needsCheckIn, then by nearest target date
         let sorted = activeGoals.sorted { a, b in
             if a.isOverdue != b.isOverdue { return a.isOverdue }
-            if a.needsCheckIn != b.needsCheckIn { return a.needsCheckIn }
+            let aNeeds = needsCheckInById[a.id] ?? false
+            let bNeeds = needsCheckInById[b.id] ?? false
+            if aNeeds != bNeeds { return aNeeds }
             guard let aDate = a.targetDate, let bDate = b.targetDate else {
                 return a.targetDate != nil
             }
@@ -55,7 +69,7 @@ enum WidgetBridge: Sendable {
                 targetDate: goal.targetDate.flatMap { DateFormatting.dateFromString($0) },
                 progressPercent: goal.progressPercent,
                 isOverdue: goal.isOverdue,
-                needsCheckIn: goal.needsCheckIn,
+                needsCheckIn: needsCheckInById[goal.id] ?? false,
                 category: goal.category?.rawValue
             )
         }
@@ -96,7 +110,7 @@ enum WidgetBridge: Sendable {
             goals: widgetGoals,
             activeCount: activeGoals.count,
             overdueCount: activeGoals.filter(\.isOverdue).count,
-            needsCheckInCount: activeGoals.filter(\.needsCheckIn).count,
+            needsCheckInCount: needsCheckInCount,
             healthScore: healthScore,
             updatedAt: Date(),
             apexTitle: apex?.title,

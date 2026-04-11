@@ -1239,6 +1239,49 @@ final class GoalEngineTests: XCTestCase {
         XCTAssertFalse(goal.needsCheckIn)
         XCTAssertFalse(goal.isOverdue)
     }
+
+    func testProjectionHierarchyOverrideShrinksMissedCheckInPenalty() {
+        // A parent goal that hasn't been directly checked in for 30 days
+        // (24 days overdue on a 7-day cadence) should have its projection
+        // penalty shrink when a sub-goal was checked in yesterday and the
+        // caller passes the effective 1-day value as the override.
+        let created = DateFormatting.dateString(daysAgo: 60)
+        let firstCheckIn = DateFormatting.dateString(daysAgo: 45)
+        let parentLastCheckIn = DateFormatting.dateString(daysAgo: 30)
+        var goal = Goal(
+            title: "Parent",
+            createdDate: created,
+            checkInIntervalDays: 7,
+            status: .active,
+            goalType: .standard
+        )
+        goal.checkIns = [
+            GoalCheckIn(date: firstCheckIn, progressPct: 10),
+            GoalCheckIn(date: parentLastCheckIn, progressPct: 40)
+        ]
+
+        let strict = GoalEngine.project(goal: goal, deathDate: nil, healthyCognitiveDate: nil)
+        let withHierarchyCredit = GoalEngine.project(
+            goal: goal,
+            deathDate: nil,
+            healthyCognitiveDate: nil,
+            daysSinceLastCheckInOverride: 1
+        )
+
+        // Override shortens the effective timeline, so the projected rate
+        // is at least as fast → daysToCompletion is not larger.
+        if let strictDays = strict.daysToCompletion,
+           let freshDays = withHierarchyCredit.daysToCompletion {
+            XCTAssertLessThanOrEqual(freshDays, strictDays)
+        } else {
+            XCTFail("Expected both projections to return daysToCompletion")
+        }
+
+        // Strict projection shows .slipping because the parent itself is
+        // past cadence; hierarchy-aware projection shouldn't.
+        XCTAssertEqual(strict.urgencyLevel, .slipping)
+        XCTAssertEqual(withHierarchyCredit.urgencyLevel, .onTrack)
+    }
 }
 
 // MARK: - CorrelationEngine Tests
@@ -3288,6 +3331,130 @@ final class StagnationEngineTests: XCTestCase {
 
         let signals = StagnationEngine.signals(goals: [goal], habits: [])
         XCTAssertFalse(signals.contains { $0.title == "Check-in overdue" })
+    }
+
+    // MARK: - Parent goals inherit check-in credit from descendants
+
+    func testParentGoalInheritsCheckInFromRecentChildCheckIn() {
+        // Parent hasn't been touched in 30 days, but a child was checked in
+        // yesterday. The parent should NOT fire "Check-in overdue" — working
+        // on the child counts as working on the parent.
+        let parent = Goal(
+            title: "Ship side project",
+            createdDate: DateFormatting.dateString(daysAgo: 100),
+            checkIns: [GoalCheckIn(date: DateFormatting.dateString(daysAgo: 30), progressPct: 20)],
+            checkInIntervalDays: 7,
+            status: .active,
+            goalType: .standard
+        )
+        let child = Goal(
+            title: "Write landing copy",
+            createdDate: DateFormatting.dateString(daysAgo: 50),
+            checkIns: [GoalCheckIn(date: DateFormatting.dateString(daysAgo: 1), progressPct: 60)],
+            checkInIntervalDays: 7,
+            status: .active,
+            parentId: parent.id,
+            goalType: .standard
+        )
+
+        let signals = StagnationEngine.signals(goals: [parent, child], habits: [])
+        XCTAssertFalse(
+            signals.contains { $0.goalId == parent.id && $0.title == "Check-in overdue" },
+            "Parent goal should not raise overdue signal when child was recently checked in"
+        )
+        // Child itself is fresh, so it also shouldn't fire.
+        XCTAssertFalse(
+            signals.contains { $0.goalId == child.id && $0.title == "Check-in overdue" }
+        )
+    }
+
+    func testParentGoalStillFiresWhenAllDescendantsAreStale() {
+        // Parent and child both stale. The parent should still fire — there's
+        // nothing in the subtree to inherit credit from.
+        let parent = Goal(
+            title: "Ship side project",
+            createdDate: DateFormatting.dateString(daysAgo: 100),
+            checkIns: [GoalCheckIn(date: DateFormatting.dateString(daysAgo: 30), progressPct: 20)],
+            checkInIntervalDays: 7,
+            status: .active,
+            goalType: .standard
+        )
+        let child = Goal(
+            title: "Write landing copy",
+            createdDate: DateFormatting.dateString(daysAgo: 50),
+            checkIns: [GoalCheckIn(date: DateFormatting.dateString(daysAgo: 25), progressPct: 10)],
+            checkInIntervalDays: 7,
+            status: .active,
+            parentId: parent.id,
+            goalType: .standard
+        )
+
+        let signals = StagnationEngine.signals(goals: [parent, child], habits: [])
+        XCTAssertTrue(signals.contains { $0.goalId == parent.id && $0.title == "Check-in overdue" })
+        XCTAssertTrue(signals.contains { $0.goalId == child.id && $0.title == "Check-in overdue" })
+    }
+
+    func testEffectiveCheckInWalksGrandchildDescendants() {
+        // Grandparent → parent → grandchild. Only the grandchild is fresh.
+        // Both grandparent and parent should inherit that credit.
+        let grandparent = Goal(
+            title: "Build thing",
+            createdDate: DateFormatting.dateString(daysAgo: 200),
+            checkIns: [GoalCheckIn(date: DateFormatting.dateString(daysAgo: 60), progressPct: 10)],
+            checkInIntervalDays: 7,
+            status: .active,
+            goalType: .standard
+        )
+        let parent = Goal(
+            title: "Phase 1",
+            createdDate: DateFormatting.dateString(daysAgo: 150),
+            checkIns: [GoalCheckIn(date: DateFormatting.dateString(daysAgo: 50), progressPct: 20)],
+            checkInIntervalDays: 7,
+            status: .active,
+            parentId: grandparent.id,
+            goalType: .standard
+        )
+        let grandchild = Goal(
+            title: "Task A",
+            createdDate: DateFormatting.dateString(daysAgo: 100),
+            checkIns: [GoalCheckIn(date: DateFormatting.dateString(daysAgo: 2), progressPct: 50)],
+            checkInIntervalDays: 7,
+            status: .active,
+            parentId: parent.id,
+            goalType: .standard
+        )
+
+        let allGoals = [grandparent, parent, grandchild]
+        XCTAssertFalse(allGoals.effectiveNeedsCheckIn(for: grandparent))
+        XCTAssertFalse(allGoals.effectiveNeedsCheckIn(for: parent))
+        XCTAssertFalse(allGoals.effectiveNeedsCheckIn(for: grandchild))
+
+        let signals = StagnationEngine.signals(goals: allGoals, habits: [])
+        XCTAssertFalse(signals.contains { $0.title == "Check-in overdue" })
+    }
+
+    func testEffectiveCheckInIgnoresInactiveDescendants() {
+        // A completed/abandoned child shouldn't confer credit on its parent.
+        let parent = Goal(
+            title: "Active parent",
+            createdDate: DateFormatting.dateString(daysAgo: 100),
+            checkIns: [GoalCheckIn(date: DateFormatting.dateString(daysAgo: 30), progressPct: 20)],
+            checkInIntervalDays: 7,
+            status: .active,
+            goalType: .standard
+        )
+        let completedChild = Goal(
+            title: "Done child",
+            createdDate: DateFormatting.dateString(daysAgo: 50),
+            checkIns: [GoalCheckIn(date: DateFormatting.dateString(daysAgo: 1), progressPct: 100)],
+            checkInIntervalDays: 7,
+            status: .completed,
+            parentId: parent.id,
+            goalType: .standard
+        )
+
+        let allGoals = [parent, completedChild]
+        XCTAssertTrue(allGoals.effectiveNeedsCheckIn(for: parent))
     }
 }
 

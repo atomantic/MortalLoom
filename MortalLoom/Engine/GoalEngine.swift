@@ -156,11 +156,18 @@ enum GoalEngine {
 
     /// Project when a goal will be completed based on progress velocity.
     /// If check-ins are missed, the projection automatically extends.
+    ///
+    /// `daysSinceLastCheckInOverride` lets callers substitute the goal's
+    /// direct check-in freshness with a hierarchy-aware value — when the
+    /// user is checking in on sub-goals, the parent's projection shouldn't
+    /// be penalized for missed parent check-ins. Callers without a tree
+    /// context can leave this nil and the strict per-goal value is used.
     static func project(
         goal: Goal,
         deathDate: Date?,
         healthyCognitiveDate: Date?,
-        now: Date = Date()
+        now: Date = Date(),
+        daysSinceLastCheckInOverride: Int? = nil
     ) -> GoalProjection {
         let progress = goal.progressPercent
         let remaining = 100.0 - progress
@@ -190,8 +197,10 @@ enum GoalEngine {
             effectiveProgress = (sorted.last?.progressPct ?? 0) - (sorted.first?.progressPct ?? 0)
         }
 
-        // Missed check-ins extend the effective timeline
-        let daysSinceLastCheckIn = goal.daysSinceLastCheckIn
+        // Missed check-ins extend the effective timeline. Callers that know
+        // the hierarchy pass in an override so parent goals inherit credit
+        // from recent sub-goal check-ins.
+        let daysSinceLastCheckIn = daysSinceLastCheckInOverride ?? goal.daysSinceLastCheckIn
         let totalElapsed = effectiveDays + max(0, daysSinceLastCheckIn - goal.checkInIntervalDays)
 
         let ratePerDay = max(0.001, effectiveProgress / Double(totalElapsed))
@@ -204,6 +213,8 @@ enum GoalEngine {
         let exceedsCognitive = healthyCognitiveDate.map { projectedDate ?? now > $0 } ?? false
         let exceedsLife = deathDate.map { projectedDate ?? now > $0 } ?? false
 
+        let effectiveNeedsCheckIn = goal.status == .active
+            && daysSinceLastCheckIn >= goal.checkInIntervalDays
         let urgency: UrgencyLevel
         if exceedsLife {
             urgency = .impossible
@@ -211,7 +222,7 @@ enum GoalEngine {
             urgency = .critical
         } else if slippage > 0 {
             urgency = .atRisk
-        } else if goal.needsCheckIn {
+        } else if effectiveNeedsCheckIn {
             urgency = .slipping
         } else {
             urgency = .onTrack

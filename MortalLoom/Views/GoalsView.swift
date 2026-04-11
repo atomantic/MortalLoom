@@ -24,6 +24,9 @@ struct GoalsView: View {
     /// Per-goal stagnation signal (if any) — used to inject the suggested
     /// prompt at the top of CheckInSheet when opening a stale goal.
     @State private var signalByGoalId: [UUID: StagnationSignal] = [:]
+    /// Parent goals inherit credit from any active descendant's recent
+    /// check-in — prevents nag badges when sub-goals are being worked.
+    @State private var effectiveNeedsCheckInIds: Set<UUID> = []
 
     // Cached for reflatten without full reload
     @State private var cachedRoots: [Goal] = []
@@ -161,10 +164,21 @@ struct GoalsView: View {
         }
         let cogDate = GoalEngine.cognitiveDeadline(from: dc)
 
+        // Precompute effective latest check-in dates once so parent goals
+        // inherit freshness from sub-goal activity in both the projection
+        // math (slippage) and the overdue nags (attention count, chips).
+        let effectiveLatestDates = data.goals.effectiveLatestCheckInDates()
+
         var projs: [UUID: GoalEngine.GoalProjection] = [:]
         for goal in data.goals {
+            let days = DateFormatting.daysSince(
+                effectiveLatestDates[goal.id] ?? goal.createdDate
+            )
             projs[goal.id] = GoalEngine.project(
-                goal: goal, deathDate: dc?.deathDate, healthyCognitiveDate: cogDate
+                goal: goal,
+                deathDate: dc?.deathDate,
+                healthyCognitiveDate: cogDate,
+                daysSinceLastCheckInOverride: days
             )
         }
 
@@ -223,7 +237,15 @@ struct GoalsView: View {
         doneGoals = done
         activeCount = activeGoals.count
         completedCount = done.count { $0.status == .completed }
-        attentionCount = activeGoals.count { $0.needsCheckIn || $0.isOverdue }
+        var needsIds = Set<UUID>()
+        for g in data.goals where g.status == .active {
+            let days = DateFormatting.daysSince(effectiveLatestDates[g.id] ?? g.createdDate)
+            if days >= g.checkInIntervalDays { needsIds.insert(g.id) }
+        }
+        if effectiveNeedsCheckInIds != needsIds {
+            effectiveNeedsCheckInIds = needsIds
+        }
+        attentionCount = activeGoals.count { needsIds.contains($0.id) || $0.isOverdue }
         signalByGoalId = byGoal
         cachedRoots = roots
         cachedActiveByParent = activeByParent
@@ -525,19 +547,20 @@ struct GoalsView: View {
         let projection = projections[goal.id] ?? GoalEngine.project(
             goal: goal, deathDate: deathClock?.deathDate, healthyCognitiveDate: cognitiveDeadline
         )
+        let goalNeedsCheckIn = effectiveNeedsCheckInIds.contains(goal.id)
 
         return VStack(alignment: .leading, spacing: 10) {
             HStack {
                 if !isLifelong {
                     priorityDot(goal.priority)
                 }
-                goalTypeBadge(goal.goalType)
+                GoalsViewHelpers.goalTypeBadge(goal.goalType)
                 Text(goal.title)
                     .font(.headline)
                     .foregroundColor(.textPrimary)
                     .lineLimit(1)
                 Spacer()
-                if goal.needsCheckIn || goal.isOverdue {
+                if goalNeedsCheckIn || goal.isOverdue {
                     Image(systemName: "bell.badge.fill")
                         .font(.caption)
                         .foregroundColor(.warning)
@@ -596,7 +619,7 @@ struct GoalsView: View {
                         infoChip(icon: "exclamationmark.triangle", text: "+\(DateFormatting.formatDuration(projection.slippageDays))", color: .warning)
                     }
 
-                    if goal.needsCheckIn {
+                    if goalNeedsCheckIn {
                         infoChip(icon: "bell.badge", text: "Check in", color: .warning)
                     }
 
@@ -676,8 +699,8 @@ struct GoalsView: View {
     private func classificationChips(for goal: Goal) -> some View {
         if goal.category != nil || goal.horizon != nil {
             HStack(spacing: 6) {
-                if let cat = goal.category { categoryChip(cat) }
-                if let hz = goal.horizon { horizonChip(hz) }
+                if let cat = goal.category { GoalsViewHelpers.categoryChip(cat) }
+                if let hz = goal.horizon { GoalsViewHelpers.horizonChip(hz) }
             }
         }
     }
@@ -785,38 +808,6 @@ struct GoalsView: View {
         .foregroundColor(color)
     }
 
-    @ViewBuilder
-    private func goalTypeBadge(_ goalType: GoalType?) -> some View {
-        if let gt = goalType, gt != .standard {
-            Image(systemName: gt.icon)
-                .font(.caption2)
-                .foregroundColor(gt == .apex ? .warning : .accentColor)
-        }
-    }
-
-    private func categoryChip(_ cat: GoalCategory) -> some View {
-        HStack(spacing: 3) {
-            Image(systemName: cat.icon)
-                .font(.system(size: 9))
-            Text(cat.label)
-                .font(.system(size: 10))
-        }
-        .foregroundColor(cat.swiftUIColor)
-        .padding(.horizontal, 6)
-        .padding(.vertical, 2)
-        .background(cat.swiftUIColor.opacity(0.15))
-        .cornerRadius(4)
-    }
-
-    private func horizonChip(_ hz: GoalHorizon) -> some View {
-        Text(hz.label)
-            .font(.system(size: 10))
-            .foregroundColor(.textSecondary)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(Color.textSecondary.opacity(0.12))
-            .cornerRadius(4)
-    }
 
     private func lifespanWarning(_ message: String) -> some View {
         HStack(alignment: .top, spacing: 8) {
@@ -1409,6 +1400,7 @@ struct CheckInSheet: View {
                 if let signal = stagnationSignal, showStagnationBanner {
                     stagnationBanner(signal)
                 }
+                goalContextHeader
                 if isLifelong {
                     reflectionForm
                 } else {
@@ -1434,6 +1426,54 @@ struct CheckInSheet: View {
                 if isLifelong && selectedPrompt.isEmpty {
                     selectedPrompt = stagnationSignal?.suggestedPrompt
                         ?? ReflectionPrompts.nextPrompt(for: goal)
+                }
+            }
+        }
+    }
+
+    /// Shows what the user tapped on while they reflect — title, notes (why),
+    /// type, category, horizon, target date.
+    @ViewBuilder
+    private var goalContextHeader: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    if let type = goal.goalType {
+                        GoalsViewHelpers.goalTypeBadge(type)
+                        Text(type.label.uppercased())
+                            .font(.caption2).fontWeight(.semibold)
+                            .tracking(0.6)
+                            .foregroundColor(.textMuted)
+                    }
+                    Spacer()
+                    if let cat = goal.category {
+                        GoalsViewHelpers.categoryChip(cat)
+                    }
+                }
+
+                Text(goal.title)
+                    .font(.headline)
+                    .foregroundColor(.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if !goal.notes.isEmpty {
+                    Text(goal.notes)
+                        .font(.subheadline)
+                        .foregroundColor(.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                if goal.horizon != nil || (!isLifelong && goal.targetDate != nil) {
+                    HStack(spacing: 10) {
+                        if let horizon = goal.horizon {
+                            GoalsViewHelpers.horizonChip(horizon)
+                        }
+                        if !isLifelong, let target = goal.targetDate {
+                            Label(DateFormatting.displayDate(target), systemImage: "calendar")
+                                .font(.caption2)
+                                .foregroundColor(.textMuted)
+                        }
+                    }
                 }
             }
         }
@@ -1553,15 +1593,6 @@ struct CheckInSheet: View {
 
     @ViewBuilder
     private var reflectionForm: some View {
-        Section {
-            Text(goal.title)
-                .font(.headline)
-                .foregroundColor(.textPrimary)
-            Text("Reflect on how aligned your recent time has been with this \(goal.goalType?.label.lowercased() ?? "goal").")
-                .font(.caption)
-                .foregroundColor(.textSecondary)
-        }
-
         Section("How aligned are you feeling?") {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
@@ -1696,5 +1727,45 @@ struct CheckInSheet: View {
 
         onSave(updated)
         dismiss()
+    }
+}
+
+// MARK: - Shared Chip Helpers
+
+/// File-private chip builders shared between GoalsView and CheckInSheet so
+/// the category/horizon/type badge styling doesn't drift between the list
+/// card and the check-in header.
+fileprivate enum GoalsViewHelpers {
+    @ViewBuilder
+    static func goalTypeBadge(_ goalType: GoalType?) -> some View {
+        if let gt = goalType, gt != .standard {
+            Image(systemName: gt.icon)
+                .font(.caption2)
+                .foregroundColor(gt == .apex ? .warning : .accentColor)
+        }
+    }
+
+    static func categoryChip(_ cat: GoalCategory) -> some View {
+        HStack(spacing: 3) {
+            Image(systemName: cat.icon)
+                .font(.system(size: 9))
+            Text(cat.label)
+                .font(.system(size: 10))
+        }
+        .foregroundColor(cat.swiftUIColor)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(cat.swiftUIColor.opacity(0.15))
+        .cornerRadius(4)
+    }
+
+    static func horizonChip(_ hz: GoalHorizon) -> some View {
+        Text(hz.label)
+            .font(.system(size: 10))
+            .foregroundColor(.textSecondary)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Color.textSecondary.opacity(0.12))
+            .cornerRadius(4)
     }
 }

@@ -72,6 +72,13 @@ enum DateFormatting {
         isoFormatter.date(from: str)
     }
 
+    /// Whole days elapsed since `dateStr` (an ISO "yyyy-MM-dd"). Returns 0
+    /// when the string is unparseable so callers don't have to branch.
+    static func daysSince(_ dateStr: String, now: Date = Date()) -> Int {
+        guard let date = dateFromString(dateStr) else { return 0 }
+        return Calendar.current.dateComponents([.day], from: date, to: now).day ?? 0
+    }
+
     static func displayDate(_ isoString: String) -> String {
         guard let date = isoFormatter.date(from: isoString) else { return isoString }
         return displayFormatter.string(from: date)
