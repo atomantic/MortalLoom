@@ -265,7 +265,14 @@ struct MacContentView: View {
                         .font(.title3).fontWeight(.bold)
                         .foregroundColor(.textPrimary)
                     #if DEBUG
-                    DebugBuildBadge()
+                    // Hidden in -sample-data mode so App Store screenshots
+                    // captured via the automation flow don't include the
+                    // DEBUG pill. The badge is a safety cue for real-data
+                    // debug sessions; sample-data mode is hard-isolated from
+                    // iCloud/HealthKit so the warning isn't load-bearing.
+                    if !AppConstants.useSampleData {
+                        DebugBuildBadge()
+                    }
                     #endif
                     Spacer()
                     if ICloudMonitor.shared.isICloud {

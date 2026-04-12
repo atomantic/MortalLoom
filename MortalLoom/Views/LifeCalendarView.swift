@@ -411,8 +411,6 @@ struct LifeCalendarView: View {
 
             yearMonthLegend
 
-            tooltipOverlay
-
             let rows = (lifeExpectancyYears + cols - 1) / cols
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: cols), spacing: 4) {
                 ForEach(0..<(rows * cols), id: \.self) { i in
@@ -456,6 +454,7 @@ struct LifeCalendarView: View {
         .padding()
         .frame(maxWidth: .infinity)
         .cardStyle()
+        .overlay(alignment: .top) { tooltipOverlay }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Life in years grid: \(currentAgeYear) years lived, \(String(format: "%.1f", yearsRemaining)) remaining of \(lifeExpectancyYears) total")
     }
@@ -493,19 +492,33 @@ struct LifeCalendarView: View {
 
             yearMonthLegend
 
-            tooltipOverlay
-
             GeometryReader { geo in
                 let availableWidth = geo.size.width
                 let labelWidth: CGFloat = 28
                 let gridWidth = availableWidth - labelWidth - 4
-                let cellSize = max(4, min(18, gridWidth / 12 - 2))
-                let spacing: CGFloat = 2
-                let totalHeight = CGFloat(lifeExpectancyYears) * (cellSize + spacing) + spacing
+                let layout = monthsLayout(gridWidth: gridWidth)
+                let cellSize = layout.cellSize
+                let spacing = layout.spacing
+                let monthsPerRow = layout.monthsPerRow
+                let totalMonthCells = lifeExpectancyYears * 12
+                let totalRows = (totalMonthCells + monthsPerRow - 1) / monthsPerRow
+                let totalHeight = CGFloat(totalRows) * (cellSize + spacing) + spacing
+                // Hoisted out of Canvas body so the Set<Int> allocation
+                // doesn't rebuild on every repaint.
+                let goalIndices = goalMonthSet
+                let projectedIndices = projectedMonthSet
 
                 ScrollView(.vertical, showsIndicators: true) {
                     Canvas { context, size in
-                        drawMonthsGrid(context: &context, labelWidth: labelWidth, cellSize: cellSize, spacing: spacing)
+                        drawMonthsGrid(
+                            context: &context,
+                            labelWidth: labelWidth,
+                            cellSize: cellSize,
+                            spacing: spacing,
+                            monthsPerRow: monthsPerRow,
+                            goalIndices: goalIndices,
+                            projectedIndices: projectedIndices
+                        )
                     }
                     .frame(width: availableWidth, height: totalHeight)
                     .gesture(
@@ -513,13 +526,17 @@ struct LifeCalendarView: View {
                             .onEnded { value in
                                 let y = value.location.y - spacing
                                 let x = value.location.x - labelWidth - 4
-                                let year = Int(y / (cellSize + spacing))
-                                let month = Int(x / (cellSize + spacing))
-                                guard year >= 0, year < lifeExpectancyYears, month >= 0, month < 12 else {
+                                let row = Int(y / (cellSize + spacing))
+                                let col = Int(x / (cellSize + spacing))
+                                guard row >= 0, col >= 0, col < monthsPerRow else {
                                     tooltipInfo = nil
                                     return
                                 }
-                                let monthIndex = year * 12 + month
+                                let monthIndex = row * monthsPerRow + col
+                                guard monthIndex < totalMonthCells else {
+                                    tooltipInfo = nil
+                                    return
+                                }
                                 withAnimation(.easeInOut(duration: 0.15)) {
                                     let tip = tooltipForMonth(monthIndex)
                                     tooltipInfo = tooltipInfo == tip ? nil : tip
@@ -533,15 +550,49 @@ struct LifeCalendarView: View {
         .padding()
         .frame(maxWidth: .infinity)
         .cardStyle()
+        .overlay(alignment: .top) { tooltipOverlay }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Life in months grid: \(currentMonth) months lived, \(monthsRemaining) remaining")
     }
 
     private var monthGridHeight: CGFloat {
         #if os(macOS)
-        return min(CGFloat(lifeExpectancyYears * 16 + 20), 700)
+        // Hug content up to a cap so short lifespans don't leave a giant
+        // empty canvas. ~24pt per row matches the default macOS cell stride
+        // and the ScrollView handles overflow past the cap.
+        return min(CGFloat(lifeExpectancyYears) * 24 + 20, 720)
         #else
         return min(CGFloat(lifeExpectancyYears * 16 + 20), 600)
+        #endif
+    }
+
+    #if os(macOS)
+    // Each candidate must divide 12 evenly so every row spans a whole
+    // number of years and the year-start label math stays clean.
+    private static let macMonthRowCandidates: [Int] = [36, 24, 12]
+    private static let macMonthTargetCellSize: CGFloat = 24
+    private static let macMonthMinCellSize: CGFloat = 8
+    private static let macMonthMaxCellSize: CGFloat = 48
+    private static let macMonthSpacing: CGFloat = 3
+    #endif
+
+    /// Picks a months-per-row density based on available width, targeting
+    /// `macMonthTargetCellSize` cells. Wider windows flow into 24 or 36
+    /// months per row (2 or 3 years on the same line) so the grid is
+    /// denser without requiring the user to scroll a long vertical strip.
+    private func monthsLayout(gridWidth: CGFloat) -> (monthsPerRow: Int, cellSize: CGFloat, spacing: CGFloat) {
+        #if os(macOS)
+        let spacing = Self.macMonthSpacing
+        let target = Self.macMonthTargetCellSize
+        let perRow = Self.macMonthRowCandidates.first {
+            gridWidth >= CGFloat($0) * target + CGFloat($0 - 1) * spacing
+        } ?? 12
+        let rawCell = (gridWidth - CGFloat(perRow - 1) * spacing) / CGFloat(perRow)
+        let cellSize = max(Self.macMonthMinCellSize, min(Self.macMonthMaxCellSize, rawCell))
+        return (perRow, cellSize, spacing)
+        #else
+        let cellSize = max(4, min(18, gridWidth / 12 - 2))
+        return (12, cellSize, 2)
         #endif
     }
 
@@ -549,35 +600,47 @@ struct LifeCalendarView: View {
         context: inout GraphicsContext,
         labelWidth: CGFloat,
         cellSize: CGFloat,
-        spacing: CGFloat
+        spacing: CGFloat,
+        monthsPerRow: Int,
+        goalIndices: Set<Int>,
+        projectedIndices: Set<Int>
     ) {
         let cornerRadius = max(1, cellSize * 0.2)
         let spentShading: GraphicsContext.Shading = .color(.textPrimary.opacity(0.25))
         let currentShading: GraphicsContext.Shading = .color(.accentColor)
-        let futureStrokeShading: GraphicsContext.Shading = .color(.cardBorder.opacity(0.2))
+        // Future cells need a visible bed in dark mode — a thin stroke at
+        // 20% opacity disappears against near-black backgrounds. Use a
+        // faint fill so every cell is legible.
+        let futureFillShading: GraphicsContext.Shading = .color(.textPrimary.opacity(0.08))
+        let futureStrokeShading: GraphicsContext.Shading = .color(.textPrimary.opacity(0.18))
         let milestoneShading: GraphicsContext.Shading = .color(.purple.opacity(0.5))
         let goalShading: GraphicsContext.Shading = .color(.teal)
         let projectedShading: GraphicsContext.Shading = .color(.teal.opacity(0.5))
 
         let milestoneMonths = Set(Self.milestoneAges.map { $0 * 12 })
-        // Convert week indices to month indices (approximate: week / 4.33)
-        let goalMonthIndices = goalMonthSet
-        let projectedMonthIndices = projectedMonthSet
 
-        for year in 0..<lifeExpectancyYears {
-            let y = CGFloat(year) * (cellSize + spacing) + spacing
+        let totalMonthCells = lifeExpectancyYears * 12
+        let totalRows = (totalMonthCells + monthsPerRow - 1) / monthsPerRow
+        // Label every row; the row-to-year formula produces stride
+        // `monthsPerRow / 12` so labels read 0, 2, 4… at 24/row or 0, 3, 6…
+        // at 36/row.
+        let labelFontSize = max(7, min(10, cellSize * 0.45))
 
-            if year % 10 == 0 || year == lifeExpectancyYears - 1 {
-                let text = Text("\(year)")
-                    .font(.system(size: max(7, min(10, cellSize * 0.7))))
-                    .foregroundColor(.textMuted)
-                let resolvedText = context.resolve(text)
-                context.draw(resolvedText, at: CGPoint(x: labelWidth / 2, y: y + cellSize / 2), anchor: .center)
-            }
+        for row in 0..<totalRows {
+            let y = CGFloat(row) * (cellSize + spacing) + spacing
+            let firstMonthInRow = row * monthsPerRow
+            let yearOfRow = firstMonthInRow / 12
+            let text = Text("\(yearOfRow)")
+                .font(.system(size: labelFontSize))
+                .foregroundColor(.textMuted)
+            let resolvedText = context.resolve(text)
+            context.draw(resolvedText, at: CGPoint(x: labelWidth / 2, y: y + cellSize / 2), anchor: .center)
 
-            for month in 0..<12 {
-                let monthIndex = year * 12 + month
-                let x = labelWidth + 4 + CGFloat(month) * (cellSize + spacing)
+            for col in 0..<monthsPerRow {
+                let monthIndex = row * monthsPerRow + col
+                if monthIndex >= totalMonthCells { break }
+
+                let x = labelWidth + 4 + CGFloat(col) * (cellSize + spacing)
                 let rect = CGRect(x: x, y: y, width: cellSize, height: cellSize)
                 let path = Path(roundedRect: rect, cornerRadius: cornerRadius)
 
@@ -585,11 +648,11 @@ struct LifeCalendarView: View {
                     let expand: CGFloat = cellSize * 0.15
                     let expandedRect = CGRect(x: x - expand / 2, y: y - expand / 2, width: cellSize + expand, height: cellSize + expand)
                     context.fill(Path(roundedRect: expandedRect, cornerRadius: cornerRadius * 1.2), with: currentShading)
-                } else if goalMonthIndices.contains(monthIndex) {
+                } else if goalIndices.contains(monthIndex) {
                     let expand: CGFloat = cellSize * 0.1
                     let expandedRect = CGRect(x: x - expand / 2, y: y - expand / 2, width: cellSize + expand, height: cellSize + expand)
                     context.fill(Path(roundedRect: expandedRect, cornerRadius: cornerRadius), with: goalShading)
-                } else if projectedMonthIndices.contains(monthIndex) {
+                } else if projectedIndices.contains(monthIndex) {
                     let expand: CGFloat = cellSize * 0.1
                     let expandedRect = CGRect(x: x - expand / 2, y: y - expand / 2, width: cellSize + expand, height: cellSize + expand)
                     context.fill(Path(roundedRect: expandedRect, cornerRadius: cornerRadius), with: projectedShading)
@@ -598,6 +661,7 @@ struct LifeCalendarView: View {
                 } else if monthIndex < currentMonth && showLived {
                     context.fill(path, with: spentShading)
                 } else if monthIndex < totalMonths {
+                    context.fill(path, with: futureFillShading)
                     context.stroke(path, with: futureStrokeShading, lineWidth: 0.5)
                 }
             }
@@ -627,13 +691,15 @@ struct LifeCalendarView: View {
 
             weeksLegend
 
-            tooltipOverlay
-
             GeometryReader { geo in
                 let availableWidth = geo.size.width
                 let labelWidth: CGFloat = 28
                 let gridWidth = availableWidth - labelWidth - 4
+                #if os(macOS)
+                let cellSize = max(4, min(16, gridWidth / 52 - 1))
+                #else
                 let cellSize = max(3, min(7, gridWidth / 52))
+                #endif
                 let spacing: CGFloat = max(0.5, cellSize * 0.15)
                 let totalHeight = CGFloat(lifeExpectancyYears) * (cellSize + spacing) + spacing
 
@@ -667,13 +733,16 @@ struct LifeCalendarView: View {
         .padding()
         .frame(maxWidth: .infinity)
         .cardStyle()
+        .overlay(alignment: .top) { tooltipOverlay }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Life in weeks grid: \(currentWeek) weeks lived, \(weeksRemaining) remaining")
     }
 
     private var weeksGridHeight: CGFloat {
         #if os(macOS)
-        return min(CGFloat(lifeExpectancyYears * 8 + 20), 700)
+        // Larger macOS cells (up to 16pt) — ~18pt per year accounts for
+        // cell + ~2pt spacing.
+        return min(CGFloat(lifeExpectancyYears * 18 + 20), 1400)
         #else
         return min(CGFloat(lifeExpectancyYears * 8 + 20), 600)
         #endif
@@ -686,7 +755,7 @@ struct LifeCalendarView: View {
                 legendItem(color: .textPrimary.opacity(0.25), label: "Lived")
             }
             legendItem(color: .accentColor, label: "Now")
-            legendItem(color: .clear, borderColor: .cardBorder.opacity(0.2), label: "Future")
+            legendItem(color: .textPrimary.opacity(0.08), borderColor: .textPrimary.opacity(0.18), label: "Future")
             legendItem(color: .purple.opacity(0.4), label: "Milestone")
             if !goalMarkers.isEmpty {
                 legendItem(color: .teal, label: "Goal")
@@ -702,7 +771,7 @@ struct LifeCalendarView: View {
                 legendItem(color: .textPrimary.opacity(0.25), label: "Lived")
             }
             legendItem(color: .accentColor, label: "This Week")
-            legendItem(color: .clear, borderColor: .cardBorder.opacity(0.2), label: "Future")
+            legendItem(color: .textPrimary.opacity(0.08), borderColor: .textPrimary.opacity(0.18), label: "Future")
             legendItem(color: .purple.opacity(0.5), label: "Milestone")
             if !goalMarkers.isEmpty {
                 legendItem(color: .teal, label: "Goal")
@@ -738,7 +807,10 @@ struct LifeCalendarView: View {
 
         let spentShading: GraphicsContext.Shading = .color(.textPrimary.opacity(0.25))
         let currentShading: GraphicsContext.Shading = .color(.accentColor)
-        let futureStrokeShading: GraphicsContext.Shading = .color(.cardBorder.opacity(0.2))
+        // Fill + stroke so every cell is visible in dark mode. See months
+        // grid for rationale.
+        let futureFillShading: GraphicsContext.Shading = .color(.textPrimary.opacity(0.08))
+        let futureStrokeShading: GraphicsContext.Shading = .color(.textPrimary.opacity(0.18))
         let milestoneShading: GraphicsContext.Shading = .color(.purple.opacity(0.5))
         let deathShading: GraphicsContext.Shading = .color(.danger.opacity(0.7))
         let goalShading: GraphicsContext.Shading = .color(.teal)
@@ -786,6 +858,7 @@ struct LifeCalendarView: View {
                 } else if weekIndex < currentWeek && showLived {
                     context.fill(path, with: spentShading)
                 } else {
+                    context.fill(path, with: futureFillShading)
                     context.stroke(path, with: futureStrokeShading, lineWidth: 0.5)
                 }
             }
@@ -881,8 +954,13 @@ struct LifeCalendarView: View {
                 }
             }
             .padding(10)
-            .cardStyle(fill: .bgCard, border: .accentColor.opacity(0.3))
+            .frame(maxWidth: 340)
+            .cardStyle(fill: .bgCard, border: .accentColor.opacity(0.4))
+            .shadow(color: .black.opacity(0.3), radius: 12, y: 4)
+            .padding(.top, 56)
+            .padding(.horizontal, 16)
             .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            .allowsHitTesting(true)
         }
     }
 

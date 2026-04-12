@@ -208,6 +208,28 @@ extension View {
         self
         #endif
     }
+
+    /// Applies `.formStyle(.grouped)` on macOS so Form rows lay out in the
+    /// System-Settings-style label/value columns instead of the older plain
+    /// list. No-op on iOS where Form already uses grouped rendering.
+    func macGroupedFormStyle() -> some View {
+        #if os(macOS)
+        formStyle(.grouped)
+        #else
+        self
+        #endif
+    }
+
+    /// Sheet frame sized for macOS form modals (Goal edit, Check-in, etc.).
+    /// macOS default sheets are ~420pt wide — too narrow for a labeled form.
+    /// No-op on iOS where sheets fill the screen or use detents.
+    func macSheetFrame(minHeight: CGFloat = 600, idealHeight: CGFloat = 720) -> some View {
+        #if os(macOS)
+        frame(minWidth: 560, idealWidth: 640, minHeight: minHeight, idealHeight: idealHeight)
+        #else
+        self
+        #endif
+    }
 }
 
 // MARK: - Pro Brand Gradient

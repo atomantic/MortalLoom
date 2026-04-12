@@ -125,7 +125,9 @@ struct SideMenuView: View {
                 .fontWeight(.bold)
                 .foregroundColor(.textPrimary)
             #if DEBUG
-            DebugBuildBadge()
+            if !AppConstants.useSampleData {
+                DebugBuildBadge()
+            }
             #endif
             Spacer()
             Button { dismiss() } label: {

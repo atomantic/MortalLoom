@@ -947,7 +947,7 @@ struct GoalEditSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField(goalTitlePlaceholder, text: $title)
+                    TextField("Title", text: $title, prompt: Text(goalTitlePlaceholder))
                     if title.trimmingCharacters(in: .whitespaces).isEmpty {
                         Text("Give this goal a title to save.")
                             .font(.caption2)
@@ -1131,10 +1131,9 @@ struct GoalEditSheet: View {
                     }
                 }
             }
+            .macGroupedFormStyle()
             .navigationTitle(goal == nil ? "New Goal" : "Edit Goal")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -1178,6 +1177,7 @@ struct GoalEditSheet: View {
                 }
             }
         }
+        .macSheetFrame()
     }
 
     /// Show the list of stagnation signal titles currently firing for this
@@ -1407,10 +1407,9 @@ struct CheckInSheet: View {
                     progressForm
                 }
             }
+            .macGroupedFormStyle()
             .navigationTitle(isLifelong ? "Reflect" : "Check In")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -1429,6 +1428,7 @@ struct CheckInSheet: View {
                 }
             }
         }
+        .macSheetFrame(minHeight: 560, idealHeight: 680)
     }
 
     /// Shows what the user tapped on while they reflect — title, notes (why),

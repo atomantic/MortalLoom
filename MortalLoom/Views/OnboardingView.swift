@@ -125,12 +125,13 @@ struct OnboardingView: View {
     @ViewBuilder
     private var welcomeStep: some View {
         stepContainer {
+            // The AppIcon source PNG already has the squircle shape and a
+            // solid background — don't add an extra clip or shadow, they'd
+            // fight the baked-in corners.
             Image("AppLogo")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 96, height: 96)
-                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
                 .padding(.bottom, 8)
                 .accessibilityHidden(true)
             stepTitle("Welcome to MortalLoom")
@@ -225,6 +226,16 @@ struct OnboardingView: View {
     @ViewBuilder
     private var escapeVelocityStep: some View {
         stepContainer {
+            // Source image is 1200×821 (~1.46:1). On iPhone the 130pt banner
+            // works because screen width constrains the fill; on macOS the
+            // 600pt+ window makes 130pt too short, leaving a thin strip.
+            // Use a taller banner on macOS where the 700pt+ window has room.
+            #if os(macOS)
+            let bannerHeight: CGFloat = 280
+            #else
+            let bannerHeight: CGFloat = 130
+            #endif
+
             // Top-anchored crop shifted up 20pt so the arrow apex stays
             // visible AND more of the trajectory line below is shown.
             // The overlay + Color pattern is needed because
@@ -233,7 +244,7 @@ struct OnboardingView: View {
             // clipped container.
             Color.clear
                 .frame(maxWidth: .infinity)
-                .frame(height: 130)
+                .frame(height: bannerHeight)
                 .overlay(alignment: .top) {
                     Image("EscapeVelocity")
                         .resizable()
@@ -286,6 +297,55 @@ struct OnboardingView: View {
 
     @ViewBuilder
     private var healthKitStep: some View {
+        #if os(macOS)
+        healthKitCompanionStep
+        #else
+        healthKitRequestStep
+        #endif
+    }
+
+    #if os(macOS)
+    /// macOS can't talk to HealthKit — it lives on iPhone/iPad. Instead of
+    /// showing a dead-end request screen, point users at the iOS companion
+    /// app and explain that iCloud sync carries the data across.
+    @ViewBuilder
+    private var healthKitCompanionStep: some View {
+        stepContainer {
+            stepIcon("iphone.and.arrow.forward")
+            stepTitle("Apple Health lives on iPhone")
+            stepDescription("HealthKit is only available on iPhone and iPad. Install MortalLoom there to pull in steps, heart rate, sleep, and blood markers — it'll sync to this Mac automatically via iCloud.")
+
+            Spacer(minLength: 20)
+
+            VStack(alignment: .leading, spacing: 14) {
+                privacyBullet(
+                    icon: "square.and.arrow.down",
+                    title: "Install on iPhone or iPad",
+                    detail: "Search \u{201C}MortalLoom\u{201D} on the App Store and sign in with the same Apple ID."
+                )
+                privacyBullet(
+                    icon: "heart.text.clipboard",
+                    title: "Grant Health access there",
+                    detail: "The iOS app will ask permission to read the data categories MortalLoom uses."
+                )
+                privacyBullet(
+                    icon: "icloud",
+                    title: "iCloud syncs it here",
+                    detail: "Your health snapshot arrives on this Mac automatically — no accounts, no servers, no telemetry."
+                )
+            }
+            .padding(.horizontal, 8)
+
+            Spacer()
+
+            primaryButton("Next") { advanceStep() }
+        }
+    }
+    #endif
+
+    #if os(iOS)
+    @ViewBuilder
+    private var healthKitRequestStep: some View {
         stepContainer {
             stepIcon("heart.fill")
             stepTitle("Connect Apple Health")
@@ -353,6 +413,7 @@ struct OnboardingView: View {
             }
         }
     }
+    #endif
 
     // MARK: - Step 6: Birth Date (tag 6)
 
@@ -370,10 +431,27 @@ struct OnboardingView: View {
                 .datePickerStyle(.wheel)
                 .labelsHidden()
             #else
-            DatePicker("Birth Date", selection: $birthDate, in: ...Date(), displayedComponents: .date)
-                .datePickerStyle(.graphical)
-                .labelsHidden()
-                .frame(maxWidth: 400)
+            // `.compact` on macOS renders as a text-field-with-steppers
+            // form control — same pattern System Settings uses for date
+            // entry. `.graphical` would require clicking back ~960 months
+            // for a birth date decades ago; `.field` on macOS 14+ jams
+            // an inline calendar next to the text box.
+            //
+            // DatePicker with `labelsHidden()` still allocates some label
+            // space internally on macOS, which left-biases a center-aligned
+            // VStack. Wrap it in an HStack+Spacers for explicit centering.
+            HStack {
+                Spacer()
+                DatePicker("Birth Date", selection: $birthDate, in: ...Date(), displayedComponents: .date)
+                    .datePickerStyle(.compact)
+                    .labelsHidden()
+                    .controlSize(.large)
+                    .font(.title2)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 16)
+                    .cardStyle(fill: .bgInput.opacity(0.4), radius: 12)
+                Spacer()
+            }
             #endif
 
             Spacer()
