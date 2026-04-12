@@ -646,6 +646,7 @@ private struct BloodTestFormView: View {
                 .frame(width: 44, alignment: .leading)
         }
         .padding(.vertical, 6)
+        .padding(.horizontal, 16)
     }
 
     private func binding(for key: String) -> Binding<String> {

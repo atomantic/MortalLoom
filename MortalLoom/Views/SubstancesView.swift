@@ -1778,6 +1778,7 @@ struct SubstancesView: View {
                 }
             }
             .macGroupedFormStyle()
+            .macSheetFrame(minHeight: 360, idealHeight: 480)
             .navigationTitle("Edit Session")
             .inlineNavigationTitle()
             .toolbar {
@@ -1884,6 +1885,7 @@ struct SubstancesView: View {
                 }
             }
             .macGroupedFormStyle()
+            .macSheetFrame(minHeight: 360, idealHeight: 480)
             .navigationTitle("Edit Drink")
             .inlineNavigationTitle()
             .toolbar {
@@ -1956,6 +1958,7 @@ struct SubstancesView: View {
                 }
             }
             .macGroupedFormStyle()
+            .macSheetFrame(minHeight: 360, idealHeight: 480)
             .navigationTitle("Edit Entry")
             .inlineNavigationTitle()
             .toolbar {

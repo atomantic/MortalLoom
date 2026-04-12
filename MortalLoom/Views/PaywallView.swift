@@ -29,6 +29,7 @@ struct PaywallView: View {
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
+            .macSheetFrame(minHeight: 480, idealHeight: 560)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }

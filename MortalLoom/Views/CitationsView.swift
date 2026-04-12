@@ -35,6 +35,7 @@ struct CitationsView: View {
             .padding()
         }
         .background(Color.bg)
+        .macSheetFrame()
     }
 
     // MARK: - Components

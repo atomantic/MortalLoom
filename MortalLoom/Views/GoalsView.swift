@@ -128,6 +128,7 @@ struct GoalsView: View {
                     }
                 }
             }
+            .macSheetFrame()
         }
         .task { await loadData() }
         .onReceive(NotificationCenter.default.publisher(for: .dataDidSync)) { _ in
