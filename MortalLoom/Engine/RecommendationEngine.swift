@@ -9,6 +9,9 @@ enum RecommendationEngine {
         let detail: String
         let yearsGained: Double
         let targetPage: Int // AppPage rawValue for navigation
+        /// IDs from `CitationLibrary` documenting the peer-reviewed / authoritative
+        /// source behind this recommendation. Rendered as a `CitationBadge` in the UI.
+        let citationIds: [String]
     }
 
     /// Generate personalized recommendations based on current lifestyle and health data.
@@ -32,7 +35,11 @@ enum RecommendationEngine {
                 title: "Quit Smoking",
                 detail: "Quitting could add up to 10 years. Even becoming a former smoker gains +8 years over current.",
                 yearsGained: 10.0,
-                targetPage: 4 // lifestyle
+                targetPage: 4, // lifestyle
+                citationIds: [
+                    CitationLibrary.dollSmoking2004.id,
+                    CitationLibrary.jhaSmoking2013.id,
+                ]
             ))
         case .former:
             // Already quit — no further action, but acknowledge
@@ -52,7 +59,11 @@ enum RecommendationEngine {
                 title: "Exercise 150+ min/week",
                 detail: "You're at \(lifestyle.exerciseMinutesPerWeek) min/week. Reaching 150 meets WHO guidelines.",
                 yearsGained: gain,
-                targetPage: 4
+                targetPage: 4,
+                citationIds: [
+                    CitationLibrary.whoPhysicalActivity.id,
+                    CitationLibrary.arem2015Exercise.id,
+                ]
             ))
         } else if lifestyle.exerciseMinutesPerWeek < 150 {
             let currentImpact = DeathClockEngine.exerciseImpact(lifestyle.exerciseMinutesPerWeek)
@@ -64,7 +75,11 @@ enum RecommendationEngine {
                 title: "Reach 150 min/week",
                 detail: "You're at \(lifestyle.exerciseMinutesPerWeek) min/week — close to the WHO target.",
                 yearsGained: gain,
-                targetPage: 4
+                targetPage: 4,
+                citationIds: [
+                    CitationLibrary.whoPhysicalActivity.id,
+                    CitationLibrary.arem2015Exercise.id,
+                ]
             ))
         }
 
@@ -82,7 +97,11 @@ enum RecommendationEngine {
                     title: "Get 7-9 hours of sleep",
                     detail: "At \(String(format: "%.1f", sleepH))h/night, try sleeping \(direction). Optimal is 7-9 hours.",
                     yearsGained: gain,
-                    targetPage: 4
+                    targetPage: 4,
+                    citationIds: [
+                        CitationLibrary.cappuccioSleep2010.id,
+                        CitationLibrary.nsfSleepDuration.id,
+                    ]
                 ))
             }
         }
@@ -97,7 +116,11 @@ enum RecommendationEngine {
                 title: "Improve your diet",
                 detail: "Moving from poor to good diet quality adds years. Focus on whole foods and vegetables.",
                 yearsGained: gain,
-                targetPage: 4
+                targetPage: 4,
+                citationIds: [
+                    CitationLibrary.predimedMedDiet.id,
+                    CitationLibrary.gbdDiet2019.id,
+                ]
             ))
         case .fair:
             let gain = DeathClockEngine.dietImpact(.good) - DeathClockEngine.dietImpact(.fair)
@@ -107,7 +130,11 @@ enum RecommendationEngine {
                 title: "Upgrade diet to Good",
                 detail: "Small improvements — more vegetables, less processed food — add up.",
                 yearsGained: gain,
-                targetPage: 4
+                targetPage: 4,
+                citationIds: [
+                    CitationLibrary.predimedMedDiet.id,
+                    CitationLibrary.gbdDiet2019.id,
+                ]
             ))
         case .good:
             let gain = DeathClockEngine.dietImpact(.excellent) - DeathClockEngine.dietImpact(.good)
@@ -117,7 +144,11 @@ enum RecommendationEngine {
                 title: "Aim for excellent diet",
                 detail: "Mediterranean or plant-rich diets are linked to the highest longevity gains.",
                 yearsGained: gain,
-                targetPage: 4
+                targetPage: 4,
+                citationIds: [
+                    CitationLibrary.predimedMedDiet.id,
+                    CitationLibrary.gbdDiet2019.id,
+                ]
             ))
         case .excellent:
             break
@@ -133,7 +164,11 @@ enum RecommendationEngine {
                 title: "Reduce stress levels",
                 detail: "Chronic stress shortens telomeres. Meditation, exercise, and sleep all help.",
                 yearsGained: gain,
-                targetPage: 4
+                targetPage: 4,
+                citationIds: [
+                    CitationLibrary.epelTelomere2004.id,
+                    CitationLibrary.kivimakiStress2018.id,
+                ]
             ))
         case .moderate:
             let gain = DeathClockEngine.stressImpact(.low) - DeathClockEngine.stressImpact(.moderate)
@@ -144,7 +179,11 @@ enum RecommendationEngine {
                     title: "Lower stress to low",
                     detail: "Even moderate stress has a cost. Regular mindfulness practice can help.",
                     yearsGained: gain,
-                    targetPage: 4
+                    targetPage: 4,
+                    citationIds: [
+                        CitationLibrary.epelTelomere2004.id,
+                        CitationLibrary.kivimakiStress2018.id,
+                    ]
                 ))
             }
         case .low:
@@ -161,7 +200,11 @@ enum RecommendationEngine {
                     title: "Reach a healthy BMI",
                     detail: "BMI \(String(format: "%.1f", bmi)) is in the obese range. Even small reductions improve outcomes.",
                     yearsGained: gain,
-                    targetPage: 1 // body
+                    targetPage: 1, // body
+                    citationIds: [
+                        CitationLibrary.whoBmi.id,
+                        CitationLibrary.bmiMortality2016.id,
+                    ]
                 ))
             } else if bmi >= 25 {
                 let gain = DeathClockEngine.bmiImpact(24.0) - DeathClockEngine.bmiImpact(bmi)
@@ -171,7 +214,11 @@ enum RecommendationEngine {
                     title: "Optimize body composition",
                     detail: "BMI \(String(format: "%.1f", bmi)) is overweight. Targeting 18.5-25 removes the penalty.",
                     yearsGained: gain,
-                    targetPage: 1
+                    targetPage: 1,
+                    citationIds: [
+                        CitationLibrary.whoBmi.id,
+                        CitationLibrary.bmiMortality2016.id,
+                    ]
                 ))
             }
         }
@@ -185,7 +232,11 @@ enum RecommendationEngine {
                 title: "Reduce alcohol intake",
                 detail: "High-risk drinking significantly impacts longevity. Aim for NIAAA low-risk limits.",
                 yearsGained: 2.0,
-                targetPage: 3 // habits
+                targetPage: 3, // habits
+                citationIds: [
+                    CitationLibrary.niaaaLimits.id,
+                    CitationLibrary.gbdAlcohol2018.id,
+                ]
             ))
         case .moderate:
             recs.append(Recommendation(
@@ -194,7 +245,11 @@ enum RecommendationEngine {
                 title: "Cut back on alcohol",
                 detail: "Moderate risk — reducing to low-risk levels benefits heart and liver health.",
                 yearsGained: 1.0,
-                targetPage: 3
+                targetPage: 3,
+                citationIds: [
+                    CitationLibrary.niaaaLimits.id,
+                    CitationLibrary.gbdAlcohol2018.id,
+                ]
             ))
         case .low:
             break
@@ -208,7 +263,11 @@ enum RecommendationEngine {
                 title: "Upload genome data",
                 detail: "Import 23andMe or AncestryDNA results to refine your life expectancy with genetic risk factors.",
                 yearsGained: 0,
-                targetPage: 6 // genome
+                targetPage: 6, // genome
+                citationIds: [
+                    CitationLibrary.clinvar.id,
+                    CitationLibrary.deelenApoe2019.id,
+                ]
             ))
         }
 
@@ -219,7 +278,11 @@ enum RecommendationEngine {
                 title: "Add epigenetic test",
                 detail: "Track your biological age vs chronological age with tests like TruDiagnostic or GrimAge.",
                 yearsGained: 0,
-                targetPage: 1 // body
+                targetPage: 1, // body
+                citationIds: [
+                    CitationLibrary.horvathClock2013.id,
+                    CitationLibrary.dunedinPace2022.id,
+                ]
             ))
         }
 
@@ -230,7 +293,10 @@ enum RecommendationEngine {
                 title: "Log blood test results",
                 detail: "Track 50+ biomarkers to catch issues early and monitor your health trajectory.",
                 yearsGained: 0,
-                targetPage: 2 // blood
+                targetPage: 2, // blood
+                citationIds: [
+                    CitationLibrary.clinicalLabRanges.id,
+                ]
             ))
         }
 

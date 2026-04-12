@@ -148,6 +148,13 @@ struct GenomeView: View {
                 Text("Epigenetic Age")
                     .font(.headline)
                     .foregroundColor(.textPrimary)
+                CitationBadge(
+                    ids: [
+                        CitationLibrary.horvathClock2013.id,
+                        CitationLibrary.dunedinPace2022.id,
+                    ],
+                    claim: "DNA-methylation biological age and pace-of-aging"
+                )
                 if epigeneticTests.count > 1 {
                     Text("\(epigeneticTests.count) tests")
                         .font(.caption)
@@ -512,6 +519,14 @@ struct GenomeView: View {
                     Text("APOE Haplotype")
                         .font(.headline)
                         .foregroundColor(.textPrimary)
+                    CitationBadge(
+                        ids: [
+                            CitationLibrary.deelenApoe2019.id,
+                            CitationLibrary.farrerApoeAlz1997.id,
+                            CitationLibrary.clinvar.id,
+                        ],
+                        claim: "APOE longevity and Alzheimer's risk multipliers"
+                    )
                     Spacer()
                 }
 
@@ -848,9 +863,15 @@ struct GenomeView: View {
                         .font(.headline)
                         .foregroundColor(.accentColor)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("ClinVar Database")
-                            .font(.headline)
-                            .foregroundColor(.textPrimary)
+                        HStack(spacing: 6) {
+                            Text("ClinVar Database")
+                                .font(.headline)
+                                .foregroundColor(.textPrimary)
+                            CitationBadge(
+                                ids: [CitationLibrary.clinvar.id],
+                                claim: "NCBI ClinVar is the source for all variant pathogenicity classifications shown below."
+                            )
+                        }
                         if clinvarStatus.synced, let dateStr = clinvarStatus.syncedAt {
                             let displayDate = formatClinVarDate(dateStr)
                             Text("Synced: \(displayDate) \u{2022} \(DateFormatting.formatLargeNumber(clinvarStatus.variantCount ?? 0)) variants indexed")

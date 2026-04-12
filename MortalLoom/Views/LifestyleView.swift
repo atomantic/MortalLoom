@@ -195,6 +195,14 @@ struct LifestyleView: View {
                 Text("Country LE is based on WHO 2022 data relative to the US SSA baseline. Air quality reflects long-term PM2.5 exposure impact.")
                     .font(.system(size: 10))
                     .foregroundColor(.textMuted)
+                CitationBadge(
+                    ids: [
+                        CitationLibrary.whoLifeExpectancy.id,
+                        CitationLibrary.lancetPollution2018.id,
+                        CitationLibrary.ssaLifeTable.id,
+                    ],
+                    claim: "Country and air-quality life-expectancy adjustments"
+                )
             }
         }
         .padding()
@@ -286,9 +294,18 @@ struct LifestyleView: View {
                     .accessibilityLabel("Exercise minutes per week")
                     .accessibilityValue("\(Int(exerciseMinutes)) minutes")
 
-                Text("WHO recommends 150+ min/week")
-                    .font(.caption)
-                    .foregroundColor(.textMuted)
+                HStack(spacing: 4) {
+                    Text("WHO recommends 150+ min/week")
+                        .font(.caption)
+                        .foregroundColor(.textMuted)
+                    CitationBadge(
+                        ids: [
+                            CitationLibrary.whoPhysicalActivity.id,
+                            CitationLibrary.arem2015Exercise.id,
+                        ],
+                        claim: "WHO 150 min/week recommendation"
+                    )
+                }
             }
 
             // Sleep
@@ -322,9 +339,18 @@ struct LifestyleView: View {
                         .tint(.accentColor)
                         .accessibilityLabel("Sleep hours per night")
                         .accessibilityValue(String(format: "%.1f hours", sleepHours))
-                    Text("Optimal: 7-9 hours")
-                        .font(.caption)
-                        .foregroundColor(.textMuted)
+                    HStack(spacing: 4) {
+                        Text("Optimal: 7-9 hours")
+                            .font(.caption)
+                            .foregroundColor(.textMuted)
+                        CitationBadge(
+                            ids: [
+                                CitationLibrary.cappuccioSleep2010.id,
+                                CitationLibrary.nsfSleepDuration.id,
+                            ],
+                            claim: "7-9h optimal sleep duration"
+                        )
+                    }
                 }
             }
 
@@ -494,13 +520,22 @@ struct LifestyleView: View {
             .accessibilityElement(children: .combine)
             .accessibilityLabel("Total lifestyle adjustment: \(String(format: "%+.1f", totalImpact)) years on life expectancy")
 
-            HStack(spacing: 4) {
-                Image(systemName: "book.closed.fill")
-                    .font(.caption2)
-                Text("Sources: SSA Period Life Table 2021; WHO Physical Activity Guidelines 2020; WHO BMI Classification")
-                    .font(.caption2)
-            }
-            .foregroundColor(.accentColor)
+            CitationSourceRow(
+                label: "Sources: SSA · WHO · peer-reviewed research",
+                ids: [
+                    CitationLibrary.ssaLifeTable.id,
+                    CitationLibrary.whoPhysicalActivity.id,
+                    CitationLibrary.arem2015Exercise.id,
+                    CitationLibrary.cappuccioSleep2010.id,
+                    CitationLibrary.nsfSleepDuration.id,
+                    CitationLibrary.whoBmi.id,
+                    CitationLibrary.bmiMortality2016.id,
+                    CitationLibrary.dollSmoking2004.id,
+                    CitationLibrary.predimedMedDiet.id,
+                    CitationLibrary.epelTelomere2004.id,
+                ],
+                claim: "Every factor shown above maps to one or more of these sources."
+            )
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)

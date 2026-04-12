@@ -249,9 +249,20 @@ struct BodyView: View {
     private var cardioFitnessSection: some View {
         if latestVO2Max != nil || latestRestingHR != nil || latestHRV != nil {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Cardio Fitness")
-                    .font(.headline)
-                    .foregroundColor(.textPrimary)
+                HStack(spacing: 6) {
+                    Text("Cardio Fitness")
+                        .font(.headline)
+                        .foregroundColor(.textPrimary)
+                    CitationBadge(
+                        ids: [
+                            CitationLibrary.acsmGuidelines.id,
+                            CitationLibrary.coleHrr1999.id,
+                            CitationLibrary.kodamaFitness2009.id,
+                        ],
+                        claim: "VO2 Max thresholds, HR Recovery classification, and longevity impact"
+                    )
+                    Spacer()
+                }
 
                 // VO2 Max chart
                 if !vo2MaxHistory.isEmpty {
@@ -410,9 +421,19 @@ struct BodyView: View {
     private var gaitSection: some View {
         if let gait = gaitSummary, (gait.avgWalkingSpeed != nil || gait.avgWalkingDistance != nil) {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Gait & Mobility")
-                    .font(.headline)
-                    .foregroundColor(.textPrimary)
+                HStack(spacing: 6) {
+                    Text("Gait & Mobility")
+                        .font(.headline)
+                        .foregroundColor(.textPrimary)
+                    CitationBadge(
+                        ids: [
+                            CitationLibrary.studenskiGait2011.id,
+                            CitationLibrary.hausdorffFalls2001.id,
+                        ],
+                        claim: "Walking speed as a predictor of mortality; gait variability and fall risk"
+                    )
+                    Spacer()
+                }
 
                 HStack(spacing: 12) {
                     if let speed = gait.avgWalkingSpeed, let level = gait.speedLevel {

@@ -902,6 +902,23 @@ struct OverviewView: View {
                     Text("Life Expectancy Factors")
                         .font(.title3).fontWeight(.bold)
                         .foregroundColor(.textPrimary)
+                    CitationBadge(
+                        ids: [
+                            CitationLibrary.ssaLifeTable.id,
+                            CitationLibrary.whoLifeExpectancy.id,
+                            CitationLibrary.dollSmoking2004.id,
+                            CitationLibrary.cappuccioSleep2010.id,
+                            CitationLibrary.whoPhysicalActivity.id,
+                            CitationLibrary.arem2015Exercise.id,
+                            CitationLibrary.predimedMedDiet.id,
+                            CitationLibrary.epelTelomere2004.id,
+                            CitationLibrary.bmiMortality2016.id,
+                            CitationLibrary.niaaaLimits.id,
+                            CitationLibrary.deelenApoe2019.id,
+                            CitationLibrary.lancetPollution2018.id,
+                        ],
+                        claim: "Sources for every factor contributing to your life-expectancy estimate"
+                    )
                 }
 
                 Text("How each factor affects your lifespan")
@@ -1672,32 +1689,41 @@ struct OverviewView: View {
 
     @ViewBuilder
     private func recommendationRow(_ rec: RecommendationEngine.Recommendation) -> some View {
-        Button { navigateTo(AppPage(rawValue: rec.targetPage) ?? .lifestyle) } label: {
-            HStack(spacing: 12) {
-                Image(systemName: rec.icon)
-                    .foregroundColor(.success)
-                    .font(.body)
-                    .frame(width: 24)
+        HStack(spacing: 12) {
+            Button { navigateTo(AppPage(rawValue: rec.targetPage) ?? .lifestyle) } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: rec.icon)
+                        .foregroundColor(.success)
+                        .font(.body)
+                        .frame(width: 24)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(rec.title)
-                        .font(.subheadline).fontWeight(.semibold)
-                        .foregroundColor(.textPrimary)
-                    Text(rec.detail)
-                        .font(.caption)
-                        .foregroundColor(.textSecondary)
-                        .lineLimit(2)
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Text(rec.title)
+                                .font(.subheadline).fontWeight(.semibold)
+                                .foregroundColor(.textPrimary)
+                            CitationBadge(
+                                ids: rec.citationIds,
+                                claim: "Source for: \(rec.title)"
+                            )
+                        }
+                        Text(rec.detail)
+                            .font(.caption)
+                            .foregroundColor(.textSecondary)
+                            .lineLimit(2)
+                    }
+
+                    Spacer()
+
+                    Text(String(format: "+%.1f yr", rec.yearsGained))
+                        .font(.subheadline).fontWeight(.bold).monospacedDigit()
+                        .foregroundColor(.success)
                 }
-
-                Spacer()
-
-                Text(String(format: "+%.1f yr", rec.yearsGained))
-                    .font(.subheadline).fontWeight(.bold).monospacedDigit()
-                    .foregroundColor(.success)
+                .padding(.vertical, 6)
+                .contentShape(Rectangle())
             }
-            .padding(.vertical, 6)
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(rec.title): \(rec.detail). Could gain \(String(format: "%.1f", rec.yearsGained)) years.")
         .accessibilityHint("Tap to open related section")
@@ -1705,32 +1731,41 @@ struct OverviewView: View {
 
     @ViewBuilder
     private func dataGapRow(_ rec: RecommendationEngine.Recommendation) -> some View {
-        Button { navigateTo(AppPage(rawValue: rec.targetPage) ?? .overview) } label: {
-            HStack(spacing: 12) {
-                Image(systemName: rec.icon)
-                    .foregroundColor(.textMuted)
-                    .font(.body)
-                    .frame(width: 24)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(rec.title)
-                        .font(.subheadline).fontWeight(.medium)
-                        .foregroundColor(.textSecondary)
-                    Text(rec.detail)
-                        .font(.caption)
+        HStack(spacing: 12) {
+            Button { navigateTo(AppPage(rawValue: rec.targetPage) ?? .overview) } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: rec.icon)
                         .foregroundColor(.textMuted)
-                        .lineLimit(2)
+                        .font(.body)
+                        .frame(width: 24)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Text(rec.title)
+                                .font(.subheadline).fontWeight(.medium)
+                                .foregroundColor(.textSecondary)
+                            CitationBadge(
+                                ids: rec.citationIds,
+                                claim: "Source for: \(rec.title)"
+                            )
+                        }
+                        Text(rec.detail)
+                            .font(.caption)
+                            .foregroundColor(.textMuted)
+                            .lineLimit(2)
+                    }
+
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .foregroundColor(.textMuted)
+                        .font(.caption)
                 }
-
-                Spacer()
-
-                Image(systemName: "chevron.right")
-                    .foregroundColor(.textMuted)
-                    .font(.caption)
+                .padding(.vertical, 4)
+                .contentShape(Rectangle())
             }
-            .padding(.vertical, 4)
+            .buttonStyle(.plain)
         }
-        .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(rec.title): \(rec.detail)")
         .accessibilityHint("Tap to open related section")

@@ -379,9 +379,15 @@ struct SleepView: View {
                 }
             }
 
-            Text("AHI thresholds: <5 normal, 5-15 mild, 15-30 moderate, >30 severe. Untreated moderate-to-severe apnea increases cardiovascular mortality 2-3x. (AASM Clinical Guidelines)")
-                .font(.caption2)
-                .foregroundColor(.textMuted)
+            HStack(alignment: .top, spacing: 4) {
+                Text("AHI thresholds: <5 normal, 5-15 mild, 15-30 moderate, >30 severe. Untreated moderate-to-severe apnea increases cardiovascular mortality 2-3x. (AASM Clinical Guidelines)")
+                    .font(.caption2)
+                    .foregroundColor(.textMuted)
+                CitationBadge(
+                    ids: [CitationLibrary.youngApnea2008.id],
+                    claim: "AHI classification and apnea mortality risk"
+                )
+            }
         }
         .padding()
         .cardStyle()
@@ -471,9 +477,14 @@ struct SleepView: View {
                     .foregroundColor(.textSecondary)
             }
 
-            Text("Source: Cappuccio et al., Sleep 2010 — meta-analysis of 1.3M participants")
-                .font(.caption2)
-                .foregroundColor(.textMuted)
+            CitationSourceRow(
+                label: "Source: Cappuccio et al., Sleep 2010 — meta-analysis of 1.3M participants",
+                ids: [
+                    CitationLibrary.cappuccioSleep2010.id,
+                    CitationLibrary.nsfSleepDuration.id,
+                ],
+                claim: "Sleep duration ↔ all-cause mortality relationship"
+            )
         }
         .padding()
         .cardStyle()

@@ -484,13 +484,15 @@ private struct BloodTestCardView: View {
                 }
             }
 
-            HStack(spacing: 4) {
-                Image(systemName: "book.closed.fill")
-                    .font(.caption2)
-                Text("Reference ranges: Mayo Clinic / Quest Diagnostics clinical standards")
-                    .font(.caption2)
-            }
-            .foregroundColor(.accentColor)
+            CitationSourceRow(
+                label: "Reference ranges: Mayo Clinic / Quest Diagnostics clinical standards",
+                ids: [
+                    CitationLibrary.clinicalLabRanges.id,
+                    CitationLibrary.adaHbA1c.id,
+                    CitationLibrary.aclAtpIii.id,
+                ],
+                claim: "Blood marker reference bands are derived from clinical laboratory standards and published guidelines (ADA for glycemic markers, NCEP ATP III for lipids)."
+            )
         }
         .padding()
         .cardStyle()

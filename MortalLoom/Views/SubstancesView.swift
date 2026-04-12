@@ -280,13 +280,14 @@ struct SubstancesView: View {
                 .frame(maxWidth: .infinity)
             }
 
-            HStack(spacing: 4) {
-                Image(systemName: "book.closed.fill")
-                    .font(.caption2)
-                Text("Source: NIAAA low-risk drinking limits")
-                    .font(.caption2)
-            }
-            .foregroundColor(.accentColor)
+            CitationSourceRow(
+                label: "Source: NIAAA low-risk drinking limits",
+                ids: [
+                    CitationLibrary.niaaaLimits.id,
+                    CitationLibrary.gbdAlcohol2018.id,
+                ],
+                claim: "Women ≤1 drink/day, ≤7/week; men ≤2 drinks/day, ≤14/week."
+            )
         }
         .padding()
         .cardStyle()
