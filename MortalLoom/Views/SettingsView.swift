@@ -173,8 +173,6 @@ struct SettingsView: View {
     private var col1: some View {
         VStack(spacing: 16) {
             setupGuideSection
-            proSection
-            appearanceSection
             countdownSection
             notificationsSection
         }
@@ -192,7 +190,9 @@ struct SettingsView: View {
 
     private var col3: some View {
         VStack(spacing: 16) {
+            appearanceSection
             aboutSection
+            proSection
         }
     }
     #endif
