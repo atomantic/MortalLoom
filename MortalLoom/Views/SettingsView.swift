@@ -220,7 +220,7 @@ struct SettingsView: View {
                     Spacer()
                 }
             } else {
-                Text("Unlock blood tests, genome analysis, substance tracking, epigenetic age, body composition, and data export.")
+                Text("Unlock genome analysis, blood marker trend insights, epigenetic age tracking, and eye prescription history.")
                     .font(.caption)
                     .foregroundColor(.textSecondary)
 

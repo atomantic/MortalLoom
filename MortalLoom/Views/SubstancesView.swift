@@ -1777,6 +1777,7 @@ struct SubstancesView: View {
                     }
                 }
             }
+            .macGroupedFormStyle()
             .navigationTitle("Edit Session")
             .inlineNavigationTitle()
             .toolbar {
@@ -1882,10 +1883,7 @@ struct SubstancesView: View {
                     #endif
                 }
             }
-            #if os(macOS)
-            .formStyle(.grouped)
-            .frame(minWidth: 480, minHeight: 360)
-            #endif
+            .macGroupedFormStyle()
             .navigationTitle("Edit Drink")
             .inlineNavigationTitle()
             .toolbar {
@@ -1957,10 +1955,7 @@ struct SubstancesView: View {
                     #endif
                 }
             }
-            #if os(macOS)
-            .formStyle(.grouped)
-            .frame(minWidth: 480, minHeight: 360)
-            #endif
+            .macGroupedFormStyle()
             .navigationTitle("Edit Entry")
             .inlineNavigationTitle()
             .toolbar {
@@ -2166,6 +2161,7 @@ struct AlcoholPresetManagerView: View {
             }
             .navigationTitle("Alcohol Presets")
             .inlineNavigationTitle()
+            .macSheetFrame(minHeight: 480, idealHeight: 560)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -2237,6 +2233,7 @@ struct NicotinePresetManagerView: View {
             }
             .navigationTitle("Nicotine Presets")
             .inlineNavigationTitle()
+            .macSheetFrame(minHeight: 480, idealHeight: 560)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -2331,6 +2328,7 @@ struct SaunaPresetManagerView: View {
             }
             .navigationTitle("Sauna Presets")
             .inlineNavigationTitle()
+            .macSheetFrame(minHeight: 480, idealHeight: 560)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

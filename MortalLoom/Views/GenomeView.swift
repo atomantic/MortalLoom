@@ -1497,10 +1497,12 @@ private struct EpigeneticTestFormView: View {
                     }
                 }
             }
+            .macGroupedFormStyle()
             .navigationTitle("Add Epigenetic Test")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
+            .macSheetFrame()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

@@ -575,10 +575,12 @@ struct HabitEditSheet: View {
                     }
                 }
             }
+            .macGroupedFormStyle()
             .navigationTitle(habit == nil ? "New Habit" : "Edit Habit")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
+            .macSheetFrame()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

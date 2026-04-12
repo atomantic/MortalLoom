@@ -208,6 +208,17 @@ struct ContentView: View {
                 SideMenuView(selectedPage: $selectedPage, isPresented: $showSideMenu)
                     .transition(.opacity)
             }
+
+            // Blur behind the status bar so scrolled content doesn't collide
+            // with the system time/signal/battery indicators.
+            GeometryReader { geo in
+                Rectangle()
+                    .fill(.ultraThinMaterial)
+                    .frame(height: geo.safeAreaInsets.top)
+                    .ignoresSafeArea(edges: .top)
+            }
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
         }
     }
 

@@ -100,10 +100,12 @@ struct CalendarSchedulerSheet: View {
                     }
                 }
             }
+            .macGroupedFormStyle()
             .navigationTitle("Schedule Work Block")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
+            .macSheetFrame(minHeight: 480, idealHeight: 560)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

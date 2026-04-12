@@ -70,6 +70,7 @@ struct WeeklyReviewSheet: View {
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
+            .macSheetFrame()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Skip") { dismiss() }

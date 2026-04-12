@@ -981,6 +981,7 @@ private struct EyeExamFormView: View {
                     }
                 }
             }
+            .macGroupedFormStyle()
             .navigationTitle(existing == nil ? "Add Eye Exam" : "Edit Eye Exam")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
@@ -999,6 +1000,7 @@ private struct EyeExamFormView: View {
                     Spacer()
                 }
             }
+            .macSheetFrame(minHeight: 480, idealHeight: 560)
             .alert("Delete Eye Exam", isPresented: $showDeleteConfirm) {
                 Button("Delete", role: .destructive) {
                     onDelete?()
