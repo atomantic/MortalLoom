@@ -2778,9 +2778,11 @@ final class RecommendationEngineTests: XCTestCase {
             hasEpigeneticData: true,
             hasBloodTests: true
         )
-        let exerciseRec = recs.first(where: { $0.id == "increase-exercise" })
-        XCTAssertNotNil(exerciseRec)
-        XCTAssertEqual(exerciseRec?.yearsGained, 4.0) // from -2 (below 75) to +2 (above 150)
+        guard let exerciseRec = recs.first(where: { $0.id == "increase-exercise" }) else {
+            XCTFail("increase-exercise recommendation missing")
+            return
+        }
+        XCTAssertEqual(exerciseRec.yearsGained, 4.0) // from -2 (below 75) to +2 (above 150)
     }
 
     func testExerciseRecommendation75to150() {
@@ -2799,9 +2801,11 @@ final class RecommendationEngineTests: XCTestCase {
             hasEpigeneticData: true,
             hasBloodTests: true
         )
-        let exerciseRec = recs.first(where: { $0.id == "increase-exercise" })
-        XCTAssertNotNil(exerciseRec)
-        XCTAssertEqual(exerciseRec?.yearsGained, 1.5) // from +0.5 (75-150) to +2 (above 150)
+        guard let exerciseRec = recs.first(where: { $0.id == "increase-exercise" }) else {
+            XCTFail("increase-exercise recommendation missing")
+            return
+        }
+        XCTAssertEqual(exerciseRec.yearsGained, 1.5) // from +0.5 (75-150) to +2 (above 150)
     }
 
     func testAlcoholHighRiskRecommendation() {
@@ -2812,9 +2816,11 @@ final class RecommendationEngineTests: XCTestCase {
             hasEpigeneticData: true,
             hasBloodTests: true
         )
-        let alcoholRec = recs.first(where: { $0.id == "reduce-alcohol" })
-        XCTAssertNotNil(alcoholRec)
-        XCTAssertEqual(alcoholRec?.yearsGained, 2.0)
+        guard let alcoholRec = recs.first(where: { $0.id == "reduce-alcohol" }) else {
+            XCTFail("reduce-alcohol recommendation missing")
+            return
+        }
+        XCTAssertEqual(alcoholRec.yearsGained, 2.0)
     }
 
     func testAlcoholModerateRiskRecommendation() {
@@ -2825,9 +2831,11 @@ final class RecommendationEngineTests: XCTestCase {
             hasEpigeneticData: true,
             hasBloodTests: true
         )
-        let alcoholRec = recs.first(where: { $0.id == "reduce-alcohol" })
-        XCTAssertNotNil(alcoholRec)
-        XCTAssertEqual(alcoholRec?.yearsGained, 1.0)
+        guard let alcoholRec = recs.first(where: { $0.id == "reduce-alcohol" }) else {
+            XCTFail("reduce-alcohol recommendation missing")
+            return
+        }
+        XCTAssertEqual(alcoholRec.yearsGained, 1.0)
     }
 
     func testBMIObeseRecommendation() {
@@ -2846,9 +2854,11 @@ final class RecommendationEngineTests: XCTestCase {
             hasEpigeneticData: true,
             hasBloodTests: true
         )
-        let bmiRec = recs.first(where: { $0.id == "improve-bmi" })
-        XCTAssertNotNil(bmiRec)
-        XCTAssertEqual(bmiRec?.yearsGained, 3.5) // from -3 to +0.5
+        guard let bmiRec = recs.first(where: { $0.id == "improve-bmi" }) else {
+            XCTFail("improve-bmi recommendation missing")
+            return
+        }
+        XCTAssertEqual(bmiRec.yearsGained, 3.5) // from -3 to +0.5
     }
 
     func testNormalBMINoRecommendation() {
@@ -2879,9 +2889,11 @@ final class RecommendationEngineTests: XCTestCase {
             hasEpigeneticData: true,
             hasBloodTests: true
         )
-        let sleepRec = recs.first(where: { $0.id == "optimize-sleep" })
-        XCTAssertNotNil(sleepRec)
-        XCTAssertEqual(sleepRec?.yearsGained, 2.5) // from -1.5 to +1
+        guard let sleepRec = recs.first(where: { $0.id == "optimize-sleep" }) else {
+            XCTFail("optimize-sleep recommendation missing")
+            return
+        }
+        XCTAssertEqual(sleepRec.yearsGained, 2.5) // from -1.5 to +1
     }
 
     func testOptimalSleepNoRecommendation() {
@@ -2912,9 +2924,11 @@ final class RecommendationEngineTests: XCTestCase {
             hasEpigeneticData: true,
             hasBloodTests: true
         )
-        let dietRec = recs.first(where: { $0.id == "improve-diet" })
-        XCTAssertNotNil(dietRec)
-        XCTAssertEqual(dietRec?.yearsGained, 3.5) // from -3 to +0.5
+        guard let dietRec = recs.first(where: { $0.id == "improve-diet" }) else {
+            XCTFail("improve-diet recommendation missing")
+            return
+        }
+        XCTAssertEqual(dietRec.yearsGained, 3.5) // from -3 to +0.5
     }
 
     func testStressHighRecommendation() {
@@ -2933,9 +2947,11 @@ final class RecommendationEngineTests: XCTestCase {
             hasEpigeneticData: true,
             hasBloodTests: true
         )
-        let stressRec = recs.first(where: { $0.id == "reduce-stress" })
-        XCTAssertNotNil(stressRec)
-        XCTAssertEqual(stressRec?.yearsGained, 3.0) // from -2 to +1
+        guard let stressRec = recs.first(where: { $0.id == "reduce-stress" }) else {
+            XCTFail("reduce-stress recommendation missing")
+            return
+        }
+        XCTAssertEqual(stressRec.yearsGained, 3.0) // from -2 to +1
     }
 
     func testRecommendationTargetPages() {
