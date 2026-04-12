@@ -2,6 +2,9 @@ import SwiftUI
 #if canImport(UniformTypeIdentifiers)
 import UniformTypeIdentifiers
 #endif
+#if canImport(MessageUI)
+import MessageUI
+#endif
 
 struct SettingsView: View {
     @Environment(StoreManager.self) private var store
@@ -38,6 +41,9 @@ struct SettingsView: View {
     @State private var showProCodeAlert = false
     @State private var proCodeInput = ""
     @State private var proCodeFeedback: String?
+    @State private var showingMailComposer = false
+
+    private static let feedbackEmail = "mortalloom@shadowpuppet.net"
 
     // Default on — the entire goal-alignment loop depends on a weekly
     // review. Users who want silence can still turn it off here, but we
@@ -60,6 +66,17 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showPaywall) { PaywallView() }
             .sheet(isPresented: $showCitations) { CitationsView() }
+            #if os(iOS)
+            .sheet(isPresented: $showingMailComposer) {
+                MailComposer(
+                    recipient: Self.feedbackEmail,
+                    subject: "MortalLoom Feedback",
+                    body: feedbackBody,
+                    onDismiss: { showingMailComposer = false }
+                )
+                .ignoresSafeArea()
+            }
+            #endif
             .alert("Enter Pro Code", isPresented: $showProCodeAlert) {
                 TextField("Code", text: $proCodeInput)
                     .autocorrectionDisabled()
@@ -132,6 +149,7 @@ struct SettingsView: View {
             ScrollView {
                 VStack(spacing: 16) {
                     aboutSection
+                    supportSection
                 }
                 .padding()
             }
@@ -192,6 +210,7 @@ struct SettingsView: View {
         VStack(spacing: 16) {
             appearanceSection
             aboutSection
+            supportSection
             proSection
         }
     }
@@ -1034,6 +1053,100 @@ struct SettingsView: View {
                 .buttonStyle(.borderedProminent)
                 .tint(.danger)
             }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle()
+    }
+
+    // MARK: - Support
+
+    private var feedbackBody: String {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+        #if os(iOS)
+        let device = UIDevice.current
+        let deviceInfo = "\(device.model), iOS \(device.systemVersion)"
+        #else
+        let deviceInfo = "macOS \(ProcessInfo.processInfo.operatingSystemVersionString)"
+        #endif
+        return """
+
+        ---
+        App: MortalLoom v\(version) (\(build))
+        Device: \(deviceInfo)
+        """
+    }
+
+    private var supportSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionLabel(text: "SUPPORT")
+
+            #if os(iOS)
+            if MFMailComposeViewController.canSendMail() {
+                Button {
+                    showingMailComposer = true
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "envelope.fill")
+                            .foregroundColor(.accentColor)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Send Feedback")
+                                .font(.subheadline).fontWeight(.medium)
+                                .foregroundColor(.textPrimary)
+                            Text("Email mortalloom@shadowpuppet.net")
+                                .font(.caption)
+                                .foregroundColor(.textSecondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(.textMuted)
+                    }
+                }
+                .buttonStyle(.plain)
+            } else if let url = URL(string: "mailto:\(Self.feedbackEmail)?subject=MortalLoom%20Feedback") {
+                Link(destination: url) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "envelope.fill")
+                            .foregroundColor(.accentColor)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Send Feedback")
+                                .font(.subheadline).fontWeight(.medium)
+                                .foregroundColor(.textPrimary)
+                            Text("Email mortalloom@shadowpuppet.net")
+                                .font(.caption)
+                                .foregroundColor(.textSecondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(.textMuted)
+                    }
+                }
+            }
+            #else
+            if let url = URL(string: "mailto:\(Self.feedbackEmail)?subject=MortalLoom%20Feedback") {
+                Link(destination: url) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "envelope.fill")
+                            .foregroundColor(.accentColor)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Send Feedback")
+                                .font(.subheadline).fontWeight(.medium)
+                                .foregroundColor(.textPrimary)
+                            Text("Email mortalloom@shadowpuppet.net")
+                                .font(.caption)
+                                .foregroundColor(.textSecondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundColor(.textMuted)
+                    }
+                }
+            }
+            #endif
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
