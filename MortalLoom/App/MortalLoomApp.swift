@@ -88,15 +88,10 @@ struct ContentView: View {
     @State private var store = StoreManager.shared
     @State private var selectedPage: AppPage = .overview
     @State private var showSideMenu = false
-    // Fresh-start mode (simulator only, DEBUG builds) forces onboarding to run
-    // and prevents any persistence. Sample-data mode pre-seeds a fake user
-    // and always skips onboarding. Anything else honours the stored onboarding
-    // flag so normal use is unaffected.
-    @State private var showOnboarding: Bool = {
-        if AppConstants.useSampleData { return false }
-        if AppConstants.useFreshStart { return true }
-        return !UserDefaults.standard.bool(forKey: AppConstants.hasCompletedOnboardingKey)
-    }()
+    // Onboarding starts hidden and is only shown after the startup task
+    // determines whether the user has data (local or iCloud). This prevents
+    // the wizard from appearing on a new device that already has iCloud data.
+    @State private var showOnboarding: Bool = false
 
     // Bridge for OverviewView's Int-based selectedTab binding
     private var selectedTabBinding: Binding<Int> {
@@ -167,10 +162,8 @@ struct ContentView: View {
                 appLogger.warning("⚠️ -fresh-start flag present: empty in-memory state, onboarding forced, iCloud & HealthKit disabled")
                 await DataStore.shared.enableSampleDataMode()
                 await DataStore.shared.setInMemory(AppData.empty)
-                // Reset onboarding so the flow actually runs this session.
-                // Writes to UserDefaults are fine — they live in the
-                // simulator's sandbox, not the real device or iCloud.
                 UserDefaults.standard.set(false, forKey: AppConstants.hasCompletedOnboardingKey)
+                showOnboarding = true
                 return
             }
 
@@ -179,7 +172,18 @@ struct ContentView: View {
             // Ensure data is loaded from iCloud before any sync writes.
             // This prevents the race where HealthKit sync saves empty data
             // because the iCloud file hasn't been downloaded yet.
-            _ = await DataStore.shared.ensureLoaded()
+            let loaded = await DataStore.shared.ensureLoaded()
+
+            // Decide onboarding AFTER iCloud data has loaded. If the user
+            // already has data in iCloud (e.g. installing on a new device),
+            // skip onboarding and mark it complete so it never shows.
+            if loaded.hasUserData {
+                appLogger.info("📦 existing user data found — skipping onboarding")
+                UserDefaults.standard.set(true, forKey: AppConstants.hasCompletedOnboardingKey)
+            } else if !UserDefaults.standard.bool(forKey: AppConstants.hasCompletedOnboardingKey) {
+                showOnboarding = true
+            }
+
             #if os(iOS)
             // Request HealthKit auth on every launch (prompt shows once; subsequent calls are no-ops)
             if HealthKitService.shared.isAvailable {
