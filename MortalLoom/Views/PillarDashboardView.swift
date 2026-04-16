@@ -67,6 +67,7 @@ struct PillarDashboardView: View {
 
     @MainActor
     private func loadTimeAllocation() async {
+        #if os(iOS)
         let service = CalendarService.shared
         guard service.isAuthorized else {
             calendarAvailable = false
@@ -78,6 +79,10 @@ struct PillarDashboardView: View {
         let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: now) ?? now
         let events = service.tagged(from: thirtyDaysAgo, to: now)
         timeAllocation = TimeAllocationEngine.allocate(goals: allGoals, events: events)
+        #else
+        calendarAvailable = false
+        timeAllocation = nil
+        #endif
     }
 
     // MARK: Computed

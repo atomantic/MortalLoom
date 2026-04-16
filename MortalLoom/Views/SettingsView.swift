@@ -38,9 +38,6 @@ struct SettingsView: View {
 
     @State private var showPaywall = false
     @State private var showCitations = false
-    @State private var showProCodeAlert = false
-    @State private var proCodeInput = ""
-    @State private var proCodeFeedback: String?
     @State private var showingMailComposer = false
 
     private static let feedbackEmail = "mortalloom@shadowpuppet.net"
@@ -77,23 +74,6 @@ struct SettingsView: View {
                 .ignoresSafeArea()
             }
             #endif
-            .alert("Enter Pro Code", isPresented: $showProCodeAlert) {
-                TextField("Code", text: $proCodeInput)
-                    .autocorrectionDisabled()
-                Button("Unlock") {
-                    let ok = store.redeemSecretCode(proCodeInput)
-                    proCodeFeedback = ok ? "Pro unlocked! Welcome to MortalLoom Pro." : "Invalid code. Please try again."
-                    proCodeInput = ""
-                }
-                Button("Cancel", role: .cancel) { proCodeInput = "" }
-            } message: {
-                Text("Enter your Pro access code")
-            }
-            .alert("Pro Code", isPresented: Binding(get: { proCodeFeedback != nil }, set: { if !$0 { proCodeFeedback = nil } })) {
-                Button("OK") { proCodeFeedback = nil }
-            } message: {
-                Text(proCodeFeedback ?? "")
-            }
             .fileImporter(
                 isPresented: $showImporter,
                 allowedContentTypes: [.json],
@@ -257,10 +237,6 @@ struct SettingsView: View {
                     .foregroundColor(.white)
                     .cornerRadius(10)
                 }
-
-                Button("Enter access code") { showProCodeAlert = true }
-                    .font(.subheadline)
-                    .foregroundColor(.textSecondary)
             }
         }
         .padding()

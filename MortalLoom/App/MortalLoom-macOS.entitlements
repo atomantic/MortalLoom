@@ -37,11 +37,7 @@
 	<!-- macOS App Sandbox keys — NOT present in iOS entitlements -->
 	<key>com.apple.security.app-sandbox</key>
 	<true/>
-	<key>com.apple.security.files.downloads.read-write</key>
-	<true/>
 	<key>com.apple.security.files.user-selected.read-write</key>
-	<true/>
-	<key>com.apple.security.personal-information.calendars</key>
 	<true/>
 </dict>
 </plist>

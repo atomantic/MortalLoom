@@ -847,8 +847,10 @@ struct GoalEditSheet: View {
     @State private var category: GoalCategory?
     @State private var goalType: GoalType?
     @State private var showDeleteConfirm = false
+    #if os(iOS)
     @State private var showCalendarScheduler = false
     @State private var scheduleMessage: String?
+    #endif
     @State private var showGoalHint = false
     @State private var showingAddChild = false
     @State private var mutedSignals: Set<String> = []
@@ -1099,6 +1101,7 @@ struct GoalEditSheet: View {
                     }
                 }
 
+                #if os(iOS)
                 if !isLifelong {
                     Section("Schedule on Calendar") {
                         Button {
@@ -1116,6 +1119,7 @@ struct GoalEditSheet: View {
                             .foregroundColor(.secondary)
                     }
                 }
+                #endif
 
                 if goal != nil {
                     signalMutingSection
@@ -1153,6 +1157,7 @@ struct GoalEditSheet: View {
             } message: {
                 Text("Are you sure you want to delete this goal?")
             }
+            #if os(iOS)
             .sheet(isPresented: $showCalendarScheduler) {
                 CalendarSchedulerSheet(
                     goalId: goal?.id,
@@ -1163,6 +1168,7 @@ struct GoalEditSheet: View {
                     scheduleMessage = msg
                 }
             }
+            #endif
             .sheet(isPresented: $showingAddChild) {
                 if let parent = goal, let addChild = onAddChild {
                     // Apex → adds sub-apex (Life Pillar); sub-apex → adds standard goal.

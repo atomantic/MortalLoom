@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 import EventKit
 
@@ -162,3 +163,4 @@ struct CalendarSchedulerSheet: View {
         }
     }
 }
+#endif

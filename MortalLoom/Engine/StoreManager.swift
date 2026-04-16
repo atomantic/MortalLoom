@@ -1,6 +1,4 @@
 import StoreKit
-import CryptoKit
-import Security
 import os
 
 private let logger = Logger(subsystem: "net.shadowpuppet.MeatSpaceTracker", category: "Store")
@@ -14,11 +12,6 @@ final class StoreManager {
     private(set) var purchaseInProgress: Bool = false
 
     static let proProductID = "net.shadowpuppet.MeatSpaceTracker.pro"
-
-    // SHA-256 of your secret code (lowercase, trimmed).
-    // To change: echo -n "yourcode" | shasum -a 256
-    private static let secretCodeHash = "2f71e179aa9288130cc255f2a7384d99a1829403444cc3a58ebde15733517f1e"
-    private static let secretKeychainKey = "SecretProUnlocked"
 
     @ObservationIgnored private var transactionListener: Task<Void, Never>?
     /// Debug-only launch flag for screenshot/UI testing builds. Release binaries
@@ -34,7 +27,6 @@ final class StoreManager {
 
     private init() {
         if forceProEnabled { isPro = true }
-        if readKeychainFlag(Self.secretKeychainKey) { isPro = true }
         transactionListener = listenForTransactions()
         Task { await loadProducts() }
         Task { await checkEntitlements() }
@@ -102,27 +94,6 @@ final class StoreManager {
         }
     }
 
-    // MARK: - Secret Code
-
-    /// Returns true if the code matches the secret. Persists the unlock to Keychain.
-    @discardableResult
-    func redeemSecretCode(_ code: String) -> Bool {
-        let normalized = code.trimmingCharacters(in: .whitespaces).lowercased()
-        guard !normalized.isEmpty else { return false }
-        let hash = SHA256.hash(data: Data(normalized.utf8))
-        let hex = hash.map { String(format: "%02x", $0) }.joined()
-        guard hex == Self.secretCodeHash else {
-            logger.warning("🔑 secret code rejected")
-            return false
-        }
-        writeKeychainFlag(Self.secretKeychainKey, value: true)
-        isPro = true
-        logger.info("🔓 secret code accepted — Pro unlocked")
-        return true
-    }
-
-    var hasSecretProUnlock: Bool { readKeychainFlag(Self.secretKeychainKey) }
-
     // MARK: - Entitlements
 
     func checkEntitlements() async {
@@ -134,8 +105,7 @@ final class StoreManager {
                 return
             }
         }
-        // Secret code unlock and force-pro survive entitlement checks
-        if !readKeychainFlag(Self.secretKeychainKey) && !forceProEnabled {
+        if !forceProEnabled {
             isPro = false
         }
     }
@@ -160,34 +130,5 @@ final class StoreManager {
         case .unverified(_, let error): throw error
         case .verified(let value): return value
         }
-    }
-
-    // MARK: - Keychain Helpers
-
-    private func readKeychainFlag(_ key: String) -> Bool {
-        let query: [CFString: Any] = [
-            kSecClass: kSecClassGenericPassword,
-            kSecAttrService: "net.shadowpuppet.MeatSpaceTracker",
-            kSecAttrAccount: key,
-            kSecReturnData: true,
-            kSecMatchLimit: kSecMatchLimitOne
-        ]
-        var result: AnyObject?
-        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
-              let data = result as? Data else { return false }
-        return data.first == 1
-    }
-
-    private func writeKeychainFlag(_ key: String, value: Bool) {
-        let data = Data([value ? 1 : 0])
-        let attrs: [CFString: Any] = [
-            kSecClass: kSecClassGenericPassword,
-            kSecAttrService: "net.shadowpuppet.MeatSpaceTracker",
-            kSecAttrAccount: key,
-            kSecValueData: data,
-            kSecAttrAccessible: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-        ]
-        SecItemDelete(attrs as CFDictionary)
-        SecItemAdd(attrs as CFDictionary, nil)
     }
 }

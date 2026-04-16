@@ -1,3 +1,4 @@
+#if os(iOS)
 import Foundation
 import EventKit
 import os
@@ -200,3 +201,4 @@ enum RecurrenceFrequency: String, CaseIterable, Sendable {
         }
     }
 }
+#endif
