@@ -18,6 +18,15 @@ private struct CardioPoint: Identifiable {
     let value: Double
 }
 
+// MARK: - Blood Pressure Data Point
+
+private struct BPPoint: Identifiable {
+    let id = UUID()
+    let date: Date
+    let systolic: Double
+    let diastolic: Double
+}
+
 // MARK: - BodyView
 
 struct BodyView: View {
@@ -50,6 +59,12 @@ struct BodyView: View {
     @State private var latestCardioRecovery: Double?
     @State private var cardioRecoveryDate: Date?
 
+    // Blood pressure
+    @State private var bpHistory: [BPPoint] = []
+    @State private var showingBPEntry = false
+    @State private var manualBPSystolic = ""
+    @State private var manualBPDiastolic = ""
+
     // Gait & activity
     @State private var gaitSummary: GaitEngine.GaitSummary?
     @State private var latestDaylightMinutes: Double?
@@ -78,6 +93,7 @@ struct BodyView: View {
                     bodyCompositionSection
                     cardioFitnessSection
                 }
+                bloodPressureSection
                 gaitSection
                 activitySection
                 eyePrescriptionSection.proGated()
@@ -413,6 +429,139 @@ struct BodyView: View {
         case "red": return .danger
         default: return .textSecondary
         }
+    }
+
+    // MARK: - Blood Pressure Section
+
+    private var bloodPressureSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Blood Pressure")
+                    .font(.headline)
+                    .foregroundColor(.textPrimary)
+                Spacer()
+                Button(action: { showingBPEntry.toggle() }) {
+                    Image(systemName: showingBPEntry ? "minus.circle.fill" : "plus.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(.accentColor)
+                }
+                .accessibilityLabel(showingBPEntry ? "Hide blood pressure entry" : "Add blood pressure reading")
+            }
+
+            if !bpHistory.isEmpty {
+                Chart(bpHistory) { point in
+                    LineMark(
+                        x: .value("Date", point.date),
+                        y: .value("Systolic", point.systolic)
+                    )
+                    .foregroundStyle(Color.danger)
+                    .interpolationMethod(.catmullRom)
+                    LineMark(
+                        x: .value("Date", point.date),
+                        y: .value("Diastolic", point.diastolic)
+                    )
+                    .foregroundStyle(Color.accentColor)
+                    .interpolationMethod(.catmullRom)
+                    if bpHistory.count <= 90 {
+                        PointMark(
+                            x: .value("Date", point.date),
+                            y: .value("Systolic", point.systolic)
+                        )
+                        .foregroundStyle(Color.danger)
+                        .symbolSize(20)
+                        PointMark(
+                            x: .value("Date", point.date),
+                            y: .value("Diastolic", point.diastolic)
+                        )
+                        .foregroundStyle(Color.accentColor)
+                        .symbolSize(20)
+                    }
+                }
+                .chartYAxisLabel("mmHg")
+                .frame(height: Layout.chartFrameHeight)
+                .padding(.vertical, 4)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Blood pressure trend chart showing \(bpHistory.count) readings")
+            }
+
+            if let latest = bpHistory.last {
+                let category = CardioFitnessEngine.classifyBP(systolic: latest.systolic, diastolic: latest.diastolic)
+                cardioMetricCard(
+                    label: "Latest Reading",
+                    value: "\(Int(latest.systolic))/\(Int(latest.diastolic))",
+                    unit: "mmHg",
+                    date: latest.date,
+                    classification: category.rawValue,
+                    classificationColor: colorForName(category.color),
+                    icon: category.systemImage
+                )
+
+                let impact = CardioFitnessEngine.bpLongevityImpact(systolic: latest.systolic, diastolic: latest.diastolic)
+                HStack(spacing: 6) {
+                    Image(systemName: impact >= 0 ? "arrow.up.circle.fill" : "arrow.down.circle.fill")
+                        .foregroundColor(impact >= 0 ? .success : .danger)
+                        .font(.caption)
+                    Text("Blood pressure \(Int(latest.systolic))/\(Int(latest.diastolic)): \(impact >= 0 ? "+" : "")\(String(format: "%.1f", impact)) years estimated life expectancy impact")
+                        .font(.caption)
+                        .foregroundColor(.textSecondary)
+                }
+            }
+
+            if bpHistory.isEmpty && !showingBPEntry {
+                EmptyStateView(
+                    icon: "heart.text.clipboard",
+                    title: "No blood pressure data yet.",
+                    subtitle: "Tap + to enter a reading or sync from Apple Health."
+                )
+            }
+
+            if showingBPEntry {
+                bpEntryForm
+            }
+        }
+        .padding()
+        .cardStyle()
+    }
+
+    private var bpEntryForm: some View {
+        VStack(spacing: 10) {
+            HStack {
+                Text("Systolic (top)")
+                    .font(.subheadline)
+                    .foregroundColor(.textSecondary)
+                Spacer()
+                TextField("120", text: $manualBPSystolic)
+                    .keyboardType(.numberPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 80)
+                    .accessibilityLabel("Systolic pressure")
+            }
+            HStack {
+                Text("Diastolic (bottom)")
+                    .font(.subheadline)
+                    .foregroundColor(.textSecondary)
+                Spacer()
+                TextField("80", text: $manualBPDiastolic)
+                    .keyboardType(.numberPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 80)
+                    .accessibilityLabel("Diastolic pressure")
+            }
+            Button(action: saveBPEntry) {
+                Text("Save Reading")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(Color.accentColor)
+                    .cornerRadius(8)
+            }
+            .disabled(Double(manualBPSystolic) == nil || Double(manualBPDiastolic) == nil)
+        }
+        .padding(12)
+        .background(Color.bgInput)
+        .cornerRadius(8)
     }
 
     // MARK: - Gait & Mobility Section
@@ -806,9 +955,9 @@ struct BodyView: View {
         }
 
         // Fall back to DataStore body entries when HealthKit is unavailable (macOS) or returns no data
+        let data = await DataStore.shared.getData()
         if latestWeight == nil || weightPoints.isEmpty {
-            let stored = await DataStore.shared.getData()
-            let sortedEntries = stored.bodyEntries.sorted { $0.date > $1.date }
+            let sortedEntries = data.bodyEntries.sorted { $0.date > $1.date }
             if latestWeight == nil, let latest = sortedEntries.first(where: { $0.weightLbs != nil }) {
                 latestWeight = latest.weightLbs
                 weightDate = DateFormatting.dateFromString(latest.date)
@@ -829,7 +978,6 @@ struct BodyView: View {
             weightPoints = [WeightPoint(date: d, value: w)]
         }
 
-        // If HealthKit has no weight data but we have manual, compute lean mass
         if latestLeanMass == nil, let w = latestWeight, let bf = latestBodyFat {
             latestLeanMass = w * (1 - bf / 100)
         }
@@ -855,11 +1003,16 @@ struct BodyView: View {
             cardioRecoveryDate = rec.date
         }
 
-        // Gait & activity from stored health metrics
-        let data = await DataStore.shared.getData()
-        let recentMetrics = data.healthMetrics
-            .sorted { $0.date > $1.date }
-            .prefix(30)
+        // Blood pressure & gait/activity from stored health metrics
+        let metricsByDateDesc = data.healthMetrics.sorted { $0.date > $1.date }
+        bpHistory = metricsByDateDesc.reversed().compactMap { m -> BPPoint? in
+            guard let sys = m.bloodPressureSystolic,
+                  let dia = m.bloodPressureDiastolic,
+                  let d = DateFormatting.dateFromString(m.date) else { return nil }
+            return BPPoint(date: d, systolic: sys, diastolic: dia)
+        }
+
+        let recentMetrics = metricsByDateDesc.prefix(30)
         gaitSummary = GaitEngine.summarize(metrics: Array(recentMetrics), age: userAge)
 
         // Latest averages for activity section
@@ -898,6 +1051,31 @@ struct BodyView: View {
         manualWeight = ""
         manualBodyFat = ""
         showingManualEntry = false
+    }
+
+    private func saveBPEntry() {
+        guard let sys = Double(manualBPSystolic),
+              let dia = Double(manualBPDiastolic) else { return }
+        let date = Date()
+        let dateStr = DateFormatting.dateString(date)
+
+        let newPoint = BPPoint(date: date, systolic: sys, diastolic: dia)
+        if let idx = bpHistory.firstIndex(where: { $0.date > date }) {
+            bpHistory.insert(newPoint, at: idx)
+        } else {
+            bpHistory.append(newPoint)
+        }
+
+        let entry = HealthMetricEntry(
+            date: dateStr,
+            bloodPressureSystolic: sys,
+            bloodPressureDiastolic: dia
+        )
+        Task { await DataStore.shared.upsertHealthMetric(entry) }
+
+        manualBPSystolic = ""
+        manualBPDiastolic = ""
+        showingBPEntry = false
     }
 }
 

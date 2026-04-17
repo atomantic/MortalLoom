@@ -205,6 +205,59 @@ enum CardioFitnessEngine {
         }
     }
 
+    // MARK: - Blood Pressure Classification
+
+    /// AHA blood pressure categories.
+    /// Source: American Heart Association / ACC 2017 Hypertension Guidelines
+    enum BPCategory: String, Sendable {
+        case normal = "Normal"
+        case elevated = "Elevated"
+        case highStage1 = "High – Stage 1"
+        case highStage2 = "High – Stage 2"
+        case crisis = "Hypertensive Crisis"
+
+        var color: String {
+            switch self {
+            case .normal: return "green"
+            case .elevated: return "yellow"
+            case .highStage1: return "orange"
+            case .highStage2: return "red"
+            case .crisis: return "red"
+            }
+        }
+
+        var systemImage: String {
+            switch self {
+            case .normal: return "heart.fill"
+            case .elevated: return "heart.fill"
+            case .highStage1: return "exclamationmark.triangle.fill"
+            case .highStage2: return "exclamationmark.triangle.fill"
+            case .crisis: return "xmark.circle.fill"
+            }
+        }
+    }
+
+    /// AHA/ACC 2017 hypertension guidelines.
+    static func classifyBP(systolic: Double, diastolic: Double) -> BPCategory {
+        if systolic > 180 || diastolic > 120 { return .crisis }
+        if systolic >= 140 || diastolic >= 90 { return .highStage2 }
+        if systolic >= 130 || diastolic >= 80 { return .highStage1 }
+        if systolic >= 120 { return .elevated }
+        return .normal
+    }
+
+    /// Blood pressure longevity impact (years).
+    /// Hypertension is the leading modifiable risk factor for cardiovascular mortality.
+    static func bpLongevityImpact(systolic: Double, diastolic: Double) -> Double {
+        switch classifyBP(systolic: systolic, diastolic: diastolic) {
+        case .normal: return 1.5
+        case .elevated: return 0.0
+        case .highStage1: return -1.5
+        case .highStage2: return -3.0
+        case .crisis: return -5.0
+        }
+    }
+
     // MARK: - Longevity Impact Summary
 
     /// Estimate the mortality impact of VO2 max based on published research.
