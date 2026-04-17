@@ -1,4 +1,5 @@
 import SwiftUI
+import StoreKit
 #if canImport(UniformTypeIdentifiers)
 import UniformTypeIdentifiers
 #endif
@@ -39,6 +40,7 @@ struct SettingsView: View {
     @State private var showPaywall = false
     @State private var showCitations = false
     @State private var showingMailComposer = false
+    @State private var showRedeemSheet = false
 
     private static let feedbackEmail = "mortalloom@shadowpuppet.net"
 
@@ -237,11 +239,57 @@ struct SettingsView: View {
                     .foregroundColor(.white)
                     .cornerRadius(10)
                 }
+
+                redeemCodeButton
             }
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
+    }
+
+    // Offer code redemption. On iOS/iPadOS/visionOS we present the built-in
+    // sheet via the SwiftUI modifier. macOS has no in-app sheet API for this
+    // — Apple routes users through the App Store app, so we open that
+    // directly via the macappstore:// redeem URL.
+    @ViewBuilder
+    private var redeemCodeButton: some View {
+        #if os(macOS)
+        Button {
+            if let url = URL(string: "macappstore://apps.apple.com/redeem") {
+                NSWorkspace.shared.open(url)
+            }
+        } label: {
+            redeemLabel
+        }
+        .buttonStyle(.plain)
+        #else
+        Button {
+            showRedeemSheet = true
+        } label: {
+            redeemLabel
+        }
+        .buttonStyle(.plain)
+        .offerCodeRedemption(isPresented: $showRedeemSheet) { result in
+            if case .success = result {
+                Task { await store.restorePurchases() }
+            }
+        }
+        #endif
+    }
+
+    private var redeemLabel: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "gift")
+            Text("Redeem Code")
+                .fontWeight(.medium)
+            Spacer()
+            Image(systemName: "chevron.right")
+                .font(.caption2)
+        }
+        .font(.subheadline)
+        .foregroundColor(.accentColor)
+        .padding(.vertical, 8)
     }
 
     // MARK: - Appearance
