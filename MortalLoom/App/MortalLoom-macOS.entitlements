@@ -1,19 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  MortalLoom-macOS.entitlements — macOS signing entitlements (MANUALLY MAINTAINED)
-
-  XcodeGen cannot generate per-SDK entitlements from project.yml, so this file
-  is maintained by hand. It duplicates the shared keys from MortalLoom.entitlements
-  and adds the macOS App Sandbox keys that are macOS-only.
-
-  When shared capabilities change (HealthKit, iCloud, app groups), update BOTH:
-    - MortalLoom/App/MortalLoom.entitlements  (iOS, written by XcodeGen from project.yml)
-    - MortalLoom/App/MortalLoom-macOS.entitlements  (this file, macOS, update manually)
--->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Shared with iOS — must mirror MortalLoom.entitlements -->
 	<key>com.apple.developer.healthkit</key>
 	<true/>
 	<key>com.apple.developer.healthkit.access</key>
@@ -29,15 +17,8 @@
 		<string>CloudDocuments</string>
 	</array>
 	<key>com.apple.security.application-groups</key>
-	<array>
-		<string>group.net.shadowpuppet.MeatSpaceTracker</string>
-	</array>
+	<array/>
 	<key>com.apple.security.files.bookmarks.app-scope</key>
-	<true/>
-	<!-- macOS App Sandbox keys — NOT present in iOS entitlements -->
-	<key>com.apple.security.app-sandbox</key>
-	<true/>
-	<key>com.apple.security.files.user-selected.read-write</key>
 	<true/>
 </dict>
 </plist>

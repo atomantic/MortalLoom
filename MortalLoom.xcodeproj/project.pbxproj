@@ -235,8 +235,8 @@
 		17554F4F50A7084DE0587FE8 /* ProBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProBadge.swift; sourceTree = "<group>"; };
 		1B2CB5E984C7556ED4DE0610 /* ScreenshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotTests.swift; sourceTree = "<group>"; };
 		1F9ADA70E28A5E28CA55C63F /* GoalsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalsView.swift; sourceTree = "<group>"; };
-		215B069F66D7F15999E101D1 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		223CD2E2AB78B4665CCC4255 /* Products.storekit */ = {isa = PBXFileReference; path = Products.storekit; sourceTree = "<group>"; };
+		215B069F66D7F15999E101D1 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		223CD2E2AB78B4665CCC4255 /* Products.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = Products.storekit; sourceTree = "<group>"; };
 		25A938EE48931E1A7D80455D /* MortalLoomApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MortalLoomApp.swift; sourceTree = "<group>"; };
 		29D32D124C715340FD2DC350 /* ICloudMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ICloudMonitor.swift; sourceTree = "<group>"; };
 		2A7F04CCC005710E57CD0BEC /* CitationBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CitationBadge.swift; sourceTree = "<group>"; };
@@ -254,7 +254,7 @@
 		4BB08E31839DCECA66643126 /* WeeklyReviewSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReviewSheet.swift; sourceTree = "<group>"; };
 		4FCF31AF121B47E7C7DF22B1 /* HealthProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthProfile.swift; sourceTree = "<group>"; };
 		50C5058BFC45EAA680969317 /* SideMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideMenuView.swift; sourceTree = "<group>"; };
-		565672385B1B8A18B64FC8A8 /* MortalLoomUITests_iOS.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MortalLoomUITests_iOS.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		565672385B1B8A18B64FC8A8 /* MortalLoomUITests_iOS.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MortalLoomUITests_iOS.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		581A48FA229D5FCAD176458F /* SampleData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleData.swift; sourceTree = "<group>"; };
 		5ABFE2DBE2C3A4FAFEE5EE6E /* LifeCalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifeCalendarView.swift; sourceTree = "<group>"; };
 		5C8ED8531BC086732C92DA9B /* MortalLoomTests_macOS.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MortalLoomTests_macOS.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -285,14 +285,14 @@
 		96374925D1E172E0CA886433 /* ReflectionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReflectionsView.swift; sourceTree = "<group>"; };
 		98CE91B429B04C112C38D411 /* CorrelationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CorrelationEngine.swift; sourceTree = "<group>"; };
 		9A913A076D3406287294E60C /* MortalLoom.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MortalLoom.entitlements; sourceTree = "<group>"; };
-		9C75EBA8B78FFDE7A1FC5925 /* MortalLoomWidget.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = MortalLoomWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		9C75EBA8B78FFDE7A1FC5925 /* MortalLoomWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MortalLoomWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		9CE6AB7AF196CE255C4F84E9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		9F15E56CD7761DC17846A67A /* MortalLoom.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = MortalLoom.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		9F15E56CD7761DC17846A67A /* MortalLoom.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MortalLoom.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A6A08FFA461E1F414C7EA92E /* CalendarSchedulerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarSchedulerSheet.swift; sourceTree = "<group>"; };
 		B460A824B27B5049B354A64C /* StagnationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StagnationEngine.swift; sourceTree = "<group>"; };
 		B4C6F3F7D27B38D804FA5B61 /* DeathClockEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeathClockEngine.swift; sourceTree = "<group>"; };
 		BC7FF09623E4F8E66F45E59F /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
-		BEB68C77C3325AF758E23E9D /* MortalLoomTests_iOS.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MortalLoomTests_iOS.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		BEB68C77C3325AF758E23E9D /* MortalLoomTests_iOS.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MortalLoomTests_iOS.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C204F5FE0B519C1DEDB7AF47 /* SubstanceEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubstanceEngine.swift; sourceTree = "<group>"; };
 		C6800ABC07A07655F56FA658 /* EyeExam.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EyeExam.swift; sourceTree = "<group>"; };
 		C7F21F5108C9F766D56DE2AE /* GenomeEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenomeEngine.swift; sourceTree = "<group>"; };
@@ -613,7 +613,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 1600;
+				LastUpgradeCheck = 2630;
 				TargetAttributes = {
 					1BB8714A0A40710B6A368F50 = {
 						DevelopmentTeam = TYQ32QCF6K;
@@ -959,6 +959,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
@@ -1166,6 +1167,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -1182,6 +1184,8 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = TYQ32QCF6K;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_USER_SELECTED_FILES = readwrite;
 				INFOPLIST_FILE = MortalLoom/App/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = MortalLoom;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
@@ -1196,6 +1200,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = net.shadowpuppet.MeatSpaceTracker;
 				PRODUCT_NAME = MortalLoom;
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = macosx;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 			};
@@ -1210,6 +1215,8 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = TYQ32QCF6K;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_USER_SELECTED_FILES = readwrite;
 				INFOPLIST_FILE = MortalLoom/App/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = MortalLoom;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
@@ -1224,6 +1231,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = net.shadowpuppet.MeatSpaceTracker;
 				PRODUCT_NAME = MortalLoom;
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = macosx;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 			};
@@ -1237,7 +1245,11 @@
 				DEVELOPMENT_TEAM = TYQ32QCF6K;
 				INFOPLIST_FILE = MortalLoomWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "MortalLoom Widget";
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = net.shadowpuppet.MeatSpaceTracker.widget;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
@@ -1253,7 +1265,11 @@
 				DEVELOPMENT_TEAM = TYQ32QCF6K;
 				INFOPLIST_FILE = MortalLoomWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "MortalLoom Widget";
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = net.shadowpuppet.MeatSpaceTracker.widget;
 				SDKROOT = iphoneos;
 				SKIP_INSTALL = YES;
