@@ -22,12 +22,13 @@ struct WidgetSnapshot: Codable, Sendable {
     let apexTitle: String?
     let alignmentScore: Double?
     let todaysPrompt: String?
+    let apexGoalId: UUID?
 
     // Back-compat decoder: older snapshot files (written by pre-alignment
     // builds) don't have the new fields. Default them to nil.
     private enum CodingKeys: String, CodingKey {
         case goals, activeCount, overdueCount, needsCheckInCount, healthScore, updatedAt
-        case apexTitle, alignmentScore, todaysPrompt
+        case apexTitle, alignmentScore, todaysPrompt, apexGoalId
     }
 
     init(from decoder: Decoder) throws {
@@ -41,6 +42,7 @@ struct WidgetSnapshot: Codable, Sendable {
         apexTitle = try c.decodeIfPresent(String.self, forKey: .apexTitle)
         alignmentScore = try c.decodeIfPresent(Double.self, forKey: .alignmentScore)
         todaysPrompt = try c.decodeIfPresent(String.self, forKey: .todaysPrompt)
+        apexGoalId = try c.decodeIfPresent(UUID.self, forKey: .apexGoalId)
     }
 
     // Explicit init so the placeholder can construct one.
@@ -53,7 +55,8 @@ struct WidgetSnapshot: Codable, Sendable {
         updatedAt: Date,
         apexTitle: String? = nil,
         alignmentScore: Double? = nil,
-        todaysPrompt: String? = nil
+        todaysPrompt: String? = nil,
+        apexGoalId: UUID? = nil
     ) {
         self.goals = goals
         self.activeCount = activeCount
@@ -64,6 +67,7 @@ struct WidgetSnapshot: Codable, Sendable {
         self.apexTitle = apexTitle
         self.alignmentScore = alignmentScore
         self.todaysPrompt = todaysPrompt
+        self.apexGoalId = apexGoalId
     }
 }
 
@@ -104,7 +108,8 @@ struct MortalLoomEntry: TimelineEntry {
             updatedAt: Date(),
             apexTitle: "Leave a lasting creative legacy",
             alignmentScore: 62,
-            todaysPrompt: "What's holding you back right now?"
+            todaysPrompt: "What's holding you back right now?",
+            apexGoalId: UUID()
         )
     )
 }
@@ -166,6 +171,22 @@ private func categoryIcon(_ category: String?) -> String {
     }
 }
 
+/// Deep link for a widget tap. When an apex is set we route to the apex
+/// reflect sheet so the tap is a 2-tap reflection; otherwise we fall back
+/// to the overview or goals page depending on whether standard goals exist.
+/// Returns nil on snapshots that can't be meaningfully routed — the widget
+/// then falls back to the default "launch the app" behaviour.
+private func tapURL(for snapshot: WidgetSnapshot?) -> URL? {
+    guard let snapshot else { return URL(string: "mortalloom://overview") }
+    if let id = snapshot.apexGoalId {
+        return URL(string: "mortalloom://goal/\(id.uuidString)/reflect")
+    }
+    if !snapshot.goals.isEmpty {
+        return URL(string: "mortalloom://goals")
+    }
+    return URL(string: "mortalloom://overview")
+}
+
 // MARK: - Entry View Router
 
 struct MortalLoomWidgetEntryView: View {
@@ -173,6 +194,12 @@ struct MortalLoomWidgetEntryView: View {
     let entry: MortalLoomEntry
 
     var body: some View {
+        content
+            .widgetURL(tapURL(for: entry.snapshot))
+    }
+
+    @ViewBuilder
+    private var content: some View {
         switch family {
         case .systemSmall:
             SmallWidgetView(entry: entry)

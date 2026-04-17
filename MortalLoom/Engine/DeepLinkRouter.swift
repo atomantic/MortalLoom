@@ -84,4 +84,8 @@ enum DeepLinkRouter {
 
 extension Notification.Name {
     static let navigateToPage = Notification.Name("navigateToPage")
+    /// Posted with a `UUID` object to request the check-in / reflect sheet
+    /// for a specific goal. GoalsView observes this and opens the sheet once
+    /// data has loaded. Used by the widget tap-through flow.
+    static let openGoalReflect = Notification.Name("openGoalReflect")
 }

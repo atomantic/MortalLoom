@@ -32,6 +32,11 @@ struct GoalsView: View {
     @State private var cachedRoots: [Goal] = []
     @State private var cachedActiveByParent: [UUID?: [Goal]] = [:]
 
+    /// Goal id requested via `.openGoalReflect` (widget tap-through / deep
+    /// link) before `goals` finished loading. Resolved at the end of
+    /// `loadData()` so a cold-launch widget tap still opens the sheet.
+    @State private var pendingReflectGoalId: UUID?
+
     private static let treeLineColor = Color.textMuted.opacity(0.4)
     private static let treeLineWidth: CGFloat = 1.5
     private static let treeColumnWidth: CGFloat = 24
@@ -136,6 +141,14 @@ struct GoalsView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .profileDidChange)) { _ in
             Task { await loadData() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openGoalReflect)) { notif in
+            guard let id = notif.object as? UUID else { return }
+            if let goal = goals.first(where: { $0.id == id }) {
+                checkInGoal = goal
+            } else {
+                pendingReflectGoalId = id
+            }
         }
     }
 
@@ -251,6 +264,12 @@ struct GoalsView: View {
         cachedRoots = roots
         cachedActiveByParent = activeByParent
         hierarchyItems = buildHierarchy(roots: roots, activeByParent: activeByParent)
+
+        if let pending = pendingReflectGoalId,
+           let goal = goals.first(where: { $0.id == pending }) {
+            pendingReflectGoalId = nil
+            checkInGoal = goal
+        }
     }
 
     private func buildHierarchy(roots: [Goal], activeByParent: [UUID?: [Goal]]) -> [HierarchyItem] {

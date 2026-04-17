@@ -138,6 +138,9 @@ struct ContentView: View {
                 return
             }
             selectedPage = route.targetPage
+            if case .goalReflect(let id) = route {
+                NotificationCenter.default.post(name: .openGoalReflect, object: id)
+            }
         }
         #endif
         .task {
@@ -370,6 +373,9 @@ struct MacContentView: View {
         .onOpenURL { url in
             guard let route = DeepLinkRouter.parse(url) else { return }
             selectedPage = route.targetPage
+            if case .goalReflect(let id) = route {
+                NotificationCenter.default.post(name: .openGoalReflect, object: id)
+            }
         }
     }
 }

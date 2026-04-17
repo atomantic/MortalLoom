@@ -33,6 +33,9 @@ enum WidgetBridge: Sendable {
         /// One rotating reflection prompt surfaced on the widget so the
         /// user has a one-tap reflection entry point from the home screen.
         let todaysPrompt: String?
+        /// Apex goal identifier used to build the widget tap-through URL
+        /// `mortalloom://goal/<uuid>/reflect`. Nil when no apex is set.
+        let apexGoalId: UUID?
     }
 
     static func update(data: AppData) {
@@ -115,7 +118,8 @@ enum WidgetBridge: Sendable {
             updatedAt: Date(),
             apexTitle: apex?.title,
             alignmentScore: alignment,
-            todaysPrompt: todaysPrompt
+            todaysPrompt: todaysPrompt,
+            apexGoalId: apex?.id
         )
 
         guard let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID)?
