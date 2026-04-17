@@ -145,7 +145,11 @@ final class HealthKitSync {
         async let mindfulData = hk.dailyMindfulMinutes(from: from, to: to)
         async let breathingDisturbanceData: [(date: Date, value: Double)] = {
             if #available(iOS 18.0, *) {
-                return await hk.dailyStats(for: .appleSleepingBreathingDisturbances, unit: .count().unitDivided(by: .hour()), aggregation: .average, from: from, to: to)
+                // Native unit is the dimensionless HKUnit.count() — the raw
+                // per-sample value already represents events per hour. The
+                // earlier .count()/.hour() form added a time dimension and
+                // raised an NSException inside HKQuantity.doubleValue(for:).
+                return await hk.dailyStats(for: .appleSleepingBreathingDisturbances, unit: .count(), aggregation: .average, from: from, to: to)
             }
             return []
         }()

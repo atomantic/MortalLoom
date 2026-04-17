@@ -109,6 +109,15 @@ final class HealthKitService {
                     continuation.resume(returning: nil)
                     return
                 }
+                // HKQuantity.doubleValue(for:) raises an uncatchable NSException
+                // when the unit is incompatible with the sample's native unit.
+                // Always check compatibility first so a HealthKit schema change
+                // or wrong-unit callsite can never crash the app.
+                guard sample.quantity.is(compatibleWith: unit) else {
+                    logger.error("🩺 Unit mismatch for \(identifier.rawValue): got incompatible unit \(unit)")
+                    continuation.resume(returning: nil)
+                    return
+                }
                 let value = sample.quantity.doubleValue(for: unit)
                 continuation.resume(returning: (value, sample.startDate))
             }
@@ -138,16 +147,22 @@ final class HealthKitService {
 
             query.initialResultsHandler = { _, results, _ in
                 var data: [(Date, Double)] = []
+                var loggedMismatch = false
                 results?.enumerateStatistics(from: from, to: to) { stats, _ in
-                    let val: Double?
-                    if aggregation == .sum {
-                        val = stats.sumQuantity()?.doubleValue(for: unit)
-                    } else {
-                        val = stats.averageQuantity()?.doubleValue(for: unit)
+                    let quantity = aggregation == .sum ? stats.sumQuantity() : stats.averageQuantity()
+                    guard let quantity else { return }
+                    // HKQuantity.doubleValue(for:) raises an uncatchable NSException
+                    // when the unit is incompatible. Guard with is(compatibleWith:)
+                    // so a unit mismatch (e.g. a new HealthKit type added with the
+                    // wrong unit at a callsite) cannot crash the app.
+                    guard quantity.is(compatibleWith: unit) else {
+                        if !loggedMismatch {
+                            logger.error("🩺 Unit mismatch for \(identifier.rawValue): skipping incompatible samples")
+                            loggedMismatch = true
+                        }
+                        return
                     }
-                    if let v = val {
-                        data.append((stats.startDate, v))
-                    }
+                    data.append((stats.startDate, quantity.doubleValue(for: unit)))
                 }
                 continuation.resume(returning: data)
             }
