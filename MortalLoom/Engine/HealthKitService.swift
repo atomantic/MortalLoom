@@ -60,6 +60,10 @@ final class HealthKitService {
                 types.insert(t)
             }
         }
+        if #available(iOS 18.0, macOS 15.0, *),
+           let bd = HKObjectType.quantityType(forIdentifier: .appleSleepingBreathingDisturbances) {
+            types.insert(bd)
+        }
         let categoryTypes: [HKCategoryTypeIdentifier] = [
             .sleepAnalysis,
             .mindfulSession,

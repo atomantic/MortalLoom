@@ -143,6 +143,12 @@ final class HealthKitSync {
         async let steadinessData = hk.dailyStats(for: .appleWalkingSteadiness, unit: .percent(), aggregation: .average, from: from, to: to)
         async let physicalEffortData = hk.dailyStats(for: .physicalEffort, unit: HKUnit.kilocalorie().unitDivided(by: HKUnit.gramUnit(with: .kilo).unitMultiplied(by: .hour())), aggregation: .average, from: from, to: to)
         async let mindfulData = hk.dailyMindfulMinutes(from: from, to: to)
+        async let breathingDisturbanceData: [(date: Date, value: Double)] = {
+            if #available(iOS 18.0, *) {
+                return await hk.dailyStats(for: .appleSleepingBreathingDisturbances, unit: .count().unitDivided(by: .hour()), aggregation: .average, from: from, to: to)
+            }
+            return []
+        }()
 
         // Collect all results
         let hrv = await hrvData
@@ -186,6 +192,7 @@ final class HealthKitSync {
         let steadiness = await steadinessData
         let physicalEffort = await physicalEffortData
         let mindful = await mindfulData
+        let breathingDisturbances = await breathingDisturbanceData
 
         // Build a date-keyed dictionary of all metrics
         var byDate: [String: HealthMetricEntry] = [:]
@@ -247,6 +254,7 @@ final class HealthKitSync {
         merge(hkAlcohol, into: \.hkAlcoholicBeverages)
         merge(physicalEffort, into: \.physicalEffort)
         merge(mindful, into: \.mindfulMinutes)
+        merge(breathingDisturbances, into: \.breathingDisturbances)
 
         // HealthKit returns these as 0-1 fractions; convert to 0-100 percentages
         let toPercent: (Double) -> Double = { $0 * 100 }

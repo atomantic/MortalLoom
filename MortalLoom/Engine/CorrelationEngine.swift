@@ -158,6 +158,55 @@ enum CorrelationEngine {
         }.sorted { $0.date < $1.date }
     }
 
+    // MARK: - Alcohol → Breathing Disturbances
+
+    struct AlcoholBreathingDataPoint: Sendable {
+        let date: String
+        let standardDrinks: Double
+        let nextNightDisturbances: Double?
+    }
+
+    static func alcoholBreathingCorrelation(
+        drinks: [AlcoholDrink],
+        healthMetrics: [HealthMetricEntry]
+    ) -> [AlcoholBreathingDataPoint] {
+        guard !drinks.isEmpty, !healthMetrics.isEmpty else { return [] }
+
+        let metricsByDate = Dictionary(grouping: healthMetrics, by: \.date)
+            .compactMapValues(\.first)
+
+        var drinksByDate: [String: Double] = [:]
+        for drink in drinks {
+            drinksByDate[drink.date, default: 0] += drink.standardDrinks
+        }
+
+        let allMetricDates = Set(healthMetrics.compactMap { m -> String? in
+            guard m.breathingDisturbances != nil else { return nil }
+            guard let metricDate = DateFormatting.dateFromString(m.date) else { return nil }
+            guard let priorDay = Calendar.current.date(byAdding: .day, value: -1, to: metricDate) else { return nil }
+            return DateFormatting.dateString(priorDay)
+        })
+
+        let allDates = Set(drinksByDate.keys).union(allMetricDates)
+
+        return allDates.compactMap { dateStr -> AlcoholBreathingDataPoint? in
+            let drinks = drinksByDate[dateStr] ?? 0
+
+            guard let day = DateFormatting.dateFromString(dateStr),
+                  let nextDay = Calendar.current.date(byAdding: .day, value: 1, to: day) else { return nil }
+            let nextDayStr = DateFormatting.dateString(nextDay)
+            let nextMetrics = metricsByDate[nextDayStr]
+
+            guard let disturbances = nextMetrics?.breathingDisturbances else { return nil }
+
+            return AlcoholBreathingDataPoint(
+                date: dateStr,
+                standardDrinks: drinks,
+                nextNightDisturbances: disturbances
+            )
+        }.sorted { $0.date < $1.date }
+    }
+
     // MARK: - Activity → Blood Markers
 
     static func buildCorrelationData(

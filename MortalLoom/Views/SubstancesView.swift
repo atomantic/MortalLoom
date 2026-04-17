@@ -235,6 +235,7 @@ struct SubstancesView: View {
             alcoholHrvCorrelation
         }
         alcoholSleepCorrelation
+        alcoholBreathingCorrelation
         alcoholCustomForm
         alcoholHistory
     }
@@ -603,6 +604,114 @@ struct SubstancesView: View {
     private func pctDifference(_ baseline: Double?, _ comparison: Double?) -> Double? {
         guard let b = baseline, let c = comparison, b > 0 else { return nil }
         return (b - c) / b * 100
+    }
+
+    // MARK: Alcohol + Breathing Disturbances Correlation
+
+    @ViewBuilder
+    private var alcoholBreathingCorrelation: some View {
+        let dataPoints = CorrelationEngine.alcoholBreathingCorrelation(
+            drinks: alcoholDrinks,
+            healthMetrics: healthMetrics
+        )
+
+        let drinkingDays = dataPoints.filter { $0.standardDrinks > 0.5 }
+        let soberDays = dataPoints.filter { $0.standardDrinks <= 0.5 }
+
+        let avgDistDrinking = average(drinkingDays.compactMap(\.nextNightDisturbances))
+        let avgDistSober = average(soberDays.compactMap(\.nextNightDisturbances))
+
+        let hasData = !drinkingDays.isEmpty && !soberDays.isEmpty
+            && avgDistDrinking != nil && avgDistSober != nil
+
+        if hasData {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Alcohol + Breathing Disturbances")
+                    .font(.headline)
+                    .foregroundColor(.textPrimary)
+
+                let chartData = dataPoints.suffix(60)
+
+                Chart {
+                    ForEach(Array(chartData), id: \.date) { item in
+                        if item.standardDrinks > 0 {
+                            BarMark(
+                                x: .value("Date", item.date),
+                                y: .value("Drinks", item.standardDrinks)
+                            )
+                            .foregroundStyle(Color.accentColor.opacity(0.3))
+                        }
+                        if let dist = item.nextNightDisturbances {
+                            LineMark(
+                                x: .value("Date", item.date),
+                                y: .value("Events/hr", dist),
+                                series: .value("Metric", "Disturbances")
+                            )
+                            .foregroundStyle(Color.orange)
+                            .lineStyle(StrokeStyle(lineWidth: 2))
+
+                            PointMark(
+                                x: .value("Date", item.date),
+                                y: .value("Events/hr", dist)
+                            )
+                            .foregroundStyle(item.standardDrinks > 0.5 ? Color.accentColor : Color.orange)
+                            .symbolSize(item.standardDrinks > 0.5 ? 30 : 15)
+                        }
+                    }
+                }
+                .chartXAxis {
+                    AxisMarks(values: .stride(by: .day, count: 14)) { _ in
+                        AxisGridLine()
+                        AxisValueLabel(format: .dateTime.month(.abbreviated).day(), centered: true)
+                    }
+                }
+                .chartForegroundStyleScale([
+                    "Disturbances (events/hr)": Color.orange,
+                    "Drinks": Color.accentColor.opacity(0.3),
+                ])
+                .frame(height: Layout.chartFrameHeight)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Alcohol and breathing disturbances correlation. Average on drinking nights: \(String(format: "%.1f", avgDistDrinking ?? 0)) events per hour. Sober nights: \(String(format: "%.1f", avgDistSober ?? 0)) events per hour")
+
+                let distDiff = pctDifference(avgDistSober, avgDistDrinking)
+
+                HStack(spacing: 16) {
+                    VStack(spacing: 2) {
+                        Text("Drinking Nights")
+                            .font(.caption2)
+                            .foregroundColor(.textMuted)
+                        Text(String(format: "%.1f/hr", avgDistDrinking ?? 0))
+                            .font(.subheadline.bold())
+                            .foregroundColor(.accentColor)
+                    }
+                    VStack(spacing: 2) {
+                        Text("Sober Nights")
+                            .font(.caption2)
+                            .foregroundColor(.textMuted)
+                        Text(String(format: "%.1f/hr", avgDistSober ?? 0))
+                            .font(.subheadline.bold())
+                            .foregroundColor(.orange)
+                    }
+                    if let diff = distDiff {
+                        VStack(spacing: 2) {
+                            Text("Difference")
+                                .font(.caption2)
+                                .foregroundColor(.textMuted)
+                            Text(String(format: "%.1f%%", abs(diff)) + (diff < 0 ? " more" : " fewer"))
+                                .font(.subheadline.bold())
+                                .foregroundColor(diff < 0 ? .danger : .success)
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity)
+
+                Text("Breathing disturbances (events/hr) measured by Apple Watch during sleep. Alcohol relaxes airway muscles and increases obstruction risk.")
+                    .font(.caption2)
+                    .foregroundColor(.textMuted)
+            }
+            .padding()
+            .cardStyle()
+        }
     }
 
     // MARK: Alcohol Quick Add
