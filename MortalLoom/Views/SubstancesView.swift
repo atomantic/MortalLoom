@@ -89,7 +89,7 @@ struct SubstancesView: View {
     // Health metrics for correlation charts
     @State private var healthMetrics: [HealthMetricEntry] = []
     private var metricsByDate: [String: HealthMetricEntry] {
-        Dictionary(uniqueKeysWithValues: healthMetrics.map { ($0.date, $0) })
+        Dictionary(healthMetrics.map { ($0.date, $0) }, uniquingKeysWith: { _, latest in latest })
     }
 
     // Alcohol form

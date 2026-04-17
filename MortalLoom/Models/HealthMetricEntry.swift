@@ -207,4 +207,18 @@ struct HealthMetricEntry: Codable, Sendable, Equatable, Identifiable {
         if let v = source.headphoneAudioExposure { headphoneAudioExposure = v }
         if let v = source.walkingSteadiness { walkingSteadiness = v }
     }
+
+    static func deduplicatedByDate(_ metrics: [HealthMetricEntry]) -> [HealthMetricEntry] {
+        var byDate: [String: HealthMetricEntry] = [:]
+        byDate.reserveCapacity(metrics.count)
+        for m in metrics {
+            if var existing = byDate[m.date] {
+                existing.mergeFields(from: m)
+                byDate[m.date] = existing
+            } else {
+                byDate[m.date] = m
+            }
+        }
+        return Array(byDate.values)
+    }
 }

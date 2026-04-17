@@ -93,7 +93,9 @@ struct AppData: Codable, Sendable {
         eyeExams = try c.decode([EyeExam].self, forKey: .eyeExams)
         epigeneticTests = try c.decode([EpigeneticTest].self, forKey: .epigeneticTests)
         bodyEntries = try c.decodeIfPresent([BodyEntry].self, forKey: .bodyEntries) ?? []
-        healthMetrics = try c.decodeIfPresent([HealthMetricEntry].self, forKey: .healthMetrics) ?? []
+        healthMetrics = HealthMetricEntry.deduplicatedByDate(
+            try c.decodeIfPresent([HealthMetricEntry].self, forKey: .healthMetrics) ?? []
+        )
         goals = try c.decodeIfPresent([Goal].self, forKey: .goals) ?? []
         habits = try c.decodeIfPresent([Habit].self, forKey: .habits) ?? []
         genomeScanRecord = try c.decodeIfPresent(GenomeScanRecord.self, forKey: .genomeScanRecord)
@@ -170,22 +172,8 @@ extension AppData {
         return Array(dict.values)
     }
 
-    /// Merge health metric arrays keyed by the `date` string. Fields are
-    /// combined using `HealthMetricEntry.mergeFields`, preferring remote
-    /// non-nil fields over local.
     private func mergeHealthMetricsByDate(_ local: [HealthMetricEntry], _ remote: [HealthMetricEntry]) -> [HealthMetricEntry] {
-        var byDate: [String: HealthMetricEntry] = [:]
-        byDate.reserveCapacity(local.count + remote.count)
-        for m in local { byDate[m.date] = m }
-        for m in remote {
-            if var existing = byDate[m.date] {
-                existing.mergeFields(from: m)
-                byDate[m.date] = existing
-            } else {
-                byDate[m.date] = m
-            }
-        }
-        return Array(byDate.values)
+        HealthMetricEntry.deduplicatedByDate(local + remote)
     }
 
     /// Merge profile: take remote non-nil scalar fields, preserve local
