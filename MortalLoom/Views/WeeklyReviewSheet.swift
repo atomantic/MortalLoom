@@ -110,6 +110,7 @@ struct WeeklyReviewSheet: View {
             Text(step.title)
                 .font(.title2).fontWeight(.bold)
                 .foregroundColor(.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -122,6 +123,7 @@ struct WeeklyReviewSheet: View {
                 Text(apex.title)
                     .font(.headline)
                     .foregroundColor(.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
                     .padding(.bottom, 4)
             }
 

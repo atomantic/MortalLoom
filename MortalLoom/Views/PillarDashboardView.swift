@@ -139,11 +139,13 @@ struct PillarDashboardView: View {
             Text(pillar.title)
                 .font(.title2).fontWeight(.bold)
                 .foregroundColor(.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
 
             if !pillar.notes.isEmpty {
                 Text(pillar.notes)
                     .font(.subheadline)
                     .foregroundColor(.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             HStack(spacing: 12) {

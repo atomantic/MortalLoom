@@ -176,6 +176,7 @@ struct OnboardingView: View {
                 Text(title)
                     .font(.subheadline).fontWeight(.semibold)
                     .foregroundColor(.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(detail)
                     .font(.caption)
                     .foregroundColor(.textSecondary)
@@ -990,15 +991,31 @@ struct OnboardingView: View {
 
     // MARK: - Shared Components
 
+    /// Every step has the same bones: centered content with a primary
+    /// button at the bottom pushed by a Spacer. The wrapper is a ScrollView
+    /// so content that exceeds the screen — large Dynamic Type sizes,
+    /// keyboard raised on a short iPhone, long descriptions — can still be
+    /// reached. The inner VStack uses `minHeight: geo.size.height` so it
+    /// can grow past the visible area (overflow scrolls) while still
+    /// letting Spacer() push the button to the bottom when content is
+    /// short. `.scrollBounceBehavior(.basedOnSize)` suppresses the
+    /// rubber-band on steps that fit.
     @ViewBuilder
     private func stepContainer<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        VStack(spacing: 16) {
+        let body = VStack(spacing: 16) {
             content()
         }
         .padding(.horizontal, 24)
         .padding(.top, 48)
         .padding(.bottom, 24)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
+
+        GeometryReader { geo in
+            ScrollView {
+                body.frame(minHeight: geo.size.height)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+        }
     }
 
     @ViewBuilder
@@ -1015,6 +1032,9 @@ struct OnboardingView: View {
             .font(.title).fontWeight(.bold)
             .foregroundColor(.textPrimary)
             .multilineTextAlignment(.center)
+            // Without fixedSize, large Dynamic Type sizes truncate the
+            // title horizontally ("Welcome to Mort…") instead of wrapping.
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     @ViewBuilder

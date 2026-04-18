@@ -399,12 +399,14 @@ struct GoalsView: View {
             Text(goal.title)
                 .font(.title3).fontWeight(.bold)
                 .foregroundColor(.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
 
             if !goal.notes.isEmpty {
                 Text(goal.notes)
                     .font(.subheadline)
                     .foregroundColor(.textSecondary)
                     .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             classificationChips(for: goal)
@@ -578,7 +580,9 @@ struct GoalsView: View {
                 Text(goal.title)
                     .font(.headline)
                     .foregroundColor(.textPrimary)
-                    .lineLimit(1)
+                    // At AX sizes, one-line truncation hides essential info.
+                    // Let the title wrap — the row height grows with it.
+                    .fixedSize(horizontal: false, vertical: true)
                 Spacer()
                 if goalNeedsCheckIn || goal.isOverdue {
                     Image(systemName: "bell.badge.fill")
@@ -612,6 +616,7 @@ struct GoalsView: View {
                     .font(.caption)
                     .foregroundColor(.textSecondary)
                     .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             classificationChips(for: goal)
