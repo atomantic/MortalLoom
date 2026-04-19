@@ -1,7 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  MortalLoom-macOS.entitlements — macOS signing entitlements (MANUALLY MAINTAINED)
+
+  XcodeGen cannot generate per-SDK entitlements from project.yml, so this file
+  is maintained by hand. It mirrors the shared keys from MortalLoom.entitlements
+  and adds macOS-only App Sandbox keys required for Mac App Store / TestFlight.
+
+  When shared capabilities change (HealthKit, iCloud, app groups, URLSession),
+  update BOTH:
+    - MortalLoom/App/MortalLoom.entitlements        (iOS, written by XcodeGen)
+    - MortalLoom/App/MortalLoom-macOS.entitlements  (this file, manual)
+
+  Removing `com.apple.security.app-sandbox` will cause TestFlight validation to
+  reject the upload with "App sandbox not enabled" (error 409). Don't strip it.
+-->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Shared with iOS — must mirror MortalLoom.entitlements -->
 	<key>com.apple.developer.healthkit</key>
 	<true/>
 	<key>com.apple.developer.healthkit.access</key>
@@ -17,8 +33,19 @@
 		<string>CloudDocuments</string>
 	</array>
 	<key>com.apple.security.application-groups</key>
-	<array/>
+	<array>
+		<string>group.net.shadowpuppet.MeatSpaceTracker</string>
+	</array>
 	<key>com.apple.security.files.bookmarks.app-scope</key>
+	<true/>
+	<!-- macOS App Sandbox keys — required for Mac App Store / TestFlight -->
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+	<!-- Network client — required for ClinVarService (NCBI download) and
+	     AirQualityService (Open-Meteo one-shot AQI lookup). -->
+	<key>com.apple.security.network.client</key>
 	<true/>
 </dict>
 </plist>
