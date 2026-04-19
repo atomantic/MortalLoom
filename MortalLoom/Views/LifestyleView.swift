@@ -14,12 +14,19 @@ struct LifestyleView: View {
 
     // Location / environment
     @State private var countryCode: String? = nil
+    @State private var regionCode: String? = nil
+    @State private var regionOptions: [(name: String, code: String)] = []
     @State private var airQuality: AirQualityLevel? = nil
     @State private var useAutoDetect: Bool = false
     @State private var locationService = LocationService.shared
 
+    // Socioeconomic (optional, all "prefer not to say" by default)
+    @State private var education: EducationLevel? = nil
+    @State private var incomeBracket: IncomeBracket? = nil
+
     @State private var saved = false
     @State private var hasHealthKitSleep = false
+    @State private var hasHealthKitExercise = false
     @State private var sleepStageBreakdown: SleepEngine.SleepStageBreakdown? = nil
     @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
     private var isWide: Bool { containerWidth >= Layout.wideThreshold }
@@ -47,6 +54,7 @@ struct LifestyleView: View {
             profileSection
             questionnaireSection
             environmentSection
+            socioeconomicSection
             saveSection
             impactPreviewSection
         }
@@ -59,6 +67,7 @@ struct LifestyleView: View {
                 VStack(spacing: 16) {
                     profileSection
                     environmentSection
+                    socioeconomicSection
                     saveSection
                 }
                 .frame(maxWidth: .infinity)
@@ -142,7 +151,23 @@ struct LifestyleView: View {
                     }
                 }
                 .pickerStyle(.menu)
-                .onChange(of: countryCode) { _, _ in saved = false }
+                .onChange(of: countryCode) { _, new in
+                    saved = false
+                    let prefix = (new ?? "").uppercased() + "-"
+                    if regionCode?.hasPrefix(prefix) != true { regionCode = nil }
+                    regionOptions = new.map { LocationEngine.regionsForPicker(countryCode: $0) } ?? []
+                }
+
+                if !regionOptions.isEmpty {
+                    Picker("State / Region", selection: $regionCode) {
+                        Text("Not set").tag(String?.none)
+                        ForEach(regionOptions, id: \.code) { entry in
+                            Text(entry.name).tag(String?.some(entry.code))
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .onChange(of: regionCode) { _, _ in saved = false }
+                }
 
                 Toggle("Auto-detect from location", isOn: $useAutoDetect)
                     .font(.caption)
@@ -245,6 +270,20 @@ struct LifestyleView: View {
             countryCode = code
             saved = false
         }
+        if let region = locationService.detectedRegionCode {
+            regionCode = region
+        }
+        // Fetch air quality from the transient coordinate, then clear it so the
+        // coordinate never lingers in memory or gets persisted.
+        if let coord = locationService.lastCoordinate {
+            let reading = await AirQualityService.fetch(coordinate: coord)
+            locationService.clearCoordinate()
+            if let reading {
+                airQuality = reading.level
+                saved = false
+                showToast($toastMessage, message: "Air quality: \(reading.level.rawValue) (AQI \(reading.usAQI))")
+            }
+        }
     }
 
     private func airQualityColor(_ level: AirQualityLevel) -> Color {
@@ -254,6 +293,60 @@ struct LifestyleView: View {
         case .unhealthy: return .warning
         case .hazardous: return .danger
         }
+    }
+
+    // MARK: - Socioeconomic Section
+
+    @ViewBuilder
+    private var socioeconomicSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 6) {
+                SectionLabel(text: "SOCIOECONOMIC")
+                Spacer()
+                CitationBadge(
+                    ids: [
+                        CitationLibrary.chettyIncomeLE2016.id,
+                        CitationLibrary.nchsEducationLE2012.id,
+                    ],
+                    claim: "Income and education effects on life expectancy"
+                )
+            }
+
+            Text("Optional. Income and education are among the strongest non-biological predictors of longevity. Stored only on your device.")
+                .font(.caption)
+                .foregroundColor(.textMuted)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Highest Education")
+                    .font(.subheadline).fontWeight(.medium)
+                    .foregroundColor(.textSecondary)
+
+                Picker("Education", selection: $education) {
+                    Text("Prefer not to say").tag(EducationLevel?.none)
+                    ForEach(EducationLevel.allCases, id: \.self) { level in
+                        Text(level.displayName).tag(EducationLevel?.some(level))
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Household Income Bracket")
+                    .font(.subheadline).fontWeight(.medium)
+                    .foregroundColor(.textSecondary)
+
+                Picker("Income", selection: $incomeBracket) {
+                    Text("Prefer not to say").tag(IncomeBracket?.none)
+                    ForEach(IncomeBracket.allCases, id: \.self) { bracket in
+                        Text(bracket.displayName).tag(IncomeBracket?.some(bracket))
+                    }
+                }
+                .pickerStyle(.menu)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle()
     }
 
     // MARK: - Questionnaire Section
@@ -289,10 +382,21 @@ struct LifestyleView: View {
                         .foregroundColor(exerciseColor)
                 }
 
-                Slider(value: $exerciseMinutes, in: 0...600, step: 15)
-                    .tint(.accentColor)
-                    .accessibilityLabel("Exercise minutes per week")
-                    .accessibilityValue("\(Int(exerciseMinutes)) minutes")
+                if hasHealthKitExercise {
+                    HStack(spacing: 4) {
+                        Image(systemName: "applelogo")
+                            .font(.caption2)
+                            .foregroundColor(.textMuted)
+                        Text("Synced from Apple Health (7-day total)")
+                            .font(.caption)
+                            .foregroundColor(.textMuted)
+                    }
+                } else {
+                    Slider(value: $exerciseMinutes, in: 0...600, step: 15)
+                        .tint(.accentColor)
+                        .accessibilityLabel("Exercise minutes per week")
+                        .accessibilityValue("\(Int(exerciseMinutes)) minutes")
+                }
 
                 HStack(spacing: 4) {
                     Text("WHO recommends 150+ min/week")
@@ -440,8 +544,10 @@ struct LifestyleView: View {
         .onChange(of: bmiText) { _, _ in saved = false }
         .onChange(of: biologicalSex) { _, _ in saved = false }
         .onChange(of: birthDate) { _, _ in saved = false }
-        .onChange(of: countryCode) { _, _ in saved = false }
+        .onChange(of: regionCode) { _, _ in saved = false }
         .onChange(of: airQuality) { _, _ in saved = false }
+        .onChange(of: education) { _, _ in saved = false }
+        .onChange(of: incomeBracket) { _, _ in saved = false }
     }
 
     // MARK: - Impact Preview
@@ -498,12 +604,28 @@ struct LifestyleView: View {
                     value: countryImpact,
                     detail: countryCode.map { LocationEngine.countryDisplayName($0) } ?? "Not set"
                 )
+                if let rc = regionCode {
+                    impactCard(
+                        icon: "map",
+                        title: "Region",
+                        value: regionImpact,
+                        detail: LocationEngine.regionDisplayName(rc)
+                    )
+                }
                 impactCard(
                     icon: "aqi.medium",
                     title: "Air Quality",
                     value: airQualityImpact,
                     detail: airQuality?.rawValue ?? "Not set"
                 )
+                if education != nil || incomeBracket != nil {
+                    impactCard(
+                        icon: "building.columns",
+                        title: "Socioeconomic",
+                        value: socioeconomicImpact,
+                        detail: socioeconomicDetail
+                    )
+                }
             }
 
             // Total
@@ -601,13 +723,32 @@ struct LifestyleView: View {
         LocationEngine.countryLifeExpectancyDelta(countryCode ?? "")
     }
 
+    private var regionImpact: Double {
+        LocationEngine.regionLifeExpectancyDelta(regionCode ?? "")
+    }
+
     private var airQualityImpact: Double {
         LocationEngine.airQualityAdjustment(airQuality)
     }
 
+    private var socioeconomicImpact: Double {
+        DeathClockEngine.socioeconomicImpact(
+            SocioeconomicProfile(education: education, incomeBracket: incomeBracket)
+        )
+    }
+
+    private var socioeconomicDetail: String {
+        switch (education, incomeBracket) {
+        case let (.some(e), .some(i)): return "\(e.rawValue) · \(i.rawValue)"
+        case let (.some(e), .none):    return e.displayName
+        case let (.none, .some(i)):    return i.displayName
+        case (.none, .none):           return "Not set"
+        }
+    }
+
     private var totalImpact: Double {
         smokingImpact + exerciseImpact + sleepImpact + dietImpact + stressImpact + bmiImpact
-        + countryImpact + airQualityImpact
+        + countryImpact + regionImpact + airQualityImpact + socioeconomicImpact
     }
 
     // MARK: - Helpers
@@ -669,6 +810,12 @@ struct LifestyleView: View {
         hasHealthKitSleep = sleepVals.count >= 3
         sleepStageBreakdown = hasHealthKitSleep ? SleepEngine.stageBreakdown(metrics: data.healthMetrics) : nil
 
+        // Exercise is daily minutes of appleExerciseTime. Require 3+ days of data
+        // in the last 7 to consider HealthKit the source of truth.
+        let last7 = Set((0..<7).map { DateFormatting.dateString(daysAgo: $0) })
+        let exerciseDays = data.healthMetrics.filter { last7.contains($0.date) }.compactMap(\.exerciseMinutes)
+        hasHealthKitExercise = exerciseDays.count >= 3
+
         if let sex = profile.biologicalSex {
             biologicalSex = sex
         }
@@ -679,7 +826,11 @@ struct LifestyleView: View {
         }
 
         smokingStatus = lifestyle.smokingStatus
-        exerciseMinutes = Double(lifestyle.exerciseMinutesPerWeek)
+        if hasHealthKitExercise {
+            exerciseMinutes = Double(Int(exerciseDays.reduce(0, +).rounded()))
+        } else {
+            exerciseMinutes = Double(lifestyle.exerciseMinutesPerWeek)
+        }
         if hasHealthKitSleep {
             sleepHours = (sleepVals.reduce(0, +) / Double(sleepVals.count) * 10).rounded() / 10
         } else {
@@ -693,8 +844,15 @@ struct LifestyleView: View {
 
         if let loc = profile.locationProfile {
             countryCode = loc.countryCode
+            regionCode = loc.regionCode
             airQuality = loc.airQuality
             useAutoDetect = loc.useAutoDetect
+            regionOptions = loc.countryCode.map { LocationEngine.regionsForPicker(countryCode: $0) } ?? []
+        }
+
+        if let ses = profile.socioeconomic {
+            education = ses.education
+            incomeBracket = ses.incomeBracket
         }
     }
 
@@ -714,9 +872,14 @@ struct LifestyleView: View {
 
         let locationProfile = LocationProfile(
             countryCode: countryCode,
+            regionCode: regionCode,
             airQuality: airQuality,
             useAutoDetect: useAutoDetect
         )
+
+        let socioeconomic: SocioeconomicProfile? = (education != nil || incomeBracket != nil)
+            ? SocioeconomicProfile(education: education, incomeBracket: incomeBracket)
+            : nil
 
         // Load existing to preserve countdownMode, levTargetAge, and any future fields
         var existingData = await DataStore.shared.getData()
@@ -724,6 +887,7 @@ struct LifestyleView: View {
         existingData.profile.biologicalSex = biologicalSex
         existingData.profile.lifestyle = lifestyle
         existingData.profile.locationProfile = locationProfile
+        existingData.profile.socioeconomic = socioeconomic
         await DataStore.shared.updateProfile(existingData.profile)
         saved = true
         NotificationCenter.default.post(name: .profileDidChange, object: nil)

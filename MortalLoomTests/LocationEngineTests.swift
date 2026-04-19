@@ -179,4 +179,113 @@ final class LocationEngineTests: XCTestCase {
         XCTAssertTrue(codes.contains("JP"))
         XCTAssertTrue(codes.contains("GB"))
     }
+
+    // MARK: Region deltas
+
+    func testRegionDeltaKnownState() {
+        XCTAssertEqual(LocationEngine.regionLifeExpectancyDelta("US-HI"), 2.3, accuracy: 0.001)
+        XCTAssertEqual(LocationEngine.regionLifeExpectancyDelta("US-CA"), 1.5, accuracy: 0.001)
+    }
+
+    func testRegionDeltaClampsToFloor() {
+        // LA/MS/AL etc. are stored at -3.0 (floor)
+        XCTAssertEqual(LocationEngine.regionLifeExpectancyDelta("US-MS"), -3.0, accuracy: 0.001)
+        XCTAssertEqual(LocationEngine.regionLifeExpectancyDelta("US-WV"), -3.0, accuracy: 0.001)
+    }
+
+    func testRegionDeltaUnknownIsZero() {
+        XCTAssertEqual(LocationEngine.regionLifeExpectancyDelta("US-XX"), 0.0)
+        XCTAssertEqual(LocationEngine.regionLifeExpectancyDelta(""), 0.0)
+    }
+
+    func testRegionDeltaCaseInsensitive() {
+        XCTAssertEqual(
+            LocationEngine.regionLifeExpectancyDelta("us-ca"),
+            LocationEngine.regionLifeExpectancyDelta("US-CA")
+        )
+    }
+
+    func testRegionsForPickerFiltersByCountry() {
+        let usRegions = LocationEngine.regionsForPicker(countryCode: "US").map(\.code)
+        XCTAssertTrue(usRegions.allSatisfy { $0.hasPrefix("US-") })
+        XCTAssertTrue(usRegions.contains("US-CA"))
+        XCTAssertFalse(usRegions.contains("CA-BC"))
+    }
+
+    func testRegionsForPickerEmptyForUnknownCountry() {
+        XCTAssertTrue(LocationEngine.regionsForPicker(countryCode: "ZZ").isEmpty)
+    }
+
+    func testHasRegionalData() {
+        XCTAssertTrue(LocationEngine.hasRegionalData("US"))
+        XCTAssertTrue(LocationEngine.hasRegionalData("GB"))
+        XCTAssertFalse(LocationEngine.hasRegionalData("FR"))
+    }
+
+    // MARK: Location adjustment with region
+
+    func testLocationAdjustmentIncludesRegion() {
+        // US (0) + CA (+1.5) + moderate (0) = 1.5
+        XCTAssertEqual(
+            LocationEngine.locationAdjustment(countryCode: "US", regionCode: "US-CA", airQuality: .moderate),
+            1.5,
+            accuracy: 0.001
+        )
+    }
+
+    func testLocationAdjustmentRegionNilDefault() {
+        // Backward-compat: nil regionCode behaves the same as pre-region calculation
+        XCTAssertEqual(
+            LocationEngine.locationAdjustment(countryCode: "JP", airQuality: .good),
+            6.3,
+            accuracy: 0.001
+        )
+    }
+
+    // MARK: Socioeconomic impact
+
+    func testSocioeconomicImpactNil() {
+        XCTAssertEqual(DeathClockEngine.socioeconomicImpact(nil), 0.0)
+    }
+
+    func testSocioeconomicImpactBothNil() {
+        let profile = SocioeconomicProfile(education: nil, incomeBracket: nil)
+        XCTAssertEqual(DeathClockEngine.socioeconomicImpact(profile), 0.0)
+    }
+
+    func testSocioeconomicImpactEducationOnly() {
+        // graduate (+2.0), missing income treated as 0 → avg = 1.0
+        let profile = SocioeconomicProfile(education: .graduate, incomeBracket: nil)
+        XCTAssertEqual(DeathClockEngine.socioeconomicImpact(profile), 1.0, accuracy: 0.001)
+    }
+
+    func testSocioeconomicImpactIncomeOnly() {
+        // q1 (-3.5), missing education treated as 0 → avg = -1.75 → rounds to -1.8
+        let profile = SocioeconomicProfile(education: nil, incomeBracket: .q1)
+        XCTAssertEqual(DeathClockEngine.socioeconomicImpact(profile), -1.8, accuracy: 0.001)
+    }
+
+    func testSocioeconomicImpactContinuousAddingNeutralIncome() {
+        // Adding a middle-bracket income to a graduate-only profile should not
+        // change the impact — this is the continuity guarantee.
+        let eduOnly = SocioeconomicProfile(education: .graduate, incomeBracket: nil)
+        let eduPlusMiddle = SocioeconomicProfile(education: .graduate, incomeBracket: .q3)
+        XCTAssertEqual(
+            DeathClockEngine.socioeconomicImpact(eduOnly),
+            DeathClockEngine.socioeconomicImpact(eduPlusMiddle),
+            accuracy: 0.001
+        )
+    }
+
+    func testSocioeconomicImpactBothAveraged() {
+        // graduate (+2.0) + q5 (+2.5) → avg = 2.25
+        let profile = SocioeconomicProfile(education: .graduate, incomeBracket: .q5)
+        XCTAssertEqual(DeathClockEngine.socioeconomicImpact(profile), 2.3, accuracy: 0.01)
+    }
+
+    func testSocioeconomicImpactClampsFloor() {
+        // noHighSchool (-2.5) + q1 (-3.5) → avg = -3.0, within clamp; stays -3.0
+        let profile = SocioeconomicProfile(education: .noHighSchool, incomeBracket: .q1)
+        XCTAssertEqual(DeathClockEngine.socioeconomicImpact(profile), -3.0, accuracy: 0.001)
+    }
 }

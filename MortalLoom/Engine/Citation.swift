@@ -219,6 +219,31 @@ enum CitationLibrary {
         url: "https://www.who.int/data/gho/data/themes/mortality-and-global-health-estimates/ghe-life-expectancy-and-healthy-life-expectancy"
     )
 
+    static let cdcStateLifeTables = Citation(
+        id: "cdc-state-life-tables-2021",
+        title: "U.S. State Life Tables, 2021",
+        authors: "CDC / National Center for Health Statistics",
+        detail: "NVSR Vol. 73, No. 2. Life expectancy at birth for each U.S. state. MortalLoom uses these values (minus the U.S. 78.5-year baseline) as the state-level adjustment, clamped to ±3 years.",
+        url: "https://www.cdc.gov/nchs/products/life_tables.htm"
+    )
+
+    // MARK: - Socioeconomic
+    static let chettyIncomeLE2016 = Citation(
+        id: "chetty-2016-income",
+        title: "The Association Between Income and Life Expectancy in the United States, 2001–2014",
+        authors: "Chetty R, Stepner M, Abraham S, et al.",
+        detail: "JAMA. 2016;315(16):1750-1766. 1.4B tax records + mortality: life-expectancy gap of 14.6y (men) / 10.1y (women) between top and bottom income percentiles. Basis for MortalLoom's income-quintile adjustment.",
+        url: "https://doi.org/10.1001/jama.2016.4226"
+    )
+
+    static let nchsEducationLE2012 = Citation(
+        id: "nchs-education-2012",
+        title: "Educational Attainment and Mortality in the United States",
+        authors: "Olshansky SJ, Antonucci T, Berkman L, et al.",
+        detail: "Health Aff (Millwood). 2012;31(8):1803-1813. U.S. adults with a graduate degree live ~4-5 years longer than those without a high-school diploma. Basis for MortalLoom's education-based adjustment.",
+        url: "https://doi.org/10.1377/hlthaff.2011.0746"
+    )
+
     // MARK: - Blood Markers
     static let clinicalLabRanges = Citation(
         id: "clinical-lab-ranges",
@@ -312,6 +337,9 @@ enum CitationLibrary {
         kivimakiStress2018.id: kivimakiStress2018,
         lancetPollution2018.id: lancetPollution2018,
         whoLifeExpectancy.id: whoLifeExpectancy,
+        cdcStateLifeTables.id: cdcStateLifeTables,
+        chettyIncomeLE2016.id: chettyIncomeLE2016,
+        nchsEducationLE2012.id: nchsEducationLE2012,
         clinicalLabRanges.id: clinicalLabRanges,
         adaHbA1c.id: adaHbA1c,
         aclAtpIii.id: aclAtpIii,

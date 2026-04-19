@@ -287,6 +287,21 @@ final class HealthKitSync {
                 logger.info("💤 Synced sleep avg from HealthKit: \(avgSleep, privacy: .private)h/night")
             }
         }
+
+        // Rounding to the slider's 15-min step avoids a save + broadcast on
+        // every sync when HealthKit drifts by a minute or two day-to-day.
+        let recentExerciseDays = exercise.suffix(7)
+        if recentExerciseDays.count >= 3 {
+            let raw = recentExerciseDays.map(\.value).reduce(0, +)
+            let weeklyMinutes = Int((raw / 15).rounded()) * 15
+            var profileData = await DataStore.shared.getData()
+            if profileData.profile.lifestyle.exerciseMinutesPerWeek != weeklyMinutes {
+                profileData.profile.lifestyle.exerciseMinutesPerWeek = weeklyMinutes
+                await DataStore.shared.save(profileData)
+                NotificationCenter.default.post(name: .profileDidChange, object: nil)
+                logger.info("🏃 Synced weekly exercise from HealthKit: \(weeklyMinutes, privacy: .private) min/week")
+            }
+        }
     }
 }
 #endif

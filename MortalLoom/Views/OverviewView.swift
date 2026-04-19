@@ -420,6 +420,7 @@ struct OverviewView: View {
             genome: data.genomeScanRecord,
             sleepStages: sleepStages,
             locationProfile: data.profile.locationProfile,
+            socioeconomic: data.profile.socioeconomic,
             healthMetrics: data.healthMetrics
         )
         cachedSleepImpact = SleepEngine.enhancedLongevityImpact(
@@ -754,6 +755,9 @@ struct OverviewView: View {
                     }
                     if dc.lifeExpectancy.healthMetricsAdjustment != 0 {
                         leBreakdownRow("Health Metrics", value: dc.lifeExpectancy.healthMetricsAdjustment, unit: "yr", signed: true)
+                    }
+                    if dc.lifeExpectancy.socioeconomicAdjustment != 0 {
+                        leBreakdownRow("Socioeconomic", value: dc.lifeExpectancy.socioeconomicAdjustment, unit: "yr", signed: true)
                     }
                     Divider().background(Color.cardBorder)
                     leBreakdownRow("Total LE", value: dc.lifeExpectancy.total, unit: "yr", bold: true)

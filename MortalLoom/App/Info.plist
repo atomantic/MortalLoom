@@ -42,7 +42,7 @@
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>MortalLoom may write health data to keep your records in sync across apps.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>MortalLoom uses your location once to identify your country, which adjusts the life expectancy calculation based on local healthcare and environment. Only the country code is stored — coordinates are never saved or transmitted.</string>
+	<string>MortalLoom uses your location once to identify your country and state/region for local life-expectancy adjustments, and to look up local air quality (a coarse coordinate rounded to ~1 km is sent to a public air-quality API). Only the country/region codes are stored on device — the coordinate is discarded after the lookup.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

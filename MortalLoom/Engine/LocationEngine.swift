@@ -54,12 +54,61 @@ enum LocationEngine {
         }
     }
 
+    // MARK: Region (sub-country) life-expectancy delta
+    //
+    // Applied ON TOP of the country delta. Represents the gap between a given
+    // state/province and the country's own baseline.
+    // - US states: CDC 2022 state life tables vs US 78.5 baseline
+    // - Canadian provinces: Statistics Canada 2020-2022 vs Canada 81.7
+    // - UK nations: ONS 2020-2022 vs UK 81.3
+    //
+    // Encoded as "CC-REGION" (ISO 3166-2). Example: "US-CA" = California.
+    // Capped at ±3.0 to prevent sub-national noise from overwhelming other factors.
+
+    static func regionLifeExpectancyDelta(_ regionCode: String) -> Double {
+        let key = regionCode.uppercased()
+        guard let delta = regionDeltas[key] else { return 0.0 }
+        return min(3.0, max(-3.0, delta))
+    }
+
+    /// Display name for a region code (e.g. "US-CA" → "California").
+    /// Falls back to the raw code for unknown regions.
+    static func regionDisplayName(_ regionCode: String) -> String {
+        regionNames[regionCode.uppercased()] ?? regionCode
+    }
+
+    /// Reverse-lookup a region code from a full administrative-area name
+    /// (e.g. "England" → "GB-ENG"). Returns nil when no known region in the
+    /// given country matches. Case-insensitive.
+    static func regionCode(countryCode: String, administrativeAreaName name: String) -> String? {
+        let prefix = countryCode.uppercased() + "-"
+        let needle = name.lowercased()
+        return regionNames.first { $0.key.hasPrefix(prefix) && $0.value.lowercased() == needle }?.key
+    }
+
+    /// Pickable regions for a country, sorted by display name.
+    /// Returns empty for countries with no regional breakdown.
+    static func regionsForPicker(countryCode: String) -> [(name: String, code: String)] {
+        let prefix = countryCode.uppercased() + "-"
+        return regionDeltas.keys
+            .filter { $0.hasPrefix(prefix) }
+            .map { code in (name: regionDisplayName(code), code: code) }
+            .sorted { $0.name < $1.name }
+    }
+
+    /// Countries for which region-level data exists.
+    static func hasRegionalData(_ countryCode: String) -> Bool {
+        let prefix = countryCode.uppercased() + "-"
+        return regionDeltas.keys.contains { $0.hasPrefix(prefix) }
+    }
+
     // MARK: Combined location adjustment
 
-    static func locationAdjustment(countryCode: String?, airQuality: AirQualityLevel?) -> Double {
+    static func locationAdjustment(countryCode: String?, regionCode: String? = nil, airQuality: AirQualityLevel?) -> Double {
         let countryAdj = countryCode.map { countryLifeExpectancyDelta($0) } ?? 0.0
+        let regionAdj = regionCode.map { regionLifeExpectancyDelta($0) } ?? 0.0
         let aqAdj = airQualityAdjustment(airQuality)
-        let total = countryAdj + aqAdj
+        let total = countryAdj + regionAdj + aqAdj
         // Clamp combined to avoid over-adjusting on top of lifestyle factors
         return min(8.0, max(-10.0, (total * 10).rounded() / 10))
     }
@@ -312,5 +361,62 @@ enum LocationEngine {
         "ZA": "South Africa",
         "ZM": "Zambia",
         "ZW": "Zimbabwe",
+    ]
+
+    // MARK: Region Delta Tables (sub-country life-expectancy gap vs country baseline)
+    //
+    // Values are delta-from-country in years. US states sourced from CDC NVSR
+    // "U.S. State Life Tables, 2021"; Canadian provinces from Statistics Canada
+    // Table 13-10-0837-01 (2020-2022); UK nations from ONS National Life Tables
+    // 2020-2022; Australian states from AIHW life expectancy 2020-2022.
+    // Clamped to ±3.0 in the accessor.
+
+    private static let regionDeltas: [String: Double] = [
+        // US states (vs 78.5 baseline). CDC 2021 data.
+        "US-HI": 2.3,  "US-CA": 1.5,  "US-MA": 1.7,  "US-CT": 1.9,  "US-MN": 1.4,
+        "US-NY": 0.9,  "US-NJ": 1.1,  "US-WA": 0.4,  "US-CO": 0.8,  "US-RI": 1.1,
+        "US-NH": 1.0,  "US-VT": 0.9,  "US-OR": 0.2,  "US-UT": 0.7,  "US-ID": 0.0,
+        "US-VA": 0.1,  "US-MD": 0.3,  "US-DC": 0.5,  "US-IL": -0.2, "US-WI": 0.0,
+        "US-NE": -0.1, "US-IA": -0.3, "US-ND": -0.1, "US-SD": -0.6, "US-MT": -0.4,
+        "US-WY": -0.9, "US-AK": -1.2, "US-KS": -0.8, "US-DE": -0.3, "US-ME": 0.4,
+        "US-PA": -0.6, "US-AZ": -0.4, "US-FL": -1.0, "US-TX": -2.0, "US-NC": -1.3,
+        "US-GA": -1.9, "US-NM": -2.8, "US-NV": -1.5, "US-MI": -1.1, "US-OH": -1.6,
+        "US-IN": -1.8, "US-MO": -2.1, "US-SC": -2.4, "US-OK": -3.0, "US-AR": -3.0,
+        "US-KY": -3.0, "US-LA": -3.0, "US-TN": -3.0, "US-AL": -3.0, "US-MS": -3.0,
+        "US-WV": -3.0,
+        // Canadian provinces (vs CA 81.7 baseline). StatCan 2020-2022.
+        "CA-BC": 0.7,  "CA-ON": 0.5,  "CA-QC": 0.4,  "CA-AB": -0.3, "CA-MB": -1.1,
+        "CA-SK": -1.4, "CA-NS": -0.9, "CA-NB": -0.8, "CA-PE": 0.0,  "CA-NL": -1.3,
+        "CA-YT": -2.3, "CA-NT": -3.0, "CA-NU": -3.0,
+        // UK nations (vs GB 81.3 baseline). ONS 2020-2022.
+        "GB-ENG": 0.1, "GB-WLS": -0.7, "GB-SCT": -1.4, "GB-NIR": -0.6,
+        // Australian states (vs AU 82.8 baseline). AIHW 2020-2022.
+        "AU-ACT": 0.7, "AU-VIC": 0.3,  "AU-WA": 0.2,   "AU-NSW": 0.1,
+        "AU-SA": -0.1, "AU-QLD": -0.1, "AU-TAS": -1.3, "AU-NT": -3.0,
+    ]
+
+    private static let regionNames: [String: String] = [
+        "US-AL": "Alabama", "US-AK": "Alaska", "US-AZ": "Arizona", "US-AR": "Arkansas",
+        "US-CA": "California", "US-CO": "Colorado", "US-CT": "Connecticut", "US-DE": "Delaware",
+        "US-DC": "District of Columbia", "US-FL": "Florida", "US-GA": "Georgia", "US-HI": "Hawaii",
+        "US-ID": "Idaho", "US-IL": "Illinois", "US-IN": "Indiana", "US-IA": "Iowa",
+        "US-KS": "Kansas", "US-KY": "Kentucky", "US-LA": "Louisiana", "US-ME": "Maine",
+        "US-MD": "Maryland", "US-MA": "Massachusetts", "US-MI": "Michigan", "US-MN": "Minnesota",
+        "US-MS": "Mississippi", "US-MO": "Missouri", "US-MT": "Montana", "US-NE": "Nebraska",
+        "US-NV": "Nevada", "US-NH": "New Hampshire", "US-NJ": "New Jersey", "US-NM": "New Mexico",
+        "US-NY": "New York", "US-NC": "North Carolina", "US-ND": "North Dakota", "US-OH": "Ohio",
+        "US-OK": "Oklahoma", "US-OR": "Oregon", "US-PA": "Pennsylvania", "US-RI": "Rhode Island",
+        "US-SC": "South Carolina", "US-SD": "South Dakota", "US-TN": "Tennessee", "US-TX": "Texas",
+        "US-UT": "Utah", "US-VT": "Vermont", "US-VA": "Virginia", "US-WA": "Washington",
+        "US-WV": "West Virginia", "US-WI": "Wisconsin", "US-WY": "Wyoming",
+        "CA-AB": "Alberta", "CA-BC": "British Columbia", "CA-MB": "Manitoba",
+        "CA-NB": "New Brunswick", "CA-NL": "Newfoundland and Labrador",
+        "CA-NS": "Nova Scotia", "CA-NT": "Northwest Territories", "CA-NU": "Nunavut",
+        "CA-ON": "Ontario", "CA-PE": "Prince Edward Island", "CA-QC": "Quebec",
+        "CA-SK": "Saskatchewan", "CA-YT": "Yukon",
+        "GB-ENG": "England", "GB-WLS": "Wales", "GB-SCT": "Scotland", "GB-NIR": "Northern Ireland",
+        "AU-ACT": "Australian Capital Territory", "AU-NSW": "New South Wales",
+        "AU-NT": "Northern Territory", "AU-QLD": "Queensland", "AU-SA": "South Australia",
+        "AU-TAS": "Tasmania", "AU-VIC": "Victoria", "AU-WA": "Western Australia",
     ]
 }

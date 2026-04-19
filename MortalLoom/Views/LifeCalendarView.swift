@@ -175,6 +175,7 @@ struct LifeCalendarView: View {
             lifestyle: data.profile.lifestyle,
             genome: data.genomeScanRecord,
             locationProfile: data.profile.locationProfile,
+            socioeconomic: data.profile.socioeconomic,
             healthMetrics: data.healthMetrics
         )
         deathClock = dc

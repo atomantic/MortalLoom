@@ -88,7 +88,7 @@ targets:
         LSApplicationCategoryType: public.app-category.healthcare-fitness
         NSHealthShareUsageDescription: "MortalLoom reads your health data to display metrics, trends, and life expectancy calculations. Your data stays on your device."
         NSHealthUpdateUsageDescription: "MortalLoom may write health data to keep your records in sync across apps."
-        NSLocationWhenInUseUsageDescription: "MortalLoom uses your location once to identify your country, which adjusts the life expectancy calculation based on local healthcare and environment. Only the country code is stored — coordinates are never saved or transmitted."
+        NSLocationWhenInUseUsageDescription: "MortalLoom uses your location once to identify your country and state/region for local life-expectancy adjustments, and to look up local air quality (a coarse coordinate rounded to ~1 km is sent to a public air-quality API). Only the country/region codes are stored on device — the coordinate is discarded after the lookup."
         NSCalendarsFullAccessUsageDescription: "MortalLoom can schedule goal work blocks as events on your calendar so you can plan time for what matters most. Calendar access is only used when you tap 'Add to Calendar'."
         UILaunchScreen: {}
         ITSAppUsesNonExemptEncryption: false

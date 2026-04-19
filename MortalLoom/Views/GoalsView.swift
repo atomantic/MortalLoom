@@ -167,6 +167,7 @@ struct GoalsView: View {
             lifestyle: data.profile.lifestyle,
             genome: data.genomeScanRecord,
             locationProfile: data.profile.locationProfile,
+            socioeconomic: data.profile.socioeconomic,
             healthMetrics: data.healthMetrics
         )
         let levDc: DeathClockEngine.DeathClockResult? = dc.flatMap {

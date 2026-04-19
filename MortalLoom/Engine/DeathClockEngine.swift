@@ -8,8 +8,9 @@ enum DeathClockEngine {
         let baseline: Double        // SSA actuarial baseline
         let genomeAdjusted: Double  // After genome adjustments
         let lifestyleAdjustment: Double // Total lifestyle year adjustment
-        let locationAdjustment: Double  // Country + air quality adjustment
+        let locationAdjustment: Double  // Country + region + air quality adjustment
         let healthMetricsAdjustment: Double // Apple Health fitness data adjustment
+        let socioeconomicAdjustment: Double // Income + education adjustment
         let total: Double           // Final life expectancy in years
     }
 
@@ -138,7 +139,7 @@ enum DeathClockEngine {
         + bmiImpact(lifestyle.bmi)
     }
 
-    static func calculate(birthDateStr: String, sex: BiologicalSex?, lifestyle: LifestyleData, genome: GenomeScanRecord? = nil, sleepStages: SleepEngine.SleepStageBreakdown? = nil, locationProfile: LocationProfile? = nil, healthMetrics: [HealthMetricEntry] = [], now: Date = Date()) -> DeathClockResult? {
+    static func calculate(birthDateStr: String, sex: BiologicalSex?, lifestyle: LifestyleData, genome: GenomeScanRecord? = nil, sleepStages: SleepEngine.SleepStageBreakdown? = nil, locationProfile: LocationProfile? = nil, socioeconomic: SocioeconomicProfile? = nil, healthMetrics: [HealthMetricEntry] = [], now: Date = Date()) -> DeathClockResult? {
         guard let birthDate = dateFromString(birthDateStr) else { return nil }
 
         let ageYears = Calendar.current.dateComponents([.year], from: birthDate, to: now).year ?? 0
@@ -149,10 +150,12 @@ enum DeathClockEngine {
         let lifestyleAdj = lifestyleAdjustment(lifestyle, sleepStages: sleepStages)
         let locationAdj = LocationEngine.locationAdjustment(
             countryCode: locationProfile?.countryCode,
+            regionCode: locationProfile?.regionCode,
             airQuality: locationProfile?.airQuality
         )
         let healthAdj = healthMetricsAdjustment(healthMetrics, age: ageYears, sex: sex)
-        let total = baseline + genomeAdj + lifestyleAdj + locationAdj + healthAdj
+        let sesAdj = socioeconomicImpact(socioeconomic)
+        let total = baseline + genomeAdj + lifestyleAdj + locationAdj + healthAdj + sesAdj
 
         let le = LifeExpectancy(
             baseline: baseline,
@@ -160,6 +163,7 @@ enum DeathClockEngine {
             lifestyleAdjustment: lifestyleAdj,
             locationAdjustment: locationAdj,
             healthMetricsAdjustment: healthAdj,
+            socioeconomicAdjustment: sesAdj,
             total: total
         )
 
@@ -270,6 +274,7 @@ enum DeathClockEngine {
             lifestyleAdjustment: standardResult.lifeExpectancy.lifestyleAdjustment,
             locationAdjustment: standardResult.lifeExpectancy.locationAdjustment,
             healthMetricsAdjustment: standardResult.lifeExpectancy.healthMetricsAdjustment,
+            socioeconomicAdjustment: standardResult.lifeExpectancy.socioeconomicAdjustment,
             total: levLE
         )
 
@@ -323,6 +328,50 @@ enum DeathClockEngine {
         if bmi >= 18.5 && bmi < 25 { return 0.5 }
         if bmi >= 25 && bmi < 30 { return -0.5 }
         return -3
+    }
+
+    // MARK: - Socioeconomic Impact
+    //
+    // Income: Chetty 2016 found a 14.6y gap (men) / 10.1y (women) between top
+    // and bottom 1% income percentiles. Quintile-level gaps are smaller (~5y
+    // top-to-bottom). We use conservative quintile deltas.
+    //
+    // Education: NCHS/Olshansky 2012 found ~4-5y LE advantage for graduate
+    // degree holders vs those without a high-school diploma.
+    //
+    // Income and education are strongly correlated, so we always average the
+    // two impacts rather than summing (multicollinearity adjustment). A missing
+    // dimension is treated as 0 (the neutral/middle bucket) so adding or
+    // removing one value doesn't create a discontinuity — e.g. "graduate alone"
+    // and "graduate + middle income" both give +1.0. Final result clamped to
+    // [-4, +3].
+
+    static func educationImpact(_ level: EducationLevel?) -> Double {
+        guard let level else { return 0 }
+        switch level {
+        case .graduate:     return 2.0
+        case .bachelors:    return 1.0
+        case .someCollege:  return 0.0
+        case .highSchool:   return -1.0
+        case .noHighSchool: return -2.5
+        }
+    }
+
+    static func incomeImpact(_ bracket: IncomeBracket?) -> Double {
+        guard let bracket else { return 0 }
+        switch bracket {
+        case .q5: return 2.5
+        case .q4: return 1.0
+        case .q3: return 0.0
+        case .q2: return -1.5
+        case .q1: return -3.5
+        }
+    }
+
+    static func socioeconomicImpact(_ profile: SocioeconomicProfile?) -> Double {
+        guard let profile, profile.education != nil || profile.incomeBracket != nil else { return 0 }
+        let combined = (educationImpact(profile.education) + incomeImpact(profile.incomeBracket)) / 2.0
+        return min(3.0, max(-4.0, (combined * 10).rounded() / 10))
     }
 
     // MARK: - Health Metrics Longevity Adjustment

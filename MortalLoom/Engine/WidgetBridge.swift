@@ -86,6 +86,7 @@ enum WidgetBridge: Sendable {
                lifestyle: data.profile.lifestyle,
                genome: data.genomeScanRecord,
                locationProfile: data.profile.locationProfile,
+               socioeconomic: data.profile.socioeconomic,
                healthMetrics: data.healthMetrics
            ) {
             let alcoholRisk = DeathClockEngine.alcoholRisk(
