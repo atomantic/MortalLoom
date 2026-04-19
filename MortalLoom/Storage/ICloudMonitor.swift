@@ -1,5 +1,10 @@
 import Foundation
 import os
+#if os(iOS)
+import UIKit
+#else
+import AppKit
+#endif
 
 private let logger = Logger(subsystem: "net.shadowpuppet.MeatSpaceTracker", category: "iCloud")
 
@@ -37,6 +42,19 @@ final class ICloudMonitor {
             self, selector: #selector(queryDidUpdate),
             name: .NSMetadataQueryDidUpdate, object: q
         )
+        // Proactive sync when app returns to foreground — covers the case where
+        // NSMetadataQuery notifications were missed while the app was sleeping.
+        #if os(iOS)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(appDidEnterForeground),
+            name: UIApplication.willEnterForegroundNotification, object: nil
+        )
+        #else
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(appDidEnterForeground),
+            name: NSApplication.willBecomeActiveNotification, object: nil
+        )
+        #endif
 
         q.start()
         query = q
@@ -76,6 +94,11 @@ final class ICloudMonitor {
 
     @objc private func queryDidUpdate(_ notification: Notification) {
         logger.info("☁️ iCloud file changed, scheduling reload")
+        scheduleReload()
+    }
+
+    @objc private func appDidEnterForeground(_ notification: Notification) {
+        logger.info("☁️ app foregrounded — scheduling proactive iCloud sync")
         scheduleReload()
     }
 

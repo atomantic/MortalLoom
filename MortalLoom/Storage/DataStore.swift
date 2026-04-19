@@ -271,8 +271,18 @@ actor DataStore {
     ///
     /// Returns true if the merge produced any change.
     func reloadIfNeeded() -> Bool {
-        guard let cloudURL = iCloudURL,
-              FileManager.default.fileExists(atPath: cloudURL.path) else { return false }
+        guard let cloudURL = iCloudURL else { return false }
+
+        let fm = FileManager.default
+        if !fm.fileExists(atPath: cloudURL.path) {
+            // File is evicted (iCloud placeholder not yet downloaded). Trigger
+            // download — NSMetadataQuery will fire again when it lands, giving
+            // us another chance to reload. This is the fix for fresh installs
+            // on new devices where the iCloud file hasn't been fetched yet.
+            logger.info("☁️ iCloud file not local — triggering download, will reload on completion")
+            try? fm.startDownloadingUbiquitousItem(at: cloudURL)
+            return false
+        }
 
         let cloudDate = (try? FileManager.default.attributesOfItem(atPath: cloudURL.path)[.modificationDate] as? Date) ?? .distantPast
         guard cloudDate > lastSaveDate else { return false }
