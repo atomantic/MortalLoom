@@ -756,7 +756,7 @@ struct GenomeView: View {
             }) {
                 HStack(spacing: 10) {
                     Circle()
-                        .fill(colorForStatus(result.status))
+                        .fill(colorForStatus(result.status, polarity: result.marker.polarity))
                         .frame(width: 10, height: 10)
 
                     VStack(alignment: .leading, spacing: 1) {
@@ -773,7 +773,7 @@ struct GenomeView: View {
                     Spacer()
 
                     if let genotype = result.genotype {
-                        genotypePill(genotype, status: result.status)
+                        genotypePill(genotype, status: result.status, polarity: result.marker.polarity)
                     } else {
                         Text("N/A")
                             .font(.caption)
@@ -798,20 +798,21 @@ struct GenomeView: View {
         }
     }
 
-    private func genotypePill(_ genotype: String, status: GenomeMarkerStatus) -> some View {
+    private func genotypePill(_ genotype: String, status: GenomeMarkerStatus, polarity: MarkerPolarity = .risk) -> some View {
         Text(genotype)
             .font(.caption)
             .fontWeight(.bold)
             .monospacedDigit()
-            .foregroundColor(colorForStatus(status))
+            .foregroundColor(colorForStatus(status, polarity: polarity))
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
-            .background(colorForStatus(status).opacity(0.12))
+            .background(colorForStatus(status, polarity: polarity).opacity(0.12))
             .cornerRadius(6)
     }
 
     private func markerDetail(_ result: MarkerResult) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        let polarity = result.marker.polarity
+        return VStack(alignment: .leading, spacing: 8) {
             Text(result.marker.description)
                 .font(.caption)
                 .foregroundColor(.textSecondary)
@@ -819,9 +820,9 @@ struct GenomeView: View {
 
             if !result.implication.isEmpty {
                 HStack(alignment: .top, spacing: 6) {
-                    Image(systemName: iconForStatus(result.status))
+                    Image(systemName: iconForStatus(result.status, polarity: polarity))
                         .font(.caption)
-                        .foregroundColor(colorForStatus(result.status))
+                        .foregroundColor(colorForStatus(result.status, polarity: polarity))
                         .frame(width: 14, alignment: .center)
                     Text(result.implication)
                         .font(.caption)
@@ -830,7 +831,7 @@ struct GenomeView: View {
                 }
                 .padding(8)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(colorForStatus(result.status).opacity(0.06))
+                .background(colorForStatus(result.status, polarity: polarity).opacity(0.06))
                 .cornerRadius(6)
             }
 
@@ -840,10 +841,10 @@ struct GenomeView: View {
                     .foregroundColor(.textMuted)
                     .monospacedDigit()
                 Spacer()
-                Text(statusLabel(result.status))
+                Text(statusLabel(result.status, polarity: polarity))
                     .font(.caption2)
                     .fontWeight(.medium)
-                    .foregroundColor(colorForStatus(result.status))
+                    .foregroundColor(colorForStatus(result.status, polarity: polarity))
             }
         }
         .padding(.horizontal)
@@ -1327,33 +1328,42 @@ struct GenomeView: View {
 
     // MARK: - Status Helpers
 
-    private func colorForStatus(_ status: GenomeMarkerStatus) -> Color {
-        switch status {
-        case .beneficial: .green
-        case .typical: .secondary
-        case .concern: .orange
-        case .majorConcern: .red
-        case .notFound: .gray
+    // For protective markers (rare variant is desirable, e.g. FOXO3A longevity),
+    // `.concern` just means "lacks the beneficial variant" — a neutral typical
+    // outcome, not an elevated risk. Risk markers keep their original warning
+    // colors/icons/labels.
+
+    private func colorForStatus(_ status: GenomeMarkerStatus, polarity: MarkerPolarity = .risk) -> Color {
+        switch (status, polarity) {
+        case (.beneficial, _): .green
+        case (.typical, _): .secondary
+        case (.concern, .protective), (.majorConcern, .protective): .secondary
+        case (.concern, .risk): .orange
+        case (.majorConcern, .risk): .red
+        case (.notFound, _): .gray
         }
     }
 
-    private func iconForStatus(_ status: GenomeMarkerStatus) -> String {
-        switch status {
-        case .beneficial: "checkmark.circle.fill"
-        case .typical: "minus.circle.fill"
-        case .concern: "exclamationmark.triangle.fill"
-        case .majorConcern: "exclamationmark.octagon.fill"
-        case .notFound: "questionmark.circle"
+    private func iconForStatus(_ status: GenomeMarkerStatus, polarity: MarkerPolarity = .risk) -> String {
+        switch (status, polarity) {
+        case (.beneficial, _): "checkmark.circle.fill"
+        case (.typical, _): "minus.circle.fill"
+        case (.concern, .protective), (.majorConcern, .protective): "minus.circle.fill"
+        case (.concern, .risk): "exclamationmark.triangle.fill"
+        case (.majorConcern, .risk): "exclamationmark.octagon.fill"
+        case (.notFound, _): "questionmark.circle"
         }
     }
 
-    private func statusLabel(_ status: GenomeMarkerStatus) -> String {
-        switch status {
-        case .beneficial: "Beneficial"
-        case .typical: "Typical"
-        case .concern: "Concern"
-        case .majorConcern: "Major Concern"
-        case .notFound: "Not Found"
+    private func statusLabel(_ status: GenomeMarkerStatus, polarity: MarkerPolarity = .risk) -> String {
+        switch (status, polarity) {
+        case (.beneficial, .protective): "Beneficial Variant"
+        case (.beneficial, .risk): "No Risk Variant"
+        case (.typical, _): "Typical"
+        case (.concern, .protective), (.majorConcern, .protective): "No Benefit Variant"
+        case (.concern, .risk): "Carrier"
+        case (.majorConcern, .risk): "Risk Variant"
+        case (.notFound, _): "Not Found"
         }
     }
 

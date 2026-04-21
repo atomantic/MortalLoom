@@ -31,6 +31,24 @@ struct CuratedMarker: Sendable {
     let rules: [MarkerRule]
 }
 
+/// Whether a marker's rare variant is desirable (`.protective`, e.g. FOXO3A longevity)
+/// or undesirable (`.risk`, e.g. HFE iron overload). Used to pick contextually
+/// appropriate labels: "Concern" on a protective marker just means "no benefit
+/// variant" — not an elevated risk.
+enum MarkerPolarity: Sendable {
+    case protective
+    case risk
+}
+
+extension CuratedMarker {
+    /// Inferred from rule shape: rules containing `.majorConcern` describe a
+    /// risk marker; rules that only go beneficial → typical → concern describe
+    /// a protective marker where "concern" means lacking the beneficial variant.
+    var polarity: MarkerPolarity {
+        rules.contains(where: { $0.status == .majorConcern }) ? .risk : .protective
+    }
+}
+
 // MARK: - Marker Scan Result
 
 struct MarkerResult: Sendable {
