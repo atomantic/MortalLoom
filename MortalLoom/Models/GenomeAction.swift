@@ -123,7 +123,10 @@ enum LifestyleField: String, Sendable {
     case sleepHoursPerNight
     case dietQuality
     case stressLevel
-    case alcoholDrinksPerWeek
+    case bmi
+    /// Alcohol is tracked separately via `AlcoholDrink` entries, not on
+    /// `LifestyleData`. Linking via this case routes to the substances view.
+    case alcoholIntake
 }
 
 // MARK: - Action State

@@ -14,15 +14,56 @@ enum RecommendationEngine {
         let citationIds: [String]
     }
 
+    /// Conservative `yearsGained` heuristics for genome-derived recommendations.
+    /// Attenuated 0.7× before being added to the main list so they don't outrank
+    /// measured-lifestyle items. Values intentionally low — we'd rather under-promise.
+    private enum GenomeImpact {
+        static let apoeE4Cardio: Double = 1.5
+        static let apoeE4Sleep: Double = 0.6
+        static let mthfrFolate: Double = 0.5
+        static let factorVDoctor: Double = 0.8   // mostly catastrophe-avoidance, not lifespan
+        static let hfeIron: Double = 0.7
+        static let cad9p21Lipids: Double = 1.0
+        static let inflammation: Double = 0.4
+        static let pathogenic: Double = 0.6      // confirmation gives information value
+        static let drugResponse: Double = 0.3
+        static let `default`: Double = 0.4
+    }
+
+    /// Map a `GenomeAction` to its conservative years-gained heuristic.
+    private static func yearsGainedForAction(_ action: GenomeAction) -> Double {
+        switch action.id {
+        case "apoe-e4-cardio", "apoe-e4-lipid-panel": GenomeImpact.apoeE4Cardio
+        case "apoe-e4-sleep": GenomeImpact.apoeE4Sleep
+        case "mthfr-c677t-homocysteine-panel", "mthfr-c677t-methylfolate",
+             "mthfr-c677t-tt-doctor", "mthfr-a1298c-homocysteine-panel": GenomeImpact.mthfrFolate
+        case "f5-leiden-flag-providers", "f5-leiden-tt-anticoag-consult": GenomeImpact.factorVDoctor
+        case "hfe-c282y-iron-panel", "hfe-c282y-aa-hematology", "hfe-h63d-ferritin": GenomeImpact.hfeIron
+        case "9p21-cad-cardio", "9p21-cad-lipid-panel": GenomeImpact.cad9p21Lipids
+        case "il6-anti-inflammatory-diet", "il6-crp-monitor",
+             "tnf-autoimmune-awareness": GenomeImpact.inflammation
+        case "clinvar-pathogenic-confirm-clia",
+             "clinvar-pathogenic-genetic-counselor": GenomeImpact.pathogenic
+        case "clinvar-drug-pharmacist-handoff": GenomeImpact.drugResponse
+        default: GenomeImpact.default
+        }
+    }
+
     /// Generate personalized recommendations based on current lifestyle and health data.
     /// Returns recommendations sorted by potential years gained (highest first).
     /// Only includes actionable items where there's room for improvement.
+    ///
+    /// `genomePriorities` (optional, default `[]`) injects up to 3 unaccepted DNA
+    /// findings as recommendations alongside the lifestyle ones. Items already
+    /// `inProgress` (linked to an existing habit/goal) are skipped to avoid
+    /// double-prompting.
     static func generate(
         lifestyle: LifestyleData,
         alcoholRisk: AlcoholRisk,
         hasGenomeData: Bool,
         hasEpigeneticData: Bool,
-        hasBloodTests: Bool
+        hasBloodTests: Bool,
+        genomePriorities: [PriorityFinding] = []
     ) -> [Recommendation] {
         var recs: [Recommendation] = []
 
@@ -299,6 +340,35 @@ enum RecommendationEngine {
                 ]
             ))
         }
+
+        // Genome-derived recommendations — capped at 3, attenuated 0.7×, and
+        // skipping any priority whose top action is already linked to a habit/goal.
+        let attenuation = 0.7
+        var genomeRecs: [Recommendation] = []
+        for priority in genomePriorities {
+            if genomeRecs.count >= 3 { break }
+            guard let action = priority.topAction else { continue }
+            // Skip findings where any action is already accepted (in_progress).
+            if priority.stateCounts.inProgress > 0 { continue }
+            let geneLabel: String = {
+                switch priority.source {
+                case .marker(let r): r.marker.gene
+                case .clinvar(let h): h.entry.gene
+                case .apoe(let a): "APOE \(a.haplotype)"
+                }
+            }()
+            let yearsGained = yearsGainedForAction(action) * attenuation
+            genomeRecs.append(Recommendation(
+                id: "genome-\(action.id)",
+                icon: action.kind.icon,
+                title: action.title,
+                detail: "Your DNA: \(geneLabel). \(action.detail)",
+                yearsGained: yearsGained,
+                targetPage: 6, // genome
+                citationIds: action.citationIds
+            ))
+        }
+        recs.append(contentsOf: genomeRecs)
 
         return recs.sorted { $0.yearsGained > $1.yearsGained }
     }
