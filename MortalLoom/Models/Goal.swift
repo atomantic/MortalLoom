@@ -23,6 +23,9 @@ struct Goal: Codable, Identifiable, Sendable, Equatable {
     /// StagnationEngine filters out any signal whose title is in this set so
     /// the user can silence a specific nag without disabling alerts entirely.
     var mutedSignals: [String]
+    /// Provenance when the goal was created from a genome finding.
+    /// Drives the "🧬 Suggested by your DNA" banner on goal detail views.
+    var geneticEvidence: GeneticEvidence?
 
     init(
         id: UUID = UUID(),
@@ -40,7 +43,8 @@ struct Goal: Codable, Identifiable, Sendable, Equatable {
         horizon: GoalHorizon? = nil,
         category: GoalCategory? = nil,
         goalType: GoalType? = nil,
-        mutedSignals: [String] = []
+        mutedSignals: [String] = [],
+        geneticEvidence: GeneticEvidence? = nil
     ) {
         self.id = id
         self.title = title
@@ -58,13 +62,14 @@ struct Goal: Codable, Identifiable, Sendable, Equatable {
         self.category = category
         self.goalType = goalType
         self.mutedSignals = mutedSignals
+        self.geneticEvidence = geneticEvidence
     }
 
-    // Back-compat decoder so pre-existing files (without `mutedSignals`) decode.
+    // Back-compat decoder so pre-existing files (without `mutedSignals`/`geneticEvidence`) decode.
     private enum CodingKeys: String, CodingKey {
         case id, title, notes, createdDate, targetDate, completedDate, checkIns
         case milestones, checkInIntervalDays, status, priority, parentId
-        case horizon, category, goalType, mutedSignals
+        case horizon, category, goalType, mutedSignals, geneticEvidence
     }
 
     init(from decoder: Decoder) throws {
@@ -85,6 +90,7 @@ struct Goal: Codable, Identifiable, Sendable, Equatable {
         category = try c.decodeIfPresent(GoalCategory.self, forKey: .category)
         goalType = try c.decodeIfPresent(GoalType.self, forKey: .goalType)
         mutedSignals = try c.decodeIfPresent([String].self, forKey: .mutedSignals) ?? []
+        geneticEvidence = try c.decodeIfPresent(GeneticEvidence.self, forKey: .geneticEvidence)
     }
 
     var progressPercent: Double {

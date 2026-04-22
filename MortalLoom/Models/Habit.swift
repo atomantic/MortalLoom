@@ -22,6 +22,9 @@ struct Habit: Codable, Identifiable, Sendable, Equatable {
     var createdDate: String        // "YYYY-MM-DD"
     var archivedDate: String?      // nil while active
     var completions: [HabitCompletion]
+    /// Provenance when the habit was created from a genome finding.
+    /// Drives the "🧬 Suggested by your DNA" banner on habit detail views.
+    var geneticEvidence: GeneticEvidence?
 
     init(
         id: UUID = UUID(),
@@ -35,7 +38,8 @@ struct Habit: Codable, Identifiable, Sendable, Equatable {
         parentGoalId: UUID? = nil,
         createdDate: String = DateFormatting.todayString(),
         archivedDate: String? = nil,
-        completions: [HabitCompletion] = []
+        completions: [HabitCompletion] = [],
+        geneticEvidence: GeneticEvidence? = nil
     ) {
         self.id = id
         self.name = name
@@ -49,12 +53,36 @@ struct Habit: Codable, Identifiable, Sendable, Equatable {
         self.createdDate = createdDate
         self.archivedDate = archivedDate
         self.completions = completions
+        self.geneticEvidence = geneticEvidence
     }
 
     var isActive: Bool { archivedDate == nil }
 
     /// Hex colour resolved to a SwiftUI Color, with a safe fallback.
     var color: Color { Color(hex: colorHex) ?? .accentColor }
+
+    // Back-compat decoder so pre-existing files (without `geneticEvidence`) decode.
+    private enum CodingKeys: String, CodingKey {
+        case id, name, detail, icon, colorHex, category, kind, cadence
+        case parentGoalId, createdDate, archivedDate, completions, geneticEvidence
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        detail = try c.decodeIfPresent(String.self, forKey: .detail) ?? ""
+        icon = try c.decodeIfPresent(String.self, forKey: .icon) ?? "checkmark.circle"
+        colorHex = try c.decodeIfPresent(String.self, forKey: .colorHex) ?? "#4C8BF5"
+        category = try c.decodeIfPresent(HabitCategory.self, forKey: .category) ?? .general
+        kind = try c.decodeIfPresent(HabitKind.self, forKey: .kind) ?? .positive
+        cadence = try c.decodeIfPresent(HabitCadence.self, forKey: .cadence) ?? HabitCadence(period: .daily, target: 1)
+        parentGoalId = try c.decodeIfPresent(UUID.self, forKey: .parentGoalId)
+        createdDate = try c.decode(String.self, forKey: .createdDate)
+        archivedDate = try c.decodeIfPresent(String.self, forKey: .archivedDate)
+        completions = try c.decodeIfPresent([HabitCompletion].self, forKey: .completions) ?? []
+        geneticEvidence = try c.decodeIfPresent(GeneticEvidence.self, forKey: .geneticEvidence)
+    }
 }
 
 // MARK: - HabitCompletion

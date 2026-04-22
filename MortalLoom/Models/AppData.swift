@@ -16,6 +16,11 @@ struct AppData: Codable, Sendable {
     var genomeScanRecord: GenomeScanRecord?
     var saunaSessions: [SaunaSession]
     var saunaPresets: [SaunaPreset]
+    /// Per-user, per-action state for genome findings. Keyed by
+    /// `GenomeActionState.key(rsid:actionId:)`.
+    var genomeActionStates: [String: GenomeActionState]
+    /// Doctor-visit notes captured against individual genome findings.
+    var genomeVisitNotes: [VisitNote]
 
     static let empty = AppData(
         profile: HealthProfile(birthDate: nil, biologicalSex: nil, lifestyle: .default),
@@ -32,7 +37,9 @@ struct AppData: Codable, Sendable {
         habits: [],
         genomeScanRecord: nil,
         saunaSessions: [],
-        saunaPresets: SaunaPreset.defaults
+        saunaPresets: SaunaPreset.defaults,
+        genomeActionStates: [:],
+        genomeVisitNotes: []
     )
 
     init(profile: HealthProfile, alcoholDrinks: [AlcoholDrink], alcoholPresets: [AlcoholPreset],
@@ -41,7 +48,9 @@ struct AppData: Codable, Sendable {
          bodyEntries: [BodyEntry] = [], healthMetrics: [HealthMetricEntry] = [],
          goals: [Goal] = [], habits: [Habit] = [],
          genomeScanRecord: GenomeScanRecord? = nil,
-         saunaSessions: [SaunaSession] = [], saunaPresets: [SaunaPreset] = SaunaPreset.defaults) {
+         saunaSessions: [SaunaSession] = [], saunaPresets: [SaunaPreset] = SaunaPreset.defaults,
+         genomeActionStates: [String: GenomeActionState] = [:],
+         genomeVisitNotes: [VisitNote] = []) {
         self.profile = profile
         self.alcoholDrinks = alcoholDrinks
         self.alcoholPresets = alcoholPresets
@@ -57,6 +66,8 @@ struct AppData: Codable, Sendable {
         self.genomeScanRecord = genomeScanRecord
         self.saunaSessions = saunaSessions
         self.saunaPresets = saunaPresets
+        self.genomeActionStates = genomeActionStates
+        self.genomeVisitNotes = genomeVisitNotes
     }
 
     /// True when the data has no user-entered content (only defaults).
@@ -80,6 +91,7 @@ struct AppData: Codable, Sendable {
         case profile, alcoholDrinks, alcoholPresets, nicotineEntries, nicotinePresets
         case bloodTests, eyeExams, epigeneticTests, bodyEntries, healthMetrics, goals, habits
         case genomeScanRecord, saunaSessions, saunaPresets
+        case genomeActionStates, genomeVisitNotes
     }
 
     init(from decoder: Decoder) throws {
@@ -101,6 +113,8 @@ struct AppData: Codable, Sendable {
         genomeScanRecord = try c.decodeIfPresent(GenomeScanRecord.self, forKey: .genomeScanRecord)
         saunaSessions = try c.decodeIfPresent([SaunaSession].self, forKey: .saunaSessions) ?? []
         saunaPresets = try c.decodeIfPresent([SaunaPreset].self, forKey: .saunaPresets) ?? SaunaPreset.defaults
+        genomeActionStates = try c.decodeIfPresent([String: GenomeActionState].self, forKey: .genomeActionStates) ?? [:]
+        genomeVisitNotes = try c.decodeIfPresent([VisitNote].self, forKey: .genomeVisitNotes) ?? []
     }
 }
 
@@ -144,6 +158,11 @@ extension AppData {
         result.bodyEntries      = mergeByID(self.bodyEntries,      remote.bodyEntries)
         result.goals            = mergeByID(self.goals,            remote.goals)
         result.habits           = mergeByID(self.habits,           remote.habits)
+        result.genomeVisitNotes = mergeByID(self.genomeVisitNotes, remote.genomeVisitNotes)
+
+        // Action states are keyed by "<rsid>:<actionId>" — newer updatedAt wins
+        // so a "discussed" flip on one device propagates instead of getting clobbered.
+        result.genomeActionStates = mergeActionStates(self.genomeActionStates, remote.genomeActionStates)
 
         // healthMetrics is logically keyed by date, not by uuid. Merge per
         // date using HealthMetricEntry.mergeFields which preserves non-nil
@@ -174,6 +193,22 @@ extension AppData {
 
     private func mergeHealthMetricsByDate(_ local: [HealthMetricEntry], _ remote: [HealthMetricEntry]) -> [HealthMetricEntry] {
         HealthMetricEntry.deduplicatedByDate(local + remote)
+    }
+
+    /// Merge per-action genome state maps. On key collision, take whichever
+    /// side has the more recent `updatedAt`. Lexicographic comparison is safe
+    /// because the format is fixed-width ISO "yyyy-MM-dd".
+    private func mergeActionStates(_ local: [String: GenomeActionState],
+                                   _ remote: [String: GenomeActionState]) -> [String: GenomeActionState] {
+        var out = local
+        for (k, r) in remote {
+            if let l = out[k] {
+                out[k] = r.updatedAt >= l.updatedAt ? r : l
+            } else {
+                out[k] = r
+            }
+        }
+        return out
     }
 
     /// Merge profile: take remote non-nil scalar fields, preserve local
