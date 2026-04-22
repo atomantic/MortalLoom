@@ -54,7 +54,7 @@ MortalLoom/
 ```
 
 **Modified:**
-- `Views/GenomeView.swift` — adds priorities card; replaces inline truncated text with "tap for details"; routes to `GenomeSplitView` on regular size class.
+- `Views/GenomeView.swift` — adds priorities card; replaces inline truncated text with "tap for details"; routes to `GenomeSplitView` on regular size class; adds a "Start Visit" toolbar button (mirrors the iPad sidebar entry).
 - `Engine/RecommendationEngine.swift` — accepts `genomePriorities: [PriorityFinding] = []`; adds DNA-derived recs (capped at 3, attenuated 0.7×).
 - `Models/Habit.swift` and `Models/Goal.swift` — add `var geneticEvidence: GeneticEvidence?` (Codable, `decodeIfPresent` for back-compat).
 - `Models/AppData.swift` — add `genomeActionStates: [String: GenomeActionState]` and `genomeVisitNotes: [VisitNote]`, both back-compat decoded.
@@ -239,7 +239,7 @@ Layout (top to bottom):
 
 1. **Header** — gene + marker name, status pill (color-coded), your genotype, ClinVar review stars, rsid.
 2. **What this means** — full description (no truncation) + the implication for the user's actual genotype.
-3. **Action plan** — list of `GenomeAction` rows. Each row shows urgency dot + kind label + title, with primary CTA from the `bridge` (e.g. "Order in Blood ▸", "Add as habit ▸") and secondary "Mark discussed".
+3. **Action plan** — list of `GenomeAction` rows. Each row shows urgency dot + kind label + title, with primary CTA from the `bridge` (e.g. "Order in Blood ▸", "Add as habit ▸") and secondary "Mark discussed". Tapping "Mark discussed" outside of Visit Mode flips the action's state to `discussed` without creating a `VisitNote` (the user is acknowledging "I covered this somewhere"). Inside Visit Mode the same button is replaced by the auto-flip-on-Save flow.
 4. **Doctor talking point** — single copyable paragraph framed for clinician. Buttons: `[Copy]` `[Add to visit notes]`. Hidden if no curated talking point exists for this finding.
 5. **Visit notes** — collapsible chronological list of past `VisitNote`s for this finding. Each row: date · provider · body excerpt.
 6. **Linked items** — bidirectional bridge: any active habit/goal with `geneticEvidence.rsid` matching this finding, with current streak / progress.
@@ -276,7 +276,7 @@ Compact-width iPad (split-screen multitasking): falls back to iPhone single-colu
 
 **End Visit**: generates the post-visit summary PDF and presents share sheet (AirPrint included).
 
-**iPhone fallback**: single-column paginated; same data flow, less ideal but viable.
+**iPhone fallback**: single-column. Top half = current finding (talking point + notes textarea + action checkboxes). Bottom half = horizontally-scrollable strip of priority chips for navigation. `[Save & Next ▸]` advances exactly the same way. Less ideal than iPad split view but functionally complete.
 
 ## Top Priorities Engine (`GenomePriorityEngine`)
 
@@ -353,7 +353,7 @@ Up to **3** unaccepted genome priorities translate to `Recommendation`s:
 - `icon`: from action `kind` (e.g. `figure.run`, `drop.fill`).
 - `title`: from action title.
 - `detail`: prefixed with the source — `"Your DNA: APOE ε3/ε4. Cardio is neuroprotective for ε4 carriers."`
-- `yearsGained`: from a small genome-impact lookup, attenuated 0.7× vs measured-lifestyle so they don't dominate.
+- `yearsGained`: from a small genome-impact constants table inside `RecommendationEngine` (e.g. `apoeE4Cardio = 1.5`, `mthfrFolate = 0.5`), attenuated 0.7× vs measured-lifestyle so they don't dominate. Conservative values; we'd rather under-promise.
 - `targetPage: 6` (genome) — tap takes you to the priorities card.
 
 **Dedup**: if a genome action is already `inProgress` (linked to habit/goal), it does NOT generate a recommendation. Overview shouldn't double-prompt.
