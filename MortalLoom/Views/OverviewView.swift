@@ -339,45 +339,55 @@ struct OverviewView: View {
     @ViewBuilder
     private var attentionCard: some View {
         let topSignals = Array(cachedStagnationSignals.prefix(3))
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: "exclamationmark.bubble.fill")
-                    .foregroundColor(.warning)
-                Text("ATTENTION NEEDED")
-                    .font(.caption).fontWeight(.bold)
-                    .foregroundColor(.warning)
-                    .textCase(.uppercase)
-                    .tracking(1)
-                Spacer()
-                Text("\(cachedStagnationSignals.count)")
-                    .font(.caption).fontWeight(.semibold)
-                    .foregroundColor(.textMuted)
-            }
-            ForEach(topSignals) { signal in
-                HStack(alignment: .top, spacing: 6) {
-                    Image(systemName: signal.severity.iconName)
+        Button {
+            selectedTab = AppPage.reports.rawValue
+        } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 6) {
+                    Image(systemName: "exclamationmark.bubble.fill")
+                        .foregroundColor(.warning)
+                    Text("ATTENTION NEEDED")
+                        .font(.caption).fontWeight(.bold)
+                        .foregroundColor(.warning)
+                        .textCase(.uppercase)
+                        .tracking(1)
+                    Spacer()
+                    Text("\(cachedStagnationSignals.count)")
+                        .font(.caption).fontWeight(.semibold)
+                        .foregroundColor(.textMuted)
+                    Image(systemName: "chevron.right")
                         .font(.caption2)
-                        .foregroundColor(signal.severity.tintColor)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(signal.title)
-                            .font(.caption).fontWeight(.semibold)
-                            .foregroundColor(.textPrimary)
-                        Text(signal.detail)
+                        .foregroundColor(.textMuted)
+                }
+                ForEach(topSignals) { signal in
+                    HStack(alignment: .top, spacing: 6) {
+                        Image(systemName: signal.severity.iconName)
                             .font(.caption2)
-                            .foregroundColor(.textSecondary)
-                            .lineLimit(2)
+                            .foregroundColor(signal.severity.tintColor)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(signal.title)
+                                .font(.caption).fontWeight(.semibold)
+                                .foregroundColor(.textPrimary)
+                            Text(signal.detail)
+                                .font(.caption2)
+                                .foregroundColor(.textSecondary)
+                                .lineLimit(2)
+                        }
                     }
                 }
-            }
-            if cachedStagnationSignals.count > 3 {
-                Text("+\(cachedStagnationSignals.count - 3) more in Reports")
+                Text(cachedStagnationSignals.count > 3
+                     ? "+\(cachedStagnationSignals.count - 3) more — tap to review in Reports"
+                     : "Tap to review in Reports")
                     .font(.caption2)
                     .foregroundColor(.textMuted)
             }
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .cardStyle(fill: .warning.opacity(0.06), border: .warning.opacity(0.2))
         }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .cardStyle(fill: .warning.opacity(0.06), border: .warning.opacity(0.2))
+        .buttonStyle(.plain)
+        .accessibilityHint("Opens Reports to review and respond to these signals")
     }
 
     // MARK: - Data Loading
