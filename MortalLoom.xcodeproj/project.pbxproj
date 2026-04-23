@@ -18,12 +18,14 @@
 		0A4B66907EB40284D5CBECD4 /* Products.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 223CD2E2AB78B4665CCC4255 /* Products.storekit */; };
 		0C79D35D1C1B65C542D61330 /* Goal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13547F14B9304DE2AE925ED2 /* Goal.swift */; };
 		0D87387D9625A5E0D6645E02 /* ICloudMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29D32D124C715340FD2DC350 /* ICloudMonitor.swift */; };
+		0F45CEE5D6877E0A4FE2C78A /* GenomePrioritiesCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AFF6071DE927F5D3A5A8244 /* GenomePrioritiesCard.swift */; };
 		0F7F142E18D533C8791C697B /* MortalLoomApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25A938EE48931E1A7D80455D /* MortalLoomApp.swift */; };
 		102EC106BBDF1BC27CB3AC74 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A430A6D6F069A9C484A8BB2 /* Theme.swift */; };
 		10DC413D0994D9741BBE014D /* Citation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 174D733132F943A870DA79E7 /* Citation.swift */; };
 		15A261E4D605DF9B412F6A13 /* VisitNoteSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3475291D6C3512857F14B23 /* VisitNoteSheet.swift */; };
 		1727883C988E3F00C32C1CB3 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6976E3AC9EEB633364E7ABA0 /* NotificationService.swift */; };
 		17B7AFAED17D2200F9677430 /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C111B7B3DAB461735C8004F /* HealthKitService.swift */; };
+		18E8C35A626B92F9B584C3A7 /* GenomePrioritiesCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AFF6071DE927F5D3A5A8244 /* GenomePrioritiesCard.swift */; };
 		193B171336A15EE178F25D61 /* ICloudMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29D32D124C715340FD2DC350 /* ICloudMonitor.swift */; };
 		1AE9A257527D4CA585A0F209 /* WidgetBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = F01753DF921942BEA30C5DD4 /* WidgetBridge.swift */; };
 		1B2B2671E1C0C2AA0CD99025 /* SleepEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4866C551187394E53C4FA23A /* SleepEngine.swift */; };
@@ -247,6 +249,7 @@
 		14643E58DFCB5BCF7D13DC86 /* SubstanceEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubstanceEntry.swift; sourceTree = "<group>"; };
 		174D733132F943A870DA79E7 /* Citation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Citation.swift; sourceTree = "<group>"; };
 		17554F4F50A7084DE0587FE8 /* ProBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProBadge.swift; sourceTree = "<group>"; };
+		1AFF6071DE927F5D3A5A8244 /* GenomePrioritiesCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenomePrioritiesCard.swift; sourceTree = "<group>"; };
 		1B2CB5E984C7556ED4DE0610 /* ScreenshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotTests.swift; sourceTree = "<group>"; };
 		1F9ADA70E28A5E28CA55C63F /* GoalsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalsView.swift; sourceTree = "<group>"; };
 		215B069F66D7F15999E101D1 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
@@ -363,6 +366,7 @@
 				2A7F04CCC005710E57CD0BEC /* CitationBadge.swift */,
 				87EC582DBE00A4BCED918921 /* CitationsView.swift */,
 				63BB6118E21B2D2C6A415DBB /* GenomeDetailSheet.swift */,
+				1AFF6071DE927F5D3A5A8244 /* GenomePrioritiesCard.swift */,
 				71A0187A10BAA3CC7819A176 /* GenomeView.swift */,
 				1F9ADA70E28A5E28CA55C63F /* GoalsView.swift */,
 				E111F446BEE46519945A5B55 /* HabitsSection.swift */,
@@ -776,6 +780,7 @@
 				035ECA63316BF07D37C5A3F4 /* GenomeActionLibrary.swift in Sources */,
 				93899A46A2CCEC1A5EED9D5C /* GenomeDetailSheet.swift in Sources */,
 				3E53DBF674A96AD78DA3869B /* GenomeEngine.swift in Sources */,
+				0F45CEE5D6877E0A4FE2C78A /* GenomePrioritiesCard.swift in Sources */,
 				5B8007ADE13DE8C1F64EF121 /* GenomePriorityEngine.swift in Sources */,
 				BEE388BE5DE93624D6A2303B /* GenomeScanRecord.swift in Sources */,
 				5856806DFBD48F39BDC89F9B /* GenomeVariant.swift in Sources */,
@@ -864,6 +869,7 @@
 				99A081BD3681AC75216C1C84 /* GenomeActionLibrary.swift in Sources */,
 				E6924D44215988660A4CAE13 /* GenomeDetailSheet.swift in Sources */,
 				BC9F06AB8669B7D311190D1B /* GenomeEngine.swift in Sources */,
+				18E8C35A626B92F9B584C3A7 /* GenomePrioritiesCard.swift in Sources */,
 				07360E9FDDAA0021818C9F4B /* GenomePriorityEngine.swift in Sources */,
 				D5E3574C924FD3E0B15177A4 /* GenomeScanRecord.swift in Sources */,
 				59FA49AE381843566B3539B2 /* GenomeVariant.swift in Sources */,

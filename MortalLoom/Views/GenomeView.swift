@@ -82,6 +82,11 @@ struct GenomeView: View {
     @State private var pendingVisitNoteFinding: GenomeFinding?
     @State private var navigationPage: AppPage?
 
+    // Priority engine output
+    @State private var topPriorities: [PriorityFinding] = []
+    @State private var totalPriorityCandidates: Int = 0
+    @State private var lifestyle: LifestyleData?
+
     private static let themePageSize = 20
 
     private var filteredClinvarHits: [ClinVarHit] {
@@ -118,6 +123,15 @@ struct GenomeView: View {
                         if !genomeVariants.isEmpty {
                             if isScanning { scanningIndicator }
                             if let summary = scanSummary {
+                                if !topPriorities.isEmpty || totalPriorityCandidates > 0 {
+                                    GenomePrioritiesCard(
+                                        priorities: topPriorities,
+                                        totalCandidateCount: totalPriorityCandidates,
+                                        onSelectFinding: { finding in selectedFinding = finding },
+                                        onStartVisit: { /* Visit Mode in next phase */ },
+                                        onExportPDF: { /* PDF export in next phase */ }
+                                    )
+                                }
                                 apoeSection(summary.apoeResult)
                                 markerSummaryBar(summary)
                                 markerCategoryCards(summary)
@@ -303,6 +317,32 @@ struct GenomeView: View {
             selectedFinding = nil
             await loadData()
         }
+    }
+
+    private func recomputePriorities() {
+        guard let summary = scanSummary else {
+            topPriorities = []
+            totalPriorityCandidates = 0
+            return
+        }
+        let ranked = GenomePriorityEngine.rank(
+            summary: summary,
+            clinvarHits: clinvarHits,
+            library: GenomeActionLibrary.all,
+            states: actionStates,
+            lifestyle: lifestyle
+        )
+        topPriorities = ranked
+        // Total candidates = non-typical/non-notFound markers + non-typical APOE + actionable ClinVar hits
+        var total = 0
+        for r in summary.markerResults where r.status != .notFound && r.status != .typical {
+            total += 1
+        }
+        if let a = summary.apoeResult, a.status != .typical { total += 1 }
+        for h in clinvarHits where ["pathogenic", "risk_factor", "drug_response"].contains(h.entry.severity) {
+            total += 1
+        }
+        totalPriorityCandidates = total
     }
 
     private func actionsForFinding(_ finding: GenomeFinding) -> [GenomeAction] {
@@ -1431,6 +1471,7 @@ struct GenomeView: View {
                     scanSummary = summary
                     isScanning = false
                 }
+                recomputePriorities()
                 runClinVarScan()
             }
         }
@@ -1457,6 +1498,7 @@ struct GenomeView: View {
                     clinvarHits = hits
                     clinvarStatus = ClinVarService.getStatus()
                 }
+                recomputePriorities()
             }
         }
     }
@@ -1604,6 +1646,8 @@ struct GenomeView: View {
         visitNotes = data.genomeVisitNotes
         allGoals = data.goals
         allHabits = data.habits
+        lifestyle = data.profile.lifestyle
+        recomputePriorities()
 
         // Default sex filter from profile on first load
         if !hasInitializedSexFilter, let sex = data.profile.biologicalSex {
