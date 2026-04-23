@@ -19,10 +19,14 @@ struct GenomeDetailSheet: View {
     let onMarkDone: (GenomeAction) -> Void
     let onSnooze: () -> Void
     let onDismiss: () -> Void
-    let onAddVisitNote: (GenomeAction?) -> Void
+    /// The detail sheet hosts its own VisitNote form to avoid SwiftUI's
+    /// "only one .sheet per view" constraint when chained off the detail
+    /// sheet itself. Parent just receives the saved note.
+    let onSaveVisitNote: (VisitNote) -> Void
     let onCloseSheet: (() -> Void)?
 
     @State private var showCopyToast = false
+    @State private var showAddVisitNote = false
 
     var body: some View {
         ScrollView {
@@ -62,6 +66,11 @@ struct GenomeDetailSheet: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { onCloseSheet() }
                 }
+            }
+        }
+        .sheet(isPresented: $showAddVisitNote) {
+            VisitNoteSheet(finding: finding) { note in
+                onSaveVisitNote(note)
             }
         }
     }
@@ -246,7 +255,7 @@ struct GenomeDetailSheet: View {
                     Label("Copy", systemImage: "doc.on.doc")
                         .font(.caption)
                 }
-                Button(action: { onAddVisitNote(nil) }) {
+                Button(action: { showAddVisitNote = true }) {
                     Label("Add to visit notes", systemImage: "square.and.pencil")
                         .font(.caption)
                 }
@@ -373,17 +382,20 @@ struct GenomeDetailSheet: View {
             Button(action: onSnooze) {
                 Label("Snooze 6 months", systemImage: "moon.zzz")
                     .font(.caption)
-                    .foregroundColor(.textMuted)
             }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
             Spacer()
-            Button(action: onDismiss) {
+            Button(role: .destructive, action: onDismiss) {
                 Label("Not relevant — dismiss", systemImage: "xmark.circle")
                     .font(.caption)
-                    .foregroundColor(.textMuted)
             }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
         }
         .padding(.horizontal, 4)
-        .padding(.top, 4)
+        .padding(.top, 8)
+        .padding(.bottom, 24)
     }
 
     // MARK: - Helpers

@@ -79,7 +79,6 @@ struct GenomeView: View {
     // Bridge presentations
     @State private var pendingHabitTemplate: HabitTemplate?
     @State private var pendingHabitEvidence: GeneticEvidence?
-    @State private var pendingVisitNoteFinding: PriorityFindingSource?
 
     // Priority engine output
     @State private var topPriorities: [PriorityFinding] = []
@@ -160,8 +159,9 @@ struct GenomeView: View {
         ) { result in
             handleFileImport(result)
         }
-        .sheet(item: $selectedFinding) { finding in
-            NavigationStack {
+        .modifier(GenomeDetailPresenter(
+            selectedFinding: $selectedFinding,
+            buildSheet: { finding in
                 GenomeDetailSheet(
                     finding: finding,
                     actionStates: actionStates,
@@ -174,12 +174,16 @@ struct GenomeView: View {
                     onMarkDone: { action in markActionStatus(finding: finding, action: action, status: .done) },
                     onSnooze: { snoozeAllActions(for: finding) },
                     onDismiss: { dismissAllActions(for: finding) },
-                    onAddVisitNote: { _ in pendingVisitNoteFinding = finding },
+                    onSaveVisitNote: { note in
+                        Task {
+                            await DataStore.shared.addVisitNote(note)
+                            await loadData()
+                        }
+                    },
                     onCloseSheet: { selectedFinding = nil }
                 )
             }
-            .presentationDetents([.large])
-        }
+        ))
         .sheet(item: $pendingHabitTemplate) { template in
             HabitEditSheet(
                 habit: prefilledHabit(from: template),
@@ -197,14 +201,6 @@ struct GenomeView: View {
                         )
                     }
                     pendingHabitEvidence = nil
-                    await loadData()
-                }
-            }
-        }
-        .sheet(item: $pendingVisitNoteFinding) { finding in
-            VisitNoteSheet(finding: finding) { note in
-                Task {
-                    await DataStore.shared.addVisitNote(note)
                     await loadData()
                 }
             }
@@ -322,19 +318,32 @@ struct GenomeView: View {
             totalPriorityCandidates = 0
             return
         }
+        // Apply the same sex filter the category browse uses, so priorities
+        // never surface findings that don't apply (e.g. breast/ovarian on a
+        // male profile).
+        let hiddenCategories = sexFilter.hiddenMarkerCategories
+        let hiddenThemes = sexFilter.hiddenClinVarThemes
+        let filteredSummary = GenomeScanSummary(
+            markerResults: summary.markerResults.filter { !hiddenCategories.contains($0.marker.category) },
+            apoeResult: summary.apoeResult,
+            scannedAt: summary.scannedAt,
+            statusCounts: summary.statusCounts
+        )
+        let filteredClinvar = clinvarHits.filter { !hiddenThemes.contains(GenomeEngine.classifyTheme($0)) }
+
         topPriorities = GenomePriorityEngine.rank(
-            summary: summary,
-            clinvarHits: clinvarHits,
+            summary: filteredSummary,
+            clinvarHits: filteredClinvar,
             library: GenomeActionLibrary.all,
             states: actionStates,
             lifestyle: lifestyle
         )
         var total = 0
-        for r in summary.markerResults where r.status != .notFound && r.status != .typical {
+        for r in filteredSummary.markerResults where r.status != .notFound && r.status != .typical {
             total += 1
         }
         if let a = summary.apoeResult, a.status != .typical { total += 1 }
-        for h in clinvarHits where ["pathogenic", "risk_factor", "drug_response"].contains(h.entry.severity) {
+        for h in filteredClinvar where ["pathogenic", "risk_factor", "drug_response"].contains(h.entry.severity) {
             total += 1
         }
         totalPriorityCandidates = total
@@ -1519,6 +1528,7 @@ struct GenomeView: View {
                         sexFilter = filter
                         themeDisplayLimits = [:]
                     }
+                    recomputePriorities()
                 }) {
                     Text(filter.rawValue)
                         .font(.caption)
@@ -1767,5 +1777,44 @@ private struct EpigeneticTestFormView: View {
         )
         onSave(test)
         dismiss()
+    }
+}
+
+// MARK: - Detail presenter (sheet on iOS, inspector on macOS)
+
+/// Presents `GenomeDetailSheet` adaptively. On iOS the detail is a `.sheet`;
+/// on macOS it lives in an `.inspector` so the user can see it alongside the
+/// genome content rather than as a blocking modal.
+private struct GenomeDetailPresenter<Sheet: View>: ViewModifier {
+    @Binding var selectedFinding: PriorityFindingSource?
+    let buildSheet: (PriorityFindingSource) -> Sheet
+
+    func body(content: Content) -> some View {
+        #if os(macOS)
+        content
+            .inspector(isPresented: Binding(
+                get: { selectedFinding != nil },
+                set: { if !$0 { selectedFinding = nil } }
+            )) {
+                if let finding = selectedFinding {
+                    buildSheet(finding)
+                        .inspectorColumnWidth(min: 480, ideal: 560, max: 800)
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button("Close") { selectedFinding = nil }
+                            }
+                        }
+                } else {
+                    EmptyView()
+                }
+            }
+        #else
+        content.sheet(item: $selectedFinding) { finding in
+            NavigationStack {
+                buildSheet(finding)
+            }
+            .presentationDetents([.large])
+        }
+        #endif
     }
 }
