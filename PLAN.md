@@ -3,6 +3,24 @@
 For project mission and milestones, see [GOALS.md](./GOALS.md).
 For completed work, see [DONE.md](./DONE.md).
 
+## Actionable Genome Findings — 2026-04-22 (PARTIAL)
+
+Turn the Genome section from an information dump into actionable advice tied into Goals/Habits and a doctor-visit workflow. Design spec at [docs/superpowers/specs/2026-04-22-genome-actionable-design.md](./docs/superpowers/specs/2026-04-22-genome-actionable-design.md).
+
+### Phases 1–4 — COMPLETE (2026-04-22)
+
+- [x] **Phase 1 — Data model**: `GenomeAction`, `GenomeActionState`, `GeneticEvidence`, `VisitNote`. Optional `geneticEvidence` field on `Habit`/`Goal` (back-compat decoded). `AppData.genomeActionStates` and `genomeVisitNotes` collections with merge support (newer `updatedAt` wins on action-state collisions).
+- [x] **Phase 2 — Engines**: `GenomePriorityEngine.rank(...)` (severity × confidence × actionability × lifestyle × freshness, snooze/dismiss filtering, top 7). `GenomeActionLibrary` with ~25 curated actions covering APOE haplotypes, MTHFR C677T/A1298C, Factor V Leiden, HFE C282Y/H63D, 9p21 CAD, TP53, COMT, SOD2, ADA, IL-6, TNF-α, plus generic ClinVar pathogenic + drug-response actions. `RecommendationEngine.generate(...)` accepts optional `genomePriorities` (capped at 3, attenuated 0.7×).
+- [x] **Phase 3 — Detail sheet**: `GenomeDetailSheet` is the single surface used everywhere a marker, ClinVar hit, or APOE result is tapped. No truncation in any section. Action-plan rows with bridges (habit prefill works end-to-end with provenance), doctor talking point (copy + add-to-notes), per-finding visit-note history, linked habits/goals, full ClinVar conditions, snooze/dismiss. `VisitNoteSheet` for inline note capture. `HabitEditSheet` gained `prefillEvidence` parameter (🧬 banner + evidence on save).
+- [x] **Phase 4 — Top Priorities card**: `GenomePrioritiesCard` pinned at top of Genome tab, ranked top 7 with severity dot + status pill + top-action subtitle + per-finding state counts. Recomputed after every scan and state mutation.
+
+### Phases 5–8 — TODO
+
+- [ ] **Phase 5 — Goal-template bridge + Overview integration**: `GoalEditSheet` mirrors `HabitEditSheet`'s `prefillEvidence` parameter; the `.goalTemplate` bridge actually opens the prefilled goal sheet. `OverviewView` calls `RecommendationEngine` with priorities so DNA-derived recs appear alongside lifestyle ones. Habit/goal detail views show the 🧬 "Suggested by your DNA" banner with a tap-back to the originating finding.
+- [ ] **Phase 6 — iPad split layout**: `GenomeSplitView` (`NavigationSplitView`: sidebar / list / detail). Detail sheet content embedded as right pane on iPad regular size class.
+- [ ] **Phase 7 — Visit Mode**: `GenomeVisitModeView` focused two-column layout (priorities list + current finding with live notes + action checkboxes + Save & Next). `GenomeVisitNotesPane` on iPad.
+- [ ] **Phase 8 — PDF export**: `GenomeReportPDF` with PDFKit. Pre-visit prep PDF (top priorities + drug-response variants + talking points) and post-visit summary PDF (with captured notes appended). AirPrint via standard share sheet.
+
 ## Goal Alignment Reframing — 2026-04-11 (ACTIVE)
 
 GOALS.md was rewritten to reflect the real thesis: **MortalLoom is a goal alignment app where the mortality clock is the forcing function and health tracking is the runway extender.** Alignment keeps you from wasting time, longevity extends the time you have. Each reinforces the other.
