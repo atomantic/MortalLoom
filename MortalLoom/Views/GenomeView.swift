@@ -802,10 +802,21 @@ struct GenomeView: View {
     // MARK: - Summary Bar
 
     private func markerSummaryBar(_ summary: GenomeScanSummary) -> some View {
-        let beneficial = summary.statusCounts[.beneficial] ?? 0
-        let typical = summary.statusCounts[.typical] ?? 0
-        let concern = (summary.statusCounts[.concern] ?? 0) + (summary.statusCounts[.majorConcern] ?? 0)
-        let notFoundCount = summary.statusCounts[.notFound] ?? 0
+        // Polarity-aware bucketing — protective markers' "concern" is "no
+        // beneficial variant", which is neutral, not a real concern.
+        var beneficial = 0
+        var typical = 0
+        var concern = 0
+        var notFoundCount = 0
+        for result in summary.markerResults {
+            switch result.status {
+            case .beneficial: beneficial += 1
+            case .typical: typical += 1
+            case .concern, .majorConcern:
+                if result.marker.polarity == .risk { concern += 1 } else { typical += 1 }
+            case .notFound: notFoundCount += 1
+            }
+        }
         let foundCount = summary.markerResults.count - notFoundCount
 
         return VStack(alignment: .leading, spacing: 10) {
@@ -893,7 +904,13 @@ struct GenomeView: View {
         let foundResults = results.filter { $0.status != .notFound }
         let worstStatus = worstStatusIn(foundResults)
         let foundCount = foundResults.count
-        let concernCount = foundResults.filter { $0.status == .concern || $0.status == .majorConcern }.count
+        // Polarity-aware: a "concern" on a protective marker means "lacks the
+        // beneficial variant" — neutral, not a real worry. Only count concerns
+        // on risk markers as actionable.
+        let concernCount = foundResults.filter {
+            ($0.status == .concern || $0.status == .majorConcern) && $0.marker.polarity == .risk
+        }.count
+        let beneficialCount = foundResults.filter { $0.status == .beneficial }.count
 
         return VStack(spacing: 0) {
             // Category header
@@ -922,6 +939,12 @@ struct GenomeView: View {
                             Text("\(foundCount) found")
                                 .font(.caption)
                                 .foregroundColor(.textMuted)
+                            if beneficialCount > 0 {
+                                Text("\(beneficialCount) beneficial")
+                                    .font(.caption)
+                                    .fontWeight(.medium)
+                                    .foregroundColor(.success)
+                            }
                             if concernCount > 0 {
                                 Text("\(concernCount) concern")
                                     .font(.caption)
@@ -1588,8 +1611,11 @@ struct GenomeView: View {
     }
 
     private func worstStatusIn(_ results: [MarkerResult]) -> GenomeMarkerStatus {
-        if results.contains(where: { $0.status == .majorConcern }) { return .majorConcern }
-        if results.contains(where: { $0.status == .concern }) { return .concern }
+        // Polarity-aware: only count concerns on risk markers as worsening
+        // the category. A protective marker's `.concern` (= "no benefit
+        // variant") shouldn't paint the whole category orange.
+        if results.contains(where: { $0.status == .majorConcern && $0.marker.polarity == .risk }) { return .majorConcern }
+        if results.contains(where: { $0.status == .concern && $0.marker.polarity == .risk }) { return .concern }
         if results.contains(where: { $0.status == .beneficial }) { return .beneficial }
         return .typical
     }

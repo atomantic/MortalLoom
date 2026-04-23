@@ -29,24 +29,40 @@ struct CuratedMarker: Sendable {
     let description: String
     let implications: [GenomeMarkerStatus: String]
     let rules: [MarkerRule]
+    let polarity: MarkerPolarity
+
+    init(
+        rsid: String,
+        gene: String,
+        name: String,
+        category: MarkerCategory,
+        description: String,
+        implications: [GenomeMarkerStatus: String],
+        rules: [MarkerRule],
+        polarity: MarkerPolarity = .risk
+    ) {
+        self.rsid = rsid
+        self.gene = gene
+        self.name = name
+        self.category = category
+        self.description = description
+        self.implications = implications
+        self.rules = rules
+        self.polarity = polarity
+    }
 }
 
-/// Whether a marker's rare variant is desirable (`.protective`, e.g. FOXO3A longevity)
-/// or undesirable (`.risk`, e.g. HFE iron overload). Used to pick contextually
-/// appropriate labels: "Concern" on a protective marker just means "no benefit
-/// variant" — not an elevated risk.
+/// Whether a marker's rare variant is desirable (`.protective`, e.g. FOXO3A
+/// longevity) or undesirable (`.risk`, e.g. HFE iron overload). Drives label
+/// and color polarity: "Concern" on a protective marker means "lacks the
+/// beneficial variant" — neutral, not elevated risk.
+///
+/// Default is `.risk` (more common case + safer when in doubt — a real risk
+/// rendered as protective looks like a non-issue, the reverse is just a
+/// neutral grey instead of green).
 enum MarkerPolarity: Sendable {
     case protective
     case risk
-}
-
-extension CuratedMarker {
-    /// Inferred from rule shape: rules containing `.majorConcern` describe a
-    /// risk marker; rules that only go beneficial → typical → concern describe
-    /// a protective marker where "concern" means lacking the beneficial variant.
-    var polarity: MarkerPolarity {
-        rules.contains(where: { $0.status == .majorConcern }) ? .risk : .protective
-    }
 }
 
 // MARK: - Marker Scan Result

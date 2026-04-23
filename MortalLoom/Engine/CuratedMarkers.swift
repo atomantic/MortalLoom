@@ -177,7 +177,8 @@ extension GenomeEngine {
                 MarkerRule(genotypes: ["G/G"], status: .beneficial),
                 MarkerRule(genotypes: ["G/T", "T/G"], status: .typical),
                 MarkerRule(genotypes: ["T/T"], status: .concern)
-            ]
+            ],
+            polarity: .protective
         ),
         CuratedMarker(
             rsid: "rs2229765",
@@ -194,7 +195,8 @@ extension GenomeEngine {
                 MarkerRule(genotypes: ["A/A"], status: .beneficial),
                 MarkerRule(genotypes: ["A/G", "G/A"], status: .typical),
                 MarkerRule(genotypes: ["G/G"], status: .concern)
-            ]
+            ],
+            polarity: .protective
         ),
         CuratedMarker(
             rsid: "rs5882",
@@ -211,7 +213,8 @@ extension GenomeEngine {
                 MarkerRule(genotypes: ["G/G"], status: .beneficial),
                 MarkerRule(genotypes: ["A/G", "G/A"], status: .typical),
                 MarkerRule(genotypes: ["A/A"], status: .concern)
-            ]
+            ],
+            polarity: .protective
         ),
         CuratedMarker(
             rsid: "rs12366",
@@ -228,7 +231,8 @@ extension GenomeEngine {
                 MarkerRule(genotypes: ["C/C"], status: .beneficial),
                 MarkerRule(genotypes: ["C/T", "T/C"], status: .typical),
                 MarkerRule(genotypes: ["T/T"], status: .concern)
-            ]
+            ],
+            polarity: .protective
         ),
 
         // ===================================================================
@@ -730,7 +734,8 @@ extension GenomeEngine {
                 MarkerRule(genotypes: ["T/T"], status: .beneficial),
                 MarkerRule(genotypes: ["C/T", "T/C"], status: .typical),
                 MarkerRule(genotypes: ["C/C"], status: .concern)
-            ]
+            ],
+            polarity: .protective
         ),
         CuratedMarker(
             rsid: "rs3865444",
@@ -849,7 +854,8 @@ extension GenomeEngine {
                 MarkerRule(genotypes: ["A/A"], status: .beneficial),
                 MarkerRule(genotypes: ["A/G", "G/A"], status: .typical),
                 MarkerRule(genotypes: ["G/G"], status: .concern)
-            ]
+            ],
+            polarity: .protective
         ),
         CuratedMarker(
             rsid: "rs10948363",
