@@ -55,7 +55,7 @@ enum CitationLibrary {
         title: "Sleep Disordered Breathing and Mortality: Eighteen-Year Follow-up of the Wisconsin Sleep Cohort",
         authors: "Young T, Finn L, Peppard PE, et al.",
         detail: "Sleep. 2008;31(8):1071-1078. Severe sleep-disordered breathing (AHI ≥30) associated with ~3x all-cause mortality risk after adjustment. Source for MortalLoom's AHI classification thresholds and apnea longevity impact.",
-        url: "https://doi.org/10.1093/sleep/31.8.1071"
+        url: "https://pubmed.ncbi.nlm.nih.gov/18714778/"
     )
 
     // MARK: - Cardiorespiratory Fitness
@@ -266,7 +266,7 @@ enum CitationLibrary {
         title: "NCEP ATP III Lipid Reference Ranges",
         authors: "National Cholesterol Education Program",
         detail: "Optimal LDL <100 mg/dL; desirable HDL ≥40 (men) / ≥50 (women); triglycerides <150 mg/dL; total cholesterol <200 mg/dL. Basis for MortalLoom's lipid panel reference bands.",
-        url: "https://www.nhlbi.nih.gov/files/docs/guidelines/atp3full.pdf"
+        url: "https://www.nhlbi.nih.gov/resources/third-report-expert-panel-detection-evaluation-and-treatment-high-blood-cholesterol-0"
     )
 
     // MARK: - Genome
