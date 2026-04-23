@@ -98,13 +98,18 @@ enum GenomeActionBridge: Sendable {
 }
 
 /// Prefill payload for the existing AddHabit flow when accepting a genome action.
-struct HabitTemplate: Sendable {
+struct HabitTemplate: Sendable, Identifiable {
     let title: String
     let detail: String
     let icon: String
     let category: HabitCategory
     let kind: HabitKind
     let cadence: HabitCadence
+
+    /// Stable identity derived from the unique `title` so SwiftUI's
+    /// `.sheet(item:)` can use it. Templates are immutable and unique within
+    /// the action library — title collision would already break the library.
+    var id: String { title }
 }
 
 /// Prefill payload for the existing AddGoal flow when accepting a genome action.

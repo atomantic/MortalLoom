@@ -631,6 +631,71 @@ actor DataStore {
         save(d)
     }
 
+    // MARK: - Genome Action State
+
+    /// Set or update the state for a single genome action. The key combines
+    /// the finding's rsid (or pseudo-rsid for ClinVar/APOE) with the action ID.
+    func setGenomeActionStatus(
+        rsid: String,
+        actionId: String,
+        status: GenomeActionStatus,
+        linkedHabitId: UUID? = nil,
+        linkedGoalId: UUID? = nil,
+        linkedVisitNoteId: UUID? = nil,
+        note: String? = nil
+    ) {
+        var d = load()
+        let key = GenomeActionState.key(rsid: rsid, actionId: actionId)
+        let existing = d.genomeActionStates[key]
+        d.genomeActionStates[key] = GenomeActionState(
+            key: key,
+            status: status,
+            updatedAt: DateFormatting.todayString(),
+            note: note ?? existing?.note,
+            linkedGoalId: linkedGoalId ?? existing?.linkedGoalId,
+            linkedHabitId: linkedHabitId ?? existing?.linkedHabitId,
+            linkedVisitNoteId: linkedVisitNoteId ?? existing?.linkedVisitNoteId
+        )
+        save(d)
+    }
+
+    /// Add a doctor visit note. Auto-flips any pending actions on the same
+    /// finding to `discussed` and stamps `linkedVisitNoteId` so the genome
+    /// detail view can navigate from the action back to the conversation.
+    func addVisitNote(_ note: VisitNote) {
+        var d = load()
+        d.genomeVisitNotes.append(note)
+        // Auto-flip pending actions on this finding to discussed.
+        let prefix = "\(note.findingKey):"
+        for (key, state) in d.genomeActionStates where key.hasPrefix(prefix) && state.status == .pending {
+            d.genomeActionStates[key] = GenomeActionState(
+                key: key,
+                status: .discussed,
+                updatedAt: DateFormatting.todayString(),
+                note: state.note,
+                linkedGoalId: state.linkedGoalId,
+                linkedHabitId: state.linkedHabitId,
+                linkedVisitNoteId: note.id
+            )
+        }
+        save(d)
+    }
+
+    /// Replace an existing visit note (same `id`).
+    func updateVisitNote(_ note: VisitNote) {
+        var d = load()
+        if let idx = d.genomeVisitNotes.firstIndex(where: { $0.id == note.id }) {
+            d.genomeVisitNotes[idx] = note
+            save(d)
+        }
+    }
+
+    func removeVisitNote(id: UUID) {
+        var d = load()
+        d.genomeVisitNotes.removeAll { $0.id == id }
+        save(d)
+    }
+
     // MARK: - Genome File
 
     func saveGenomeFile(_ content: String) {

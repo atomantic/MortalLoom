@@ -445,6 +445,11 @@ struct HabitEditSheet: View {
     let goals: [Goal]
     let onSave: (Habit) -> Void
     let onDelete: (() -> Void)?
+    /// Non-nil when this sheet was opened to accept a `GenomeAction`. The
+    /// banner appears at the top and the evidence is attached on save. The
+    /// sheet treats this as a "new" form (no archive/delete sections,
+    /// "Suggested Habit" title) regardless of whether `habit` is nil.
+    let prefillEvidence: GeneticEvidence?
 
     @Environment(\.dismiss) private var dismiss
     @State private var name: String
@@ -458,14 +463,20 @@ struct HabitEditSheet: View {
     @State private var parentGoalId: UUID?
     @State private var archived: Bool
 
+    /// True when this sheet is editing an existing saved habit (vs creating
+    /// a new one, even one prefilled from a genome action).
+    private var isEditingExisting: Bool { habit != nil && prefillEvidence == nil }
+
     init(
         habit: Habit?,
         goals: [Goal],
+        prefillEvidence: GeneticEvidence? = nil,
         onSave: @escaping (Habit) -> Void,
         onDelete: (() -> Void)? = nil
     ) {
         self.habit = habit
         self.goals = goals
+        self.prefillEvidence = prefillEvidence
         self.onSave = onSave
         self.onDelete = onDelete
         _name = State(initialValue: habit?.name ?? "")
@@ -499,6 +510,26 @@ struct HabitEditSheet: View {
     var body: some View {
         NavigationStack {
             Form {
+                if let evidence = prefillEvidence {
+                    Section {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "allergens")
+                                    .foregroundColor(.accentColor)
+                                Text("Suggested by your DNA: \(evidence.gene)")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(.accentColor)
+                            }
+                            Text(evidence.reason)
+                                .font(.caption2)
+                                .foregroundColor(.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+
                 Section("Habit") {
                     TextField("Name (e.g. Write 500 words)", text: $name)
                     TextField("Notes (optional)", text: $detail, axis: .vertical)
@@ -554,7 +585,7 @@ struct HabitEditSheet: View {
                         .foregroundColor(.secondary)
                 }
 
-                if habit != nil {
+                if isEditingExisting {
                     Section("Archive") {
                         Toggle("Archived", isOn: $archived)
                         Text("Archived habits stop contributing to alignment but keep their history.")
@@ -576,7 +607,7 @@ struct HabitEditSheet: View {
                 }
             }
             .macGroupedFormStyle()
-            .navigationTitle(habit == nil ? "New Habit" : "Edit Habit")
+            .navigationTitle(prefillEvidence != nil ? "Suggested Habit" : (habit == nil ? "New Habit" : "Edit Habit"))
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -636,7 +667,18 @@ struct HabitEditSheet: View {
     }
 
     private func save() {
-        var result = habit ?? Habit(name: name)
+        // For prefilled-suggested flow, always create a fresh Habit (don't
+        // reuse the prefill habit's id) so saving doesn't accidentally
+        // overwrite a real existing habit.
+        var result: Habit
+        if isEditingExisting, let h = habit {
+            result = h
+        } else {
+            result = Habit(name: name)
+            if let evidence = prefillEvidence {
+                result.geneticEvidence = evidence
+            }
+        }
         result.name = name.trimmingCharacters(in: .whitespaces)
         result.detail = detail.trimmingCharacters(in: .whitespaces)
         result.icon = icon

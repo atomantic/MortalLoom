@@ -69,6 +69,19 @@ struct GenomeView: View {
     @State private var minimumStars: Int = 4
     @State private var themeDisplayLimits: [ClinVarTheme: Int] = [:]
 
+    // Detail sheet + action state
+    @State private var selectedFinding: GenomeFinding?
+    @State private var actionStates: [String: GenomeActionState] = [:]
+    @State private var visitNotes: [VisitNote] = []
+    @State private var allGoals: [Goal] = []
+    @State private var allHabits: [Habit] = []
+
+    // Bridge presentations
+    @State private var pendingHabitTemplate: HabitTemplate?
+    @State private var pendingHabitEvidence: GeneticEvidence?
+    @State private var pendingVisitNoteFinding: GenomeFinding?
+    @State private var navigationPage: AppPage?
+
     private static let themePageSize = 20
 
     private var filteredClinvarHits: [ClinVarHit] {
@@ -134,9 +147,180 @@ struct GenomeView: View {
         ) { result in
             handleFileImport(result)
         }
+        .sheet(item: $selectedFinding) { finding in
+            NavigationStack {
+                GenomeDetailSheet(
+                    finding: finding,
+                    actionStates: actionStates,
+                    visitNotes: visitNotes,
+                    linkedHabits: linkedHabits(for: finding),
+                    linkedGoals: linkedGoals(for: finding),
+                    embedded: false,
+                    onBridge: { action, bridge in handleBridge(finding: finding, action: action, bridge: bridge) },
+                    onMarkDiscussed: { action in markActionStatus(finding: finding, action: action, status: .discussed) },
+                    onMarkDone: { action in markActionStatus(finding: finding, action: action, status: .done) },
+                    onSnooze: { snoozeAllActions(for: finding) },
+                    onDismiss: { dismissAllActions(for: finding) },
+                    onAddVisitNote: { _ in pendingVisitNoteFinding = finding },
+                    onCloseSheet: { selectedFinding = nil }
+                )
+            }
+            .presentationDetents([.large])
+        }
+        .sheet(item: $pendingHabitTemplate) { template in
+            HabitEditSheet(
+                habit: prefilledHabit(from: template),
+                goals: allGoals,
+                prefillEvidence: pendingHabitEvidence
+            ) { newHabit in
+                Task {
+                    await DataStore.shared.addHabit(newHabit)
+                    if let evidence = pendingHabitEvidence {
+                        await DataStore.shared.setGenomeActionStatus(
+                            rsid: evidence.rsid == "apoe" ? "apoe" : evidence.rsid,
+                            actionId: evidence.actionId,
+                            status: .inProgress,
+                            linkedHabitId: newHabit.id
+                        )
+                    }
+                    pendingHabitEvidence = nil
+                    await loadData()
+                }
+            }
+        }
+        .sheet(item: $pendingVisitNoteFinding) { finding in
+            VisitNoteSheet(finding: finding) { note in
+                Task {
+                    await DataStore.shared.addVisitNote(note)
+                    await loadData()
+                }
+            }
+        }
         .task { await loadData() }
         .onReceive(NotificationCenter.default.publisher(for: .dataDidSync)) { _ in
             Task { await loadData() }
+        }
+    }
+
+    // MARK: - Bridge handling
+
+    private func handleBridge(finding: GenomeFinding, action: GenomeAction, bridge: GenomeActionBridge) {
+        let evidence = GeneticEvidence(
+            rsid: finding.lookupRsid,
+            gene: geneLabel(for: finding),
+            reason: action.detail,
+            actionId: action.id
+        )
+        switch bridge {
+        case .habitTemplate(let template):
+            pendingHabitEvidence = evidence
+            pendingHabitTemplate = template
+        case .goalTemplate:
+            // Goal flow lands in a follow-up phase — for now, just acknowledge
+            // the action so the user gets a clear outcome.
+            markActionStatus(finding: finding, action: action, status: .inProgress)
+        case .bloodMarkerKey:
+            markActionStatus(finding: finding, action: action, status: .inProgress)
+            navigationPage = .blood
+            selectedFinding = nil
+        case .lifestyleField:
+            markActionStatus(finding: finding, action: action, status: .inProgress)
+            navigationPage = .lifestyle
+            selectedFinding = nil
+        case .external(let url):
+            #if os(iOS)
+            UIApplication.shared.open(url)
+            #elseif os(macOS)
+            NSWorkspace.shared.open(url)
+            #endif
+        }
+    }
+
+    private func geneLabel(for finding: GenomeFinding) -> String {
+        switch finding {
+        case .marker(let r): r.marker.gene
+        case .clinvar(let h): h.entry.gene.isEmpty ? h.rsid : h.entry.gene
+        case .apoe(let a): "APOE \(a.haplotype)"
+        }
+    }
+
+    private func prefilledHabit(from template: HabitTemplate) -> Habit {
+        Habit(
+            name: template.title,
+            detail: template.detail,
+            icon: template.icon,
+            colorHex: "#4C8BF5",
+            category: template.category,
+            kind: template.kind,
+            cadence: template.cadence
+        )
+    }
+
+    private func linkedHabits(for finding: GenomeFinding) -> [Habit] {
+        let key = finding.lookupRsid
+        return allHabits.filter { $0.geneticEvidence?.rsid == key && $0.isActive }
+    }
+
+    private func linkedGoals(for finding: GenomeFinding) -> [Goal] {
+        let key = finding.lookupRsid
+        return allGoals.filter { $0.geneticEvidence?.rsid == key && $0.status == .active }
+    }
+
+    private func markActionStatus(finding: GenomeFinding, action: GenomeAction, status: GenomeActionStatus) {
+        Task {
+            await DataStore.shared.setGenomeActionStatus(
+                rsid: finding.findingKey,
+                actionId: action.id,
+                status: status
+            )
+            await loadData()
+        }
+    }
+
+    private func snoozeAllActions(for finding: GenomeFinding) {
+        Task {
+            for action in actionsForFinding(finding) {
+                await DataStore.shared.setGenomeActionStatus(
+                    rsid: finding.findingKey,
+                    actionId: action.id,
+                    status: .snoozed
+                )
+            }
+            selectedFinding = nil
+            await loadData()
+        }
+    }
+
+    private func dismissAllActions(for finding: GenomeFinding) {
+        Task {
+            for action in actionsForFinding(finding) {
+                await DataStore.shared.setGenomeActionStatus(
+                    rsid: finding.findingKey,
+                    actionId: action.id,
+                    status: .dismissed
+                )
+            }
+            selectedFinding = nil
+            await loadData()
+        }
+    }
+
+    private func actionsForFinding(_ finding: GenomeFinding) -> [GenomeAction] {
+        switch finding {
+        case .marker(let r):
+            GenomePriorityEngine.matchingActions(
+                forRsid: r.marker.rsid, genotype: r.genotype,
+                status: r.status, in: GenomeActionLibrary.all
+            )
+        case .apoe(let a):
+            GenomeActionLibrary.all.filter { action in
+                action.conditions.contains { $0.rsid == "apoe"
+                    && ($0.genotypes?.contains(a.haplotype) ?? true) }
+            }
+        case .clinvar(let h):
+            GenomeActionLibrary.all.filter { action in
+                action.conditions.contains { $0.rsid == h.rsid || $0.rsid == "clinvar:\(h.entry.severity)" }
+            }
         }
     }
 
@@ -511,7 +695,15 @@ struct GenomeView: View {
     @ViewBuilder
     private func apoeSection(_ apoe: APOEResult?) -> some View {
         if let apoe {
-            VStack(alignment: .leading, spacing: 12) {
+            Button(action: { selectedFinding = .apoe(apoe) }) {
+                apoeContent(apoe)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func apoeContent(_ apoe: APOEResult) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 8) {
                     Image(systemName: "brain.head.profile")
                         .font(.title2)
@@ -528,6 +720,9 @@ struct GenomeView: View {
                         claim: "APOE longevity and Alzheimer's risk multipliers"
                     )
                     Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundColor(.textMuted)
                 }
 
                 HStack(spacing: 16) {
@@ -573,7 +768,6 @@ struct GenomeView: View {
             .cardStyle()
             .accessibilityElement(children: .combine)
             .accessibilityLabel("APOE Haplotype: \(apoe.haplotype), risk multiplier \(apoe.riskMultiplier), \(apoe.frequency) of population. \(apoe.implication)")
-        }
     }
 
     // MARK: - Summary Bar
@@ -742,60 +936,42 @@ struct GenomeView: View {
     // MARK: - Individual Marker Row
 
     private func markerRow(_ result: MarkerResult) -> some View {
-        let isExpanded = expandedMarkers.contains(result.marker.rsid)
+        Button(action: { selectedFinding = .marker(result) }) {
+            HStack(spacing: 10) {
+                Circle()
+                    .fill(colorForStatus(result.status, polarity: result.marker.polarity))
+                    .frame(width: 10, height: 10)
 
-        return VStack(spacing: 0) {
-            Button(action: {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    if isExpanded {
-                        expandedMarkers.remove(result.marker.rsid)
-                    } else {
-                        expandedMarkers.insert(result.marker.rsid)
-                    }
-                }
-            }) {
-                HStack(spacing: 10) {
-                    Circle()
-                        .fill(colorForStatus(result.status, polarity: result.marker.polarity))
-                        .frame(width: 10, height: 10)
-
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(result.marker.gene)
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.textPrimary)
-                        Text(result.marker.name)
-                            .font(.caption)
-                            .foregroundColor(.textMuted)
-                            .lineLimit(1)
-                    }
-
-                    Spacer()
-
-                    if let genotype = result.genotype {
-                        genotypePill(genotype, status: result.status, polarity: result.marker.polarity)
-                    } else {
-                        Text("N/A")
-                            .font(.caption)
-                            .foregroundColor(.textMuted)
-                    }
-
-                    Image(systemName: "chevron.right")
-                        .font(.caption2)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(result.marker.gene)
+                        .font(.subheadline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.textPrimary)
+                    Text(result.marker.name)
+                        .font(.caption)
                         .foregroundColor(.textMuted)
-                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                        .lineLimit(1)
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 10)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
 
-            if isExpanded {
-                markerDetail(result)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                Spacer()
+
+                if let genotype = result.genotype {
+                    genotypePill(genotype, status: result.status, polarity: result.marker.polarity)
+                } else {
+                    Text("N/A")
+                        .font(.caption)
+                        .foregroundColor(.textMuted)
+                }
+
+                Image(systemName: "chevron.right")
+                    .font(.caption2)
+                    .foregroundColor(.textMuted)
             }
+            .padding(.horizontal)
+            .padding(.vertical, 10)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
     }
 
     private func genotypePill(_ genotype: String, status: GenomeMarkerStatus, polarity: MarkerPolarity = .risk) -> some View {
@@ -1164,54 +1340,66 @@ struct GenomeView: View {
     }
 
     private func clinvarHitRow(_ hit: ClinVarHit) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(clinvarSeverityColor(hit.entry.severity))
-                    .frame(width: 8, height: 8)
+        Button(action: { selectedFinding = .clinvar(hit) }) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(clinvarSeverityColor(hit.entry.severity))
+                        .frame(width: 8, height: 8)
 
-                if !hit.entry.gene.isEmpty {
-                    Text(hit.entry.gene)
+                    if !hit.entry.gene.isEmpty {
+                        Text(hit.entry.gene)
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundColor(.accentColor)
+                    }
+
+                    Text(hit.rsid)
                         .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.accentColor)
-                }
+                        .monospacedDigit()
+                        .foregroundColor(.textMuted)
 
-                Text(hit.rsid)
-                    .font(.caption)
-                    .monospacedDigit()
-                    .foregroundColor(.textMuted)
+                    Spacer()
 
-                Spacer()
+                    genotypePill(hit.genotype, status: GenomeEngine.statusForSeverity(hit.entry.severity))
 
-                genotypePill(hit.genotype, status: GenomeEngine.statusForSeverity(hit.entry.severity))
+                    reviewStars(hit.entry.reviewStars)
 
-                reviewStars(hit.entry.reviewStars)
-            }
-
-            if !hit.entry.conditions.isEmpty {
-                Text(hit.entry.conditions.joined(separator: ", "))
-                    .font(.caption2)
-                    .foregroundColor(.textSecondary)
-                    .lineLimit(2)
-                    .padding(.leading, 18)
-            }
-
-            HStack(spacing: 6) {
-                Text(clinvarSeverityLabel(hit.entry.severity))
-                    .font(.caption2)
-                    .fontWeight(.medium)
-                    .foregroundColor(clinvarSeverityColor(hit.entry.severity))
-                if hit.entry.submissions > 1 {
-                    Text("\(hit.entry.submissions) submissions")
+                    Image(systemName: "chevron.right")
                         .font(.caption2)
                         .foregroundColor(.textMuted)
                 }
+
+                if !hit.entry.conditions.isEmpty {
+                    Text(hit.entry.conditions.joined(separator: ", "))
+                        .font(.caption2)
+                        .foregroundColor(.textSecondary)
+                        .lineLimit(2)
+                        .padding(.leading, 18)
+                }
+
+                HStack(spacing: 6) {
+                    Text(clinvarSeverityLabel(hit.entry.severity))
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .foregroundColor(clinvarSeverityColor(hit.entry.severity))
+                    if hit.entry.submissions > 1 {
+                        Text("\(hit.entry.submissions) submissions")
+                            .font(.caption2)
+                            .foregroundColor(.textMuted)
+                    }
+                    Spacer()
+                    Text("Tap for details")
+                        .font(.caption2)
+                        .foregroundColor(.accentColor)
+                }
+                .padding(.leading, 18)
             }
-            .padding(.leading, 18)
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
         }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
+        .buttonStyle(.plain)
     }
 
     private func reviewStars(_ count: Int) -> some View {
@@ -1412,6 +1600,10 @@ struct GenomeView: View {
         let data = await DataStore.shared.getData()
         epigeneticTests = data.epigeneticTests
         sortedEpigeneticTests = data.epigeneticTests.sorted(by: { $0.date > $1.date })
+        actionStates = data.genomeActionStates
+        visitNotes = data.genomeVisitNotes
+        allGoals = data.goals
+        allHabits = data.habits
 
         // Default sex filter from profile on first load
         if !hasInitializedSexFilter, let sex = data.profile.biologicalSex {
