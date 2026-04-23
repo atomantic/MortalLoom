@@ -18,6 +18,29 @@ struct GenomeAction: Sendable, Identifiable {
     let bridge: GenomeActionBridge?
     let citationIds: [String]
     let doctorTalkingPoint: String?
+
+    /// Whether this action surfaces for a given marker result. A condition
+    /// matches if it targets the same rsid AND (a) its `genotypes` allowlist
+    /// contains the user's normalized genotype (or is nil = any genotype),
+    /// AND (b) the user's status meets the condition's `minStatus` floor.
+    func matches(rsid: String, genotype: String?, status: GenomeMarkerStatus) -> Bool {
+        conditions.contains { cond in
+            guard cond.rsid == rsid else { return false }
+            if let minStatus = cond.minStatus {
+                let order: [GenomeMarkerStatus: Int] = [
+                    .notFound: -1, .typical: 0, .beneficial: 1,
+                    .concern: 2, .majorConcern: 3
+                ]
+                guard (order[status] ?? -1) >= (order[minStatus] ?? -1) else { return false }
+            }
+            if let allowed = cond.genotypes {
+                guard let g = genotype else { return false }
+                let normalized = GenomeEngine.normalizeGenotype(g) ?? g
+                return allowed.contains { (GenomeEngine.normalizeGenotype($0) ?? $0) == normalized }
+            }
+            return true
+        }
+    }
 }
 
 enum GenomeActionKind: String, Sendable, Codable {

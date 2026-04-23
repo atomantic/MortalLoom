@@ -1,55 +1,10 @@
 import SwiftUI
 
-// MARK: - Genome Finding (input wrapper)
-
-/// Wraps the three things the detail sheet can describe: a curated marker
-/// result, a ClinVar hit, or an APOE haplotype. `findingKey` is the storage
-/// key used in `AppData.genomeActionStates` (rsid for marker/APOE,
-/// "rsid:condition" for ClinVar).
-enum GenomeFinding: Sendable, Hashable, Identifiable {
-    case marker(MarkerResult)
-    case clinvar(ClinVarHit)
-    case apoe(APOEResult)
-
-    var id: String { findingKey }
-
-    var findingKey: String {
-        switch self {
-        case .marker(let r): r.marker.rsid
-        case .clinvar(let h):
-            if let cond = h.entry.conditions.first, !cond.isEmpty {
-                "\(h.rsid):\(cond.lowercased())"
-            } else {
-                h.rsid
-            }
-        case .apoe: "apoe"
-        }
-    }
-
-    var lookupRsid: String {
-        switch self {
-        case .marker(let r): r.marker.rsid
-        case .clinvar(let h): h.rsid
-        case .apoe: "apoe"
-        }
-    }
-
-    static func == (lhs: GenomeFinding, rhs: GenomeFinding) -> Bool {
-        lhs.findingKey == rhs.findingKey
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(findingKey)
-    }
-}
-
-// MARK: - Detail Sheet
-
 /// Single detail surface used everywhere a genome finding is opened. Presented
 /// as a `.sheet(.large)` on iPhone and as the right pane of `GenomeSplitView`
-/// on iPad. **No truncation in this view, ever.**
+/// on iPad. No truncation in this view.
 struct GenomeDetailSheet: View {
-    let finding: GenomeFinding
+    let finding: PriorityFindingSource
     let actionStates: [String: GenomeActionState]
     let visitNotes: [VisitNote]
     let linkedHabits: [Habit]
@@ -448,13 +403,7 @@ struct GenomeDetailSheet: View {
         .cardStyle()
     }
 
-    private var headerTitle: String {
-        switch finding {
-        case .marker(let r): r.marker.gene + (r.marker.name.isEmpty ? "" : " — \(r.marker.name)")
-        case .clinvar(let h): h.entry.gene.isEmpty ? h.rsid : h.entry.gene
-        case .apoe(let a): "APOE \(a.haplotype)"
-        }
-    }
+    private var headerTitle: String { finding.title }
 
     private var headerSubtitle: String {
         switch finding {
@@ -483,60 +432,8 @@ struct GenomeDetailSheet: View {
             .cornerRadius(6)
     }
 
-    private var statusLabel: String {
-        switch finding {
-        case .marker(let r):
-            switch r.status {
-            case .majorConcern: "Major Concern"
-            case .concern: "Concern"
-            case .beneficial: "Beneficial"
-            case .typical: "Typical"
-            case .notFound: "Not Found"
-            }
-        case .clinvar(let h):
-            switch h.entry.severity {
-            case "pathogenic": "Pathogenic"
-            case "risk_factor": "Risk Factor"
-            case "drug_response": "Drug Response"
-            case "protective": "Protective"
-            default: h.entry.severity.capitalized
-            }
-        case .apoe(let a):
-            switch a.status {
-            case .majorConcern: "Major Concern"
-            case .concern: "Concern"
-            case .beneficial: "Beneficial"
-            default: "Typical"
-            }
-        }
-    }
-
-    private var statusColor: Color {
-        switch finding {
-        case .marker(let r):
-            switch r.status {
-            case .majorConcern: .red
-            case .concern: .orange
-            case .beneficial: .green
-            case .typical: .secondary
-            case .notFound: .gray
-            }
-        case .clinvar(let h):
-            switch h.entry.severity {
-            case "pathogenic": .red
-            case "risk_factor", "drug_response": .orange
-            case "protective": .green
-            default: .secondary
-            }
-        case .apoe(let a):
-            switch a.status {
-            case .majorConcern: .red
-            case .concern: .orange
-            case .beneficial: .green
-            default: .secondary
-            }
-        }
-    }
+    private var statusLabel: String { finding.statusLabel }
+    private var statusColor: Color { severityColor(for: finding) }
 
     private var displayGenotype: String? {
         switch finding {
@@ -570,25 +467,7 @@ struct GenomeDetailSheet: View {
     }
 
     private var relevantActions: [GenomeAction] {
-        switch finding {
-        case .marker(let r):
-            return GenomePriorityEngine.matchingActions(
-                forRsid: r.marker.rsid,
-                genotype: r.genotype,
-                status: r.status,
-                in: GenomeActionLibrary.all
-            )
-        case .apoe(let a):
-            return GenomeActionLibrary.all.filter { action in
-                action.conditions.contains { $0.rsid == "apoe"
-                    && ($0.genotypes?.contains(a.haplotype) ?? true) }
-            }
-        case .clinvar(let h):
-            let pseudo = "clinvar:\(h.entry.severity)"
-            return GenomeActionLibrary.all.filter { action in
-                action.conditions.contains { $0.rsid == h.rsid || $0.rsid == pseudo }
-            }
-        }
+        GenomePriorityEngine.actions(for: finding)
     }
 
     private var relevantVisitNotes: [VisitNote] {

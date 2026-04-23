@@ -1,16 +1,6 @@
 import Foundation
 
-/// Curated `GenomeAction` library — declarative, data-only. Grow by appending
-/// entries here without schema changes.
-///
-/// Coverage rules (per the design doc):
-///  - All `majorConcern`-capable risk markers from `CuratedMarkers.swift`.
-///  - APOE haplotypes (each non-typical form).
-///  - Common methylation / cardiovascular / inflammation markers.
-///  - Generic ClinVar actions (`clinvar:pathogenic`, `clinvar:drug_response`).
-///
-/// Other markers fall through and show "No specific actions yet" in the detail
-/// sheet — they still get full description, citations, ClinVar links.
+/// Curated `GenomeAction` library — declarative, data-only. Grow by appending.
 ///
 /// Action IDs are stable across releases; never rename. Add new actions or
 /// supersede with new IDs — old saved state references the old ID.

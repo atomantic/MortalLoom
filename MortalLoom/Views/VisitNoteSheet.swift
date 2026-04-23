@@ -4,7 +4,7 @@ import SwiftUI
 /// genome detail sheet. Visit Mode (the bigger live-capture flow) lives in
 /// `GenomeVisitModeView` and is added in a later phase.
 struct VisitNoteSheet: View {
-    let finding: GenomeFinding
+    let finding: PriorityFindingSource
     let onSave: (VisitNote) -> Void
 
     @Environment(\.dismiss) private var dismiss

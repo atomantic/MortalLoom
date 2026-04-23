@@ -70,7 +70,7 @@ struct GenomeView: View {
     @State private var themeDisplayLimits: [ClinVarTheme: Int] = [:]
 
     // Detail sheet + action state
-    @State private var selectedFinding: GenomeFinding?
+    @State private var selectedFinding: PriorityFindingSource?
     @State private var actionStates: [String: GenomeActionState] = [:]
     @State private var visitNotes: [VisitNote] = []
     @State private var allGoals: [Goal] = []
@@ -79,8 +79,7 @@ struct GenomeView: View {
     // Bridge presentations
     @State private var pendingHabitTemplate: HabitTemplate?
     @State private var pendingHabitEvidence: GeneticEvidence?
-    @State private var pendingVisitNoteFinding: GenomeFinding?
-    @State private var navigationPage: AppPage?
+    @State private var pendingVisitNoteFinding: PriorityFindingSource?
 
     // Priority engine output
     @State private var topPriorities: [PriorityFinding] = []
@@ -191,7 +190,7 @@ struct GenomeView: View {
                     await DataStore.shared.addHabit(newHabit)
                     if let evidence = pendingHabitEvidence {
                         await DataStore.shared.setGenomeActionStatus(
-                            rsid: evidence.rsid == "apoe" ? "apoe" : evidence.rsid,
+                            rsid: evidence.rsid,
                             actionId: evidence.actionId,
                             status: .inProgress,
                             linkedHabitId: newHabit.id
@@ -218,9 +217,9 @@ struct GenomeView: View {
 
     // MARK: - Bridge handling
 
-    private func handleBridge(finding: GenomeFinding, action: GenomeAction, bridge: GenomeActionBridge) {
+    private func handleBridge(finding: PriorityFindingSource, action: GenomeAction, bridge: GenomeActionBridge) {
         let evidence = GeneticEvidence(
-            rsid: finding.lookupRsid,
+            rsid: finding.findingKey,
             gene: geneLabel(for: finding),
             reason: action.detail,
             actionId: action.id
@@ -230,17 +229,15 @@ struct GenomeView: View {
             pendingHabitEvidence = evidence
             pendingHabitTemplate = template
         case .goalTemplate:
-            // Goal flow lands in a follow-up phase — for now, just acknowledge
-            // the action so the user gets a clear outcome.
             markActionStatus(finding: finding, action: action, status: .inProgress)
         case .bloodMarkerKey:
             markActionStatus(finding: finding, action: action, status: .inProgress)
-            navigationPage = .blood
             selectedFinding = nil
+            NotificationCenter.default.post(name: .navigateToPage, object: AppPage.blood)
         case .lifestyleField:
             markActionStatus(finding: finding, action: action, status: .inProgress)
-            navigationPage = .lifestyle
             selectedFinding = nil
+            NotificationCenter.default.post(name: .navigateToPage, object: AppPage.lifestyle)
         case .external(let url):
             #if os(iOS)
             UIApplication.shared.open(url)
@@ -250,7 +247,7 @@ struct GenomeView: View {
         }
     }
 
-    private func geneLabel(for finding: GenomeFinding) -> String {
+    private func geneLabel(for finding: PriorityFindingSource) -> String {
         switch finding {
         case .marker(let r): r.marker.gene
         case .clinvar(let h): h.entry.gene.isEmpty ? h.rsid : h.entry.gene
@@ -270,17 +267,17 @@ struct GenomeView: View {
         )
     }
 
-    private func linkedHabits(for finding: GenomeFinding) -> [Habit] {
-        let key = finding.lookupRsid
+    private func linkedHabits(for finding: PriorityFindingSource) -> [Habit] {
+        let key = finding.findingKey
         return allHabits.filter { $0.geneticEvidence?.rsid == key && $0.isActive }
     }
 
-    private func linkedGoals(for finding: GenomeFinding) -> [Goal] {
-        let key = finding.lookupRsid
+    private func linkedGoals(for finding: PriorityFindingSource) -> [Goal] {
+        let key = finding.findingKey
         return allGoals.filter { $0.geneticEvidence?.rsid == key && $0.status == .active }
     }
 
-    private func markActionStatus(finding: GenomeFinding, action: GenomeAction, status: GenomeActionStatus) {
+    private func markActionStatus(finding: PriorityFindingSource, action: GenomeAction, status: GenomeActionStatus) {
         Task {
             await DataStore.shared.setGenomeActionStatus(
                 rsid: finding.findingKey,
@@ -291,7 +288,7 @@ struct GenomeView: View {
         }
     }
 
-    private func snoozeAllActions(for finding: GenomeFinding) {
+    private func snoozeAllActions(for finding: PriorityFindingSource) {
         Task {
             for action in actionsForFinding(finding) {
                 await DataStore.shared.setGenomeActionStatus(
@@ -305,7 +302,7 @@ struct GenomeView: View {
         }
     }
 
-    private func dismissAllActions(for finding: GenomeFinding) {
+    private func dismissAllActions(for finding: PriorityFindingSource) {
         Task {
             for action in actionsForFinding(finding) {
                 await DataStore.shared.setGenomeActionStatus(
@@ -325,15 +322,13 @@ struct GenomeView: View {
             totalPriorityCandidates = 0
             return
         }
-        let ranked = GenomePriorityEngine.rank(
+        topPriorities = GenomePriorityEngine.rank(
             summary: summary,
             clinvarHits: clinvarHits,
             library: GenomeActionLibrary.all,
             states: actionStates,
             lifestyle: lifestyle
         )
-        topPriorities = ranked
-        // Total candidates = non-typical/non-notFound markers + non-typical APOE + actionable ClinVar hits
         var total = 0
         for r in summary.markerResults where r.status != .notFound && r.status != .typical {
             total += 1
@@ -345,23 +340,8 @@ struct GenomeView: View {
         totalPriorityCandidates = total
     }
 
-    private func actionsForFinding(_ finding: GenomeFinding) -> [GenomeAction] {
-        switch finding {
-        case .marker(let r):
-            GenomePriorityEngine.matchingActions(
-                forRsid: r.marker.rsid, genotype: r.genotype,
-                status: r.status, in: GenomeActionLibrary.all
-            )
-        case .apoe(let a):
-            GenomeActionLibrary.all.filter { action in
-                action.conditions.contains { $0.rsid == "apoe"
-                    && ($0.genotypes?.contains(a.haplotype) ?? true) }
-            }
-        case .clinvar(let h):
-            GenomeActionLibrary.all.filter { action in
-                action.conditions.contains { $0.rsid == h.rsid || $0.rsid == "clinvar:\(h.entry.severity)" }
-            }
-        }
+    private func actionsForFinding(_ finding: PriorityFindingSource) -> [GenomeAction] {
+        GenomePriorityEngine.actions(for: finding)
     }
 
     // MARK: - Epigenetic Age Section

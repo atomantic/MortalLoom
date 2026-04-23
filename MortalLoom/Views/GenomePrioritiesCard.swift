@@ -1,14 +1,12 @@
 import SwiftUI
 
 /// Pinned-top synthesis card for the Genome tab. Shows the top N priority
-/// findings ranked by `GenomePriorityEngine`. Each row's subtitle is the
-/// top action — that's what makes this not a duplicate of the categories.
-///
-/// Tapping a row opens the same `GenomeDetailSheet` used by category browse.
+/// findings ranked by `GenomePriorityEngine`. Tapping a row opens the same
+/// `GenomeDetailSheet` used by the category browse.
 struct GenomePrioritiesCard: View {
     let priorities: [PriorityFinding]
     let totalCandidateCount: Int
-    let onSelectFinding: (GenomeFinding) -> Void
+    let onSelectFinding: (PriorityFindingSource) -> Void
     let onStartVisit: () -> Void
     let onExportPDF: () -> Void
 
@@ -68,10 +66,11 @@ struct GenomePrioritiesCard: View {
     }
 
     private func priorityRow(_ priority: PriorityFinding) -> some View {
-        Button(action: { onSelectFinding(toFinding(priority)) }) {
+        let color = severityColor(for: priority.source)
+        return Button(action: { onSelectFinding(priority.source) }) {
             HStack(alignment: .top, spacing: 10) {
                 Circle()
-                    .fill(severityColor(priority))
+                    .fill(color)
                     .frame(width: 10, height: 10)
                     .padding(.top, 4)
 
@@ -83,7 +82,7 @@ struct GenomePrioritiesCard: View {
                             .foregroundColor(.textPrimary)
                             .lineLimit(1)
                         Spacer()
-                        statusPill(priority)
+                        statusPill(priority, color: color)
                     }
                     if let action = priority.topAction {
                         Text(action.title)
@@ -142,14 +141,14 @@ struct GenomePrioritiesCard: View {
         }
     }
 
-    private func statusPill(_ priority: PriorityFinding) -> some View {
-        Text(priority.statusLabel)
+    private func statusPill(_ priority: PriorityFinding, color: Color) -> some View {
+        Text(priority.source.statusLabel)
             .font(.caption2)
             .fontWeight(.medium)
-            .foregroundColor(severityColor(priority))
+            .foregroundColor(color)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
-            .background(severityColor(priority).opacity(0.12))
+            .background(color.opacity(0.12))
             .cornerRadius(4)
     }
 
@@ -178,39 +177,4 @@ struct GenomePrioritiesCard: View {
         .padding(.top, 4)
     }
 
-    // MARK: - Helpers
-
-    private func severityColor(_ priority: PriorityFinding) -> Color {
-        switch priority.source {
-        case .marker(let r):
-            switch r.status {
-            case .majorConcern: .red
-            case .concern: .orange
-            case .beneficial: .green
-            default: .secondary
-            }
-        case .clinvar(let h):
-            switch h.entry.severity {
-            case "pathogenic": .red
-            case "risk_factor", "drug_response": .orange
-            case "protective": .green
-            default: .secondary
-            }
-        case .apoe(let a):
-            switch a.status {
-            case .majorConcern: .red
-            case .concern: .orange
-            case .beneficial: .green
-            default: .secondary
-            }
-        }
-    }
-
-    private func toFinding(_ priority: PriorityFinding) -> GenomeFinding {
-        switch priority.source {
-        case .marker(let r): .marker(r)
-        case .clinvar(let h): .clinvar(h)
-        case .apoe(let a): .apoe(a)
-        }
-    }
 }
