@@ -50,7 +50,7 @@ struct ReportsView: View {
             Task { await loadData() }
         }
         .sheet(item: $checkInGoal) { goal in
-            CheckInSheet(goal: goal) { updated in
+            CheckInSheet(goal: goal, allGoals: data.goals) { updated in
                 Task {
                     await DataStore.shared.updateGoal(updated)
                     await loadData()

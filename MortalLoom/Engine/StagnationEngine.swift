@@ -128,7 +128,7 @@ enum StagnationEngine {
         let effectiveLatestDates = goals.effectiveLatestCheckInDates()
 
         // 1. Apex with no active supporting goals.
-        for apex in goals where apex.goalType == .apex && apex.status == .active {
+        for apex in goals where apex.goalType == .apex && apex.status == .active && !apex.isDeferred(now: now) {
             let children = childrenByParent[apex.id] ?? []
             if children.isEmpty {
                 signals.append(StagnationSignal(
@@ -142,7 +142,7 @@ enum StagnationEngine {
         }
 
         // 2. Sub-apex (life pillar) with no active standard descendants.
-        for pillar in goals where pillar.goalType == .subApex && pillar.status == .active {
+        for pillar in goals where pillar.goalType == .subApex && pillar.status == .active && !pillar.isDeferred(now: now) {
             let leaves = GoalEngine.standardDescendants(of: pillar, in: goals)
             if leaves.isEmpty {
                 signals.append(StagnationSignal(
@@ -160,7 +160,7 @@ enum StagnationEngine {
         // miss and a 45-day miss don't raise identical alerts. Parent goals
         // inherit check-in credit from their descendants — if the user has
         // been checking in on sub-goals, the parent isn't considered stale.
-        for g in goals where g.status == .active && g.goalType != .apex && g.goalType != .subApex {
+        for g in goals where g.status == .active && !g.isDeferred(now: now) && g.goalType != .apex && g.goalType != .subApex {
             let days = DateFormatting.daysSince(effectiveLatestDates[g.id] ?? g.createdDate, now: now)
             if days >= g.checkInIntervalDays {
                 let overdue = max(0, days - g.checkInIntervalDays)
@@ -182,7 +182,7 @@ enum StagnationEngine {
         // 4. Standard goals projected to slip past their deadline. Pass
         // the effective days-since-last-check-in so sub-goal activity
         // shortens the "missed check-in" penalty on parents too.
-        for g in goals where g.status == .active && g.goalType != .apex && g.goalType != .subApex {
+        for g in goals where g.status == .active && !g.isDeferred(now: now) && g.goalType != .apex && g.goalType != .subApex {
             let effectiveDays = DateFormatting.daysSince(
                 effectiveLatestDates[g.id] ?? g.createdDate, now: now
             )
@@ -209,7 +209,10 @@ enum StagnationEngine {
         }
 
         // 5. Habits that have missed their cadence 3+ periods in a row.
+        // Skip habits whose parent goal is deferred — the whole branch is snoozed.
+        let deferredGoalIds = Set(goals.filter { $0.isDeferred(now: now) }.map(\.id))
         for habit in habits where habit.isActive && habit.kind == .positive {
+            if let pid = habit.parentGoalId, deferredGoalIds.contains(pid) { continue }
             if HabitEngine.isStagnant(habit, consecutiveMisses: 3, now: now) {
                 signals.append(StagnationSignal(
                     severity: .warn,

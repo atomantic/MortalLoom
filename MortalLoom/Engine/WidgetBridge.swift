@@ -48,6 +48,7 @@ enum WidgetBridge: Sendable {
         var needsCheckInCount = 0
         var needsCheckInById: [UUID: Bool] = [:]
         for g in activeGoals {
+            if g.isDeferred() { needsCheckInById[g.id] = false; continue }
             let days = DateFormatting.daysSince(effectiveLatestDates[g.id] ?? g.createdDate)
             let needs = days >= g.checkInIntervalDays
             needsCheckInById[g.id] = needs

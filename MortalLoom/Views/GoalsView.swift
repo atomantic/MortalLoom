@@ -103,6 +103,7 @@ struct GoalsView: View {
         .sheet(item: $checkInGoal) { goal in
             CheckInSheet(
                 goal: goal,
+                allGoals: goals,
                 stagnationSignal: signalByGoalId[goal.id]
             ) { updated in
                 saveAndReload { await DataStore.shared.updateGoal(updated) }
@@ -608,7 +609,7 @@ struct GoalsView: View {
                     .accessibilityLabel("Check in to \(goal.title)")
                 }
                 if !isLifelong {
-                    urgencyBadge(projection.urgencyLevel, status: goal.status)
+                    urgencyBadge(projection.urgencyLevel, status: goal.status, isDeferred: goal.isDeferred())
                 }
             }
 
@@ -801,9 +802,10 @@ struct GoalsView: View {
         }
     }
 
-    private func urgencyBadge(_ urgency: GoalEngine.UrgencyLevel, status: GoalStatus) -> some View {
+    private func urgencyBadge(_ urgency: GoalEngine.UrgencyLevel, status: GoalStatus, isDeferred: Bool = false) -> some View {
         let (text, color): (String, Color) = {
             if status == .completed { return ("Done", .success) }
+            if isDeferred { return ("Snoozed", .accentColor) }
             if status == .paused { return ("Paused", .textMuted) }
             if status == .abandoned { return ("Abandoned", .textMuted) }
             switch urgency {
@@ -1397,6 +1399,7 @@ struct GoalEditSheet: View {
 /// users who open a stale goal directly (not via Reports) still get nudged.
 struct CheckInSheet: View {
     let goal: Goal
+    let allGoals: [Goal]
     let stagnationSignal: StagnationSignal?
     let onSave: (Goal) -> Void
     @Environment(\.dismiss) private var dismiss
@@ -1414,12 +1417,39 @@ struct CheckInSheet: View {
     @State private var blockersText: String = ""
     @State private var commitmentsText: String = ""
 
-    init(goal: Goal, stagnationSignal: StagnationSignal? = nil, onSave: @escaping (Goal) -> Void) {
+    // Defer / snooze state.
+    @State private var showDeferPicker = false
+    @State private var deferDate: Date = Calendar.current.date(byAdding: .day, value: 30, to: Date()) ?? Date()
+
+    init(
+        goal: Goal,
+        allGoals: [Goal] = [],
+        stagnationSignal: StagnationSignal? = nil,
+        onSave: @escaping (Goal) -> Void
+    ) {
         self.goal = goal
+        self.allGoals = allGoals
         self.stagnationSignal = stagnationSignal
         self.onSave = onSave
         _progressPct = State(initialValue: goal.progressPercent)
         _milestoneStates = State(initialValue: Dictionary(uniqueKeysWithValues: goal.milestones.map { ($0.id, $0.completed) }))
+    }
+
+    /// Parent chain from the top-level apex down to the goal's direct parent.
+    /// Excludes the goal itself. Used to disambiguate repeated titles like
+    /// "Finish design" that live under different pillars/apexes.
+    private var ancestors: [Goal] {
+        guard !allGoals.isEmpty else { return [] }
+        let byId = Dictionary(uniqueKeysWithValues: allGoals.map { ($0.id, $0) })
+        var chain: [Goal] = []
+        var cursor = goal.parentId
+        var seen = Set<UUID>()
+        while let pid = cursor, !seen.contains(pid), let parent = byId[pid] {
+            chain.append(parent)
+            seen.insert(pid)
+            cursor = parent.parentId
+        }
+        return chain.reversed()
     }
 
     private var isLifelong: Bool {
@@ -1438,6 +1468,7 @@ struct CheckInSheet: View {
                 } else {
                     progressForm
                 }
+                deferSection
             }
             .macGroupedFormStyle()
             .navigationTitle(isLifelong ? "Reflect" : "Check In")
@@ -1463,6 +1494,27 @@ struct CheckInSheet: View {
         .macSheetFrame(minHeight: 560, idealHeight: 680)
     }
 
+    /// Parent chain rendered as `Apex › Sub-apex › Parent` so the user can
+    /// disambiguate repeated goal titles across different branches of the
+    /// goal tree.
+    @ViewBuilder
+    private var breadcrumb: some View {
+        HStack(spacing: 4) {
+            ForEach(Array(ancestors.enumerated()), id: \.element.id) { idx, ancestor in
+                Text(ancestor.title)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                if idx < ancestors.count - 1 {
+                    Image(systemName: "chevron.right")
+                        .font(.caption2)
+                }
+            }
+        }
+        .font(.caption2)
+        .foregroundColor(.textMuted)
+        .accessibilityLabel("In " + ancestors.map(\.title).joined(separator: ", "))
+    }
+
     /// Shows what the user tapped on while they reflect — title, notes (why),
     /// type, category, horizon, target date.
     @ViewBuilder
@@ -1481,6 +1533,10 @@ struct CheckInSheet: View {
                     if let cat = goal.category {
                         GoalsViewHelpers.categoryChip(cat)
                     }
+                }
+
+                if !ancestors.isEmpty {
+                    breadcrumb
                 }
 
                 Text(goal.title)
@@ -1507,8 +1563,102 @@ struct CheckInSheet: View {
                         }
                     }
                 }
+
+                if let until = goal.deferredUntil, goal.isDeferred() {
+                    Label("Snoozed until \(DateFormatting.displayDate(until))",
+                          systemImage: "zzz")
+                        .font(.caption2).fontWeight(.semibold)
+                        .foregroundColor(.accentColor)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.accentColor.opacity(0.12))
+                        .clipShape(Capsule())
+                }
             }
         }
+    }
+
+    // MARK: Defer / snooze
+
+    /// Lets the user push a goal out to a future date. While deferred, the
+    /// goal stops generating check-in reminders, stagnation signals, and
+    /// slippage warnings. It resumes automatically on the chosen date — no
+    /// need to manually unpause.
+    @ViewBuilder
+    private var deferSection: some View {
+        Section {
+            if goal.isDeferred(), let until = goal.deferredUntil {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "zzz")
+                            .foregroundColor(.accentColor)
+                        Text("Snoozed until \(DateFormatting.displayDate(until))")
+                            .font(.subheadline).fontWeight(.semibold)
+                            .foregroundColor(.textPrimary)
+                    }
+                    Text("No reminders, stagnation signals, or slippage warnings will fire for this goal until that date.")
+                        .font(.caption)
+                        .foregroundColor(.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button(role: .destructive) {
+                        clearDefer()
+                    } label: {
+                        Label("Resume now", systemImage: "play.circle")
+                    }
+                }
+            } else if showDeferPicker {
+                VStack(alignment: .leading, spacing: 10) {
+                    DatePicker(
+                        "Resume on",
+                        selection: $deferDate,
+                        in: deferMinDate...,
+                        displayedComponents: .date
+                    )
+                    HStack {
+                        Button("Cancel") { showDeferPicker = false }
+                            .buttonStyle(.bordered)
+                        Spacer()
+                        Button {
+                            commitDefer()
+                        } label: {
+                            Label("Snooze", systemImage: "zzz")
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                }
+            } else {
+                Button {
+                    showDeferPicker = true
+                } label: {
+                    Label("Snooze until later…", systemImage: "zzz")
+                }
+            }
+        } header: {
+            Text("Defer")
+        } footer: {
+            if !goal.isDeferred() && !showDeferPicker {
+                Text("Can't act on this goal yet? Push it out to a specific date.")
+                    .font(.caption2)
+            }
+        }
+    }
+
+    private var deferMinDate: Date {
+        Calendar.current.date(byAdding: .day, value: 1, to: Date()) ?? Date()
+    }
+
+    private func commitDefer() {
+        var updated = goal
+        updated.deferredUntil = DateFormatting.dateString(deferDate)
+        onSave(updated)
+        dismiss()
+    }
+
+    private func clearDefer() {
+        var updated = goal
+        updated.deferredUntil = nil
+        onSave(updated)
+        dismiss()
     }
 
     /// Dismissible card shown at the top of the sheet when the user opened

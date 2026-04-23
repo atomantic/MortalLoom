@@ -26,6 +26,11 @@ struct Goal: Codable, Identifiable, Sendable, Equatable {
     /// Provenance when the goal was created from a genome finding.
     /// Drives the "🧬 Suggested by your DNA" banner on goal detail views.
     var geneticEvidence: GeneticEvidence?
+    /// Optional "snooze until" date ("YYYY-MM-DD"). While today < this date
+    /// the goal is treated as deferred: no check-in reminders, no stagnation
+    /// signals, no slippage warnings. Once the date arrives the goal resumes
+    /// its normal active behavior without manual intervention.
+    var deferredUntil: String?
 
     init(
         id: UUID = UUID(),
@@ -44,7 +49,8 @@ struct Goal: Codable, Identifiable, Sendable, Equatable {
         category: GoalCategory? = nil,
         goalType: GoalType? = nil,
         mutedSignals: [String] = [],
-        geneticEvidence: GeneticEvidence? = nil
+        geneticEvidence: GeneticEvidence? = nil,
+        deferredUntil: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -63,13 +69,14 @@ struct Goal: Codable, Identifiable, Sendable, Equatable {
         self.goalType = goalType
         self.mutedSignals = mutedSignals
         self.geneticEvidence = geneticEvidence
+        self.deferredUntil = deferredUntil
     }
 
     // Back-compat decoder so pre-existing files (without `mutedSignals`/`geneticEvidence`) decode.
     private enum CodingKeys: String, CodingKey {
         case id, title, notes, createdDate, targetDate, completedDate, checkIns
         case milestones, checkInIntervalDays, status, priority, parentId
-        case horizon, category, goalType, mutedSignals, geneticEvidence
+        case horizon, category, goalType, mutedSignals, geneticEvidence, deferredUntil
     }
 
     init(from decoder: Decoder) throws {
@@ -91,6 +98,7 @@ struct Goal: Codable, Identifiable, Sendable, Equatable {
         goalType = try c.decodeIfPresent(GoalType.self, forKey: .goalType)
         mutedSignals = try c.decodeIfPresent([String].self, forKey: .mutedSignals) ?? []
         geneticEvidence = try c.decodeIfPresent(GeneticEvidence.self, forKey: .geneticEvidence)
+        deferredUntil = try c.decodeIfPresent(String.self, forKey: .deferredUntil)
     }
 
     var progressPercent: Double {
@@ -100,7 +108,7 @@ struct Goal: Codable, Identifiable, Sendable, Equatable {
     var isOverdue: Bool {
         guard let target = targetDate,
               let targetD = DateFormatting.dateFromString(target),
-              status == .active else { return false }
+              status == .active, !isDeferred() else { return false }
         return Date() > targetD
     }
 
@@ -109,8 +117,16 @@ struct Goal: Codable, Identifiable, Sendable, Equatable {
     }
 
     var needsCheckIn: Bool {
-        guard status == .active else { return false }
+        guard status == .active, !isDeferred() else { return false }
         return daysSinceLastCheckIn >= checkInIntervalDays
+    }
+
+    /// True when the goal has been snoozed to a date that hasn't arrived yet.
+    /// Passing a pinned `now` keeps this testable; defaults to the current date.
+    func isDeferred(now: Date = Date()) -> Bool {
+        guard let until = deferredUntil,
+              let untilDate = DateFormatting.dateFromString(until) else { return false }
+        return Calendar.current.startOfDay(for: now) < untilDate
     }
 }
 
