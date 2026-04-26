@@ -11,8 +11,13 @@
     - MortalLoom/App/MortalLoom.entitlements        (iOS, written by XcodeGen)
     - MortalLoom/App/MortalLoom-macOS.entitlements  (this file, manual)
 
-  Removing `com.apple.security.app-sandbox` will cause TestFlight validation to
-  reject the upload with "App sandbox not enabled" (error 409). Don't strip it.
+  DO NOT remove `com.apple.security.app-sandbox` — TestFlight validation rejects
+  the upload with "App sandbox not enabled" (error 409). Xcode's "Apply
+  Recommended Settings" auto-update has been observed to strip these keys
+  because it expects the new declarative ENABLE_APP_SANDBOX build settings to
+  regenerate them — but `xcodegen generate` overwrites those build settings on
+  every run, so the .entitlements file is the only stable source. If Xcode
+  modernizes the project again, restore these keys.
 -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
