@@ -22,11 +22,16 @@ struct LifeCalendarView: View {
     /// Defaults to hiding past time so goals stand out against remaining years.
     @State private var showLived: Bool = false
 
+    private struct TooltipGoal: Equatable, Hashable {
+        let title: String
+        let parentPath: String
+    }
+
     private struct CellTooltip: Equatable {
         let age: Int
         let dateRange: String
-        let goals: [String]
-        let projectedGoals: [String]
+        let goals: [TooltipGoal]
+        let projectedGoals: [TooltipGoal]
         let isMilestone: Bool
         let isCurrentPeriod: Bool
     }
@@ -76,6 +81,13 @@ struct LifeCalendarView: View {
     private var lifeExpectancyYears: Int {
         guard let dc = activeDC else { return 80 }
         return Int(dc.lifeExpectancy.total.rounded())
+    }
+
+    /// First age-year to render in the grids. When Show Lived Time is off
+    /// we skip past every fully-lived year so the calendar starts at the
+    /// user's current age instead of at birth — reclaims vertical space.
+    private var startAgeYear: Int {
+        showLived ? 0 : currentAgeYear
     }
 
     private var daysRemaining: Int {
@@ -412,10 +424,13 @@ struct LifeCalendarView: View {
 
             yearMonthLegend
 
-            let rows = (lifeExpectancyYears + cols - 1) / cols
+            let startYear = startAgeYear
+            let renderedYears = max(0, lifeExpectancyYears - startYear)
+            let rows = (renderedYears + cols - 1) / cols
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: cols), spacing: 4) {
-                ForEach(0..<(rows * cols), id: \.self) { i in
-                    if i < lifeExpectancyYears {
+                ForEach(0..<(rows * cols), id: \.self) { idx in
+                    let i = idx + startYear
+                    if idx < renderedYears {
                         let isCurrent = i == currentAgeYear
                         let isSpent = i < currentAgeYear
                         let isMilestone = Self.milestoneAges.contains(i)
@@ -429,7 +444,7 @@ struct LifeCalendarView: View {
                                     Image(systemName: "target")
                                         .font(.system(size: 8))
                                         .foregroundColor(.white)
-                                } else if i % 10 == 0 || isCurrent {
+                                } else if (i % 10 == 0 || isCurrent) && !(isSpent && !showLived) {
                                     Text("\(i)")
                                         .font(.system(size: 8, weight: isCurrent ? .bold : .regular))
                                         .foregroundColor(isCurrent ? .white : .textMuted)
@@ -467,6 +482,8 @@ struct LifeCalendarView: View {
         if isMilestone && isSpent && showLived { return .purple.opacity(0.5) }
         if isMilestone && !isSpent { return .purple.opacity(0.3) }
         if isSpent && showLived { return .textPrimary.opacity(0.25) }
+        // When Show Lived Time is off, don't render a box for spent years.
+        if isSpent { return .clear }
         return .cardBorder.opacity(0.15)
     }
 
@@ -501,7 +518,8 @@ struct LifeCalendarView: View {
                 let cellSize = layout.cellSize
                 let spacing = layout.spacing
                 let monthsPerRow = layout.monthsPerRow
-                let totalMonthCells = lifeExpectancyYears * 12
+                let startMonth = startAgeYear * 12
+                let totalMonthCells = max(0, totalMonths - startMonth)
                 let totalRows = (totalMonthCells + monthsPerRow - 1) / monthsPerRow
                 let totalHeight = CGFloat(totalRows) * (cellSize + spacing) + spacing
                 // Hoisted out of Canvas body so the Set<Int> allocation
@@ -517,6 +535,7 @@ struct LifeCalendarView: View {
                             cellSize: cellSize,
                             spacing: spacing,
                             monthsPerRow: monthsPerRow,
+                            startMonth: startMonth,
                             goalIndices: goalIndices,
                             projectedIndices: projectedIndices
                         )
@@ -533,8 +552,8 @@ struct LifeCalendarView: View {
                                     tooltipInfo = nil
                                     return
                                 }
-                                let monthIndex = row * monthsPerRow + col
-                                guard monthIndex < totalMonthCells else {
+                                let monthIndex = row * monthsPerRow + col + startMonth
+                                guard monthIndex < totalMonths else {
                                     tooltipInfo = nil
                                     return
                                 }
@@ -557,13 +576,14 @@ struct LifeCalendarView: View {
     }
 
     private var monthGridHeight: CGFloat {
+        let years = max(1, lifeExpectancyYears - startAgeYear)
         #if os(macOS)
         // Hug content up to a cap so short lifespans don't leave a giant
         // empty canvas. ~24pt per row matches the default macOS cell stride
         // and the ScrollView handles overflow past the cap.
-        return min(CGFloat(lifeExpectancyYears) * 24 + 20, 720)
+        return min(CGFloat(years) * 24 + 20, 720)
         #else
-        return min(CGFloat(lifeExpectancyYears * 16 + 20), 600)
+        return min(CGFloat(years * 16 + 20), 600)
         #endif
     }
 
@@ -603,6 +623,7 @@ struct LifeCalendarView: View {
         cellSize: CGFloat,
         spacing: CGFloat,
         monthsPerRow: Int,
+        startMonth: Int,
         goalIndices: Set<Int>,
         projectedIndices: Set<Int>
     ) {
@@ -620,16 +641,17 @@ struct LifeCalendarView: View {
 
         let milestoneMonths = Set(Self.milestoneAges.map { $0 * 12 })
 
-        let totalMonthCells = lifeExpectancyYears * 12
+        let totalMonthCells = max(0, totalMonths - startMonth)
         let totalRows = (totalMonthCells + monthsPerRow - 1) / monthsPerRow
         // Label every row; the row-to-year formula produces stride
         // `monthsPerRow / 12` so labels read 0, 2, 4… at 24/row or 0, 3, 6…
-        // at 36/row.
+        // at 36/row. When startMonth > 0 (Show Lived Time off) labels start
+        // at the current age instead of 0.
         let labelFontSize = max(7, min(10, cellSize * 0.45))
 
         for row in 0..<totalRows {
             let y = CGFloat(row) * (cellSize + spacing) + spacing
-            let firstMonthInRow = row * monthsPerRow
+            let firstMonthInRow = row * monthsPerRow + startMonth
             let yearOfRow = firstMonthInRow / 12
             let text = Text("\(yearOfRow)")
                 .font(.system(size: labelFontSize))
@@ -638,8 +660,8 @@ struct LifeCalendarView: View {
             context.draw(resolvedText, at: CGPoint(x: labelWidth / 2, y: y + cellSize / 2), anchor: .center)
 
             for col in 0..<monthsPerRow {
-                let monthIndex = row * monthsPerRow + col
-                if monthIndex >= totalMonthCells { break }
+                let monthIndex = row * monthsPerRow + col + startMonth
+                if monthIndex >= totalMonths { break }
 
                 let x = labelWidth + 4 + CGFloat(col) * (cellSize + spacing)
                 let rect = CGRect(x: x, y: y, width: cellSize, height: cellSize)
@@ -661,10 +683,12 @@ struct LifeCalendarView: View {
                     context.fill(path, with: milestoneShading)
                 } else if monthIndex < currentMonth && showLived {
                     context.fill(path, with: spentShading)
-                } else if monthIndex < totalMonths {
+                } else if monthIndex >= currentMonth && monthIndex < totalMonths {
                     context.fill(path, with: futureFillShading)
                     context.stroke(path, with: futureStrokeShading, lineWidth: 0.5)
                 }
+                // When showLived is false and monthIndex < currentMonth,
+                // no clause matches — cell renders empty.
             }
         }
     }
@@ -702,7 +726,8 @@ struct LifeCalendarView: View {
                 let cellSize = max(3, min(7, gridWidth / 52))
                 #endif
                 let spacing: CGFloat = max(0.5, cellSize * 0.15)
-                let totalHeight = CGFloat(lifeExpectancyYears) * (cellSize + spacing) + spacing
+                let renderedYears = max(0, lifeExpectancyYears - startAgeYear)
+                let totalHeight = CGFloat(renderedYears) * (cellSize + spacing) + spacing
 
                 ScrollView(.vertical, showsIndicators: true) {
                     Canvas { context, size in
@@ -714,9 +739,10 @@ struct LifeCalendarView: View {
                             .onEnded { value in
                                 let y = value.location.y - spacing
                                 let x = value.location.x - labelWidth - 4
-                                let year = Int(y / (cellSize + spacing))
+                                let visualYear = Int(y / (cellSize + spacing))
                                 let week = Int(x / (cellSize + spacing))
-                                guard year >= 0, year < lifeExpectancyYears, week >= 0, week < 52 else {
+                                let year = visualYear + startAgeYear
+                                guard year >= startAgeYear, year < lifeExpectancyYears, week >= 0, week < 52 else {
                                     tooltipInfo = nil
                                     return
                                 }
@@ -740,12 +766,13 @@ struct LifeCalendarView: View {
     }
 
     private var weeksGridHeight: CGFloat {
+        let years = max(1, lifeExpectancyYears - startAgeYear)
         #if os(macOS)
         // Larger macOS cells (up to 16pt) — ~18pt per year accounts for
         // cell + ~2pt spacing.
-        return min(CGFloat(lifeExpectancyYears * 18 + 20), 1400)
+        return min(CGFloat(years * 18 + 20), 1400)
         #else
-        return min(CGFloat(lifeExpectancyYears * 8 + 20), 600)
+        return min(CGFloat(years * 8 + 20), 600)
         #endif
     }
 
@@ -821,10 +848,11 @@ struct LifeCalendarView: View {
         let goalWeeks = goalWeekSet
         let projectedWeeks = projectedWeekSet
 
-        for year in 0..<lifeExpectancyYears {
-            let y = CGFloat(year) * (cellSize + spacing) + spacing
+        let firstYear = startAgeYear
+        for year in firstYear..<lifeExpectancyYears {
+            let y = CGFloat(year - firstYear) * (cellSize + spacing) + spacing
 
-            if year % 10 == 0 || year == lifeExpectancyYears - 1 {
+            if year % 10 == 0 || year == lifeExpectancyYears - 1 || year == firstYear {
                 let text = Text("\(year)")
                     .font(.system(size: max(6, min(9, cellSize * 1.4))))
                     .foregroundColor(.textMuted)
@@ -858,10 +886,12 @@ struct LifeCalendarView: View {
                     context.fill(path, with: deathShading)
                 } else if weekIndex < currentWeek && showLived {
                     context.fill(path, with: spentShading)
-                } else {
+                } else if weekIndex >= currentWeek {
                     context.fill(path, with: futureFillShading)
                     context.stroke(path, with: futureStrokeShading, lineWidth: 0.5)
                 }
+                // When showLived is false and weekIndex < currentWeek,
+                // no clause matches — cell renders empty.
             }
         }
     }
@@ -872,15 +902,29 @@ struct LifeCalendarView: View {
     private var goalMarkersList: some View {
         VStack(alignment: .leading, spacing: 8) {
             SectionLabel(text: "GOALS ON YOUR TIMELINE")
-            ForEach(goalMarkers.sorted(by: { $0.weekIndex < $1.weekIndex }), id: \.title) { marker in
-                HStack(spacing: 8) {
+            // Composite id so two goals that share a title (e.g. "Finish
+            // design" under different pillars) both render instead of being
+            // deduped by ForEach.
+            ForEach(goalMarkers.sorted(by: { $0.weekIndex < $1.weekIndex }),
+                    id: \.compositeId) { marker in
+                HStack(alignment: .top, spacing: 8) {
                     Circle()
                         .fill(marker.isProjected ? Color.teal.opacity(0.5) : Color.teal)
                         .frame(width: 8, height: 8)
-                    Text(marker.title)
-                        .font(.caption)
-                        .foregroundColor(.textPrimary)
-                        .lineLimit(1)
+                        .padding(.top, 5)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(marker.title)
+                            .font(.caption)
+                            .foregroundColor(.textPrimary)
+                            .lineLimit(1)
+                        if !marker.parentPath.isEmpty {
+                            Text(marker.parentPath)
+                                .font(.system(size: 9))
+                                .foregroundColor(.textMuted)
+                                .lineLimit(1)
+                                .truncationMode(.head)
+                        }
+                    }
                     Spacer()
                     if let birth = birthDate {
                         let targetDate = Calendar.current.date(byAdding: .day, value: marker.weekIndex * 7, to: birth)
@@ -930,21 +974,13 @@ struct LifeCalendarView: View {
 
                 if !tip.goals.isEmpty {
                     ForEach(tip.goals, id: \.self) { g in
-                        HStack(spacing: 4) {
-                            Circle().fill(Color.teal).frame(width: 6, height: 6)
-                            Text(g).font(.caption2).foregroundColor(.textPrimary).lineLimit(1)
-                            Text("target").font(.system(size: 8)).foregroundColor(.textMuted)
-                        }
+                        tooltipGoalRow(goal: g, dotColor: .teal, label: "target")
                     }
                 }
 
                 if !tip.projectedGoals.isEmpty {
                     ForEach(tip.projectedGoals, id: \.self) { g in
-                        HStack(spacing: 4) {
-                            Circle().fill(Color.teal.opacity(0.5)).frame(width: 6, height: 6)
-                            Text(g).font(.caption2).foregroundColor(.textPrimary).lineLimit(1)
-                            Text("projected").font(.system(size: 8)).foregroundColor(.textMuted)
-                        }
+                        tooltipGoalRow(goal: g, dotColor: .teal.opacity(0.5), label: "projected")
                     }
                 }
 
@@ -965,14 +1001,44 @@ struct LifeCalendarView: View {
         }
     }
 
+    /// Renders a single goal row inside the life-calendar tooltip. Shows the
+    /// title on the first line and — if the goal has a parent chain — the
+    /// path ("Apex › Sub-apex › Parent") on a muted second line so repeated
+    /// sub-goal titles can be told apart at a glance.
+    @ViewBuilder
+    private func tooltipGoalRow(goal: TooltipGoal, dotColor: Color, label: String) -> some View {
+        HStack(alignment: .top, spacing: 4) {
+            Circle().fill(dotColor).frame(width: 6, height: 6)
+                .padding(.top, 4)
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 4) {
+                    Text(goal.title)
+                        .font(.caption2)
+                        .foregroundColor(.textPrimary)
+                        .lineLimit(1)
+                    Text(label)
+                        .font(.system(size: 8))
+                        .foregroundColor(.textMuted)
+                }
+                if !goal.parentPath.isEmpty {
+                    Text(goal.parentPath)
+                        .font(.system(size: 9))
+                        .foregroundColor(.textMuted)
+                        .lineLimit(1)
+                        .truncationMode(.head)
+                }
+            }
+        }
+    }
+
     private func tooltipForYear(_ year: Int) -> CellTooltip {
         let markers = goalsByYear[year] ?? []
         let dateRange = yearDateRange(year)
         return CellTooltip(
             age: year,
             dateRange: dateRange,
-            goals: markers.filter { !$0.isProjected }.map(\.title),
-            projectedGoals: markers.filter { $0.isProjected }.map(\.title),
+            goals: markers.filter { !$0.isProjected }.map { TooltipGoal(title: $0.title, parentPath: $0.parentPath) },
+            projectedGoals: markers.filter { $0.isProjected }.map { TooltipGoal(title: $0.title, parentPath: $0.parentPath) },
             isMilestone: Self.milestoneAges.contains(year),
             isCurrentPeriod: year == currentAgeYear
         )
@@ -994,8 +1060,8 @@ struct LifeCalendarView: View {
         return CellTooltip(
             age: year,
             dateRange: dateRange,
-            goals: markers.filter { !$0.isProjected }.map(\.title),
-            projectedGoals: markers.filter { $0.isProjected }.map(\.title),
+            goals: markers.filter { !$0.isProjected }.map { TooltipGoal(title: $0.title, parentPath: $0.parentPath) },
+            projectedGoals: markers.filter { $0.isProjected }.map { TooltipGoal(title: $0.title, parentPath: $0.parentPath) },
             isMilestone: Self.milestoneAges.contains(year) && month == 0,
             isCurrentPeriod: monthIndex == currentMonth
         )
@@ -1014,8 +1080,8 @@ struct LifeCalendarView: View {
         return CellTooltip(
             age: year,
             dateRange: dateRange,
-            goals: markers.filter { !$0.isProjected }.map(\.title),
-            projectedGoals: markers.filter { $0.isProjected }.map(\.title),
+            goals: markers.filter { !$0.isProjected }.map { TooltipGoal(title: $0.title, parentPath: $0.parentPath) },
+            projectedGoals: markers.filter { $0.isProjected }.map { TooltipGoal(title: $0.title, parentPath: $0.parentPath) },
             isMilestone: Self.milestoneAges.contains(year) && weekIndex % 52 == 0,
             isCurrentPeriod: weekIndex == currentWeek
         )

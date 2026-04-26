@@ -273,22 +273,49 @@ enum GoalEngine {
         healthyCognitiveDate: Date?
     ) -> [GoalMarker] {
         var markers: [GoalMarker] = []
+        let byId = Dictionary(uniqueKeysWithValues: goals.map { ($0.id, $0) })
 
         for goal in goals where goal.status == .active {
+            let parentPath = parentPathString(for: goal, byId: byId)
+
             if let targetStr = goal.targetDate,
                let targetDate = DateFormatting.dateFromString(targetStr) {
                 let days = Calendar.current.dateComponents([.day], from: birthDate, to: targetDate).day ?? 0
-                markers.append(GoalMarker(title: goal.title, weekIndex: max(0, days / 7), isProjected: false, priority: goal.priority))
+                markers.append(GoalMarker(
+                    title: goal.title,
+                    weekIndex: max(0, days / 7),
+                    isProjected: false,
+                    priority: goal.priority,
+                    parentPath: parentPath
+                ))
             }
 
             let projection = project(goal: goal, deathDate: deathDate, healthyCognitiveDate: healthyCognitiveDate)
             if let projDate = projection.projectedCompletionDate {
                 let days = Calendar.current.dateComponents([.day], from: birthDate, to: projDate).day ?? 0
-                markers.append(GoalMarker(title: goal.title, weekIndex: max(0, days / 7), isProjected: true, priority: goal.priority))
+                markers.append(GoalMarker(
+                    title: goal.title,
+                    weekIndex: max(0, days / 7),
+                    isProjected: true,
+                    priority: goal.priority,
+                    parentPath: parentPath
+                ))
             }
         }
 
         return markers
+    }
+
+    private static func parentPathString(for goal: Goal, byId: [UUID: Goal]) -> String {
+        var chain: [String] = []
+        var cursor = goal.parentId
+        var seen = Set<UUID>()
+        while let pid = cursor, !seen.contains(pid), let parent = byId[pid] {
+            chain.append(parent.title)
+            seen.insert(pid)
+            cursor = parent.parentId
+        }
+        return chain.reversed().joined(separator: " › ")
     }
 }
 
@@ -297,4 +324,16 @@ struct GoalMarker: Sendable {
     let weekIndex: Int
     let isProjected: Bool
     let priority: GoalPriority
+    /// Parent chain from the top-level apex down to the direct parent,
+    /// joined like "Apex › Sub-apex › Parent". Empty when the goal has no
+    /// parent. Used in the Life Calendar tooltip to disambiguate repeated
+    /// sub-goal titles across different branches.
+    var parentPath: String = ""
+
+    /// Stable identity for SwiftUI ForEach. Using title alone collapses
+    /// distinct sub-goals that share a name (e.g. "Finish design" under
+    /// two different pillars).
+    var compositeId: String {
+        "\(title)|\(parentPath)|\(weekIndex)|\(isProjected)"
+    }
 }
