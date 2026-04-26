@@ -21,6 +21,15 @@ struct OverviewView: View {
     @State private var cachedNormalPoints: [TrajectoryPoint] = []
     @State private var cachedLevPoints: [TrajectoryPoint] = []
     @State private var cachedRecommendations: [RecommendationEngine.Recommendation] = []
+    /// Top genome priorities used to seed DNA-derived recommendations alongside
+    /// the lifestyle ones. Computed lazily off the main thread by parsing the
+    /// persisted genome file and re-running the curated marker scan + ClinVar
+    /// match. Empty until that work finishes — `recalculate()` re-runs the
+    /// recommendation engine once it lands.
+    @State private var cachedGenomePriorities: [PriorityFinding] = []
+    /// Guards against re-running the genome scan on every recalculate(); only
+    /// resets when the underlying scan record changes (or the user clears it).
+    @State private var lastScannedAt: Date?
     @State private var cachedSleepImpact: Double = 0
     @State private var cachedStagnationSignals: [StagnationSignal] = []
     @State private var cachedReflectionStreak: Int = 0
@@ -443,8 +452,10 @@ struct OverviewView: View {
             alcoholRisk: cachedAlcoholRisk,
             hasGenomeData: data.genomeScanRecord != nil,
             hasEpigeneticData: !data.epigeneticTests.isEmpty,
-            hasBloodTests: !data.bloodTests.isEmpty
+            hasBloodTests: !data.bloodTests.isEmpty,
+            genomePriorities: cachedGenomePriorities
         )
+        Task { await loadGenomePrioritiesIfNeeded() }
         cachedStagnationSignals = StagnationEngine.signals(
             goals: data.goals,
             habits: data.habits,
@@ -485,6 +496,68 @@ struct OverviewView: View {
 
         cachedNormalPoints = normalTrajectory(currentYear: currentYear, deathYear: deathYear, currentHealth: cachedHealthScore)
         cachedLevPoints = levTrajectory(currentYear: currentYear, levYear: levYear, levDeathYear: levDeathYear, currentHealth: cachedHealthScore, normalPoints: cachedNormalPoints)
+    }
+
+    /// Refresh the cached genome priorities by reading the persisted genome
+    /// file and re-running the curated marker scan + ClinVar match (when an
+    /// index is already on disk). Skips entirely when the user has no scan
+    /// record. Once finished, replays the recommendation engine so DNA-derived
+    /// recs surface alongside the lifestyle ones.
+    private func loadGenomePrioritiesIfNeeded() async {
+        guard let record = data.genomeScanRecord else {
+            // User cleared their genome data — drop any stale priorities.
+            if !cachedGenomePriorities.isEmpty {
+                cachedGenomePriorities = []
+                replayLifestyleRecs()
+            }
+            lastScannedAt = nil
+            return
+        }
+        // Skip the scan if we already have priorities for this exact record.
+        // The scan record updates only when the user re-runs the marker scan,
+        // so a matching `scannedAt` means our cache is current.
+        if lastScannedAt == record.scannedAt, !cachedGenomePriorities.isEmpty { return }
+
+        guard let rawContent = await DataStore.shared.loadGenomeFile() else { return }
+        let actionStates = data.genomeActionStates
+        let lifestyle = data.profile.lifestyle
+        let priorities: [PriorityFinding] = await Task.detached(priority: .utility) {
+            let parsed = GenomeParser.parse(rawContent)
+            guard !parsed.variants.isEmpty else { return [] }
+            let summary = GenomeEngine.fullScan(
+                variants: parsed.variants,
+                markers: GenomeEngine.allCuratedMarkers
+            )
+            let clinvarHits: [ClinVarHit] = {
+                guard let index = ClinVarService.loadIndex() else { return [] }
+                return GenomeEngine.scanClinVar(variants: parsed.variants, index: index)
+            }()
+            return GenomePriorityEngine.rank(
+                summary: summary,
+                clinvarHits: clinvarHits,
+                library: GenomeActionLibrary.all,
+                states: actionStates,
+                lifestyle: lifestyle
+            )
+        }.value
+
+        cachedGenomePriorities = priorities
+        lastScannedAt = record.scannedAt
+        replayLifestyleRecs()
+    }
+
+    /// Re-run `RecommendationEngine.generate` after the genome priorities
+    /// change so the DNA-derived recommendations land in the same list as the
+    /// lifestyle ones (and resort by years gained).
+    private func replayLifestyleRecs() {
+        cachedRecommendations = RecommendationEngine.generate(
+            lifestyle: data.profile.lifestyle,
+            alcoholRisk: cachedAlcoholRisk,
+            hasGenomeData: data.genomeScanRecord != nil,
+            hasEpigeneticData: !data.epigeneticTests.isEmpty,
+            hasBloodTests: !data.bloodTests.isEmpty,
+            genomePriorities: cachedGenomePriorities
+        )
     }
 
     // MARK: - Goal Prompt Card

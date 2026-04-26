@@ -860,6 +860,12 @@ struct GoalEditSheet: View {
     let onSave: (Goal) -> Void
     let onDelete: (() -> Void)?
     let onAddChild: ((Goal) -> Void)?
+    /// Non-nil when this sheet was opened to accept a `GenomeAction` via the
+    /// `.goalTemplate` bridge. The banner appears at the top, the evidence
+    /// is attached on save, and the sheet treats this as a "new" form (no
+    /// archive/delete sections, "Suggested Goal" title) regardless of
+    /// whether `goal` is nil. Mirrors `HabitEditSheet.prefillEvidence`.
+    let prefillEvidence: GeneticEvidence?
     @Environment(\.dismiss) private var dismiss
 
     @State private var title: String
@@ -896,12 +902,14 @@ struct GoalEditSheet: View {
         defaultPriority: GoalPriority? = nil,
         defaultParentId: UUID? = nil,
         defaultCategory: GoalCategory? = nil,
+        prefillEvidence: GeneticEvidence? = nil,
         onSave: @escaping (Goal) -> Void,
         onDelete: (() -> Void)? = nil,
         onAddChild: ((Goal) -> Void)? = nil
     ) {
         self.goal = goal
         self.allGoals = allGoals
+        self.prefillEvidence = prefillEvidence
         self.onSave = onSave
         self.onDelete = onDelete
         self.onAddChild = onAddChild
@@ -947,6 +955,17 @@ struct GoalEditSheet: View {
         goalType == .apex || goalType == .subApex
     }
 
+    /// True when editing an already-saved goal (vs a new one — even one
+    /// prefilled from a genome action). Mirrors `HabitEditSheet`.
+    private var isEditingExisting: Bool { goal != nil && prefillEvidence == nil }
+
+    /// Provenance for the "🧬 Suggested by your DNA" banner. Prefer the
+    /// in-flight prefill payload over the saved goal's evidence (they refer
+    /// to the same finding and the prefill text is canonical).
+    private var displayEvidence: GeneticEvidence? {
+        prefillEvidence ?? goal?.geneticEvidence
+    }
+
     /// Active supporting (child) goals for the goal being edited.
     private var supportingGoals: [Goal] {
         guard let g = goal else { return [] }
@@ -976,6 +995,12 @@ struct GoalEditSheet: View {
     var body: some View {
         NavigationStack {
             Form {
+                if let evidence = displayEvidence {
+                    Section {
+                        GeneticEvidenceBanner(evidence: evidence, dismiss: dismiss)
+                    }
+                }
+
                 Section {
                     TextField("Title", text: $title, prompt: Text(goalTitlePlaceholder))
                     if title.trimmingCharacters(in: .whitespaces).isEmpty {
@@ -1148,11 +1173,11 @@ struct GoalEditSheet: View {
                 }
                 #endif
 
-                if goal != nil {
+                if isEditingExisting {
                     signalMutingSection
                 }
 
-                if onDelete != nil {
+                if isEditingExisting, onDelete != nil {
                     Section {
                         Button(role: .destructive) {
                             showDeleteConfirm = true
@@ -1164,7 +1189,7 @@ struct GoalEditSheet: View {
                 }
             }
             .macGroupedFormStyle()
-            .navigationTitle(goal == nil ? "New Goal" : "Edit Goal")
+            .navigationTitle(prefillEvidence != nil ? "Suggested Goal" : (goal == nil ? "New Goal" : "Edit Goal"))
             .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -1353,7 +1378,18 @@ struct GoalEditSheet: View {
                                      completedDate: row.completed ? DateFormatting.todayString() : nil)
             }
 
-        var result = goal ?? Goal(title: title)
+        // For the prefilled-suggested flow, always create a fresh Goal (don't
+        // reuse the prefill goal's id) so saving doesn't accidentally
+        // overwrite a real existing goal. Mirrors HabitEditSheet.save().
+        var result: Goal
+        if isEditingExisting, let g = goal {
+            result = g
+        } else {
+            result = Goal(title: title)
+            if let evidence = prefillEvidence {
+                result.geneticEvidence = evidence
+            }
+        }
         result.title = title.trimmingCharacters(in: .whitespaces)
         result.notes = notes.trimmingCharacters(in: .whitespaces)
         result.priority = priority

@@ -88,4 +88,10 @@ extension Notification.Name {
     /// for a specific goal. GoalsView observes this and opens the sheet once
     /// data has loaded. Used by the widget tap-through flow.
     static let openGoalReflect = Notification.Name("openGoalReflect")
+    /// Posted with a `String` object (rsid / findingKey) to request the
+    /// `GenomeDetailSheet` for a specific finding. GenomeView observes this
+    /// and opens the matching marker / ClinVar hit / APOE result once its
+    /// scan data has loaded. Used by the "🧬 Suggested by your DNA" banner
+    /// on Habit/Goal edit sheets to tap back to the originating finding.
+    static let openGenomeFinding = Notification.Name("openGenomeFinding")
 }

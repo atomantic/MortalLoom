@@ -79,6 +79,14 @@ struct GenomeView: View {
     // Bridge presentations
     @State private var pendingHabitTemplate: HabitTemplate?
     @State private var pendingHabitEvidence: GeneticEvidence?
+    @State private var pendingGoalTemplate: GoalTemplate?
+    @State private var pendingGoalEvidence: GeneticEvidence?
+
+    /// rsid / findingKey requested via `.openGenomeFinding` (banner tap-back
+    /// from a Habit/Goal edit sheet) before this view's scan data loaded.
+    /// Resolved at the end of `loadData()` so a cold-launch tap-back still
+    /// opens the right finding.
+    @State private var pendingFindingKey: String?
 
     // Priority engine output
     @State private var topPriorities: [PriorityFinding] = []
@@ -205,10 +213,62 @@ struct GenomeView: View {
                 }
             }
         }
+        .sheet(item: $pendingGoalTemplate) { template in
+            GoalEditSheet(
+                goal: prefilledGoal(from: template),
+                allGoals: allGoals,
+                prefillEvidence: pendingGoalEvidence,
+                onSave: { newGoal in
+                    Task {
+                        await DataStore.shared.addGoal(newGoal)
+                        if let evidence = pendingGoalEvidence {
+                            await DataStore.shared.setGenomeActionStatus(
+                                rsid: evidence.rsid,
+                                actionId: evidence.actionId,
+                                status: .inProgress,
+                                linkedGoalId: newGoal.id
+                            )
+                        }
+                        pendingGoalEvidence = nil
+                        await loadData()
+                    }
+                }
+            )
+        }
         .task { await loadData() }
         .onReceive(NotificationCenter.default.publisher(for: .dataDidSync)) { _ in
             Task { await loadData() }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .openGenomeFinding)) { notif in
+            guard let key = notif.object as? String else { return }
+            // Switch to the Genome tab so the sheet has a host.
+            activeTab = .genome
+            if let finding = resolveFinding(forKey: key) {
+                selectedFinding = finding
+            } else {
+                // Scan data hasn't loaded yet — defer until loadData() finishes.
+                pendingFindingKey = key
+            }
+        }
+    }
+
+    /// Look up a `PriorityFindingSource` by `findingKey` (rsid or
+    /// "<rsid>:<condition>") across the loaded scan + ClinVar data so the
+    /// `.openGenomeFinding` notification can open the correct detail sheet.
+    private func resolveFinding(forKey key: String) -> PriorityFindingSource? {
+        if key == "apoe", let apoe = scanSummary?.apoeResult {
+            return .apoe(apoe)
+        }
+        if let marker = scanSummary?.markerResults.first(where: { $0.marker.rsid == key }) {
+            return .marker(marker)
+        }
+        if let hit = clinvarHits.first(where: { hit in
+            let candidate = PriorityFindingSource.clinvar(hit).findingKey
+            return candidate == key || hit.rsid == key
+        }) {
+            return .clinvar(hit)
+        }
+        return nil
     }
 
     // MARK: - Bridge handling
@@ -224,8 +284,9 @@ struct GenomeView: View {
         case .habitTemplate(let template):
             pendingHabitEvidence = evidence
             pendingHabitTemplate = template
-        case .goalTemplate:
-            markActionStatus(finding: finding, action: action, status: .inProgress)
+        case .goalTemplate(let template):
+            pendingGoalEvidence = evidence
+            pendingGoalTemplate = template
         case .bloodMarkerKey:
             markActionStatus(finding: finding, action: action, status: .inProgress)
             selectedFinding = nil
@@ -260,6 +321,16 @@ struct GenomeView: View {
             category: template.category,
             kind: template.kind,
             cadence: template.cadence
+        )
+    }
+
+    private func prefilledGoal(from template: GoalTemplate) -> Goal {
+        Goal(
+            title: template.title,
+            notes: template.notes,
+            horizon: template.horizon,
+            category: template.category,
+            goalType: .standard
         )
     }
 
@@ -1484,6 +1555,7 @@ struct GenomeView: View {
                     isScanning = false
                 }
                 recomputePriorities()
+                tryResolvePendingFinding()
                 runClinVarScan()
             }
         }
@@ -1511,8 +1583,18 @@ struct GenomeView: View {
                     clinvarStatus = ClinVarService.getStatus()
                 }
                 recomputePriorities()
+                tryResolvePendingFinding()
             }
         }
+    }
+
+    /// Try to satisfy a deferred `.openGenomeFinding` request now that more
+    /// scan/ClinVar data is available. Clears the pending key on success.
+    private func tryResolvePendingFinding() {
+        guard let key = pendingFindingKey,
+              let finding = resolveFinding(forKey: key) else { return }
+        pendingFindingKey = nil
+        selectedFinding = finding
     }
 
     private func syncClinVar() {

@@ -136,11 +136,15 @@ struct HabitTemplate: Sendable, Identifiable {
 }
 
 /// Prefill payload for the existing AddGoal flow when accepting a genome action.
-struct GoalTemplate: Sendable {
+struct GoalTemplate: Sendable, Identifiable {
     let title: String
     let notes: String
     let category: GoalCategory
     let horizon: GoalHorizon
+
+    /// Stable identity derived from the unique `title` so SwiftUI's
+    /// `.sheet(item:)` can present it. Mirrors `HabitTemplate`'s pattern.
+    var id: String { title }
 }
 
 /// Lifestyle data field reference for actions that ask the user to change one

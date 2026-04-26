@@ -467,6 +467,13 @@ struct HabitEditSheet: View {
     /// a new one, even one prefilled from a genome action).
     private var isEditingExisting: Bool { habit != nil && prefillEvidence == nil }
 
+    /// Provenance shown on the banner. Prefer the prefill payload (a fresh
+    /// suggestion in flight) over an already-saved habit's stored evidence —
+    /// they refer to the same finding and the prefill text is canonical.
+    private var displayEvidence: GeneticEvidence? {
+        prefillEvidence ?? habit?.geneticEvidence
+    }
+
     init(
         habit: Habit?,
         goals: [Goal],
@@ -510,23 +517,9 @@ struct HabitEditSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                if let evidence = prefillEvidence {
+                if let evidence = displayEvidence {
                     Section {
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "allergens")
-                                    .foregroundColor(.accentColor)
-                                Text("Suggested by your DNA: \(evidence.gene)")
-                                    .font(.caption)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.accentColor)
-                            }
-                            Text(evidence.reason)
-                                .font(.caption2)
-                                .foregroundColor(.textSecondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .padding(.vertical, 4)
+                        GeneticEvidenceBanner(evidence: evidence, dismiss: dismiss)
                     }
                 }
 

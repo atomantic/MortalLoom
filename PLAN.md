@@ -16,7 +16,7 @@ Turn the Genome section from an information dump into actionable advice tied int
 
 ### Phases 5–8 — TODO
 
-- [ ] **Phase 5 — Goal-template bridge + Overview integration**: `GoalEditSheet` mirrors `HabitEditSheet`'s `prefillEvidence` parameter; the `.goalTemplate` bridge actually opens the prefilled goal sheet. `OverviewView` calls `RecommendationEngine` with priorities so DNA-derived recs appear alongside lifestyle ones. Habit/goal detail views show the 🧬 "Suggested by your DNA" banner with a tap-back to the originating finding.
+- [x] **Phase 5 — Goal-template bridge + Overview integration**: `GoalEditSheet` mirrors `HabitEditSheet`'s `prefillEvidence` parameter; the `.goalTemplate` bridge actually opens the prefilled goal sheet. `OverviewView` calls `RecommendationEngine` with priorities so DNA-derived recs appear alongside lifestyle ones. Habit/goal detail views show the 🧬 "Suggested by your DNA" banner with a tap-back to the originating finding (new `.openGenomeFinding` notification + `GeneticEvidenceBanner` shared component).
 - [ ] **Phase 6 — iPad split layout**: `GenomeSplitView` (`NavigationSplitView`: sidebar / list / detail). Detail sheet content embedded as right pane on iPad regular size class.
 - [ ] **Phase 7 — Visit Mode**: `GenomeVisitModeView` focused two-column layout (priorities list + current finding with live notes + action checkboxes + Save & Next). `GenomeVisitNotesPane` on iPad.
 - [ ] **Phase 8 — PDF export**: `GenomeReportPDF` with PDFKit. Pre-visit prep PDF (top priorities + drug-response variants + talking points) and post-visit summary PDF (with captured notes appended). AirPrint via standard share sheet.
