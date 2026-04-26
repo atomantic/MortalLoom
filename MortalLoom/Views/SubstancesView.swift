@@ -263,8 +263,8 @@ struct SubstancesView: View {
 
             HStack(spacing: 0) {
                 statItem(
-                    label: "Weekly",
-                    value: String(format: "%.1f / %.0f std", weeklyTotal, weeklyThreshold),
+                    label: "Std Drinks/wk",
+                    value: String(format: "%.1f / %.0f max", weeklyTotal, weeklyThreshold),
                     valueColor: weeklyTotal > weeklyThreshold ? .danger : .success
                 )
                 Divider().frame(height: 40)
