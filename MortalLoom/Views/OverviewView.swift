@@ -33,6 +33,7 @@ struct OverviewView: View {
     @State private var cachedSleepImpact: Double = 0
     @State private var cachedStagnationSignals: [StagnationSignal] = []
     @State private var cachedReflectionStreak: Int = 0
+    @State private var cachedApexAlignment: Double?
     @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
     @State private var showCitations = false
     @State private var showAddGoal = false
@@ -463,6 +464,9 @@ struct OverviewView: View {
             healthyCognitiveDate: GoalEngine.cognitiveDeadline(from: deathClock)
         )
         cachedReflectionStreak = apexGoal.map { GoalEngine.dailyReflectionStreak(for: $0) } ?? 0
+        cachedApexAlignment = apexGoal.flatMap {
+            GoalEngine.alignmentScore(for: $0, in: data.goals, habits: data.habits)
+        }
         // Reconcile local notifications against the latest signals so the
         // user isn't nagged about stagnation that no longer exists.
         let signalsSnapshot = cachedStagnationSignals
@@ -684,7 +688,7 @@ struct OverviewView: View {
     }
 
     private func alignmentScore(for apex: Goal) -> Double? {
-        GoalEngine.alignmentScore(for: apex, in: data.goals)
+        cachedApexAlignment
     }
 
     private func supportingGoalsCount(for apex: Goal) -> Int {

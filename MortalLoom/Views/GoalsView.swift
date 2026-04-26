@@ -180,10 +180,11 @@ struct GoalsView: View {
         }
         let cogDate = GoalEngine.cognitiveDeadline(from: dc)
 
-        // Precompute effective latest check-in dates once so parent goals
-        // inherit freshness from sub-goal activity in both the projection
-        // math (slippage) and the overdue nags (attention count, chips).
-        let effectiveLatestDates = data.goals.effectiveLatestCheckInDates()
+        // Precompute effective latest activity dates once so parent goals
+        // inherit freshness from sub-goal activity AND linked-habit
+        // completions in both the projection math (slippage) and the
+        // overdue nags (attention count, chips).
+        let effectiveLatestDates = data.goals.effectiveLatestCheckInDates(habits: data.habits)
 
         var projs: [UUID: GoalEngine.GoalProjection] = [:]
         for goal in data.goals {

@@ -40,13 +40,11 @@ enum GoalEngine {
 
     // MARK: - Alignment Score
 
-    /// Alignment Score = average `progressPercent` across active standard
-    /// descendants of `root`. Returns nil when there are no descendants so
-    /// callers can show an empty-state CTA instead of a misleading 0%.
-    ///
-    /// This is the canonical definition — Overview, Widget, Reports, and
-    /// Weekly Review all call it so the number is consistent across the app.
-    static func alignmentScore(for root: Goal, in goals: [Goal]) -> Double? {
+    /// Goal-only alignment: average `progressPercent` across active standard
+    /// descendants of `root`. Private because every external surface should
+    /// call the habit-aware overload below — exposing this invites the kind
+    /// of drift where habit completions stop moving the visible number.
+    private static func goalOnlyAlignment(for root: Goal, in goals: [Goal]) -> Double? {
         let leaves = standardDescendants(of: root, in: goals)
         guard !leaves.isEmpty else { return nil }
         return leaves.reduce(0.0) { $0 + $1.progressPercent } / Double(leaves.count)
@@ -65,7 +63,7 @@ enum GoalEngine {
         habits: [Habit],
         habitWeight: Double = 0.3
     ) -> Double? {
-        let goalScore = alignmentScore(for: root, in: goals)
+        let goalScore = goalOnlyAlignment(for: root, in: goals)
         let descendantIds: Set<UUID> = Set([root.id] + activeDescendants(of: root, in: goals).map(\.id))
         let linkedHabits = habits.filter { h in
             guard h.isActive, let parent = h.parentGoalId else { return false }

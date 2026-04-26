@@ -426,7 +426,7 @@ struct WeeklyReviewSheet: View {
 
     private func currentAlignment() -> Double? {
         guard let apex else { return nil }
-        return GoalEngine.alignmentScore(for: apex, in: allGoals)
+        return GoalEngine.alignmentScore(for: apex, in: allGoals, habits: habits)
     }
 }
 

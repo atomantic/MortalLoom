@@ -105,7 +105,7 @@ struct ReportsView: View {
         trendPoints = buildTrendPoints(from: loaded)
         var alignments: [UUID: Double] = [:]
         for pillar in loaded.goals where pillar.goalType == .subApex && pillar.status == .active {
-            if let score = GoalEngine.alignmentScore(for: pillar, in: loaded.goals) {
+            if let score = GoalEngine.alignmentScore(for: pillar, in: loaded.goals, habits: loaded.habits) {
                 alignments[pillar.id] = score
             }
         }

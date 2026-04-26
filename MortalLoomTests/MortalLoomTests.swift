@@ -3472,6 +3472,95 @@ final class StagnationEngineTests: XCTestCase {
         let allGoals = [parent, completedChild]
         XCTAssertTrue(allGoals.effectiveNeedsCheckIn(for: parent))
     }
+
+    func testHabitCompletionSilencesParentGoalCheckInNag() {
+        // Goal with no recent check-in, but a linked habit was completed
+        // yesterday — the goal should NOT be flagged as overdue and
+        // StagnationEngine should not raise a "Check-in overdue" signal.
+        let parent = Goal(
+            title: "Write a book",
+            createdDate: DateFormatting.dateString(daysAgo: 60),
+            checkIns: [GoalCheckIn(date: DateFormatting.dateString(daysAgo: 30), progressPct: 10)],
+            checkInIntervalDays: 7,
+            status: .active,
+            goalType: .standard
+        )
+        let dailyHabit = Habit(
+            name: "Write 500 words",
+            cadence: HabitCadence(period: .daily, target: 1),
+            parentGoalId: parent.id,
+            completions: [HabitCompletion(date: DateFormatting.dateString(daysAgo: 1))]
+        )
+
+        // Goal-only view: stale.
+        XCTAssertTrue([parent].effectiveNeedsCheckIn(for: parent))
+        // Habit-aware view: fresh.
+        XCTAssertFalse([parent].effectiveNeedsCheckIn(for: parent, habits: [dailyHabit]))
+
+        let signals = StagnationEngine.signals(goals: [parent], habits: [dailyHabit])
+        XCTAssertFalse(signals.contains { $0.title == "Check-in overdue" })
+    }
+
+    func testHabitCompletionCreditsAncestorGoalsViaSubtree() {
+        // Habit linked to a deep child should bubble freshness all the way
+        // up to its grandparent through the existing tree walk.
+        let grandparent = Goal(
+            title: "Pillar",
+            createdDate: DateFormatting.dateString(daysAgo: 200),
+            checkIns: [GoalCheckIn(date: DateFormatting.dateString(daysAgo: 90), progressPct: 5)],
+            checkInIntervalDays: 7,
+            status: .active,
+            goalType: .subApex
+        )
+        let parent = Goal(
+            title: "Phase",
+            createdDate: DateFormatting.dateString(daysAgo: 150),
+            checkIns: [GoalCheckIn(date: DateFormatting.dateString(daysAgo: 60), progressPct: 10)],
+            checkInIntervalDays: 7,
+            status: .active,
+            parentId: grandparent.id,
+            goalType: .standard
+        )
+        let child = Goal(
+            title: "Task",
+            createdDate: DateFormatting.dateString(daysAgo: 100),
+            checkIns: [GoalCheckIn(date: DateFormatting.dateString(daysAgo: 45), progressPct: 30)],
+            checkInIntervalDays: 7,
+            status: .active,
+            parentId: parent.id,
+            goalType: .standard
+        )
+        let habit = Habit(
+            name: "Daily ritual",
+            cadence: HabitCadence(period: .daily, target: 1),
+            parentGoalId: child.id,
+            completions: [HabitCompletion(date: DateFormatting.todayString())]
+        )
+
+        let allGoals = [grandparent, parent, child]
+        XCTAssertFalse(allGoals.effectiveNeedsCheckIn(for: grandparent, habits: [habit]))
+        XCTAssertFalse(allGoals.effectiveNeedsCheckIn(for: parent, habits: [habit]))
+        XCTAssertFalse(allGoals.effectiveNeedsCheckIn(for: child, habits: [habit]))
+    }
+
+    func testArchivedHabitDoesNotCreditParentGoal() {
+        let parent = Goal(
+            title: "Stale goal",
+            createdDate: DateFormatting.dateString(daysAgo: 60),
+            checkIns: [GoalCheckIn(date: DateFormatting.dateString(daysAgo: 30), progressPct: 10)],
+            checkInIntervalDays: 7,
+            status: .active,
+            goalType: .standard
+        )
+        let archivedHabit = Habit(
+            name: "Old ritual",
+            cadence: HabitCadence(period: .daily, target: 1),
+            parentGoalId: parent.id,
+            archivedDate: DateFormatting.dateString(daysAgo: 5),
+            completions: [HabitCompletion(date: DateFormatting.dateString(daysAgo: 1))]
+        )
+        XCTAssertTrue([parent].effectiveNeedsCheckIn(for: parent, habits: [archivedHabit]))
+    }
 }
 
 // MARK: - GoalEngine.dailyReflectionStreak

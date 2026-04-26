@@ -420,24 +420,36 @@ extension Array where Element == Goal {
         filter { $0.status == .active }.count
     }
 
-    /// Precomputes the effective "latest check-in date" for every active
-    /// goal in one pass. Parent goals inherit the newest check-in across
+    /// Precomputes the effective "latest activity date" for every active
+    /// goal in one pass. Parent goals inherit the newest activity across
     /// their subtree so callers can suppress overdue nags when sub-goals
-    /// are being worked on. Lexicographic string max is safe because the
-    /// format is fixed-width ISO "yyyy-MM-dd".
+    /// are being worked on. When `habits` is supplied, the latest completion
+    /// of any habit linked to a goal also counts as activity on that goal —
+    /// so a daily writing habit silences the parent "Write a book" goal's
+    /// check-in nag the same way a sub-goal check-in would.
     ///
-    /// Result maps goalId → latest date string (own or any active descendant).
-    /// Goals with no check-ins in their subtree fall back to `createdDate`.
-    func effectiveLatestCheckInDates() -> [UUID: String] {
+    /// Lexicographic string max is safe because the format is fixed-width
+    /// ISO "yyyy-MM-dd".
+    func effectiveLatestCheckInDates(habits: [Habit] = []) -> [UUID: String] {
         var childrenByParent: [UUID: [Goal]] = [:]
         for g in self where g.status == .active {
             guard let pid = g.parentId else { continue }
             childrenByParent[pid, default: []].append(g)
         }
+
+        var habitLatestByGoal: [UUID: String] = [:]
+        for habit in habits where habit.isActive {
+            guard let parentId = habit.parentGoalId,
+                  let lastDate = habit.completions.map(\.date).max() else { continue }
+            if let existing = habitLatestByGoal[parentId], existing >= lastDate { continue }
+            habitLatestByGoal[parentId] = lastDate
+        }
+
         var result: [UUID: String] = [:]
         func walk(_ goal: Goal) -> String {
             if let cached = result[goal.id] { return cached }
             var latest = goal.checkIns.last?.date ?? goal.createdDate
+            if let h = habitLatestByGoal[goal.id], h > latest { latest = h }
             for child in childrenByParent[goal.id] ?? [] {
                 let childLatest = walk(child)
                 if childLatest > latest { latest = childLatest }
@@ -453,14 +465,14 @@ extension Array where Element == Goal {
 
     /// One-off convenience; loops should call `effectiveLatestCheckInDates`
     /// once and reuse the map instead of paying O(n) per goal.
-    func effectiveDaysSinceLastCheckIn(for goal: Goal) -> Int {
-        let latest = effectiveLatestCheckInDates()
+    func effectiveDaysSinceLastCheckIn(for goal: Goal, habits: [Habit] = []) -> Int {
+        let latest = effectiveLatestCheckInDates(habits: habits)
         return DateFormatting.daysSince(latest[goal.id] ?? goal.createdDate)
     }
 
     /// One-off convenience — see `effectiveDaysSinceLastCheckIn(for:)`.
-    func effectiveNeedsCheckIn(for goal: Goal) -> Bool {
+    func effectiveNeedsCheckIn(for goal: Goal, habits: [Habit] = []) -> Bool {
         guard goal.status == .active else { return false }
-        return effectiveDaysSinceLastCheckIn(for: goal) >= goal.checkInIntervalDays
+        return effectiveDaysSinceLastCheckIn(for: goal, habits: habits) >= goal.checkInIntervalDays
     }
 }

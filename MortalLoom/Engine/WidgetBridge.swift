@@ -42,9 +42,10 @@ enum WidgetBridge: Sendable {
         #if os(iOS)
         let activeGoals = data.goals.filter { $0.status == .active }
 
-        // Single-pass hierarchy walk — parent goals inherit check-in credit
-        // from active descendants so the widget doesn't over-nag.
-        let effectiveLatestDates = data.goals.effectiveLatestCheckInDates()
+        // Single-pass hierarchy walk — parent goals inherit credit from
+        // active descendants AND from linked habit completions so the
+        // widget doesn't over-nag.
+        let effectiveLatestDates = data.goals.effectiveLatestCheckInDates(habits: data.habits)
         var needsCheckInCount = 0
         var needsCheckInById: [UUID: Bool] = [:]
         for g in activeGoals {
@@ -102,9 +103,10 @@ enum WidgetBridge: Sendable {
             )
         }
 
-        // Compute North Star alignment from active standard descendants.
         let apex = data.goals.first { $0.goalType == .apex && $0.status == .active }
-        let alignment: Double? = apex.flatMap { GoalEngine.alignmentScore(for: $0, in: data.goals) }
+        let alignment: Double? = apex.flatMap {
+            GoalEngine.alignmentScore(for: $0, in: data.goals, habits: data.habits)
+        }
 
         // Rotating prompt for the widget — excludes any answered on the apex
         // in the last 5 check-ins so the user doesn't see the same question

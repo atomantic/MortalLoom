@@ -123,9 +123,12 @@ enum StagnationEngine {
             childrenByParent[pid, default: []].append(g)
         }
 
-        // Precompute effective latest check-in dates once so every goal
-        // loop below can reuse it (parent goals inherit descendant credit).
-        let effectiveLatestDates = goals.effectiveLatestCheckInDates()
+        // Precompute effective latest activity dates once so every goal
+        // loop below can reuse it. Parent goals inherit descendant credit;
+        // any goal with linked habits also inherits the latest habit
+        // completion as activity, so completing a daily habit silences
+        // the parent's check-in nag.
+        let effectiveLatestDates = goals.effectiveLatestCheckInDates(habits: habits)
 
         // 1. Apex with no active supporting goals.
         for apex in goals where apex.goalType == .apex && apex.status == .active && !apex.isDeferred(now: now) {
