@@ -2963,8 +2963,9 @@ final class RecommendationEngineTests: XCTestCase {
             hasBloodTests: false
         )
         // Verify target pages are valid AppPage rawValues
+        let validRawValues = Set(AppPage.allCases.map(\.rawValue))
         for rec in recs {
-            XCTAssertTrue((0...8).contains(rec.targetPage),
+            XCTAssertTrue(validRawValues.contains(rec.targetPage),
                 "Recommendation \(rec.id) has invalid target page \(rec.targetPage)")
         }
     }

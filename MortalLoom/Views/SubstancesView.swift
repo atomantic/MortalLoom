@@ -4,7 +4,6 @@ import Charts
 // MARK: - Substance Tab Enum
 
 private enum SubstanceTab: String, CaseIterable {
-    case myHabits = "My Habits"
     case alcohol = "Alcohol"
     case nicotine = "Nicotine"
     case sauna = "Sauna"
@@ -71,7 +70,7 @@ private struct DailyAmount: Identifiable {
 // MARK: - SubstancesView
 
 struct SubstancesView: View {
-    @AppStorage("substances.selectedTab") private var selectedTab: SubstanceTab = .myHabits
+    @AppStorage("substances.selectedTab") private var selectedTab: SubstanceTab = .alcohol
 
     // Alcohol state
     @State private var alcoholDrinks: [AlcoholDrink] = []
@@ -154,8 +153,6 @@ struct SubstancesView: View {
                 .padding(.horizontal)
 
                 switch selectedTab {
-                case .myHabits:
-                    HabitsSection()
                 case .alcohol:
                     alcoholSection
                 case .nicotine:

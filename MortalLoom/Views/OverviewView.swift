@@ -1492,7 +1492,7 @@ struct OverviewView: View {
 
         let riskColor = cachedAlcoholRisk.color
 
-        Button { navigateTo(.habits) } label: {
+        Button { navigateTo(.substances) } label: {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Image(systemName: "wineglass.fill")

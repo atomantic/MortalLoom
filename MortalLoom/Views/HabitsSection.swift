@@ -1,10 +1,57 @@
 import SwiftUI
 
+// MARK: - HabitsPage
+
+/// Top-level Habits page. Hosts user-authored daily habits via `HabitsSection`,
+/// plus a discoverability footer pointing to the dedicated Substances page
+/// (alcohol / nicotine / sauna live there now).
+struct HabitsPage: View {
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                HabitsSection()
+                substancesFooter
+            }
+            .padding(.vertical)
+        }
+        .background(Color.bg)
+    }
+
+    private var substancesFooter: some View {
+        Button {
+            NotificationCenter.default.post(name: .navigateToPage, object: AppPage.substances)
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "wineglass")
+                    .font(.body)
+                    .foregroundColor(.accentColor)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Tracking alcohol, nicotine, or sauna?")
+                        .font(.subheadline).fontWeight(.semibold)
+                        .foregroundColor(.textPrimary)
+                    Text("Open Substances")
+                        .font(.caption)
+                        .foregroundColor(.accentColor)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.textMuted)
+            }
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .cardStyle()
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal)
+        .accessibilityHint("Opens the Substances page with alcohol, nicotine, and sauna trackers.")
+    }
+}
+
 // MARK: - HabitsSection
 
-/// Custom-habit tracker rendered as the "My Habits" tab inside the Habits page.
+/// Custom-habit tracker — the body content of the Habits page.
 /// Shows Habitica-style cards with streak, cadence, and a tap-to-complete action.
-/// Existing alcohol/nicotine/sauna tabs remain untouched alongside this view.
 /// Precomputed per-habit stats. Cached in loadData so we don't re-run the
 /// streak/hit-rate loops on every body render.
 struct HabitStats: Sendable {

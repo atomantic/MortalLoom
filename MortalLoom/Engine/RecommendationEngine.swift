@@ -273,7 +273,7 @@ enum RecommendationEngine {
                 title: "Reduce alcohol intake",
                 detail: "High-risk drinking significantly impacts longevity. Aim for NIAAA low-risk limits.",
                 yearsGained: 2.0,
-                targetPage: 3, // habits
+                targetPage: 12, // substances
                 citationIds: [
                     CitationLibrary.niaaaLimits.id,
                     CitationLibrary.gbdAlcohol2018.id,
@@ -286,7 +286,7 @@ enum RecommendationEngine {
                 title: "Cut back on alcohol",
                 detail: "Moderate risk — reducing to low-risk levels benefits heart and liver health.",
                 yearsGained: 1.0,
-                targetPage: 3,
+                targetPage: 12, // substances
                 citationIds: [
                     CitationLibrary.niaaaLimits.id,
                     CitationLibrary.gbdAlcohol2018.id,
