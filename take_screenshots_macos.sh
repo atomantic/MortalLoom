@@ -215,8 +215,8 @@ trap cleanup EXIT INT TERM
 PAGES=(
     "overview|01_overview|"
     "goals|02_goals|"
-    "habits|03_habits_alcohol|-substance-tab alcohol"
-    "habits|04_habits_nicotine|-substance-tab nicotine"
+    "substances|03_substances_alcohol|-substance-tab alcohol"
+    "substances|04_substances_nicotine|-substance-tab nicotine"
     "body|05_body|"
     "blood|06_blood|"
     "sleep|07_sleep|"

@@ -359,10 +359,12 @@ Notifications, widgets, and the future monthly export all need a way to open a s
 
 From the UX audit (deferred): the Habits tab mixes user-authored daily habits with alcohol/nicotine/sauna substance trackers. Now that "My Habits" is the default tab and contributes to alignment scoring, the dissonance is worse — substances don't have streaks, aren't goal-linked, and clutter the daily engagement surface.
 
-- [ ] **New top-level page `Substances`** under the Health section of the drawer, between Sleep and Blood. Hosts the Alcohol / Nicotine / Sauna tabs currently in `SubstancesView.swift`. No logic changes, just a drawer move.
-- [ ] **Remove substance tabs** from `HabitsSection.swift`. The Habits page becomes user-authored habits only. Keep a small footer link on Habits: "Tracking alcohol, nicotine, or sauna? → Substances" for discoverability.
-- [ ] **Preserve deep-linking** — anywhere that opens Substances (onboarding, OverviewView, reports) should already route via `AppPage.substances`. Double-check `SideMenuView.tabBarPages` and both platform switch statements.
-- [ ] **No data migration** — the underlying `alcoholDrinks`, `nicotineEntries`, `saunaSessions` arrays in `AppData` don't move, only the view location does.
+- [x] **New top-level page `Substances`** under the Health section of the drawer, between Sleep and Blood. `AppPage.substances` (rawValue 12) added to `SideMenuView.swift` with `wineglass` icon. Hosts the Alcohol / Nicotine / Sauna tabs in `SubstancesView`. iOS `SideMenuView.menuSections` and macOS `MacContentView` Health section both updated.
+- [x] **Remove substance tabs** from the Habits page. `SubstancesView.SubstanceTab` enum lost the `myHabits` case; default selected tab is now `.alcohol`. The Habits page (`AppPage.habits`) renders the new `HabitsPage` wrapper which scrolls `HabitsSection` plus a discoverability footer "Tracking alcohol, nicotine, or sauna? → Substances" that routes via `.navigateToPage` to `AppPage.substances`.
+- [x] **Preserve deep-linking** — `DeepLinkRouter.parse(_:)` automatically resolves `mortalloom://substances` since it iterates `AppPage.allCases` by title. `OverviewView.alcoholTile` now navigates to `.substances` instead of `.habits`. `RecommendationEngine` reduce-alcohol targetPage updated from 3 (habits) to 12 (substances).
+- [x] **No data migration** — the underlying `alcoholDrinks`, `nicotineEntries`, `saunaSessions` arrays in `AppData` don't move, only the view location does.
+- [x] **Test fix** — `RecommendationEngineTests.testRecommendationTargetPages` now validates against `AppPage.allCases.map(\.rawValue)` instead of a hard-coded `0...8` range so it's resilient to future page additions.
+- [x] **Screenshot scripts** — `take_screenshots_macos.sh` page list and `MortalLoomUITests/ScreenshotTests.swift` updated to navigate to Substances via the side menu after capturing the Habits tab.
 
 ### Goals list polish — the remaining friction items
 

@@ -37,8 +37,9 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: $0 [--iphone-only|--ipad-only] [--screen <name>]"
             echo ""
             echo "Devices: iPhone 16 Pro Max (6.7\"), iPad Pro 13\" (M4)"
-            echo "Screens: 01_overview 02_overview_scroll 03_goals 04_habits_alcohol"
-            echo "         05_habits_nicotine 06_body 07_blood 08_calendar 09_sleep 10_lifestyle"
+            echo "Screens: 01_overview 02_overview_scroll 03_goals 04_calendar 05_habits"
+            echo "         05a_substances_alcohol 06_substances_nicotine 07_body 08_blood"
+            echo "         09_sleep 10_lifestyle"
             exit 0
             ;;
         *)
