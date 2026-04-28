@@ -1,3 +1,4 @@
+import Charts
 import SwiftUI
 
 // MARK: - WeeklyReviewSheet
@@ -137,6 +138,8 @@ struct WeeklyReviewSheet: View {
                 itemList(activity.completions, color: .success)
             }
             statRow(icon: "repeat.circle.fill", label: "Habit completions", value: "\(activity.habitHits)")
+
+            alignmentSparkline
 
             if let score = currentAlignment() {
                 Divider().padding(.vertical, 4)
@@ -428,6 +431,105 @@ struct WeeklyReviewSheet: View {
         guard let apex else { return nil }
         return GoalEngine.alignmentScore(for: apex, in: allGoals, habits: habits)
     }
+
+    // MARK: Alignment sparkline
+
+    /// 7-day sparkline of daily alignment ratings off the apex's reflection
+    /// check-ins. Empty days are rendered as gaps (no fabricated zeros), so
+    /// a single typed reflection on Tuesday doesn't get pulled toward the
+    /// floor by six imaginary "no rating" days.
+    @ViewBuilder
+    private var alignmentSparkline: some View {
+        let points = sparklinePoints()
+        if !points.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Alignment this week")
+                    .font(.caption).fontWeight(.semibold)
+                    .foregroundColor(.textSecondary)
+                    .tracking(1)
+                    .textCase(.uppercase)
+
+                Chart(points) { point in
+                    LineMark(
+                        x: .value("Day", point.day, unit: .day),
+                        y: .value("Rating", point.rating)
+                    )
+                    .interpolationMethod(.linear)
+                    .foregroundStyle(LinearGradient.proBrand)
+                    .lineStyle(StrokeStyle(lineWidth: 2))
+
+                    PointMark(
+                        x: .value("Day", point.day, unit: .day),
+                        y: .value("Rating", point.rating)
+                    )
+                    .foregroundStyle(Color.accentColor)
+                    .symbolSize(40)
+                }
+                .chartYScale(domain: 1...10)
+                .chartXScale(domain: weekDomain())
+                .chartXAxis {
+                    AxisMarks(values: .stride(by: .day, count: 1)) { _ in
+                        AxisValueLabel(format: .dateTime.weekday(.narrow))
+                            .foregroundStyle(Color.textMuted)
+                    }
+                }
+                .chartYAxis {
+                    AxisMarks(values: [1, 5, 10]) { _ in
+                        AxisGridLine().foregroundStyle(Color.textMuted.opacity(0.2))
+                        AxisValueLabel().foregroundStyle(Color.textMuted)
+                    }
+                }
+                .frame(height: 70)
+            }
+            .padding(.top, 4)
+        }
+    }
+
+    /// Builds at most 7 points covering today and the prior 6 days. Days
+    /// with no `alignmentRating` are simply omitted from the array — the
+    /// Chart renders them as a gap rather than a zero. Same-day entries
+    /// keep the latest rating.
+    private func sparklinePoints() -> [SparklinePoint] {
+        guard let apex else { return [] }
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        guard let weekStart = calendar.date(byAdding: .day, value: -6, to: today) else {
+            return []
+        }
+        let weekStartStr = DateFormatting.dateString(weekStart)
+
+        var byDate: [String: Int] = [:]
+        for checkIn in apex.checkIns {
+            guard let rating = checkIn.alignmentRating, checkIn.date >= weekStartStr else { continue }
+            // Latest entry for the same calendar day wins.
+            byDate[checkIn.date] = rating
+        }
+
+        var points: [SparklinePoint] = []
+        for offset in 0...6 {
+            guard let day = calendar.date(byAdding: .day, value: offset - 6, to: today) else { continue }
+            let key = DateFormatting.dateString(day)
+            if let rating = byDate[key] {
+                points.append(SparklinePoint(id: key, day: day, rating: rating))
+            }
+        }
+        return points
+    }
+
+    private func weekDomain() -> ClosedRange<Date> {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let start = calendar.date(byAdding: .day, value: -6, to: today) ?? today
+        return start...today
+    }
+}
+
+// MARK: - Sparkline data
+
+private struct SparklinePoint: Identifiable {
+    let id: String
+    let day: Date
+    let rating: Int
 }
 
 // MARK: - WeeklyReview helpers
