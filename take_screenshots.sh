@@ -38,7 +38,7 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "Devices: iPhone 16 Pro Max (6.7\"), iPad Pro 13\" (M4)"
             echo "Screens: 01_overview 02_overview_scroll 03_goals 04_calendar 05_habits"
-            echo "         05a_substances_alcohol 06_substances_nicotine 07_body 08_blood"
+            echo "         05a_habits_alcohol 06_habits_nicotine 07_body 08_blood"
             echo "         09_sleep 10_lifestyle"
             exit 0
             ;;

@@ -211,12 +211,12 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 # Pages to capture: "page_name|output_filename|extra_args"
-# extra_args lets us pass additional launch flags (e.g. -substance-tab nicotine)
+# extra_args lets us pass additional launch flags (e.g. -habits-tab nicotine)
 PAGES=(
     "overview|01_overview|"
     "goals|02_goals|"
-    "substances|03_substances_alcohol|-substance-tab alcohol"
-    "substances|04_substances_nicotine|-substance-tab nicotine"
+    "habits|03_habits_alcohol|-habits-tab alcohol"
+    "habits|04_habits_nicotine|-habits-tab nicotine"
     "body|05_body|"
     "blood|06_blood|"
     "sleep|07_sleep|"

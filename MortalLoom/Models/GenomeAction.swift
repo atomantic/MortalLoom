@@ -156,8 +156,8 @@ enum LifestyleField: String, Sendable {
     case dietQuality
     case stressLevel
     case bmi
-    /// Alcohol is tracked separately via `AlcoholDrink` entries, not on
-    /// `LifestyleData`. Linking via this case routes to the substances view.
+    /// Alcohol is tracked via `AlcoholDrink` entries, not `LifestyleData` —
+    /// linking via this case routes to the Habits alcohol tab.
     case alcoholIntake
 }
 

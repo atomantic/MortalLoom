@@ -1,50 +1,98 @@
 import SwiftUI
 
+// MARK: - HabitTab
+
+/// Tabs on the Habits page: user-authored habits plus the built-in alcohol /
+/// nicotine / sauna trackers. The raw values intentionally mirror
+/// `SubstanceTab` so a `HabitTab` can round-trip to a `SubstanceTab` via
+/// `SubstanceTab(rawValue: tab.rawValue)`.
+enum HabitTab: String, CaseIterable, Hashable {
+    case myHabits = "My Habits"
+    case alcohol = "Alcohol"
+    case nicotine = "Nicotine"
+    case sauna = "Sauna"
+
+    /// `SubstanceTab` counterpart for the built-in tracker tabs. `nil` for
+    /// `.myHabits` since user-authored habits aren't a substance.
+    var substance: SubstanceTab? {
+        SubstanceTab(rawValue: rawValue)
+    }
+
+    static let selectedKey = "habits.selectedTab"
+    static let showAlcoholKey = "habits.showAlcohol"
+    static let showNicotineKey = "habits.showNicotine"
+    static let showSaunaKey = "habits.showSauna"
+}
+
 // MARK: - HabitsPage
 
-/// Top-level Habits page. Hosts user-authored daily habits via `HabitsSection`,
-/// plus a discoverability footer pointing to the dedicated Substances page
-/// (alcohol / nicotine / sauna live there now).
+/// Top-level Habits page. Tabbed so the user lands back on whichever tracker
+/// they used last. Built-in trackers can be hidden via Settings.
 struct HabitsPage: View {
+    @AppStorage(HabitTab.selectedKey) private var selectedTab: HabitTab = .myHabits
+    @AppStorage(HabitTab.showAlcoholKey) private var showAlcohol: Bool = true
+    @AppStorage(HabitTab.showNicotineKey) private var showNicotine: Bool = true
+    @AppStorage(HabitTab.showSaunaKey) private var showSauna: Bool = true
+
+    private var visibleTabs: [HabitTab] {
+        var tabs: [HabitTab] = [.myHabits]
+        if showAlcohol { tabs.append(.alcohol) }
+        if showNicotine { tabs.append(.nicotine) }
+        if showSauna { tabs.append(.sauna) }
+        return tabs
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                HabitsSection()
-                substancesFooter
+                if visibleTabs.count > 1 {
+                    tabPicker
+                }
+
+                switch selectedTab {
+                case .myHabits:
+                    HabitsSection()
+                case .alcohol:
+                    SubstancesView(selectedTab: .alcohol)
+                case .nicotine:
+                    SubstancesView(selectedTab: .nicotine)
+                case .sauna:
+                    SubstancesView(selectedTab: .sauna)
+                }
             }
             .padding(.vertical)
         }
         .background(Color.bg)
+        .task {
+            applyLaunchArg()
+            clampToVisibleTab()
+        }
+        .onChange(of: visibleTabs) { _, _ in
+            clampToVisibleTab()
+        }
     }
 
-    private var substancesFooter: some View {
-        Button {
-            NotificationCenter.default.post(name: .navigateToPage, object: AppPage.substances)
-        } label: {
-            HStack(spacing: 10) {
-                Image(systemName: "wineglass")
-                    .font(.body)
-                    .foregroundColor(.accentColor)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Tracking alcohol, nicotine, or sauna?")
-                        .font(.subheadline).fontWeight(.semibold)
-                        .foregroundColor(.textPrimary)
-                    Text("Open Substances")
-                        .font(.caption)
-                        .foregroundColor(.accentColor)
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption)
-                    .foregroundColor(.textMuted)
+    private var tabPicker: some View {
+        Picker("Habit Tab", selection: $selectedTab) {
+            ForEach(visibleTabs, id: \.self) { tab in
+                Text(tab.rawValue).tag(tab)
             }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .cardStyle()
         }
-        .buttonStyle(.plain)
+        .pickerStyle(.segmented)
         .padding(.horizontal)
-        .accessibilityHint("Opens the Substances page with alcohol, nicotine, and sauna trackers.")
+    }
+
+    private func applyLaunchArg() {
+        guard let arg = AppConstants.startHabitTab,
+              let tab = HabitTab.allCases.first(where: { $0.rawValue.lowercased() == arg }),
+              tab != selectedTab else { return }
+        selectedTab = tab
+    }
+
+    /// Drop back to My Habits if the persisted tab was just hidden in Settings.
+    private func clampToVisibleTab() {
+        guard !visibleTabs.contains(selectedTab) else { return }
+        selectedTab = .myHabits
     }
 }
 

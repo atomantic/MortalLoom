@@ -3,7 +3,10 @@ import Charts
 
 // MARK: - Substance Tab Enum
 
-private enum SubstanceTab: String, CaseIterable {
+/// Identifies which built-in substance/sauna tracker is being shown. Used by
+/// `HabitsPage` to drive the embedded `SubstancesView` when the user picks a
+/// built-in tab from the Habits page picker.
+enum SubstanceTab: String, CaseIterable {
     case alcohol = "Alcohol"
     case nicotine = "Nicotine"
     case sauna = "Sauna"
@@ -69,8 +72,10 @@ private struct DailyAmount: Identifiable {
 
 // MARK: - SubstancesView
 
+/// Renders the alcohol / nicotine / sauna tracker UI for the given tab.
+/// Embedded inside `HabitsPage` — the parent owns the tab selection.
 struct SubstancesView: View {
-    @AppStorage("substances.selectedTab") private var selectedTab: SubstanceTab = .alcohol
+    let selectedTab: SubstanceTab
 
     // Alcohol state
     @State private var alcoholDrinks: [AlcoholDrink] = []
@@ -142,34 +147,19 @@ struct SubstancesView: View {
     @State private var editSaunaDate = ""
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                Picker("Substance", selection: $selectedTab) {
-                    ForEach(SubstanceTab.allCases, id: \.self) { tab in
-                        Text(tab.rawValue).tag(tab)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal)
-
-                switch selectedTab {
-                case .alcohol:
-                    alcoholSection
-                case .nicotine:
-                    nicotineSection
-                case .sauna:
-                    saunaSection
-                }
+        VStack(spacing: 16) {
+            switch selectedTab {
+            case .alcohol:
+                alcoholSection
+            case .nicotine:
+                nicotineSection
+            case .sauna:
+                saunaSection
             }
-            .padding()
-            .readContainerWidth { containerWidth = $0 }
         }
-        .background(Color.bg)
+        .padding()
+        .readContainerWidth { containerWidth = $0 }
         .task {
-            if let arg = AppConstants.startSubstanceTab,
-               let tab = SubstanceTab.allCases.first(where: { $0.rawValue.lowercased() == arg }) {
-                selectedTab = tab
-            }
             await loadData()
         }
         .onReceive(NotificationCenter.default.publisher(for: .dataDidSync)) { _ in

@@ -89,17 +89,22 @@ final class ScreenshotTests: XCTestCase {
         saveScreenshot("04_calendar")
 
         tapCustomTab("Habits")
+        if app.buttons["My Habits"].waitForExistence(timeout: 2) {
+            app.buttons["My Habits"].tap()
+        }
+        Thread.sleep(forTimeInterval: 0.5)
         saveScreenshot("05_habits")
 
-        openSideMenu()
-        tapSideMenuItem("Substances")
-        Thread.sleep(forTimeInterval: 0.5)
-        saveScreenshot("05a_substances_alcohol")
+        if app.buttons["Alcohol"].waitForExistence(timeout: 2) {
+            app.buttons["Alcohol"].tap()
+            Thread.sleep(forTimeInterval: 0.5)
+            saveScreenshot("05a_habits_alcohol")
+        }
 
         if app.buttons["Nicotine"].waitForExistence(timeout: 2) {
             app.buttons["Nicotine"].tap()
             Thread.sleep(forTimeInterval: 1)
-            saveScreenshot("06_substances_nicotine")
+            saveScreenshot("06_habits_nicotine")
         }
 
         openSideMenu()

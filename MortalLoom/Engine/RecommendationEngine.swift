@@ -9,9 +9,33 @@ enum RecommendationEngine {
         let detail: String
         let yearsGained: Double
         let targetPage: Int // AppPage rawValue for navigation
+        /// When `targetPage` is the Habits page, this picks the specific tab
+        /// to land on (e.g. alcohol-related recs land on the Alcohol tracker).
+        /// `nil` for recs targeting any other page.
+        let targetHabitTab: HabitTab?
         /// IDs from `CitationLibrary` documenting the peer-reviewed / authoritative
         /// source behind this recommendation. Rendered as a `CitationBadge` in the UI.
         let citationIds: [String]
+
+        init(
+            id: String,
+            icon: String,
+            title: String,
+            detail: String,
+            yearsGained: Double,
+            targetPage: Int,
+            targetHabitTab: HabitTab? = nil,
+            citationIds: [String]
+        ) {
+            self.id = id
+            self.icon = icon
+            self.title = title
+            self.detail = detail
+            self.yearsGained = yearsGained
+            self.targetPage = targetPage
+            self.targetHabitTab = targetHabitTab
+            self.citationIds = citationIds
+        }
     }
 
     /// Conservative `yearsGained` heuristics for genome-derived recommendations.
@@ -273,7 +297,8 @@ enum RecommendationEngine {
                 title: "Reduce alcohol intake",
                 detail: "High-risk drinking significantly impacts longevity. Aim for NIAAA low-risk limits.",
                 yearsGained: 2.0,
-                targetPage: 12, // substances
+                targetPage: 3, // habits
+                targetHabitTab: .alcohol,
                 citationIds: [
                     CitationLibrary.niaaaLimits.id,
                     CitationLibrary.gbdAlcohol2018.id,
@@ -286,7 +311,8 @@ enum RecommendationEngine {
                 title: "Cut back on alcohol",
                 detail: "Moderate risk — reducing to low-risk levels benefits heart and liver health.",
                 yearsGained: 1.0,
-                targetPage: 12, // substances
+                targetPage: 3, // habits
+                targetHabitTab: .alcohol,
                 citationIds: [
                     CitationLibrary.niaaaLimits.id,
                     CitationLibrary.gbdAlcohol2018.id,

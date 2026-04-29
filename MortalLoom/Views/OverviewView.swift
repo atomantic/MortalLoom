@@ -21,6 +21,7 @@ struct OverviewView: View {
     @State private var cachedNormalPoints: [TrajectoryPoint] = []
     @State private var cachedLevPoints: [TrajectoryPoint] = []
     @State private var cachedRecommendations: [RecommendationEngine.Recommendation] = []
+    @AppStorage(HabitTab.selectedKey) private var habitsTab: HabitTab = .myHabits
     /// Top genome priorities used to seed DNA-derived recommendations alongside
     /// the lifestyle ones. Computed lazily off the main thread by parsing the
     /// persisted genome file and re-running the curated marker scan + ClinVar
@@ -1492,7 +1493,7 @@ struct OverviewView: View {
 
         let riskColor = cachedAlcoholRisk.color
 
-        Button { navigateTo(.substances) } label: {
+        Button { navigateToHabitTab(.alcohol) } label: {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Image(systemName: "wineglass.fill")
@@ -1781,7 +1782,7 @@ struct OverviewView: View {
     @ViewBuilder
     private func recommendationRow(_ rec: RecommendationEngine.Recommendation) -> some View {
         HStack(spacing: 12) {
-            Button { navigateTo(AppPage(rawValue: rec.targetPage) ?? .lifestyle) } label: {
+            Button { openRecommendation(rec, fallback: .lifestyle) } label: {
                 HStack(spacing: 12) {
                     Image(systemName: rec.icon)
                         .foregroundColor(.success)
@@ -1823,7 +1824,7 @@ struct OverviewView: View {
     @ViewBuilder
     private func dataGapRow(_ rec: RecommendationEngine.Recommendation) -> some View {
         HStack(spacing: 12) {
-            Button { navigateTo(AppPage(rawValue: rec.targetPage) ?? .overview) } label: {
+            Button { openRecommendation(rec, fallback: .overview) } label: {
                 HStack(spacing: 12) {
                     Image(systemName: rec.icon)
                         .foregroundColor(.textMuted)
@@ -1866,6 +1867,20 @@ struct OverviewView: View {
 
     private func navigateTo(_ page: AppPage) {
         selectedTab = page.rawValue
+    }
+
+    private func navigateToHabitTab(_ tab: HabitTab) {
+        habitsTab = tab
+        selectedTab = AppPage.habits.rawValue
+    }
+
+    private func openRecommendation(_ rec: RecommendationEngine.Recommendation, fallback: AppPage) {
+        let target = AppPage(rawValue: rec.targetPage) ?? fallback
+        if target == .habits, let tab = rec.targetHabitTab {
+            navigateToHabitTab(tab)
+            return
+        }
+        navigateTo(target)
     }
 
 }

@@ -32,8 +32,10 @@ enum DeepLinkRoute: Equatable, Sendable {
 
 // MARK: - DeepLinkRouter
 
-/// Pure parser that maps `mortalloom://` URLs to typed `DeepLinkRoute` values.
-/// Invalid URLs return nil. Supported URL shapes:
+/// Maps `mortalloom://` URLs to typed `DeepLinkRoute` values. Invalid URLs
+/// return nil. Mostly pure — the legacy `mortalloom://substances` alias
+/// pre-sets the persisted Habits tab so the user lands on the alcohol
+/// tracker. Supported URL shapes:
 ///
 /// - `mortalloom://overview` / `mortalloom://goals` / `mortalloom://reflections`
 ///   / `mortalloom://reports` / `mortalloom://calendar` / `mortalloom://habits`
@@ -72,6 +74,12 @@ enum DeepLinkRouter {
             return .goalEdit(id)
 
         default:
+            // Legacy alias for widgets / shortcuts still using
+            // mortalloom://substances — land on the alcohol tab in Habits.
+            if head == "substances" {
+                UserDefaults.standard.set(HabitTab.alcohol.rawValue, forKey: HabitTab.selectedKey)
+                return .page(.habits)
+            }
             if let page = AppPage.allCases.first(where: { $0.title.lowercased() == head }) {
                 return .page(page)
             }

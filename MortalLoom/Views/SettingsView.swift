@@ -56,6 +56,10 @@ struct SettingsView: View {
     @AppStorage(NotificationService.stagnationAlertsEnabledKey)
     private var stagnationAlertsEnabled: Bool = false
 
+    @AppStorage(HabitTab.showAlcoholKey) private var habitsShowAlcohol: Bool = true
+    @AppStorage(HabitTab.showNicotineKey) private var habitsShowNicotine: Bool = true
+    @AppStorage(HabitTab.showSaunaKey) private var habitsShowSauna: Bool = true
+
     var body: some View {
         settingsContent
             .background(Color.bg)
@@ -109,6 +113,7 @@ struct SettingsView: View {
                     proSection
                     appearanceSection
                     countdownSection
+                    habitsTrackersSection
                     notificationsSection
                 }
                 .padding()
@@ -174,6 +179,7 @@ struct SettingsView: View {
         VStack(spacing: 16) {
             setupGuideSection
             countdownSection
+            habitsTrackersSection
             notificationsSection
         }
     }
@@ -387,6 +393,23 @@ struct SettingsView: View {
     }
 
     // MARK: - Countdown Mode
+
+    @ViewBuilder
+    private var habitsTrackersSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionLabel(text: "HABITS TRACKERS")
+
+            Text("Choose which built-in trackers appear as tabs on the Habits page. Hiding a tracker keeps your logged data — it just stops showing up in the picker.")
+                .font(.caption)
+                .foregroundColor(.textSecondary)
+
+            Toggle("Show Alcohol", isOn: $habitsShowAlcohol)
+            Toggle("Show Nicotine", isOn: $habitsShowNicotine)
+            Toggle("Show Sauna", isOn: $habitsShowSauna)
+        }
+        .padding()
+        .cardStyle()
+    }
 
     @ViewBuilder
     private var countdownSection: some View {

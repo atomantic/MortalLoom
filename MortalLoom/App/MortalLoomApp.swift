@@ -28,12 +28,13 @@ enum AppConstants {
         #endif
     }
 
-    /// Launch with -substance-tab <alcohol|nicotine|sauna> to open a specific
-    /// tab inside the Substances page (for screenshot automation). Debug-only.
-    static var startSubstanceTab: String? {
+    /// Launch with -habits-tab <my habits|alcohol|nicotine|sauna> to open a
+    /// specific tab inside the Habits page (for screenshot automation).
+    /// Debug-only.
+    static var startHabitTab: String? {
         #if DEBUG
         let args = ProcessInfo.processInfo.arguments
-        guard let idx = args.firstIndex(of: "-substance-tab"),
+        guard let idx = args.firstIndex(of: "-habits-tab"),
               idx + 1 < args.count else { return nil }
         return args[idx + 1].lowercased()
         #else
@@ -256,8 +257,6 @@ struct ContentView: View {
             ReflectionsView()
         case .reports:
             ReportsView()
-        case .substances:
-            SubstancesView()
         }
     }
     #endif
@@ -321,7 +320,7 @@ struct MacContentView: View {
                 }
 
                 Section("Health") {
-                    ForEach([AppPage.body, .sleep, .substances, .blood, .lifestyle, .genome], id: \.self) { page in
+                    ForEach([AppPage.body, .sleep, .blood, .lifestyle, .genome], id: \.self) { page in
                         Label(page.title, systemImage: page.icon).tag(page)
                     }
                 }
@@ -344,8 +343,6 @@ struct MacContentView: View {
                     BodyView()
                 case .habits:
                     HabitsPage()
-                case .substances:
-                    SubstancesView()
                 case .blood:
                     BloodView()
                 case .calendar:

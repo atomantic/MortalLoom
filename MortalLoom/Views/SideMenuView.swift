@@ -15,7 +15,6 @@ enum AppPage: Int, CaseIterable, Hashable {
     case sleep = 9
     case reflections = 10
     case reports = 11
-    case substances = 12
 
     var icon: String {
         switch self {
@@ -31,7 +30,6 @@ enum AppPage: Int, CaseIterable, Hashable {
         case .sleep: "bed.double.fill"
         case .reflections: "bubble.left.and.bubble.right"
         case .reports: "chart.line.uptrend.xyaxis"
-        case .substances: "wineglass"
         }
     }
 
@@ -49,7 +47,6 @@ enum AppPage: Int, CaseIterable, Hashable {
         case .sleep: "Sleep"
         case .reflections: "Reflections"
         case .reports: "Reports"
-        case .substances: "Substances"
         }
     }
 
@@ -58,11 +55,10 @@ enum AppPage: Int, CaseIterable, Hashable {
     }
 
     // Pages shown in the bottom tab bar; the "More" button is rendered separately.
-    // Habits is the daily engagement hook — exercise, writing, anything
-    // cadence-driven — so it earns a primary slot. Reports stays in the tab
-    // bar for weekly alignment review. Reflections (read-only journal),
-    // Calendar (timeline), and Substances (alcohol/nicotine/sauna) live in
-    // the More drawer.
+    // Habits is the daily engagement hook — alcohol/nicotine/sauna trackers
+    // are tabs inside Habits, alongside user-authored goal habits. Reports
+    // stays in the tab bar for weekly alignment review. Reflections,
+    // Calendar, and the Health pages live in the More drawer.
     static let tabBarPages: [AppPage] = [.overview, .goals, .habits, .reports]
 }
 
@@ -79,7 +75,7 @@ private struct MenuSection {
 // Health pages follow as the "runway extender" surface area for longevity tracking.
 private let menuSections: [MenuSection] = [
     MenuSection(title: "Goals", pages: [.overview, .goals, .calendar, .habits, .reflections, .reports]),
-    MenuSection(title: "Health", pages: [.body, .sleep, .substances, .blood, .lifestyle, .genome]),
+    MenuSection(title: "Health", pages: [.body, .sleep, .blood, .lifestyle, .genome]),
     MenuSection(title: "App", pages: [.settings]),
 ]
 
