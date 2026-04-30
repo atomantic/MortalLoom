@@ -15,12 +15,12 @@ For completed work, see [DONE.md](./DONE.md).
 
 - [ ] **Apple Health correlations (5 remaining)**: Nicotine→Cardio Recovery (scatter on Substances), Activity→Blood Markers (extend `CorrelationEngine` with `walkingRunningDistance`), Daylight→Sleep Consistency (new `sleepConsistencyScore` in `SleepEngine`), BMI→Breathing Disturbances (two-series chart on Body), Gait Trends→Functional Age (new `FunctionalAgeEngine` from walking speed + asymmetry + stair speed), Exercise→Cardio Recovery
 - [ ] **Storage/HealthKit test coverage**: `DataStore` actor CRUD/merge paths, `HealthKitService` authorization-completion states, `ICloudMonitor` metadata-query handling
-- [ ] **God-file decomposition**: Split `SubstancesView.swift` (2,351), `OverviewView.swift` (1,743), `GoalsView.swift` (1,601), `GenomeView.swift` (1,522) into per-section files under `Views/<Page>/`. No logic changes.
+- [ ] **God-file decomposition**: Split `SubstancesView.swift` (2,449), `GoalsView.swift` (1,990), `GenomeView.swift` (1,928), `OverviewView.swift` (1,886) into per-section files under `Views/<Page>/`. No logic changes.
 - [ ] **macOS window lifecycle hardening (App Store guideline 4)**: `applicationShouldTerminateAfterLastWindowClosed` returns false, `applicationShouldHandleReopen` reopens main window, "Show Main Window" Commands menu entry
-- [ ] **NotificationService deep-links**: embed `mortalloom://` URLs in each notification's `userInfo["deepLinkURL"]` so taps open the right surface
+- [ ] **End-to-end deep-link wiring for sheets**: embed `mortalloom://` URLs in each notification's `userInfo["deepLinkURL"]`, AND finish the receiving side in `DeepLinkRouter` — sheet-presenting routes (`goalEdit`, `goalReflect`, `weeklyReview`) currently navigate to the owning page but don't open the target sheet (pending-sheet state is the open TODO at `Engine/DeepLinkRouter.swift:11`)
 - [ ] **Per-goal stagnation polish**: dedicated "mark signal resolved" UX (currently signals self-clear on next compute); push-notification surfacing for raised signals
 - [ ] **Pillar Dashboard CTAs**: "Add supporting goal" and "Add habit" buttons on the dashboard itself (currently must navigate back to GoalsView/HabitsView)
-- [ ] **Remaining `.inlineNavigationTitle()` adoptions**: PaywallView, GoalsView, GenomeView, BodyView, BloodView (swap raw `#if os(iOS)` guards to the helper from `Theme/Theme.swift`)
+- [ ] **Remaining `.inlineNavigationTitle()` adoptions**: PaywallView, GenomeView, BodyView, BloodView (swap raw `.navigationBarTitleDisplayMode(.inline)` to the helper from `Theme/Theme.swift`; GoalsView already migrated)
 - [ ] **Non-health pillar templates**: category-specific goal templates (creative projects, financial milestones, relationship rituals, legacy artifacts) so non-health pillars feel first-class
 
 ## Future / Ideas
@@ -28,8 +28,7 @@ For completed work, see [DONE.md](./DONE.md).
 - Sheet progress header on `GoalEditSheet`/`HabitEditSheet` for overflow-scroll discoverability
 - Bottom tab bar rethink — currently `[Overview, Goals, Reflections, Reports]`; revisit once Reports settles
 - Goal velocity chart and time-allocation analysis on Reports
-- Habit streak heat map; monthly/yearly review export
-- Daily nudge time-of-day picker (morning/evening/off)
+- Habit streak heat map; yearly review export
 
 ## Not Porting (web-specific)
 
