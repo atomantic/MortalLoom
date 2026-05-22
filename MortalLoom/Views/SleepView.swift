@@ -537,7 +537,11 @@ struct SleepView: View {
                 }
             }
             .chartYAxis {
-                AxisMarks(values: [0, 25, 50, 75, 100]) { value in
+                // Double literals so they match the Y axis's plottable type
+                // (the chart's y-value is consistency: Double). Using Int
+                // literals here would make value.as(Double.self) return nil
+                // and labels would silently disappear.
+                AxisMarks(values: [0.0, 25.0, 50.0, 75.0, 100.0]) { value in
                     AxisGridLine()
                     AxisValueLabel {
                         if let v = value.as(Double.self) {
