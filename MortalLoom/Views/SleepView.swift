@@ -638,9 +638,11 @@ struct SleepView: View {
             summary = SleepEngine.summarize(sleepHours: hours, age: userAge, metrics: metrics)
         }
 
-        // `metrics` is already filtered to days with sleepHours; the engine
-        // further requires daylightMinutes to be present on the same day.
-        let dcPoints = SleepEngine.daylightConsistencyCorrelation(metrics: metrics, windowNights: 7)
+        // Pass the FULL metrics list — the engine looks up daylight on the
+        // prior calendar day (D-1) for each sleep night (D), so it needs
+        // daylight-only days too (those have sleepHours == nil but still
+        // carry the relevant prior-day signal for the next night).
+        let dcPoints = SleepEngine.daylightConsistencyCorrelation(metrics: data.healthMetrics, windowNights: 7)
         daylightConsistencyPoints = dcPoints
         daylightConsistencyR = SleepEngine.daylightConsistencyCorrelationCoefficient(dcPoints)
 
