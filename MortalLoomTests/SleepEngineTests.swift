@@ -170,25 +170,34 @@ final class SleepEngineTests: XCTestCase {
         }
     }
 
-    func testDaylightConsistencyHandlesDuplicateDateEntries() {
+    func testDaylightConsistencyDeduplicatesByDateBeforeWindowing() {
         // HealthMetricEntry permits duplicate-date entries (deduplication is
-        // opt-in elsewhere). The engine must not crash on duplicate-key
-        // dictionary construction.
+        // opt-in elsewhere). The engine must dedupe upfront so duplicates
+        // (a) don't crash, and (b) don't inflate the window count or skew
+        // averages by double-counting the same calendar day.
         let start = Date(timeIntervalSince1970: 1_700_000_000)
         let cal = Calendar.current
         var metrics: [HealthMetricEntry] = []
+        // 8 unique calendar dates; emit each one TWICE with identical data.
         for i in 0..<8 {
             let dateStr = DateFormatting.dateString(cal.date(byAdding: .day, value: i, to: start)!)
             metrics.append(HealthMetricEntry(date: dateStr, sleepHours: 8, daylightMinutes: 60))
-            // Duplicate the entry for the same date to verify the engine
-            // tolerates the collision instead of trapping.
             metrics.append(HealthMetricEntry(date: dateStr, sleepHours: 8, daylightMinutes: 60))
         }
-        // No XCTAssertNoThrow needed — a trap would crash the whole process.
-        // The act of calling without crashing is the assertion; we also check
-        // the result is non-empty as a sanity check.
-        let points = SleepEngine.daylightConsistencyCorrelation(metrics: metrics, windowNights: 7)
-        XCTAssertFalse(points.isEmpty)
+        // Reference: a non-duplicated equivalent input (the same 8 calendar
+        // days, one entry each). The duplicate version must match this exactly.
+        let unique: [HealthMetricEntry] = (0..<8).map { i in
+            let dateStr = DateFormatting.dateString(cal.date(byAdding: .day, value: i, to: start)!)
+            return HealthMetricEntry(date: dateStr, sleepHours: 8, daylightMinutes: 60)
+        }
+        let dupedPoints = SleepEngine.daylightConsistencyCorrelation(metrics: metrics, windowNights: 7)
+        let uniquePoints = SleepEngine.daylightConsistencyCorrelation(metrics: unique, windowNights: 7)
+        XCTAssertEqual(dupedPoints.count, uniquePoints.count,
+                       "Duplicate-date entries must not inflate the window count")
+        // Also: endDate uniqueness pins down what the Chart id-by-endDate relies on.
+        let endDates = dupedPoints.map(\.endDate)
+        XCTAssertEqual(endDates.count, Set(endDates).count,
+                       "endDate must be unique across emitted points")
     }
 
     func testDaylightConsistencyPriorDayPairingDirection() {

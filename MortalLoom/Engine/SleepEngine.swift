@@ -100,18 +100,27 @@ enum SleepEngine {
     ) -> [DaylightConsistencyPoint] {
         guard windowNights >= 3 else { return [] }
 
-        // Index daylight readings by their calendar date for prior-day lookup.
-        // Use the grouping+first pattern (matching CorrelationEngine.alcoholSleepCorrelation)
-        // rather than Dictionary(uniqueKeysWithValues:) — the latter traps on duplicate
-        // keys, and HealthMetricEntry can legitimately carry multiple entries per date
-        // (deduplication is opt-in via HealthMetricEntry.deduplicatedByDate).
-        let daylightByDate: [String: Double] = Dictionary(grouping: metrics, by: \.date)
-            .compactMapValues { entries in entries.compactMap(\.daylightMinutes).first }
+        // Deduplicate by calendar date upfront. HealthMetricEntry permits
+        // multiple entries per date (e.g., one from an iCloud merge that
+        // hasn't been collapsed yet); without this, both the daylight index
+        // AND the sleep iteration would double-count the same calendar day,
+        // inflating usable.count and biasing the window averages / Pearson r.
+        // deduplicatedByDate merges all non-nil fields per date, so we keep
+        // both signals when they came from separate entries on the same day.
+        let deduped = HealthMetricEntry.deduplicatedByDate(metrics)
+
+        // Index daylight readings by their (now-unique) calendar date for
+        // prior-day lookup.
+        let daylightByDate: [String: Double] = Dictionary(
+            uniqueKeysWithValues: deduped.compactMap { m in
+                m.daylightMinutes.map { (m.date, $0) }
+            }
+        )
 
         // For each sleep night, find the daylight from the PRIOR calendar day.
         // That's the daytime leading into that sleep — the correct direction
         // for "daylight → sleep".
-        let usable: [(date: Date, daylight: Double, sleep: Double)] = metrics
+        let usable: [(date: Date, daylight: Double, sleep: Double)] = deduped
             .compactMap { m in
                 guard let sleep = m.sleepHours,
                       let sleepDate = DateFormatting.dateFromString(m.date),
