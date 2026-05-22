@@ -565,28 +565,34 @@ struct SleepView: View {
 
     private var daylightConsistencyExplanation: String {
         guard let r = daylightConsistencyR else {
-            return "Need more overlapping daylight and sleep data to estimate a correlation."
+            // SleepEngine returns nil from two distinct cases: too few points (<3)
+            // OR zero variance in either series. Distinguish them in the copy.
+            if daylightConsistencyPoints.count < 3 {
+                return "Need more overlapping daylight and sleep data to estimate a correlation."
+            }
+            return "Not enough variation in your daylight or sleep data to compute a correlation."
         }
-        if r >= 0.5 {
+        switch SleepEngine.classifyCorrelation(r) {
+        case .strongPositive:
             return "Strong positive: 7-night windows with more prior-day outdoor light tend to have more consistent sleep."
-        }
-        if r >= 0.2 {
+        case .weakPositive:
             return "Weak positive: more prior-day daylight in a window tracks somewhat with more consistent sleep."
-        }
-        if r > -0.2 {
+        case .none:
             return "No clear relationship in your data yet."
-        }
-        if r > -0.5 {
+        case .weakNegative:
             return "Weak negative: more prior-day daylight in a window tracks somewhat with less consistent sleep — unusual; check other factors."
+        case .strongNegative:
+            return "Strong negative: more prior-day daylight in a window tracks with less consistent sleep — unusual; check other factors."
         }
-        return "Strong negative: more prior-day daylight in a window tracks with less consistent sleep — unusual; check other factors."
     }
 
     private func correlationColor(_ r: Double) -> Color {
-        if r >= 0.5 { return .success }
-        if r >= 0.2 { return .accentColor }
-        if r > -0.2 { return .textMuted }
-        return .warning
+        switch SleepEngine.classifyCorrelation(r) {
+        case .strongPositive: return .success
+        case .weakPositive: return .accentColor
+        case .none: return .textMuted
+        case .weakNegative, .strongNegative: return .warning
+        }
     }
 
     private var daylightConsistencyAccessibilityLabel: String {

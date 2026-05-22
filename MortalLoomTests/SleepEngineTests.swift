@@ -283,6 +283,53 @@ final class SleepEngineTests: XCTestCase {
         XCTAssertEqual(r ?? 0, 1.0, accuracy: 0.001)
     }
 
+    func testDaylightConsistencyCoefficientClampsToOne() {
+        // A theoretically-perfect linear series can round to slightly > 1.0
+        // due to FP error. The coefficient must be clamped into [-1, 1] so
+        // downstream UI thresholds at ±1 still work.
+        let pts = (0..<5).map { i in
+            SleepEngine.DaylightConsistencyPoint(
+                endDate: Date(timeIntervalSince1970: TimeInterval(1_700_000_000 + i * 86_400)),
+                avgDaylightMinutes: Double(i),
+                consistency: Double(i),
+                nightsInWindow: 7
+            )
+        }
+        let r = SleepEngine.daylightConsistencyCorrelationCoefficient(pts)
+        XCTAssertNotNil(r)
+        XCTAssertLessThanOrEqual(r ?? 99, 1.0)
+        XCTAssertGreaterThanOrEqual(r ?? -99, -1.0)
+    }
+
+    // MARK: classifyCorrelation
+
+    func testClassifyCorrelationStrongPositive() {
+        XCTAssertEqual(SleepEngine.classifyCorrelation(0.5), .strongPositive)
+        XCTAssertEqual(SleepEngine.classifyCorrelation(0.9), .strongPositive)
+        XCTAssertEqual(SleepEngine.classifyCorrelation(1.0), .strongPositive)
+    }
+
+    func testClassifyCorrelationWeakPositive() {
+        XCTAssertEqual(SleepEngine.classifyCorrelation(0.2), .weakPositive)
+        XCTAssertEqual(SleepEngine.classifyCorrelation(0.4999), .weakPositive)
+    }
+
+    func testClassifyCorrelationNone() {
+        XCTAssertEqual(SleepEngine.classifyCorrelation(0.1999), .none)
+        XCTAssertEqual(SleepEngine.classifyCorrelation(0.0), .none)
+        XCTAssertEqual(SleepEngine.classifyCorrelation(-0.1999), .none)
+    }
+
+    func testClassifyCorrelationWeakNegative() {
+        XCTAssertEqual(SleepEngine.classifyCorrelation(-0.2), .weakNegative)
+        XCTAssertEqual(SleepEngine.classifyCorrelation(-0.4999), .weakNegative)
+    }
+
+    func testClassifyCorrelationStrongNegative() {
+        XCTAssertEqual(SleepEngine.classifyCorrelation(-0.5), .strongNegative)
+        XCTAssertEqual(SleepEngine.classifyCorrelation(-1.0), .strongNegative)
+    }
+
     func testDaylightConsistencyCoefficientPerfectNegative() {
         // Daylight ↑, consistency ↓ → r = -1.0
         let pts = (0..<5).map { i in

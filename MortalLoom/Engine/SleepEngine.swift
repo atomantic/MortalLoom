@@ -145,7 +145,10 @@ enum SleepEngine {
 
     /// Pearson correlation coefficient between daylight and consistency across
     /// the provided sliding-window points. Returns nil for <3 points (too few
-    /// observations) or when either series has zero variance.
+    /// observations) or when either series has zero variance. Result is clamped
+    /// to [-1.0, 1.0] to guard against floating-point overshoot (e.g., a
+    /// theoretically-±1.0 series occasionally computes as 1.0000000002, which
+    /// would skip past UI thresholds set at exactly ±1.0).
     static func daylightConsistencyCorrelationCoefficient(
         _ points: [DaylightConsistencyPoint]
     ) -> Double? {
@@ -164,7 +167,28 @@ enum SleepEngine {
             denY += dy * dy
         }
         guard denX > 0, denY > 0 else { return nil }
-        return num / sqrt(denX * denY)
+        return max(-1.0, min(1.0, num / sqrt(denX * denY)))
+    }
+
+    // MARK: - Correlation Strength Bucketing
+
+    /// Bucket a correlation coefficient into a strength + sign category.
+    /// Single source of truth for the thresholds shared by SleepView's
+    /// interpretation copy and badge color — prevents the two from drifting.
+    enum CorrelationStrength: Sendable {
+        case strongPositive  //  r ≥ 0.5
+        case weakPositive    //  0.2 ≤ r < 0.5
+        case none            // -0.2 < r < 0.2
+        case weakNegative    // -0.5 < r ≤ -0.2
+        case strongNegative  //  r ≤ -0.5
+    }
+
+    static func classifyCorrelation(_ r: Double) -> CorrelationStrength {
+        if r >= 0.5 { return .strongPositive }
+        if r >= 0.2 { return .weakPositive }
+        if r > -0.2 { return .none }
+        if r > -0.5 { return .weakNegative }
+        return .strongNegative
     }
 
     // MARK: - 7-Day and 30-Day Averages
