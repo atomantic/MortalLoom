@@ -61,6 +61,84 @@ enum SleepEngine {
         return max(0, min(100, (1 - cv / 0.3) * 100))
     }
 
+    // MARK: - Daylight → Sleep Consistency Correlation
+
+    /// A sliding-window pairing of daylight exposure and sleep consistency.
+    /// Each point represents one `windowDays`-length window ending at `endDate`,
+    /// where `avgDaylightMinutes` is the mean of daily daylight readings inside
+    /// the window and `consistency` is the SleepEngine consistency score of the
+    /// sleep hours inside the same window.
+    struct DaylightConsistencyPoint: Sendable, Equatable {
+        let endDate: Date
+        let avgDaylightMinutes: Double
+        let consistency: Double
+        let nightsInWindow: Int
+    }
+
+    /// Build sliding-window data points correlating outdoor light exposure to
+    /// sleep consistency. Requires both `daylightMinutes` and `sleepHours` to be
+    /// present for a day to count in a window; windows with fewer than 3 valid
+    /// nights are dropped (consistencyScore needs ≥3 nights to be meaningful).
+    static func daylightConsistencyCorrelation(
+        metrics: [HealthMetricEntry],
+        windowDays: Int = 7
+    ) -> [DaylightConsistencyPoint] {
+        guard windowDays >= 3 else { return [] }
+
+        // Keep only days with both signals, sorted by date.
+        let usable: [(date: Date, daylight: Double, sleep: Double)] = metrics
+            .compactMap { m in
+                guard let daylight = m.daylightMinutes,
+                      let sleep = m.sleepHours,
+                      let date = DateFormatting.dateFromString(m.date) else { return nil }
+                return (date, daylight, sleep)
+            }
+            .sorted { $0.date < $1.date }
+
+        guard usable.count >= windowDays else { return [] }
+
+        var points: [DaylightConsistencyPoint] = []
+        points.reserveCapacity(usable.count - windowDays + 1)
+
+        for endIdx in (windowDays - 1)..<usable.count {
+            let window = usable[(endIdx - windowDays + 1)...endIdx]
+            let avgDaylight = window.map(\.daylight).reduce(0, +) / Double(window.count)
+            let score = consistencyScore(window.map(\.sleep))
+            points.append(DaylightConsistencyPoint(
+                endDate: window.last!.date,
+                avgDaylightMinutes: avgDaylight,
+                consistency: score,
+                nightsInWindow: window.count
+            ))
+        }
+
+        return points
+    }
+
+    /// Pearson correlation coefficient between daylight and consistency across
+    /// the provided sliding-window points. Returns nil for <3 points (too few
+    /// observations) or when either series has zero variance.
+    static func daylightConsistencyCorrelationCoefficient(
+        _ points: [DaylightConsistencyPoint]
+    ) -> Double? {
+        guard points.count >= 3 else { return nil }
+        let xs = points.map(\.avgDaylightMinutes)
+        let ys = points.map(\.consistency)
+        let n = Double(points.count)
+        let meanX = xs.reduce(0, +) / n
+        let meanY = ys.reduce(0, +) / n
+        var num = 0.0, denX = 0.0, denY = 0.0
+        for i in 0..<points.count {
+            let dx = xs[i] - meanX
+            let dy = ys[i] - meanY
+            num += dx * dy
+            denX += dx * dx
+            denY += dy * dy
+        }
+        guard denX > 0, denY > 0 else { return nil }
+        return num / sqrt(denX * denY)
+    }
+
     // MARK: - 7-Day and 30-Day Averages
 
     /// Calculate rolling average from daily sleep values, most recent N days.
