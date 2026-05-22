@@ -13,7 +13,12 @@ For completed work, see [DONE.md](./DONE.md).
 
 ## Backlog
 
-- [ ] **Apple Health correlations (5 remaining)**: Nicotine→Cardio Recovery (scatter on Substances), Activity→Blood Markers (extend `CorrelationEngine` with `walkingRunningDistance`), Daylight→Sleep Consistency (new `sleepConsistencyScore` in `SleepEngine`), BMI→Breathing Disturbances (two-series chart on Body), Gait Trends→Functional Age (new `FunctionalAgeEngine` from walking speed + asymmetry + stair speed), Exercise→Cardio Recovery
+- [x] [hk-corr-daylight-sleep-consistency] **Daylight→Sleep Consistency**: 7-day sliding-window scatter of average daylight minutes vs sleep consistency score (CV-based), Pearson r badge, plain-language interpretation card on SleepView. New `daylightConsistencyCorrelation` / `daylightConsistencyCorrelationCoefficient` in `SleepEngine`.
+- [ ] [hk-corr-nicotine-cardio-recovery] **Nicotine→Cardio Recovery**: scatter on Substances pairing daily nicotine units with next-day `cardioRecovery` (HR drop in 1 min post-exercise from HealthKit). Add a `nicotineCardioRecoveryCorrelation` function to `CorrelationEngine` analogous to `alcoholSleepCorrelation`.
+- [ ] [hk-corr-activity-blood-markers] **Activity→Blood Markers**: surface `avgDailyDistance` (already on `CorrelationDataPoint`) in `BloodView` correlation UI; consider promoting `distanceCycling` and total-active-distance as additional series.
+- [ ] [hk-corr-bmi-breathing] **BMI→Breathing Disturbances**: two-series chart on `BodyView` overlaying historical BMI (from `BodyEntry.weight` + profile height) against `breathingDisturbances` per night to surface obesity↔apnea risk.
+- [ ] [hk-corr-gait-functional-age] **Gait Trends→Functional Age**: new `FunctionalAgeEngine` synthesizing `walkingSpeed`, `walkingAsymmetry`, `stairSpeedUp`/`stairSpeedDown` into an age-adjusted functional-age estimate; surface on Body or Overview.
+- [ ] [hk-corr-exercise-cardio-recovery] **Exercise→Cardio Recovery**: scatter / line chart pairing weekly `exerciseMinutes` with weekly average `cardioRecovery` — fitness-improvement feedback loop.
 - [ ] **Storage/HealthKit test coverage**: `DataStore` actor CRUD/merge paths, `HealthKitService` authorization-completion states, `ICloudMonitor` metadata-query handling
 - [ ] **God-file decomposition**: Split `SubstancesView.swift` (2,449), `GoalsView.swift` (1,990), `GenomeView.swift` (1,928), `OverviewView.swift` (1,886) into per-section files under `Views/<Page>/`. No logic changes.
 - [ ] **macOS window lifecycle hardening (App Store guideline 4)**: `applicationShouldTerminateAfterLastWindowClosed` returns false, `applicationShouldHandleReopen` reopens main window, "Show Main Window" Commands menu entry

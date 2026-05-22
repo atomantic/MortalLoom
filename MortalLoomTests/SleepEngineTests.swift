@@ -90,6 +90,269 @@ final class SleepEngineTests: XCTestCase {
         XCTAssertEqual(SleepEngine.consistencyScore([0, 0, 0, 0]), 0)
     }
 
+    // MARK: daylightConsistencyCorrelation
+
+    /// Build N+1 consecutive HealthMetricEntry days starting from `startDate`.
+    /// The first day has ONLY daylight (no sleep) — it exists to seed the
+    /// prior-day daylight pairing for the first sleep night. The remaining N
+    /// days each carry the supplied `daylight[i]` and `sleep[i]`. Result: N
+    /// valid (sleep, prior-day-daylight) pairings for the engine to window.
+    private func makeMetrics(startDate: Date, daylight: [Double], sleep: [Double]) -> [HealthMetricEntry] {
+        precondition(daylight.count == sleep.count)
+        let cal = Calendar.current
+        var entries: [HealthMetricEntry] = []
+        // Day -1 seeds the prior-day daylight for sleep on day 0.
+        // Reuse daylight[0] as the seed (mirrors realistic continuous data).
+        let seedDate = cal.date(byAdding: .day, value: -1, to: startDate)!
+        entries.append(HealthMetricEntry(
+            date: DateFormatting.dateString(seedDate),
+            sleepHours: nil,
+            daylightMinutes: daylight[0]
+        ))
+        for i in 0..<daylight.count {
+            let date = cal.date(byAdding: .day, value: i, to: startDate)!
+            entries.append(HealthMetricEntry(
+                date: DateFormatting.dateString(date),
+                sleepHours: sleep[i],
+                daylightMinutes: daylight[i]
+            ))
+        }
+        return entries
+    }
+
+    func testDaylightConsistencyTooFewPairsReturnsEmpty() {
+        // 5 valid (sleep, prior-day-daylight) pairs but windowNights=7 → empty
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let metrics = makeMetrics(
+            startDate: start,
+            daylight: [60, 60, 60, 60, 60],
+            sleep: [8, 8, 8, 8, 8]
+        )
+        XCTAssertTrue(SleepEngine.daylightConsistencyCorrelation(metrics: metrics).isEmpty)
+    }
+
+    func testDaylightConsistencyDropsNightsMissingPriorDayDaylight() {
+        // 10 calendar days all with sleep, but daylight only on days 0..4.
+        // Sleep on day D pairs with daylight on day D-1, so:
+        //   sleep D=1..5 → daylight D=0..4 → 5 valid pairs
+        //   sleep D=6..9 → daylight D=5..8 → all missing → dropped
+        //   sleep D=0  → daylight D=-1 → missing → dropped
+        // Total: 5 valid pairs, < 7 → empty.
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let cal = Calendar.current
+        let metrics: [HealthMetricEntry] = (0..<10).map { i in
+            let dateStr = DateFormatting.dateString(cal.date(byAdding: .day, value: i, to: start)!)
+            return HealthMetricEntry(
+                date: dateStr,
+                sleepHours: 8,
+                daylightMinutes: i < 5 ? 60 : nil
+            )
+        }
+        XCTAssertTrue(SleepEngine.daylightConsistencyCorrelation(metrics: metrics).isEmpty)
+    }
+
+    func testDaylightConsistencyProducesOneWindowPerEndNight() {
+        // 10 valid pairs (via the seeded helper), windowNights=7 → 4 sliding
+        // windows (ending at pair indices 6, 7, 8, 9).
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let metrics = makeMetrics(
+            startDate: start,
+            daylight: Array(repeating: 60.0, count: 10),
+            sleep: Array(repeating: 8.0, count: 10)
+        )
+        let points = SleepEngine.daylightConsistencyCorrelation(metrics: metrics, windowNights: 7)
+        XCTAssertEqual(points.count, 4)
+        // Every window has identical 8h sleep → perfect consistency (100)
+        for p in points {
+            XCTAssertEqual(p.consistency, 100, accuracy: 0.001)
+            XCTAssertEqual(p.avgDaylightMinutes, 60, accuracy: 0.001)
+            XCTAssertEqual(p.nightsInWindow, 7)
+        }
+    }
+
+    func testDaylightConsistencyDeduplicatesByDateBeforeWindowing() {
+        // HealthMetricEntry permits duplicate-date entries (deduplication is
+        // opt-in elsewhere). The engine must dedupe upfront so duplicates
+        // (a) don't crash, and (b) don't inflate the window count or skew
+        // averages by double-counting the same calendar day.
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let cal = Calendar.current
+        var metrics: [HealthMetricEntry] = []
+        // 8 unique calendar dates; emit each one TWICE with identical data.
+        for i in 0..<8 {
+            let dateStr = DateFormatting.dateString(cal.date(byAdding: .day, value: i, to: start)!)
+            metrics.append(HealthMetricEntry(date: dateStr, sleepHours: 8, daylightMinutes: 60))
+            metrics.append(HealthMetricEntry(date: dateStr, sleepHours: 8, daylightMinutes: 60))
+        }
+        // Reference: a non-duplicated equivalent input (the same 8 calendar
+        // days, one entry each). The duplicate version must match this exactly.
+        let unique: [HealthMetricEntry] = (0..<8).map { i in
+            let dateStr = DateFormatting.dateString(cal.date(byAdding: .day, value: i, to: start)!)
+            return HealthMetricEntry(date: dateStr, sleepHours: 8, daylightMinutes: 60)
+        }
+        let dupedPoints = SleepEngine.daylightConsistencyCorrelation(metrics: metrics, windowNights: 7)
+        let uniquePoints = SleepEngine.daylightConsistencyCorrelation(metrics: unique, windowNights: 7)
+        XCTAssertEqual(dupedPoints.count, uniquePoints.count,
+                       "Duplicate-date entries must not inflate the window count")
+        // Also: endDate uniqueness pins down what the Chart id-by-endDate relies on.
+        let endDates = dupedPoints.map(\.endDate)
+        XCTAssertEqual(endDates.count, Set(endDates).count,
+                       "endDate must be unique across emitted points")
+    }
+
+    func testDaylightConsistencyPriorDayPairingDirection() {
+        // Pin the direction: daylight[D-1] pairs with sleep[D], NOT same-day.
+        // Construct 4 days where daylight per day = [10, 20, 30, 40] and
+        // sleep per day = [8, 8, 8, 8]. With prior-day pairing on a window
+        // ending at day 3 with 3 nights (sleep days 1,2,3), the average
+        // daylight = mean(10, 20, 30) = 20, NOT mean(20, 30, 40) = 30.
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let cal = Calendar.current
+        let metrics: [HealthMetricEntry] = (0..<4).map { i in
+            let dateStr = DateFormatting.dateString(cal.date(byAdding: .day, value: i, to: start)!)
+            return HealthMetricEntry(
+                date: dateStr,
+                sleepHours: 8,
+                daylightMinutes: Double((i + 1) * 10)
+            )
+        }
+        let points = SleepEngine.daylightConsistencyCorrelation(metrics: metrics, windowNights: 3)
+        // 3 valid pairs (sleep D=1,2,3 ↔ daylight D=0,1,2) → 1 window
+        XCTAssertEqual(points.count, 1)
+        XCTAssertEqual(points.first?.avgDaylightMinutes ?? 0, 20.0, accuracy: 0.001)
+    }
+
+    func testDaylightConsistencyWindowNightsGuardRejectsTooSmall() {
+        // windowNights < 3 returns empty (consistencyScore needs ≥3 nights)
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let metrics = makeMetrics(
+            startDate: start,
+            daylight: Array(repeating: 60.0, count: 10),
+            sleep: Array(repeating: 8.0, count: 10)
+        )
+        XCTAssertTrue(SleepEngine.daylightConsistencyCorrelation(metrics: metrics, windowNights: 2).isEmpty)
+    }
+
+    func testDaylightConsistencyWindowSpansMoreThanWindowNightsCalendarDays() {
+        // 14 calendar days. Both signals present on days 0,1,2,3 and 7,8,9,10,11,12,13.
+        // Sleep on day D pairs with daylight on day D-1:
+        //   sleep D=1,2,3 ↔ daylight D=0,1,2     → 3 valid pairs
+        //   sleep D=7  ↔ daylight D=6 (missing)  → dropped
+        //   sleep D=8..13 ↔ daylight D=7..12      → 6 valid pairs
+        // Total: 9 valid pairs → 9 − 7 + 1 = 3 windows. The first window's pairs
+        // span calendar days 1–8 (sleep on day 1 through day 8) = 8 calendar days,
+        // demonstrating that "7-night window" can span more than 7 calendar days.
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let cal = Calendar.current
+        let metrics: [HealthMetricEntry] = (0..<14).map { i in
+            let dateStr = DateFormatting.dateString(cal.date(byAdding: .day, value: i, to: start)!)
+            let hasData = i < 4 || i >= 7
+            return HealthMetricEntry(
+                date: dateStr,
+                sleepHours: hasData ? 8 : nil,
+                daylightMinutes: hasData ? 60 : nil
+            )
+        }
+        let points = SleepEngine.daylightConsistencyCorrelation(metrics: metrics, windowNights: 7)
+        XCTAssertEqual(points.count, 3)
+        XCTAssertEqual(points.first?.nightsInWindow, 7)
+    }
+
+    func testDaylightConsistencyCoefficientRequiresThreePoints() {
+        // <3 points → nil
+        let p1 = SleepEngine.DaylightConsistencyPoint(endDate: Date(), avgDaylightMinutes: 30, consistency: 80, nightsInWindow: 7)
+        let p2 = SleepEngine.DaylightConsistencyPoint(endDate: Date(), avgDaylightMinutes: 60, consistency: 90, nightsInWindow: 7)
+        XCTAssertNil(SleepEngine.daylightConsistencyCorrelationCoefficient([p1, p2]))
+    }
+
+    func testDaylightConsistencyCoefficientZeroVarianceReturnsNil() {
+        // All-identical daylight → x-variance is 0 → nil (no correlation defined)
+        let pts = (0..<5).map { i in
+            SleepEngine.DaylightConsistencyPoint(
+                endDate: Date(timeIntervalSince1970: TimeInterval(1_700_000_000 + i * 86_400)),
+                avgDaylightMinutes: 60,
+                consistency: Double(50 + i * 10),
+                nightsInWindow: 7
+            )
+        }
+        XCTAssertNil(SleepEngine.daylightConsistencyCorrelationCoefficient(pts))
+    }
+
+    func testDaylightConsistencyCoefficientPerfectPositive() {
+        // Linear daylight & consistency → r = +1.0
+        let pts = (0..<5).map { i in
+            SleepEngine.DaylightConsistencyPoint(
+                endDate: Date(timeIntervalSince1970: TimeInterval(1_700_000_000 + i * 86_400)),
+                avgDaylightMinutes: Double(30 + i * 10),
+                consistency: Double(40 + i * 10),
+                nightsInWindow: 7
+            )
+        }
+        let r = SleepEngine.daylightConsistencyCorrelationCoefficient(pts)
+        XCTAssertEqual(r ?? 0, 1.0, accuracy: 0.001)
+    }
+
+    func testDaylightConsistencyCoefficientClampsToOne() {
+        // A theoretically-perfect linear series can round to slightly > 1.0
+        // due to FP error. The coefficient must be clamped into [-1, 1] so
+        // downstream UI thresholds at ±1 still work.
+        let pts = (0..<5).map { i in
+            SleepEngine.DaylightConsistencyPoint(
+                endDate: Date(timeIntervalSince1970: TimeInterval(1_700_000_000 + i * 86_400)),
+                avgDaylightMinutes: Double(i),
+                consistency: Double(i),
+                nightsInWindow: 7
+            )
+        }
+        let r = SleepEngine.daylightConsistencyCorrelationCoefficient(pts)
+        XCTAssertNotNil(r)
+        XCTAssertLessThanOrEqual(r ?? 99, 1.0)
+        XCTAssertGreaterThanOrEqual(r ?? -99, -1.0)
+    }
+
+    // MARK: classifyCorrelation
+
+    func testClassifyCorrelationStrongPositive() {
+        XCTAssertEqual(SleepEngine.classifyCorrelation(0.5), .strongPositive)
+        XCTAssertEqual(SleepEngine.classifyCorrelation(0.9), .strongPositive)
+        XCTAssertEqual(SleepEngine.classifyCorrelation(1.0), .strongPositive)
+    }
+
+    func testClassifyCorrelationWeakPositive() {
+        XCTAssertEqual(SleepEngine.classifyCorrelation(0.2), .weakPositive)
+        XCTAssertEqual(SleepEngine.classifyCorrelation(0.4999), .weakPositive)
+    }
+
+    func testClassifyCorrelationNone() {
+        XCTAssertEqual(SleepEngine.classifyCorrelation(0.1999), .none)
+        XCTAssertEqual(SleepEngine.classifyCorrelation(0.0), .none)
+        XCTAssertEqual(SleepEngine.classifyCorrelation(-0.1999), .none)
+    }
+
+    func testClassifyCorrelationWeakNegative() {
+        XCTAssertEqual(SleepEngine.classifyCorrelation(-0.2), .weakNegative)
+        XCTAssertEqual(SleepEngine.classifyCorrelation(-0.4999), .weakNegative)
+    }
+
+    func testClassifyCorrelationStrongNegative() {
+        XCTAssertEqual(SleepEngine.classifyCorrelation(-0.5), .strongNegative)
+        XCTAssertEqual(SleepEngine.classifyCorrelation(-1.0), .strongNegative)
+    }
+
+    func testDaylightConsistencyCoefficientPerfectNegative() {
+        // Daylight ↑, consistency ↓ → r = -1.0
+        let pts = (0..<5).map { i in
+            SleepEngine.DaylightConsistencyPoint(
+                endDate: Date(timeIntervalSince1970: TimeInterval(1_700_000_000 + i * 86_400)),
+                avgDaylightMinutes: Double(30 + i * 10),
+                consistency: Double(90 - i * 10),
+                nightsInWindow: 7
+            )
+        }
+        let r = SleepEngine.daylightConsistencyCorrelationCoefficient(pts)
+        XCTAssertEqual(r ?? 0, -1.0, accuracy: 0.001)
+    }
+
     // MARK: rollingAverage
 
     func testRollingAverageEmpty() {

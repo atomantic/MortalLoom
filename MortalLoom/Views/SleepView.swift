@@ -22,6 +22,8 @@ struct SleepView: View {
     @State private var sleepPoints: [SleepPoint] = []
     @State private var stagePoints: [SleepStagePoint] = []
     @State private var summary: SleepEngine.SleepSummary?
+    @State private var daylightConsistencyPoints: [SleepEngine.DaylightConsistencyPoint] = []
+    @State private var daylightConsistencyR: Double?
     @State private var userAge: Int = 0
     @State private var isLoading = true
     @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
@@ -61,6 +63,9 @@ struct SleepView: View {
             breathingCard(apnea: apnea, avgBD: summary.avgBreathingDisturbances)
         }
         sleepStatsCard(summary)
+        if !daylightConsistencyPoints.isEmpty {
+            daylightConsistencyCard
+        }
         longevityImpactCard(summary)
     }
 
@@ -89,6 +94,9 @@ struct SleepView: View {
         HStack(alignment: .top, spacing: 16) {
             sleepStatsCard(summary)
             longevityImpactCard(summary)
+        }
+        if !daylightConsistencyPoints.isEmpty {
+            daylightConsistencyCard
         }
     }
 
@@ -492,6 +500,111 @@ struct SleepView: View {
         .accessibilityLabel("Longevity impact: \(summary.longevityYears >= 0 ? "plus" : "minus") \(String(format: "%.1f", abs(summary.longevityYears))) years on life expectancy from sleep habits")
     }
 
+    // MARK: - Daylight → Consistency Correlation Card
+
+    private var daylightConsistencyCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Daylight ↔ Sleep Consistency")
+                    .font(.headline)
+                    .foregroundColor(.textPrimary)
+                Spacer()
+                if let r = daylightConsistencyR {
+                    Text("r = \(String(format: "%+.2f", r))")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(correlationColor(r))
+                        .monospacedDigit()
+                }
+            }
+
+            Chart(daylightConsistencyPoints, id: \.endDate) { point in
+                PointMark(
+                    x: .value("Daylight (min/day, 7-night avg)", point.avgDaylightMinutes),
+                    y: .value("Sleep consistency (0–100)", point.consistency)
+                )
+                .foregroundStyle(Color.accentColor.opacity(0.75))
+                .symbolSize(56)
+            }
+            .chartXAxis {
+                AxisMarks(values: .automatic(desiredCount: 4)) { value in
+                    AxisGridLine()
+                    AxisValueLabel {
+                        if let v = value.as(Double.self) {
+                            Text("\(Int(v))m")
+                        }
+                    }
+                }
+            }
+            .chartYAxis {
+                // Double literals so they match the Y axis's plottable type
+                // (the chart's y-value is consistency: Double). Using Int
+                // literals here would make value.as(Double.self) return nil
+                // and labels would silently disappear.
+                AxisMarks(values: [0.0, 25.0, 50.0, 75.0, 100.0]) { value in
+                    AxisGridLine()
+                    AxisValueLabel {
+                        if let v = value.as(Double.self) {
+                            Text("\(Int(v))")
+                        }
+                    }
+                }
+            }
+            .chartYScale(domain: 0...100)
+            .frame(height: Layout.chartFrameHeight)
+
+            Text(daylightConsistencyExplanation)
+                .font(.caption)
+                .foregroundColor(.textSecondary)
+
+            Text("Each dot = one 7-night window of overlapping data. X-axis is your average outdoor light exposure on the days leading into those nights; Y-axis is how consistent your sleep durations were (100 = identical every night).")
+                .font(.caption2)
+                .foregroundColor(.textMuted)
+        }
+        .padding()
+        .cardStyle()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(daylightConsistencyAccessibilityLabel)
+    }
+
+    private var daylightConsistencyExplanation: String {
+        guard let r = daylightConsistencyR else {
+            // SleepEngine returns nil from two distinct cases: too few points (<3)
+            // OR zero variance in either series. Distinguish them in the copy.
+            if daylightConsistencyPoints.count < 3 {
+                return "Need more overlapping daylight and sleep data to estimate a correlation."
+            }
+            return "Not enough variation in your daylight or sleep data to compute a correlation."
+        }
+        switch SleepEngine.classifyCorrelation(r) {
+        case .strongPositive:
+            return "Strong positive: 7-night windows with more prior-day outdoor light tend to have more consistent sleep."
+        case .weakPositive:
+            return "Weak positive: more prior-day daylight in a window tracks somewhat with more consistent sleep."
+        case .none:
+            return "No clear relationship in your data yet."
+        case .weakNegative:
+            return "Weak negative: more prior-day daylight in a window tracks somewhat with less consistent sleep — unusual; check other factors."
+        case .strongNegative:
+            return "Strong negative: more prior-day daylight in a window tracks with less consistent sleep — unusual; check other factors."
+        }
+    }
+
+    private func correlationColor(_ r: Double) -> Color {
+        switch SleepEngine.classifyCorrelation(r) {
+        case .strongPositive: return .success
+        case .weakPositive: return .accentColor
+        case .none: return .textMuted
+        case .weakNegative, .strongNegative: return .warning
+        }
+    }
+
+    private var daylightConsistencyAccessibilityLabel: String {
+        let base = "Daylight and sleep consistency scatter chart over \(daylightConsistencyPoints.count) sliding seven-night windows."
+        guard let r = daylightConsistencyR else { return base + " Not enough data for a correlation." }
+        return base + " Pearson correlation \(String(format: "%.2f", r))."
+    }
+
     // MARK: - Data Loading
 
     private func loadData() async {
@@ -534,6 +647,15 @@ struct SleepView: View {
         if !hours.isEmpty {
             summary = SleepEngine.summarize(sleepHours: hours, age: userAge, metrics: metrics)
         }
+
+        // Pass the FULL metrics list — the engine looks up daylight on the
+        // prior calendar day (D-1) for each sleep night (D), so it needs
+        // daylight-only days too (those have sleepHours == nil but still
+        // carry the relevant prior-day signal for the next night).
+        let dcPoints = SleepEngine.daylightConsistencyCorrelation(metrics: data.healthMetrics, windowNights: 7)
+        daylightConsistencyPoints = dcPoints
+        daylightConsistencyR = SleepEngine.daylightConsistencyCorrelationCoefficient(dcPoints)
+
         isLoading = false
     }
 

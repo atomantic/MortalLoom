@@ -61,6 +61,145 @@ enum SleepEngine {
         return max(0, min(100, (1 - cv / 0.3) * 100))
     }
 
+    // MARK: - Daylight → Sleep Consistency Correlation
+
+    /// A sliding-window pairing of daylight exposure and the sleep that
+    /// FOLLOWED it. Each point represents `nightsInWindow` consecutive nights
+    /// with sleep data, where each night's sleep is paired with daylight
+    /// recorded on the prior calendar date (the daytime leading into that
+    /// night). `endDate` is the date of the last night in the window;
+    /// `avgDaylightMinutes` is the mean daylight reading across those prior
+    /// days; `consistency` is the SleepEngine consistency score (0–100) of the
+    /// sleep hours in the window.
+    /// Note: when source data has gaps, a window of `nightsInWindow`
+    /// observations may span MORE than `nightsInWindow` calendar days.
+    struct DaylightConsistencyPoint: Sendable, Equatable {
+        let endDate: Date
+        let avgDaylightMinutes: Double
+        let consistency: Double
+        let nightsInWindow: Int
+    }
+
+    /// Build sliding-window data points correlating outdoor light exposure to
+    /// the sleep that followed it. The "→ Sleep" direction matters: HealthKit
+    /// keys sleep samples to their END date (the morning after) while it keys
+    /// daylight intervals to their START date (the daytime they cover). So
+    /// the daylight that *led into* sleep date D is recorded on calendar date
+    /// D-1, mirroring the day-N → night-N+1 convention used by
+    /// `alcoholSleepCorrelation`. Requires sleepHours on date D AND
+    /// daylightMinutes on date D-1; nights missing either signal are skipped
+    /// before windowing. Windowing is by COUNT of qualifying nights, not by
+    /// calendar span — a `windowNights: 7` window therefore represents the
+    /// last 7 nights with both signals, which may span more than 7 calendar
+    /// days when readings are missing on intervening dates. `windowNights`
+    /// must be ≥3 because `consistencyScore` needs ≥3 nights to be meaningful;
+    /// values below that produce an empty result.
+    static func daylightConsistencyCorrelation(
+        metrics: [HealthMetricEntry],
+        windowNights: Int = 7
+    ) -> [DaylightConsistencyPoint] {
+        guard windowNights >= 3 else { return [] }
+
+        // Deduplicate by calendar date upfront. HealthMetricEntry permits
+        // multiple entries per date (e.g., one from an iCloud merge that
+        // hasn't been collapsed yet); without this, both the daylight index
+        // AND the sleep iteration would double-count the same calendar day,
+        // inflating usable.count and biasing the window averages / Pearson r.
+        // deduplicatedByDate merges all non-nil fields per date, so we keep
+        // both signals when they came from separate entries on the same day.
+        let deduped = HealthMetricEntry.deduplicatedByDate(metrics)
+
+        // Index daylight readings by their (now-unique) calendar date for
+        // prior-day lookup.
+        let daylightByDate: [String: Double] = Dictionary(
+            uniqueKeysWithValues: deduped.compactMap { m in
+                m.daylightMinutes.map { (m.date, $0) }
+            }
+        )
+
+        // For each sleep night, find the daylight from the PRIOR calendar day.
+        // That's the daytime leading into that sleep — the correct direction
+        // for "daylight → sleep".
+        let usable: [(date: Date, daylight: Double, sleep: Double)] = deduped
+            .compactMap { m in
+                guard let sleep = m.sleepHours,
+                      let sleepDate = DateFormatting.dateFromString(m.date),
+                      let priorDay = Calendar.current.date(byAdding: .day, value: -1, to: sleepDate)
+                else { return nil }
+                let priorDayStr = DateFormatting.dateString(priorDay)
+                guard let daylight = daylightByDate[priorDayStr] else { return nil }
+                return (sleepDate, daylight, sleep)
+            }
+            .sorted { $0.date < $1.date }
+
+        guard usable.count >= windowNights else { return [] }
+
+        var points: [DaylightConsistencyPoint] = []
+        points.reserveCapacity(usable.count - windowNights + 1)
+
+        for endIdx in (windowNights - 1)..<usable.count {
+            let window = usable[(endIdx - windowNights + 1)...endIdx]
+            let avgDaylight = window.map(\.daylight).reduce(0, +) / Double(window.count)
+            let score = consistencyScore(window.map(\.sleep))
+            points.append(DaylightConsistencyPoint(
+                endDate: window.last!.date,
+                avgDaylightMinutes: avgDaylight,
+                consistency: score,
+                nightsInWindow: window.count
+            ))
+        }
+
+        return points
+    }
+
+    /// Pearson correlation coefficient between daylight and consistency across
+    /// the provided sliding-window points. Returns nil for <3 points (too few
+    /// observations) or when either series has zero variance. Result is clamped
+    /// to [-1.0, 1.0] to guard against floating-point overshoot (e.g., a
+    /// theoretically-±1.0 series occasionally computes as 1.0000000002, which
+    /// would skip past UI thresholds set at exactly ±1.0).
+    static func daylightConsistencyCorrelationCoefficient(
+        _ points: [DaylightConsistencyPoint]
+    ) -> Double? {
+        guard points.count >= 3 else { return nil }
+        let xs = points.map(\.avgDaylightMinutes)
+        let ys = points.map(\.consistency)
+        let n = Double(points.count)
+        let meanX = xs.reduce(0, +) / n
+        let meanY = ys.reduce(0, +) / n
+        var num = 0.0, denX = 0.0, denY = 0.0
+        for i in 0..<points.count {
+            let dx = xs[i] - meanX
+            let dy = ys[i] - meanY
+            num += dx * dy
+            denX += dx * dx
+            denY += dy * dy
+        }
+        guard denX > 0, denY > 0 else { return nil }
+        return max(-1.0, min(1.0, num / sqrt(denX * denY)))
+    }
+
+    // MARK: - Correlation Strength Bucketing
+
+    /// Bucket a correlation coefficient into a strength + sign category.
+    /// Single source of truth for the thresholds shared by SleepView's
+    /// interpretation copy and badge color — prevents the two from drifting.
+    enum CorrelationStrength: Sendable {
+        case strongPositive  //  r ≥ 0.5
+        case weakPositive    //  0.2 ≤ r < 0.5
+        case none            // -0.2 < r < 0.2
+        case weakNegative    // -0.5 < r ≤ -0.2
+        case strongNegative  //  r ≤ -0.5
+    }
+
+    static func classifyCorrelation(_ r: Double) -> CorrelationStrength {
+        if r >= 0.5 { return .strongPositive }
+        if r >= 0.2 { return .weakPositive }
+        if r > -0.2 { return .none }
+        if r > -0.5 { return .weakNegative }
+        return .strongNegative
+    }
+
     // MARK: - 7-Day and 30-Day Averages
 
     /// Calculate rolling average from daily sleep values, most recent N days.
