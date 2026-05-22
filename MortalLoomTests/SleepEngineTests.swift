@@ -107,8 +107,8 @@ final class SleepEngineTests: XCTestCase {
         }
     }
 
-    func testDaylightConsistencyTooFewDaysReturnsEmpty() {
-        // 5 valid days but windowDays=7 → no full window
+    func testDaylightConsistencyTooFewNightsReturnsEmpty() {
+        // 5 valid nights but windowNights=7 → no full window
         let start = Date(timeIntervalSince1970: 1_700_000_000)
         let metrics = makeMetrics(
             startDate: start,
@@ -118,8 +118,8 @@ final class SleepEngineTests: XCTestCase {
         XCTAssertTrue(SleepEngine.daylightConsistencyCorrelation(metrics: metrics).isEmpty)
     }
 
-    func testDaylightConsistencyDropsDaysMissingEitherSignal() {
-        // 10 days total but only 6 have BOTH daylight and sleep → no full 7-day window
+    func testDaylightConsistencyDropsNightsMissingEitherSignal() {
+        // 10 calendar days total but only 6 have BOTH daylight and sleep → no full 7-night window
         let start = Date(timeIntervalSince1970: 1_700_000_000)
         let cal = Calendar.current
         let metrics: [HealthMetricEntry] = (0..<10).map { i in
@@ -134,15 +134,15 @@ final class SleepEngineTests: XCTestCase {
         XCTAssertTrue(SleepEngine.daylightConsistencyCorrelation(metrics: metrics).isEmpty)
     }
 
-    func testDaylightConsistencyProducesOneWindowPerEndDay() {
-        // 10 valid days, windowDays=7 → 4 sliding windows (days 6, 7, 8, 9)
+    func testDaylightConsistencyProducesOneWindowPerEndNight() {
+        // 10 valid nights, windowNights=7 → 4 sliding windows (ending at indices 6, 7, 8, 9)
         let start = Date(timeIntervalSince1970: 1_700_000_000)
         let metrics = makeMetrics(
             startDate: start,
             daylight: Array(repeating: 60.0, count: 10),
             sleep: Array(repeating: 8.0, count: 10)
         )
-        let points = SleepEngine.daylightConsistencyCorrelation(metrics: metrics, windowDays: 7)
+        let points = SleepEngine.daylightConsistencyCorrelation(metrics: metrics, windowNights: 7)
         XCTAssertEqual(points.count, 4)
         // Every window has identical 8h sleep → perfect consistency (100)
         for p in points {
@@ -152,15 +152,36 @@ final class SleepEngineTests: XCTestCase {
         }
     }
 
-    func testDaylightConsistencyWindowDaysGuardRejectsTooSmall() {
-        // windowDays < 3 returns empty (consistencyScore needs ≥3 nights)
+    func testDaylightConsistencyWindowNightsGuardRejectsTooSmall() {
+        // windowNights < 3 returns empty (consistencyScore needs ≥3 nights)
         let start = Date(timeIntervalSince1970: 1_700_000_000)
         let metrics = makeMetrics(
             startDate: start,
             daylight: Array(repeating: 60.0, count: 10),
             sleep: Array(repeating: 8.0, count: 10)
         )
-        XCTAssertTrue(SleepEngine.daylightConsistencyCorrelation(metrics: metrics, windowDays: 2).isEmpty)
+        XCTAssertTrue(SleepEngine.daylightConsistencyCorrelation(metrics: metrics, windowNights: 2).isEmpty)
+    }
+
+    func testDaylightConsistencyWindowSpansMoreThanWindowNightsCalendarDays() {
+        // 8 calendar days: nights 0,1,2 then a 4-day gap then nights 7,8,9,10,11
+        // = 8 valid nights total; one 7-night window spanning 11 calendar days.
+        // Documents the "by count of qualifying nights, not calendar span" semantics.
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let cal = Calendar.current
+        let metrics: [HealthMetricEntry] = (0..<12).map { i in
+            let dateStr = DateFormatting.dateString(cal.date(byAdding: .day, value: i, to: start)!)
+            let hasData = i < 3 || i >= 7
+            return HealthMetricEntry(
+                date: dateStr,
+                sleepHours: hasData ? 8 : nil,
+                daylightMinutes: hasData ? 60 : nil
+            )
+        }
+        let points = SleepEngine.daylightConsistencyCorrelation(metrics: metrics, windowNights: 7)
+        // 8 qualifying nights → 8 - 7 + 1 = 2 windows
+        XCTAssertEqual(points.count, 2)
+        XCTAssertEqual(points.first?.nightsInWindow, 7)
     }
 
     func testDaylightConsistencyCoefficientRequiresThreePoints() {

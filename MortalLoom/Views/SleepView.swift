@@ -520,7 +520,7 @@ struct SleepView: View {
 
             Chart(daylightConsistencyPoints, id: \.endDate) { point in
                 PointMark(
-                    x: .value("Daylight (min/day, 7d avg)", point.avgDaylightMinutes),
+                    x: .value("Daylight (min/day, 7-night avg)", point.avgDaylightMinutes),
                     y: .value("Sleep consistency (0–100)", point.consistency)
                 )
                 .foregroundStyle(Color.accentColor.opacity(0.75))
@@ -590,7 +590,7 @@ struct SleepView: View {
     }
 
     private var daylightConsistencyAccessibilityLabel: String {
-        let base = "Daylight and sleep consistency scatter chart over \(daylightConsistencyPoints.count) sliding seven-day windows."
+        let base = "Daylight and sleep consistency scatter chart over \(daylightConsistencyPoints.count) sliding seven-night windows."
         guard let r = daylightConsistencyR else { return base + " Not enough data for a correlation." }
         return base + " Pearson correlation \(String(format: "%.2f", r))."
     }
@@ -640,7 +640,7 @@ struct SleepView: View {
 
         // `metrics` is already filtered to days with sleepHours; the engine
         // further requires daylightMinutes to be present on the same day.
-        let dcPoints = SleepEngine.daylightConsistencyCorrelation(metrics: metrics, windowDays: 7)
+        let dcPoints = SleepEngine.daylightConsistencyCorrelation(metrics: metrics, windowNights: 7)
         daylightConsistencyPoints = dcPoints
         daylightConsistencyR = SleepEngine.daylightConsistencyCorrelationCoefficient(dcPoints)
 

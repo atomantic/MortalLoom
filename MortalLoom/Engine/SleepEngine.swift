@@ -64,10 +64,14 @@ enum SleepEngine {
     // MARK: - Daylight → Sleep Consistency Correlation
 
     /// A sliding-window pairing of daylight exposure and sleep consistency.
-    /// Each point represents one `windowDays`-length window ending at `endDate`,
-    /// where `avgDaylightMinutes` is the mean of daily daylight readings inside
-    /// the window and `consistency` is the SleepEngine consistency score of the
-    /// sleep hours inside the same window.
+    /// Each point represents `nightsInWindow` consecutive nights with BOTH
+    /// daylight and sleep readings present (days missing either signal are
+    /// skipped before windowing — see `daylightConsistencyCorrelation`).
+    /// `endDate` is the date of the last night in the window; `avgDaylightMinutes`
+    /// is the mean daylight reading across those nights; `consistency` is the
+    /// SleepEngine consistency score (0–100) of their sleep hours.
+    /// Note: when source data has gaps, a window of `nightsInWindow` observations
+    /// may span MORE than `nightsInWindow` calendar days.
     struct DaylightConsistencyPoint: Sendable, Equatable {
         let endDate: Date
         let avgDaylightMinutes: Double
@@ -77,15 +81,19 @@ enum SleepEngine {
 
     /// Build sliding-window data points correlating outdoor light exposure to
     /// sleep consistency. Requires both `daylightMinutes` and `sleepHours` to be
-    /// present for a day to count in a window; windows with fewer than 3 valid
-    /// nights are dropped (consistencyScore needs ≥3 nights to be meaningful).
+    /// present for a night to be included; windowing is by COUNT of qualifying
+    /// nights, not by calendar span — a `windowNights: 7` window therefore
+    /// represents the last 7 nights with both signals, which may span more
+    /// than 7 calendar days when readings are missing on intervening dates.
+    /// `windowNights` must be ≥3 because `consistencyScore` needs ≥3 nights to
+    /// be meaningful; values below that produce an empty result.
     static func daylightConsistencyCorrelation(
         metrics: [HealthMetricEntry],
-        windowDays: Int = 7
+        windowNights: Int = 7
     ) -> [DaylightConsistencyPoint] {
-        guard windowDays >= 3 else { return [] }
+        guard windowNights >= 3 else { return [] }
 
-        // Keep only days with both signals, sorted by date.
+        // Keep only nights with both signals, sorted by date.
         let usable: [(date: Date, daylight: Double, sleep: Double)] = metrics
             .compactMap { m in
                 guard let daylight = m.daylightMinutes,
@@ -95,13 +103,13 @@ enum SleepEngine {
             }
             .sorted { $0.date < $1.date }
 
-        guard usable.count >= windowDays else { return [] }
+        guard usable.count >= windowNights else { return [] }
 
         var points: [DaylightConsistencyPoint] = []
-        points.reserveCapacity(usable.count - windowDays + 1)
+        points.reserveCapacity(usable.count - windowNights + 1)
 
-        for endIdx in (windowDays - 1)..<usable.count {
-            let window = usable[(endIdx - windowDays + 1)...endIdx]
+        for endIdx in (windowNights - 1)..<usable.count {
+            let window = usable[(endIdx - windowNights + 1)...endIdx]
             let avgDaylight = window.map(\.daylight).reduce(0, +) / Double(window.count)
             let score = consistencyScore(window.map(\.sleep))
             points.append(DaylightConsistencyPoint(
