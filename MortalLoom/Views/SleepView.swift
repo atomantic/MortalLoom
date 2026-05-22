@@ -553,7 +553,7 @@ struct SleepView: View {
                 .font(.caption)
                 .foregroundColor(.textSecondary)
 
-            Text("Each dot = one 7-night window of overlapping data. X-axis is your average daily outdoor light exposure in that window; Y-axis is how consistent your sleep durations were (100 = identical every night).")
+            Text("Each dot = one 7-night window of overlapping data. X-axis is your average outdoor light exposure on the days leading into those nights; Y-axis is how consistent your sleep durations were (100 = identical every night).")
                 .font(.caption2)
                 .foregroundColor(.textMuted)
         }
@@ -568,18 +568,18 @@ struct SleepView: View {
             return "Need more overlapping daylight and sleep data to estimate a correlation."
         }
         if r >= 0.5 {
-            return "Strong positive: weeks with more outdoor light tend to have more consistent sleep."
+            return "Strong positive: 7-night windows with more prior-day outdoor light tend to have more consistent sleep."
         }
         if r >= 0.2 {
-            return "Weak positive: more daylight in a week tracks somewhat with more consistent sleep."
+            return "Weak positive: more prior-day daylight in a window tracks somewhat with more consistent sleep."
         }
         if r > -0.2 {
             return "No clear relationship in your data yet."
         }
         if r > -0.5 {
-            return "Weak negative: more daylight in a week tracks somewhat with less consistent sleep — unusual; check other factors."
+            return "Weak negative: more prior-day daylight in a window tracks somewhat with less consistent sleep — unusual; check other factors."
         }
-        return "Strong negative: more daylight in a week tracks with less consistent sleep — unusual; check other factors."
+        return "Strong negative: more prior-day daylight in a window tracks with less consistent sleep — unusual; check other factors."
     }
 
     private func correlationColor(_ r: Double) -> Color {

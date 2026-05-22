@@ -92,23 +92,36 @@ final class SleepEngineTests: XCTestCase {
 
     // MARK: daylightConsistencyCorrelation
 
-    /// Build N consecutive HealthMetricEntry days starting from `startDate`,
-    /// each with the supplied daylight and sleep values (same length expected).
+    /// Build N+1 consecutive HealthMetricEntry days starting from `startDate`.
+    /// The first day has ONLY daylight (no sleep) — it exists to seed the
+    /// prior-day daylight pairing for the first sleep night. The remaining N
+    /// days each carry the supplied `daylight[i]` and `sleep[i]`. Result: N
+    /// valid (sleep, prior-day-daylight) pairings for the engine to window.
     private func makeMetrics(startDate: Date, daylight: [Double], sleep: [Double]) -> [HealthMetricEntry] {
         precondition(daylight.count == sleep.count)
         let cal = Calendar.current
-        return (0..<daylight.count).map { i in
+        var entries: [HealthMetricEntry] = []
+        // Day -1 seeds the prior-day daylight for sleep on day 0.
+        // Reuse daylight[0] as the seed (mirrors realistic continuous data).
+        let seedDate = cal.date(byAdding: .day, value: -1, to: startDate)!
+        entries.append(HealthMetricEntry(
+            date: DateFormatting.dateString(seedDate),
+            sleepHours: nil,
+            daylightMinutes: daylight[0]
+        ))
+        for i in 0..<daylight.count {
             let date = cal.date(byAdding: .day, value: i, to: startDate)!
-            return HealthMetricEntry(
+            entries.append(HealthMetricEntry(
                 date: DateFormatting.dateString(date),
                 sleepHours: sleep[i],
                 daylightMinutes: daylight[i]
-            )
+            ))
         }
+        return entries
     }
 
-    func testDaylightConsistencyTooFewNightsReturnsEmpty() {
-        // 5 valid nights but windowNights=7 → no full window
+    func testDaylightConsistencyTooFewPairsReturnsEmpty() {
+        // 5 valid (sleep, prior-day-daylight) pairs but windowNights=7 → empty
         let start = Date(timeIntervalSince1970: 1_700_000_000)
         let metrics = makeMetrics(
             startDate: start,
@@ -118,24 +131,29 @@ final class SleepEngineTests: XCTestCase {
         XCTAssertTrue(SleepEngine.daylightConsistencyCorrelation(metrics: metrics).isEmpty)
     }
 
-    func testDaylightConsistencyDropsNightsMissingEitherSignal() {
-        // 10 calendar days total but only 6 have BOTH daylight and sleep → no full 7-night window
+    func testDaylightConsistencyDropsNightsMissingPriorDayDaylight() {
+        // 10 calendar days all with sleep, but daylight only on days 0..4.
+        // Sleep on day D pairs with daylight on day D-1, so:
+        //   sleep D=1..5 → daylight D=0..4 → 5 valid pairs
+        //   sleep D=6..9 → daylight D=5..8 → all missing → dropped
+        //   sleep D=0  → daylight D=-1 → missing → dropped
+        // Total: 5 valid pairs, < 7 → empty.
         let start = Date(timeIntervalSince1970: 1_700_000_000)
         let cal = Calendar.current
         let metrics: [HealthMetricEntry] = (0..<10).map { i in
             let dateStr = DateFormatting.dateString(cal.date(byAdding: .day, value: i, to: start)!)
-            // Days 0–5 have both; days 6–9 are missing daylight
-            if i < 6 {
-                return HealthMetricEntry(date: dateStr, sleepHours: 8, daylightMinutes: 60)
-            } else {
-                return HealthMetricEntry(date: dateStr, sleepHours: 8, daylightMinutes: nil)
-            }
+            return HealthMetricEntry(
+                date: dateStr,
+                sleepHours: 8,
+                daylightMinutes: i < 5 ? 60 : nil
+            )
         }
         XCTAssertTrue(SleepEngine.daylightConsistencyCorrelation(metrics: metrics).isEmpty)
     }
 
     func testDaylightConsistencyProducesOneWindowPerEndNight() {
-        // 10 valid nights, windowNights=7 → 4 sliding windows (ending at indices 6, 7, 8, 9)
+        // 10 valid pairs (via the seeded helper), windowNights=7 → 4 sliding
+        // windows (ending at pair indices 6, 7, 8, 9).
         let start = Date(timeIntervalSince1970: 1_700_000_000)
         let metrics = makeMetrics(
             startDate: start,
@@ -152,6 +170,28 @@ final class SleepEngineTests: XCTestCase {
         }
     }
 
+    func testDaylightConsistencyPriorDayPairingDirection() {
+        // Pin the direction: daylight[D-1] pairs with sleep[D], NOT same-day.
+        // Construct 4 days where daylight per day = [10, 20, 30, 40] and
+        // sleep per day = [8, 8, 8, 8]. With prior-day pairing on a window
+        // ending at day 3 with 3 nights (sleep days 1,2,3), the average
+        // daylight = mean(10, 20, 30) = 20, NOT mean(20, 30, 40) = 30.
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let cal = Calendar.current
+        let metrics: [HealthMetricEntry] = (0..<4).map { i in
+            let dateStr = DateFormatting.dateString(cal.date(byAdding: .day, value: i, to: start)!)
+            return HealthMetricEntry(
+                date: dateStr,
+                sleepHours: 8,
+                daylightMinutes: Double((i + 1) * 10)
+            )
+        }
+        let points = SleepEngine.daylightConsistencyCorrelation(metrics: metrics, windowNights: 3)
+        // 3 valid pairs (sleep D=1,2,3 ↔ daylight D=0,1,2) → 1 window
+        XCTAssertEqual(points.count, 1)
+        XCTAssertEqual(points.first?.avgDaylightMinutes ?? 0, 20.0, accuracy: 0.001)
+    }
+
     func testDaylightConsistencyWindowNightsGuardRejectsTooSmall() {
         // windowNights < 3 returns empty (consistencyScore needs ≥3 nights)
         let start = Date(timeIntervalSince1970: 1_700_000_000)
@@ -164,14 +204,19 @@ final class SleepEngineTests: XCTestCase {
     }
 
     func testDaylightConsistencyWindowSpansMoreThanWindowNightsCalendarDays() {
-        // 8 calendar days: nights 0,1,2 then a 4-day gap then nights 7,8,9,10,11
-        // = 8 valid nights total; one 7-night window spanning 11 calendar days.
-        // Documents the "by count of qualifying nights, not calendar span" semantics.
+        // 14 calendar days. Both signals present on days 0,1,2,3 and 7,8,9,10,11,12,13.
+        // Sleep on day D pairs with daylight on day D-1:
+        //   sleep D=1,2,3 ↔ daylight D=0,1,2     → 3 valid pairs
+        //   sleep D=7  ↔ daylight D=6 (missing)  → dropped
+        //   sleep D=8..13 ↔ daylight D=7..12      → 6 valid pairs
+        // Total: 9 valid pairs → 9 − 7 + 1 = 3 windows. The first window's pairs
+        // span calendar days 1–8 (sleep on day 1 through day 8) = 8 calendar days,
+        // demonstrating that "7-night window" can span more than 7 calendar days.
         let start = Date(timeIntervalSince1970: 1_700_000_000)
         let cal = Calendar.current
-        let metrics: [HealthMetricEntry] = (0..<12).map { i in
+        let metrics: [HealthMetricEntry] = (0..<14).map { i in
             let dateStr = DateFormatting.dateString(cal.date(byAdding: .day, value: i, to: start)!)
-            let hasData = i < 3 || i >= 7
+            let hasData = i < 4 || i >= 7
             return HealthMetricEntry(
                 date: dateStr,
                 sleepHours: hasData ? 8 : nil,
@@ -179,8 +224,7 @@ final class SleepEngineTests: XCTestCase {
             )
         }
         let points = SleepEngine.daylightConsistencyCorrelation(metrics: metrics, windowNights: 7)
-        // 8 qualifying nights → 8 - 7 + 1 = 2 windows
-        XCTAssertEqual(points.count, 2)
+        XCTAssertEqual(points.count, 3)
         XCTAssertEqual(points.first?.nightsInWindow, 7)
     }
 

@@ -63,15 +63,16 @@ enum SleepEngine {
 
     // MARK: - Daylight → Sleep Consistency Correlation
 
-    /// A sliding-window pairing of daylight exposure and sleep consistency.
-    /// Each point represents `nightsInWindow` consecutive nights with BOTH
-    /// daylight and sleep readings present (days missing either signal are
-    /// skipped before windowing — see `daylightConsistencyCorrelation`).
-    /// `endDate` is the date of the last night in the window; `avgDaylightMinutes`
-    /// is the mean daylight reading across those nights; `consistency` is the
-    /// SleepEngine consistency score (0–100) of their sleep hours.
-    /// Note: when source data has gaps, a window of `nightsInWindow` observations
-    /// may span MORE than `nightsInWindow` calendar days.
+    /// A sliding-window pairing of daylight exposure and the sleep that
+    /// FOLLOWED it. Each point represents `nightsInWindow` consecutive nights
+    /// with sleep data, where each night's sleep is paired with daylight
+    /// recorded on the prior calendar date (the daytime leading into that
+    /// night). `endDate` is the date of the last night in the window;
+    /// `avgDaylightMinutes` is the mean daylight reading across those prior
+    /// days; `consistency` is the SleepEngine consistency score (0–100) of the
+    /// sleep hours in the window.
+    /// Note: when source data has gaps, a window of `nightsInWindow`
+    /// observations may span MORE than `nightsInWindow` calendar days.
     struct DaylightConsistencyPoint: Sendable, Equatable {
         let endDate: Date
         let avgDaylightMinutes: Double
@@ -80,26 +81,44 @@ enum SleepEngine {
     }
 
     /// Build sliding-window data points correlating outdoor light exposure to
-    /// sleep consistency. Requires both `daylightMinutes` and `sleepHours` to be
-    /// present for a night to be included; windowing is by COUNT of qualifying
-    /// nights, not by calendar span — a `windowNights: 7` window therefore
-    /// represents the last 7 nights with both signals, which may span more
-    /// than 7 calendar days when readings are missing on intervening dates.
-    /// `windowNights` must be ≥3 because `consistencyScore` needs ≥3 nights to
-    /// be meaningful; values below that produce an empty result.
+    /// the sleep that followed it. The "→ Sleep" direction matters: HealthKit
+    /// keys sleep samples to their END date (the morning after) while it keys
+    /// daylight intervals to their START date (the daytime they cover). So
+    /// the daylight that *led into* sleep date D is recorded on calendar date
+    /// D-1, mirroring the day-N → night-N+1 convention used by
+    /// `alcoholSleepCorrelation`. Requires sleepHours on date D AND
+    /// daylightMinutes on date D-1; nights missing either signal are skipped
+    /// before windowing. Windowing is by COUNT of qualifying nights, not by
+    /// calendar span — a `windowNights: 7` window therefore represents the
+    /// last 7 nights with both signals, which may span more than 7 calendar
+    /// days when readings are missing on intervening dates. `windowNights`
+    /// must be ≥3 because `consistencyScore` needs ≥3 nights to be meaningful;
+    /// values below that produce an empty result.
     static func daylightConsistencyCorrelation(
         metrics: [HealthMetricEntry],
         windowNights: Int = 7
     ) -> [DaylightConsistencyPoint] {
         guard windowNights >= 3 else { return [] }
 
-        // Keep only nights with both signals, sorted by date.
+        // Index daylight readings by their calendar date for prior-day lookup.
+        let daylightByDate: [String: Double] = Dictionary(
+            uniqueKeysWithValues: metrics.compactMap { m in
+                m.daylightMinutes.map { (m.date, $0) }
+            }
+        )
+
+        // For each sleep night, find the daylight from the PRIOR calendar day.
+        // That's the daytime leading into that sleep — the correct direction
+        // for "daylight → sleep".
         let usable: [(date: Date, daylight: Double, sleep: Double)] = metrics
             .compactMap { m in
-                guard let daylight = m.daylightMinutes,
-                      let sleep = m.sleepHours,
-                      let date = DateFormatting.dateFromString(m.date) else { return nil }
-                return (date, daylight, sleep)
+                guard let sleep = m.sleepHours,
+                      let sleepDate = DateFormatting.dateFromString(m.date),
+                      let priorDay = Calendar.current.date(byAdding: .day, value: -1, to: sleepDate)
+                else { return nil }
+                let priorDayStr = DateFormatting.dateString(priorDay)
+                guard let daylight = daylightByDate[priorDayStr] else { return nil }
+                return (sleepDate, daylight, sleep)
             }
             .sorted { $0.date < $1.date }
 
