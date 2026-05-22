@@ -170,6 +170,27 @@ final class SleepEngineTests: XCTestCase {
         }
     }
 
+    func testDaylightConsistencyHandlesDuplicateDateEntries() {
+        // HealthMetricEntry permits duplicate-date entries (deduplication is
+        // opt-in elsewhere). The engine must not crash on duplicate-key
+        // dictionary construction.
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        let cal = Calendar.current
+        var metrics: [HealthMetricEntry] = []
+        for i in 0..<8 {
+            let dateStr = DateFormatting.dateString(cal.date(byAdding: .day, value: i, to: start)!)
+            metrics.append(HealthMetricEntry(date: dateStr, sleepHours: 8, daylightMinutes: 60))
+            // Duplicate the entry for the same date to verify the engine
+            // tolerates the collision instead of trapping.
+            metrics.append(HealthMetricEntry(date: dateStr, sleepHours: 8, daylightMinutes: 60))
+        }
+        // No XCTAssertNoThrow needed — a trap would crash the whole process.
+        // The act of calling without crashing is the assertion; we also check
+        // the result is non-empty as a sanity check.
+        let points = SleepEngine.daylightConsistencyCorrelation(metrics: metrics, windowNights: 7)
+        XCTAssertFalse(points.isEmpty)
+    }
+
     func testDaylightConsistencyPriorDayPairingDirection() {
         // Pin the direction: daylight[D-1] pairs with sleep[D], NOT same-day.
         // Construct 4 days where daylight per day = [10, 20, 30, 40] and

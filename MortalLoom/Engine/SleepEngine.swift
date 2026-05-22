@@ -101,11 +101,12 @@ enum SleepEngine {
         guard windowNights >= 3 else { return [] }
 
         // Index daylight readings by their calendar date for prior-day lookup.
-        let daylightByDate: [String: Double] = Dictionary(
-            uniqueKeysWithValues: metrics.compactMap { m in
-                m.daylightMinutes.map { (m.date, $0) }
-            }
-        )
+        // Use the grouping+first pattern (matching CorrelationEngine.alcoholSleepCorrelation)
+        // rather than Dictionary(uniqueKeysWithValues:) — the latter traps on duplicate
+        // keys, and HealthMetricEntry can legitimately carry multiple entries per date
+        // (deduplication is opt-in via HealthMetricEntry.deduplicatedByDate).
+        let daylightByDate: [String: Double] = Dictionary(grouping: metrics, by: \.date)
+            .compactMapValues { entries in entries.compactMap(\.daylightMinutes).first }
 
         // For each sleep night, find the daylight from the PRIOR calendar day.
         // That's the daytime leading into that sleep — the correct direction
