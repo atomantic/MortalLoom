@@ -553,7 +553,7 @@ struct SleepView: View {
                 .font(.caption)
                 .foregroundColor(.textSecondary)
 
-            Text("Each dot = one 7-day window. X-axis is your average daily outdoor light exposure in that window; Y-axis is how consistent your bedtimes were (100 = identical sleep durations every night).")
+            Text("Each dot = one 7-night window of overlapping data. X-axis is your average daily outdoor light exposure in that window; Y-axis is how consistent your sleep durations were (100 = identical every night).")
                 .font(.caption2)
                 .foregroundColor(.textMuted)
         }
