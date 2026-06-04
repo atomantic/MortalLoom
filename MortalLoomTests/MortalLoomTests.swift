@@ -3660,3 +3660,81 @@ final class DeepLinkRouterTests: XCTestCase {
         XCTAssertNil(DeepLinkRouter.parse(url))
     }
 }
+
+// MARK: - Quick-Add Chip Reordering Tests
+
+/// Locks in the pure index math behind the Substances quick-add chip
+/// drag-to-reorder (`reorderedByDrag`) and its assistive-tech "Move
+/// earlier/later" counterpart (`presetMoved`).
+final class PresetReorderTests: XCTestCase {
+
+    private func makeList() -> [AlcoholPreset] {
+        ["A", "B", "C", "D"].map { AlcoholPreset(name: $0, oz: 12, abv: 5) }
+    }
+
+    // MARK: reorderedByDrag
+
+    func testDragLeftLandsItemBeforeTarget() {
+        let list = makeList()  // [A, B, C, D]
+        // Drag D onto B (right→left): D should land before B.
+        let result = reorderedByDrag(list, draggedID: list[3].id.uuidString, targetID: list[1].id)
+        XCTAssertEqual(result?.map(\.name), ["A", "D", "B", "C"])
+    }
+
+    func testDragRightLandsItemAfterTarget() {
+        let list = makeList()  // [A, B, C, D]
+        // Drag A onto D (left→right): A should land after D (the end is reachable).
+        let result = reorderedByDrag(list, draggedID: list[0].id.uuidString, targetID: list[3].id)
+        XCTAssertEqual(result?.map(\.name), ["B", "C", "D", "A"])
+    }
+
+    func testDragAdjacentRight() {
+        let list = makeList()  // [A, B, C, D]
+        let result = reorderedByDrag(list, draggedID: list[1].id.uuidString, targetID: list[2].id)
+        XCTAssertEqual(result?.map(\.name), ["A", "C", "B", "D"])
+    }
+
+    func testDragOntoSelfIsNoOp() {
+        let list = makeList()
+        XCTAssertNil(reorderedByDrag(list, draggedID: list[0].id.uuidString, targetID: list[0].id))
+    }
+
+    func testDragUnknownDraggedIdIsNoOp() {
+        let list = makeList()
+        XCTAssertNil(reorderedByDrag(list, draggedID: UUID().uuidString, targetID: list[1].id))
+    }
+
+    func testDragUnknownTargetIdIsNoOp() {
+        let list = makeList()
+        XCTAssertNil(reorderedByDrag(list, draggedID: list[0].id.uuidString, targetID: UUID()))
+    }
+
+    // MARK: presetMoved
+
+    func testMoveEarlier() {
+        let list = makeList()  // [A, B, C, D]
+        let result = presetMoved(list, id: list[2].id, offset: -1)  // move C earlier
+        XCTAssertEqual(result?.map(\.name), ["A", "C", "B", "D"])
+    }
+
+    func testMoveLater() {
+        let list = makeList()  // [A, B, C, D]
+        let result = presetMoved(list, id: list[1].id, offset: 1)  // move B later
+        XCTAssertEqual(result?.map(\.name), ["A", "C", "B", "D"])
+    }
+
+    func testMoveEarlierOffFrontIsNoOp() {
+        let list = makeList()
+        XCTAssertNil(presetMoved(list, id: list[0].id, offset: -1))
+    }
+
+    func testMoveLaterOffEndIsNoOp() {
+        let list = makeList()
+        XCTAssertNil(presetMoved(list, id: list[3].id, offset: 1))
+    }
+
+    func testMoveUnknownIdIsNoOp() {
+        let list = makeList()
+        XCTAssertNil(presetMoved(list, id: UUID(), offset: 1))
+    }
+}

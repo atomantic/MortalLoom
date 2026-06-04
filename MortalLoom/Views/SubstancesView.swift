@@ -737,16 +737,9 @@ struct SubstancesView: View {
                                     )
                             }
                             .buttonStyle(.plain)
-                            .draggable(preset.id.uuidString)
-                            .dropDestination(for: String.self) { dropped, _ in
-                                guard let dragged = dropped.first,
-                                      let reordered = reorderedByDrag(alcoholPresets, draggedID: dragged, targetID: preset.id) else { return false }
-                                alcoholPresets = reordered
-                                Task { await DataStore.shared.setAlcoholPresets(reordered) }
-                                return true
-                            }
                             .accessibilityLabel("Quick add \(preset.name)")
                             .accessibilityHint("Logs one \(preset.name) drink. Drag to reorder.")
+                            .modifier(ReorderableChip(preset: preset, presets: $alcoholPresets) { saved in Task { await DataStore.shared.setAlcoholPresets(saved) } })
                         }
                     }
                 }
@@ -1244,16 +1237,9 @@ struct SubstancesView: View {
                                     )
                             }
                             .buttonStyle(.plain)
-                            .draggable(preset.id.uuidString)
-                            .dropDestination(for: String.self) { dropped, _ in
-                                guard let dragged = dropped.first,
-                                      let reordered = reorderedByDrag(nicotinePresets, draggedID: dragged, targetID: preset.id) else { return false }
-                                nicotinePresets = reordered
-                                Task { await DataStore.shared.setNicotinePresets(reordered) }
-                                return true
-                            }
                             .accessibilityLabel("Quick add \(preset.name)")
                             .accessibilityHint("Logs one \(preset.name) nicotine entry. Drag to reorder.")
+                            .modifier(ReorderableChip(preset: preset, presets: $nicotinePresets) { saved in Task { await DataStore.shared.setNicotinePresets(saved) } })
                         }
                     }
                 }
@@ -1705,16 +1691,9 @@ struct SubstancesView: View {
                                 )
                             }
                             .buttonStyle(.plain)
-                            .draggable(preset.id.uuidString)
-                            .dropDestination(for: String.self) { dropped, _ in
-                                guard let dragged = dropped.first,
-                                      let reordered = reorderedByDrag(saunaPresets, draggedID: dragged, targetID: preset.id) else { return false }
-                                saunaPresets = reordered
-                                Task { await DataStore.shared.setSaunaPresets(reordered) }
-                                return true
-                            }
                             .accessibilityLabel("Quick add \(preset.name)")
                             .accessibilityHint("Logs one sauna session. Drag to reorder.")
+                            .modifier(ReorderableChip(preset: preset, presets: $saunaPresets) { saved in Task { await DataStore.shared.setSaunaPresets(saved) } })
                         }
                     }
                 }
@@ -1941,23 +1920,6 @@ struct SubstancesView: View {
     }
 
     // MARK: - Shared UI Components
-
-    /// Reorder a preset list after a quick-add chip drag-and-drop. `draggedID`
-    /// is the dragged preset's UUID string (the drag payload); `targetID` is
-    /// the chip it was dropped on. Dropping left-of-origin lands the item
-    /// before the target, right-of-origin lands it after — so every slot
-    /// (including the end) is reachable. Returns nil for a no-op drop (same
-    /// slot, or an unknown id from a stray external drag) so callers skip the
-    /// write.
-    private func reorderedByDrag<T: Identifiable>(_ presets: [T], draggedID: String, targetID: T.ID) -> [T]? where T.ID == UUID {
-        guard let from = presets.firstIndex(where: { $0.id.uuidString == draggedID }),
-              let to = presets.firstIndex(where: { $0.id == targetID }),
-              from != to else { return nil }
-        var reordered = presets
-        let moved = reordered.remove(at: from)
-        reordered.insert(moved, at: to)
-        return reordered
-    }
 
     private func managePresetsLink(action: @escaping () -> Void) -> some View {
         Button(action: action) {
@@ -2487,5 +2449,70 @@ struct SaunaPresetManagerView: View {
                 #endif
             }
         }
+    }
+}
+
+// MARK: - Quick-Add Chip Reordering
+
+/// Reorder a preset list after a quick-add chip drag-and-drop. `draggedID` is
+/// the dragged preset's UUID string (the drag payload); `targetID` is the chip
+/// it was dropped on. Dropping left-of-origin lands the item before the target,
+/// right-of-origin lands it after — so every slot (including the end) is
+/// reachable. Returns nil for a no-op drop (same slot, or an unknown id from a
+/// stray external drag) so callers skip the write.
+func reorderedByDrag<T: Identifiable>(_ presets: [T], draggedID: String, targetID: T.ID) -> [T]? where T.ID == UUID {
+    guard let from = presets.firstIndex(where: { $0.id.uuidString == draggedID }),
+          let to = presets.firstIndex(where: { $0.id == targetID }),
+          from != to else { return nil }
+    var reordered = presets
+    let moved = reordered.remove(at: from)
+    reordered.insert(moved, at: to)
+    return reordered
+}
+
+/// Move the preset identified by `id` by `offset` positions (negative = earlier).
+/// Returns nil when the id isn't present or the move would fall off either end,
+/// so callers skip the write. Backs the assistive-tech "Move earlier/later" chip
+/// actions, which give VoiceOver / Switch-Control users a non-drag path to the
+/// same reordering.
+func presetMoved<T: Identifiable>(_ presets: [T], id: T.ID, offset: Int) -> [T]? where T.ID == UUID {
+    guard let from = presets.firstIndex(where: { $0.id == id }) else { return nil }
+    let to = from + offset
+    guard to >= 0, to < presets.count else { return nil }
+    var reordered = presets
+    let moved = reordered.remove(at: from)
+    reordered.insert(moved, at: to)
+    return reordered
+}
+
+/// Adds long-press drag-to-reorder to a quick-add preset chip, plus equivalent
+/// "Move earlier/later" accessibility actions so the reordering the hint
+/// advertises is actually reachable without a drag gesture. The drag payload is
+/// the preset's UUID string; a drop from an unrelated source (foreign id) is a
+/// no-op. On a successful reorder the bound list is updated and `persist` writes
+/// it through to storage.
+private struct ReorderableChip<T: Identifiable>: ViewModifier where T.ID == UUID {
+    let preset: T
+    @Binding var presets: [T]
+    let persist: ([T]) -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .draggable(preset.id.uuidString)
+            .dropDestination(for: String.self) { dropped, _ in
+                guard let dragged = dropped.first,
+                      let reordered = reorderedByDrag(presets, draggedID: dragged, targetID: preset.id) else { return false }
+                presets = reordered
+                persist(reordered)
+                return true
+            }
+            .accessibilityAction(named: "Move earlier") { move(by: -1) }
+            .accessibilityAction(named: "Move later") { move(by: 1) }
+    }
+
+    private func move(by offset: Int) {
+        guard let reordered = presetMoved(presets, id: preset.id, offset: offset) else { return }
+        presets = reordered
+        persist(reordered)
     }
 }
