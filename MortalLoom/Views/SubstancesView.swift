@@ -737,8 +737,16 @@ struct SubstancesView: View {
                                     )
                             }
                             .buttonStyle(.plain)
+                            .draggable(preset.id.uuidString)
+                            .dropDestination(for: String.self) { dropped, _ in
+                                guard let dragged = dropped.first,
+                                      let reordered = reorderedByDrag(alcoholPresets, draggedID: dragged, targetID: preset.id) else { return false }
+                                alcoholPresets = reordered
+                                Task { await DataStore.shared.setAlcoholPresets(reordered) }
+                                return true
+                            }
                             .accessibilityLabel("Quick add \(preset.name)")
-                            .accessibilityHint("Logs one \(preset.name) drink")
+                            .accessibilityHint("Logs one \(preset.name) drink. Drag to reorder.")
                         }
                     }
                 }
@@ -1236,8 +1244,16 @@ struct SubstancesView: View {
                                     )
                             }
                             .buttonStyle(.plain)
+                            .draggable(preset.id.uuidString)
+                            .dropDestination(for: String.self) { dropped, _ in
+                                guard let dragged = dropped.first,
+                                      let reordered = reorderedByDrag(nicotinePresets, draggedID: dragged, targetID: preset.id) else { return false }
+                                nicotinePresets = reordered
+                                Task { await DataStore.shared.setNicotinePresets(reordered) }
+                                return true
+                            }
                             .accessibilityLabel("Quick add \(preset.name)")
-                            .accessibilityHint("Logs one \(preset.name) nicotine entry")
+                            .accessibilityHint("Logs one \(preset.name) nicotine entry. Drag to reorder.")
                         }
                     }
                 }
@@ -1689,7 +1705,16 @@ struct SubstancesView: View {
                                 )
                             }
                             .buttonStyle(.plain)
+                            .draggable(preset.id.uuidString)
+                            .dropDestination(for: String.self) { dropped, _ in
+                                guard let dragged = dropped.first,
+                                      let reordered = reorderedByDrag(saunaPresets, draggedID: dragged, targetID: preset.id) else { return false }
+                                saunaPresets = reordered
+                                Task { await DataStore.shared.setSaunaPresets(reordered) }
+                                return true
+                            }
                             .accessibilityLabel("Quick add \(preset.name)")
+                            .accessibilityHint("Logs one sauna session. Drag to reorder.")
                         }
                     }
                 }
@@ -1916,6 +1941,23 @@ struct SubstancesView: View {
     }
 
     // MARK: - Shared UI Components
+
+    /// Reorder a preset list after a quick-add chip drag-and-drop. `draggedID`
+    /// is the dragged preset's UUID string (the drag payload); `targetID` is
+    /// the chip it was dropped on. Dropping left-of-origin lands the item
+    /// before the target, right-of-origin lands it after — so every slot
+    /// (including the end) is reachable. Returns nil for a no-op drop (same
+    /// slot, or an unknown id from a stray external drag) so callers skip the
+    /// write.
+    private func reorderedByDrag<T: Identifiable>(_ presets: [T], draggedID: String, targetID: T.ID) -> [T]? where T.ID == UUID {
+        guard let from = presets.firstIndex(where: { $0.id.uuidString == draggedID }),
+              let to = presets.firstIndex(where: { $0.id == targetID }),
+              from != to else { return nil }
+        var reordered = presets
+        let moved = reordered.remove(at: from)
+        reordered.insert(moved, at: to)
+        return reordered
+    }
 
     private func managePresetsLink(action: @escaping () -> Void) -> some View {
         Button(action: action) {
