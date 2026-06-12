@@ -54,6 +54,7 @@ struct OverviewView: View {
             GoalEditSheet(
                 goal: nil,
                 allGoals: vm.data.goals,
+                allHabits: vm.data.habits,
                 defaultGoalType: .apex,
                 defaultHorizon: .lifetime,
                 defaultPriority: .high,
@@ -76,6 +77,7 @@ struct OverviewView: View {
             GoalEditSheet(
                 goal: goal,
                 allGoals: vm.data.goals,
+                allHabits: vm.data.habits,
                 onSave: { updated in
                     Task {
                         await DataStore.shared.updateGoal(updated)

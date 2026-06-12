@@ -217,6 +217,7 @@ struct GenomeView: View {
             GoalEditSheet(
                 goal: prefilledGoal(from: template),
                 allGoals: allGoals,
+                allHabits: allHabits,
                 prefillEvidence: pendingGoalEvidence,
                 onSave: { newGoal in
                     Task {
