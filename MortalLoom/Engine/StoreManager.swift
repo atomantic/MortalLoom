@@ -42,9 +42,9 @@ final class StoreManager {
         do {
             let products = try await Product.products(for: [Self.proProductID])
             proProduct = products.first
-            logger.info("🛒 loaded \(products.count) products")
+            logger.info("🛒 loaded \(products.count, privacy: .public) products")
         } catch {
-            logger.error("🛒 failed to load products: \(error.localizedDescription)")
+            logger.error("🛒 failed to load products: \(error.localizedDescription, privacy: .private)")
         }
     }
 
@@ -77,7 +77,7 @@ final class StoreManager {
                 return false
             }
         } catch {
-            logger.error("🛒 purchase failed: \(error.localizedDescription)")
+            logger.error("🛒 purchase failed: \(error.localizedDescription, privacy: .private)")
             return false
         }
     }
@@ -88,9 +88,9 @@ final class StoreManager {
         do {
             try await AppStore.sync()
             await checkEntitlements()
-            logger.info("🛒 restore complete isPro=\(self.isPro)")
+            logger.info("🛒 restore complete isPro=\(self.isPro, privacy: .public)")
         } catch {
-            logger.error("🛒 restore failed: \(error.localizedDescription)")
+            logger.error("🛒 restore failed: \(error.localizedDescription, privacy: .private)")
         }
     }
 

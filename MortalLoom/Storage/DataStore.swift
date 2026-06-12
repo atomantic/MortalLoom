@@ -179,7 +179,7 @@ actor DataStore {
         // which rolling backup was the pre-restore snapshot.
         backupCurrentFile(reason: "pre-restore")
         save(decoded)
-        logger.info("💾 restored from backup \(url.lastPathComponent, privacy: .public) (\(decoded.alcoholDrinks.count) drinks, \(decoded.nicotineEntries.count) nic)")
+        logger.info("💾 restored from backup \(url.lastPathComponent, privacy: .public) (\(decoded.alcoholDrinks.count, privacy: .private) drinks, \(decoded.nicotineEntries.count, privacy: .private) nic)")
         return true
     }
 
@@ -202,7 +202,7 @@ actor DataStore {
                 let drinkCount = self.data.alcoholDrinks.count
                 let nicCount = self.data.nicotineEntries.count
                 let saunaCount = self.data.saunaSessions.count
-                logger.info("💾 loaded data from \(url.lastPathComponent, privacy: .public) (\(drinkCount) drinks, \(nicCount) nic, \(saunaCount) sauna)")
+                logger.info("💾 loaded data from \(url.lastPathComponent, privacy: .public) (\(drinkCount, privacy: .private) drinks, \(nicCount, privacy: .private) nic, \(saunaCount, privacy: .private) sauna)")
             } else {
                 logger.error("💾 failed to decode data from \(url.path, privacy: .private)")
             }
@@ -240,7 +240,7 @@ actor DataStore {
                             lastSaveDate = (try? fm.attributesOfItem(atPath: cloudURL.path)[.modificationDate] as? Date) ?? Date()
                             let drinkCount = self.data.alcoholDrinks.count
                             let nicCount = self.data.nicotineEntries.count
-                            logger.info("💾 loaded iCloud data after download (\(drinkCount) drinks, \(nicCount) nic)")
+                            logger.info("💾 loaded iCloud data after download (\(drinkCount, privacy: .private) drinks, \(nicCount, privacy: .private) nic)")
                             do {
                                 try fileData.write(to: localURL, options: [.atomic, .completeFileProtection])
                             } catch {
@@ -310,7 +310,7 @@ actor DataStore {
         let addedNic = merged.nicotineEntries.count - beforeNic
         let addedSauna = merged.saunaSessions.count - beforeSauna
         let addedMetrics = merged.healthMetrics.count - beforeMetrics
-        logger.info("☁️ merged iCloud update (+ \(addedDrinks) drinks, \(addedNic) nic, \(addedSauna) sauna, \(addedMetrics) metrics)")
+        logger.info("☁️ merged iCloud update (+ \(addedDrinks, privacy: .private) drinks, \(addedNic, privacy: .private) nic, \(addedSauna, privacy: .private) sauna, \(addedMetrics, privacy: .private) metrics)")
 
         let didChange = addedDrinks != 0 || addedNic != 0 || addedSauna != 0 || addedMetrics != 0
             || merged.bloodTests.count != beforeBlood || merged.eyeExams.count != beforeEye

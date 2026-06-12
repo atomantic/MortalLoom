@@ -94,7 +94,7 @@ final class HealthKitService {
             // Surface the failure so it can be diagnosed in Console.app —
             // previously the error was silently swallowed and "denied" was
             // indistinguishable from "request threw an error".
-            logger.error("🩺 HealthKit authorization failed: \(error.localizedDescription)")
+            logger.error("🩺 HealthKit authorization failed: \(error.localizedDescription, privacy: .private)")
         }
     }
 
@@ -114,7 +114,7 @@ final class HealthKitService {
                 // Always check compatibility first so a HealthKit schema change
                 // or wrong-unit callsite can never crash the app.
                 guard sample.quantity.is(compatibleWith: unit) else {
-                    logger.error("🩺 Unit mismatch for \(identifier.rawValue): got incompatible unit \(unit)")
+                    logger.error("🩺 Unit mismatch for \(identifier.rawValue, privacy: .private): got incompatible unit \(unit, privacy: .public)")
                     continuation.resume(returning: nil)
                     return
                 }
@@ -157,7 +157,7 @@ final class HealthKitService {
                     // wrong unit at a callsite) cannot crash the app.
                     guard quantity.is(compatibleWith: unit) else {
                         if !loggedMismatch {
-                            logger.error("🩺 Unit mismatch for \(identifier.rawValue): skipping incompatible samples")
+                            logger.error("🩺 Unit mismatch for \(identifier.rawValue, privacy: .private): skipping incompatible samples")
                             loggedMismatch = true
                         }
                         return
