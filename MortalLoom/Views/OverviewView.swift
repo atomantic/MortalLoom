@@ -80,6 +80,7 @@ struct OverviewView: View {
             GoalEditSheet(
                 goal: nil,
                 allGoals: data.goals,
+                allHabits: data.habits,
                 defaultGoalType: .apex,
                 defaultHorizon: .lifetime,
                 defaultPriority: .high,

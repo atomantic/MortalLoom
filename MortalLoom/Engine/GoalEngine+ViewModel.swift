@@ -144,9 +144,7 @@ extension GoalEngine {
         )
         var byGoal: [UUID: StagnationSignal] = [:]
         for s in signals {
-            if let gid = s.goalId, byGoal[gid] == nil {
-                byGoal[gid] = s
-            }
+            if let gid = s.goalId { byGoal[gid] = byGoal[gid] ?? s }
         }
 
         vm.apexGoal = apex
