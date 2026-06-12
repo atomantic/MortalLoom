@@ -3,6 +3,12 @@ import os
 
 extension Notification.Name {
     static let dataDidSync = Notification.Name("dataDidSync")
+    /// Posted (at most once per launch) when an iCloud write is attempted but the
+    /// ubiquity container turns out to be unreachable — data is still saved
+    /// locally, but the user has no iCloud copy. The UI surfaces a one-time toast
+    /// so a silent iCloud failure (signed-out account, first launch before the
+    /// container is provisioned, unsigned build) isn't invisible.
+    static let iCloudWriteUnavailable = Notification.Name("iCloudWriteUnavailable")
 }
 
 enum CloudConfig {
@@ -39,6 +45,16 @@ actor DataStore {
     /// overwrite a real user's iCloud container. Set once at app launch via
     /// enableSampleDataMode(); there is no way to turn it back off.
     private var sampleDataMode = false
+
+    /// Tracks whether the iCloud ubiquity container has been confirmed writable
+    /// this launch. `nil` until the first write probes it; `true`/`false` after.
+    /// `url(forUbiquityContainerIdentifier:)` returning non-nil only proves the
+    /// entitlement is configured, NOT that the container is reachable — so we
+    /// probe with a real directory listing before trusting the iCloud write path.
+    private var isICloudWritable: Bool?
+    /// Guards `iCloudWriteUnavailable` so the failure toast fires at most once
+    /// per launch instead of on every save while iCloud stays unreachable.
+    private var didWarnICloudUnavailable = false
 
     /// Debug-only: switch this store into in-memory mode so writes don't
     /// touch disk or iCloud. Irreversible for the process lifetime.
@@ -373,13 +389,7 @@ actor DataStore {
         }
         lastSaveDate = Date()
 
-        if let cloudURL = iCloudURL {
-            let dir = cloudURL.deletingLastPathComponent()
-            do {
-                try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            } catch {
-                logger.error("☁️ Failed to create iCloud directory: \(error.localizedDescription, privacy: .private)")
-            }
+        if let cloudURL = iCloudURL, ensureICloudWritable(cloudURL) {
             // iCloud Documents propagates protection class via the container's
             // security policy; pass .completeUnlessOpen so the iCloud daemon
             // can still read it for sync after first authentication.
@@ -387,6 +397,7 @@ actor DataStore {
                 try encoded.write(to: cloudURL, options: [.atomic, .completeFileProtectionUnlessOpen])
             } catch {
                 logger.error("☁️ Failed to write iCloud data: \(error.localizedDescription, privacy: .private)")
+                noteICloudUnavailable()
             }
         }
 
@@ -726,17 +737,12 @@ actor DataStore {
         } catch {
             logger.error("🧬 Failed to write local genome file: \(error.localizedDescription, privacy: .private)")
         }
-        if let cloudURL = iCloudGenomeURL {
-            let dir = cloudURL.deletingLastPathComponent()
-            do {
-                try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            } catch {
-                logger.error("🧬 Failed to create iCloud genome directory: \(error.localizedDescription, privacy: .private)")
-            }
+        if let cloudURL = iCloudGenomeURL, ensureICloudWritable(cloudURL) {
             do {
                 try data.write(to: cloudURL, options: [.atomic, .completeFileProtectionUnlessOpen])
             } catch {
                 logger.error("🧬 Failed to write iCloud genome file: \(error.localizedDescription, privacy: .private)")
+                noteICloudUnavailable()
             }
         }
     }
@@ -776,5 +782,47 @@ actor DataStore {
 
     private func bestURL() -> URL {
         FileManager.default.newerOf(cloud: iCloudURL, local: localURL)
+    }
+
+    /// Confirm the iCloud ubiquity container is actually reachable before we
+    /// trust the iCloud write path. `url(forUbiquityContainerIdentifier:)`
+    /// returning a non-nil URL only means the entitlement is configured — on a
+    /// signed-out account, an unsigned build, or first launch before the daemon
+    /// has provisioned the container, the directory create + a `contentsOfDirectory`
+    /// probe still fail. We listing-probe (not `try?`) so a real error is seen,
+    /// cache the result for the process, and on failure surface a one-time toast
+    /// and fall back to the local-only copy `save()` already wrote.
+    ///
+    /// `Documents` may legitimately not exist yet on a fresh container, so a
+    /// successful `createDirectory` followed by a successful listing is the
+    /// signal that the container is live — not the mere presence of files.
+    private func ensureICloudWritable(_ cloudURL: URL) -> Bool {
+        if let cached = isICloudWritable { return cached }
+
+        let dir = cloudURL.deletingLastPathComponent()
+        let fm = FileManager.default
+        do {
+            try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            // The probe: a reachable container lists its Documents dir without
+            // throwing. An unreachable one throws here (or at createDirectory).
+            _ = try fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)
+            isICloudWritable = true
+            return true
+        } catch {
+            logger.error("☁️ iCloud container not writable — saving locally only: \(error.localizedDescription, privacy: .private)")
+            isICloudWritable = false
+            noteICloudUnavailable()
+            return false
+        }
+    }
+
+    /// Post the iCloud-unavailable notification at most once per launch. Hops to
+    /// `@MainActor` like the other DataStore notifications since the UI observes it.
+    private func noteICloudUnavailable() {
+        guard !didWarnICloudUnavailable else { return }
+        didWarnICloudUnavailable = true
+        Task { @MainActor in
+            NotificationCenter.default.post(name: .iCloudWriteUnavailable, object: nil)
+        }
     }
 }
