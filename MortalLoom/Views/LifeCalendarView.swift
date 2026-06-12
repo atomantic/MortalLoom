@@ -265,7 +265,7 @@ struct LifeCalendarView: View {
                     .pickerStyle(.segmented)
                     .onChange(of: countdownMode) { _, newMode in
                         data.profile.countdownMode = newMode
-                        Task { await DataStore.shared.save(data) }
+                        Task { await DataStore.shared.updateCountdownMode(newMode) }
                         NotificationCenter.default.post(name: .profileDidChange, object: nil)
                     }
 
