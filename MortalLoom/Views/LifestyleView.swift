@@ -760,28 +760,28 @@ struct LifestyleView: View {
     }
 
     private var exerciseColor: Color {
-        if exerciseMinutes > 150 { return .success }
-        if exerciseMinutes >= 75 { return .warning }
+        if exerciseMinutes > Double(DeathClockEngine.Constants.exerciseRecommendedMinutes) { return .success }
+        if exerciseMinutes >= Double(DeathClockEngine.Constants.exerciseMinimumMinutes) { return .warning }
         return .danger
     }
 
     private var sleepColor: Color {
-        if sleepHours >= 7 && sleepHours <= 9 { return .success }
-        if sleepHours >= 6 { return .warning }
+        if sleepHours >= DeathClockEngine.Constants.sleepOptimalMin && sleepHours <= DeathClockEngine.Constants.sleepOptimalMax { return .success }
+        if sleepHours >= DeathClockEngine.Constants.sleepMinimum { return .warning }
         return .danger
     }
 
     private func bmiLabel(_ bmi: Double) -> String {
-        if bmi < 18.5 { return "Underweight" }
-        if bmi < 25 { return "Normal" }
-        if bmi < 30 { return "Overweight" }
+        if bmi < DeathClockEngine.Constants.bmiUnderweight { return "Underweight" }
+        if bmi < DeathClockEngine.Constants.bmiOverweight { return "Normal" }
+        if bmi < DeathClockEngine.Constants.bmiObese { return "Overweight" }
         return "Obese"
     }
 
     private func bmiColor(_ bmi: Double) -> Color {
-        if bmi < 18.5 { return .warning }
-        if bmi < 25 { return .success }
-        if bmi < 30 { return .warning }
+        if bmi < DeathClockEngine.Constants.bmiUnderweight { return .warning }
+        if bmi < DeathClockEngine.Constants.bmiOverweight { return .success }
+        if bmi < DeathClockEngine.Constants.bmiObese { return .warning }
         return .danger
     }
 
