@@ -189,4 +189,46 @@ final class GoalEngineViewModelTests: XCTestCase {
         let g = Goal(title: "Overdue", targetDate: DateFormatting.dateString(target))
         XCTAssertEqual(GoalEngine.defaultCheckInIntervalDays(for: g, now: now), 1)
     }
+
+    // MARK: - Attention / needs-check-in math
+
+    func testViewModelFlagsStaleGoalAsNeedingCheckIn() {
+        // A goal created well past its check-in interval, with no check-ins
+        // and no linked-habit activity, must show up as needing attention.
+        var g = goal(title: "Neglected")
+        g.createdDate = DateFormatting.dateString(daysAgo: 30)
+        g.checkInIntervalDays = 7
+        let vm = GoalEngine.buildGoalsViewModel(from: appData(goals: [g]))
+        XCTAssertTrue(vm.effectiveNeedsCheckInIds.contains(g.id))
+        XCTAssertEqual(vm.attentionCount, 1)
+    }
+
+    func testViewModelHabitCompletionKeepsLinkedGoalFresh() {
+        // Regression guard for the bug this refactor fixed: a recent
+        // completion of a habit linked to a goal counts as activity on that
+        // goal, so the goal should NOT be flagged as needing a check-in even
+        // though the goal itself has no recent check-in. If habits were
+        // dropped (the old `habits: []` bug), the goal would read as stale.
+        let goalId = UUID()
+        var g = goalWithId(goalId, title: "Write a book")
+        g.createdDate = DateFormatting.dateString(daysAgo: 30)
+        g.checkInIntervalDays = 7
+
+        let habit = Habit(
+            name: "Write daily",
+            parentGoalId: goalId,
+            createdDate: DateFormatting.dateString(daysAgo: 30),
+            completions: [HabitCompletion(date: DateFormatting.todayString())]
+        )
+
+        let withHabit = GoalEngine.buildGoalsViewModel(from: appData(goals: [g], habits: [habit]))
+        XCTAssertFalse(withHabit.effectiveNeedsCheckInIds.contains(goalId),
+                       "recent linked-habit completion should silence the check-in nag")
+        XCTAssertEqual(withHabit.attentionCount, 0)
+
+        // Sanity: without the habit, the same goal IS stale — proving the
+        // habit (not some other factor) is what cleared the flag.
+        let withoutHabit = GoalEngine.buildGoalsViewModel(from: appData(goals: [g]))
+        XCTAssertTrue(withoutHabit.effectiveNeedsCheckInIds.contains(goalId))
+    }
 }
