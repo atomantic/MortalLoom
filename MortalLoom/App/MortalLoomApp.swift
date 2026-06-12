@@ -143,6 +143,10 @@ struct ContentView: View {
             if case .goalReflect(let id) = route {
                 NotificationCenter.default.post(name: .openGoalReflect, object: id)
             }
+            if case .substancesAlias = route {
+                // Legacy mortalloom://substances alias — land on the alcohol tab.
+                UserDefaults.standard.set(HabitTab.alcohol.rawValue, forKey: HabitTab.selectedKey)
+            }
         }
         #endif
         .task {
@@ -377,6 +381,10 @@ struct MacContentView: View {
             selectedPage = route.targetPage
             if case .goalReflect(let id) = route {
                 NotificationCenter.default.post(name: .openGoalReflect, object: id)
+            }
+            if case .substancesAlias = route {
+                // Legacy mortalloom://substances alias — land on the alcohol tab.
+                UserDefaults.standard.set(HabitTab.alcohol.rawValue, forKey: HabitTab.selectedKey)
             }
         }
     }

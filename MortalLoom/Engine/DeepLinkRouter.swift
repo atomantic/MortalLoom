@@ -20,12 +20,19 @@ enum DeepLinkRoute: Equatable, Sendable {
     case goalReflect(UUID)
     /// Trigger the weekly review sheet.
     case weeklyReview
+    /// Legacy `mortalloom://substances` alias — navigate to Habits with the
+    /// alcohol tab pre-selected. Kept as a distinct case (rather than a plain
+    /// `.page(.habits)`) so `parse(_:)` stays pure: the tab-selection side
+    /// effect is applied by the call site, the same way `.goalReflect` posts
+    /// its notification there.
+    case substancesAlias
 
     var targetPage: AppPage {
         switch self {
         case .page(let page): page
         case .goalEdit, .goalReflect: .goals
         case .weeklyReview: .overview
+        case .substancesAlias: .habits
         }
     }
 }
@@ -33,9 +40,9 @@ enum DeepLinkRoute: Equatable, Sendable {
 // MARK: - DeepLinkRouter
 
 /// Maps `mortalloom://` URLs to typed `DeepLinkRoute` values. Invalid URLs
-/// return nil. Mostly pure — the legacy `mortalloom://substances` alias
-/// pre-sets the persisted Habits tab so the user lands on the alcohol
-/// tracker. Supported URL shapes:
+/// return nil. Pure — no side effects. The legacy `mortalloom://substances`
+/// alias maps to `.substancesAlias`; the call site is responsible for
+/// pre-selecting the Habits alcohol tab. Supported URL shapes:
 ///
 /// - `mortalloom://overview` / `mortalloom://goals` / `mortalloom://reflections`
 ///   / `mortalloom://reports` / `mortalloom://calendar` / `mortalloom://habits`
@@ -76,9 +83,9 @@ enum DeepLinkRouter {
         default:
             // Legacy alias for widgets / shortcuts still using
             // mortalloom://substances — land on the alcohol tab in Habits.
+            // The tab-selection side effect lives at the call site.
             if head == "substances" {
-                UserDefaults.standard.set(HabitTab.alcohol.rawValue, forKey: HabitTab.selectedKey)
-                return .page(.habits)
+                return .substancesAlias
             }
             if let page = AppPage.allCases.first(where: { $0.title.lowercased() == head }) {
                 return .page(page)

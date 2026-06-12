@@ -406,6 +406,12 @@ actor DataStore {
         save(d)
     }
 
+    func updateCountdownMode(_ mode: CountdownMode) {
+        var d = load()
+        d.profile.countdownMode = mode
+        save(d)
+    }
+
     func addAlcoholDrink(_ drink: AlcoholDrink) {
         var d = load()
         d.alcoholDrinks.append(drink)
