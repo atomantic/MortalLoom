@@ -19,11 +19,11 @@ final class AppearanceManager: Sendable {
     static let shared = AppearanceManager()
 
     var mode: AppearanceMode {
-        didSet { UserDefaults.standard.set(mode.rawValue, forKey: "appearanceMode") }
+        didSet { UserDefaults.standard.set(mode.rawValue, forKey: AppConstants.appearanceModeKey) }
     }
 
     private init() {
-        let stored = UserDefaults.standard.string(forKey: "appearanceMode") ?? "System"
+        let stored = UserDefaults.standard.string(forKey: AppConstants.appearanceModeKey) ?? "System"
         self.mode = AppearanceMode(rawValue: stored) ?? .system
     }
 }
