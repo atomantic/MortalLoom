@@ -87,3 +87,11 @@ Goal data and health data are the most sensitive data a person has. MortalLoom i
 ## Target user
 
 People who want to spend their finite time on what matters most to them, and want tools that help without surrendering their most personal data to a subscription service. The current build is strongest for users whose goals touch health and longevity, but the foundation is meant to serve any lifetime purpose.
+
+## Non-goals
+
+MortalLoom is a native port of the MeatSpace section of the PortOS web app, and deliberately leaves the following web-specific behavior behind:
+
+- **Apple Health XML/JSON file import** — replaced by native HealthKit integration.
+- **Server-side API calls** — everything runs local / on-device; there are no servers.
+- **WebSocket progress updates** — not applicable to the native architecture.
