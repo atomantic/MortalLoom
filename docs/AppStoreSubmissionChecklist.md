@@ -18,5 +18,5 @@ only outbound network calls are to public, keyless, account-less APIs.
 **Coarse Location** is declared as *collected*, **Not Linked to You**, **not used for
 tracking**, with the "App Functionality" purpose. No other data types are collected.
 
-Reference: `MortalLoom/Engine/AirQualityService.swift`,
-`MortalLoom/Engine/LocationService.swift`, `MortalLoom/App/PrivacyInfo.xcprivacy`.
+Reference: `MortalLoom/Services/AirQualityService.swift`,
+`MortalLoom/Services/LocationService.swift`, `MortalLoom/App/PrivacyInfo.xcprivacy`.
