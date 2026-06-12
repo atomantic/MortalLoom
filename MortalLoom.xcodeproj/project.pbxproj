@@ -159,6 +159,7 @@
 		C389F96C64CCE6A9E5706FB2 /* HabitEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 879315E40D95F4453EFFC676 /* HabitEngine.swift */; };
 		C505D8C48C08E5ECEAE8215B /* BloodTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92F50631566FFE40D88FAD5C /* BloodTest.swift */; };
 		C7369D6EA99910CEA2C27194 /* GoalsViewHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB2C9C845CDE8F2A4335C20 /* GoalsViewHelpers.swift */; };
+		C75FCF5F6EC35EB0080C2DAF /* OverviewViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92F32690DCE74A759D233DFE /* OverviewViewModel.swift */; };
 		C7A81B14FF7FBF1AC44A8087 /* Goal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13547F14B9304DE2AE925ED2 /* Goal.swift */; };
 		C880829A818791EC492E79A8 /* CorrelationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98CE91B429B04C112C38D411 /* CorrelationEngine.swift */; };
 		C8E45F7C2D1A70E22B917D8C /* CheckInSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B0F90005664C275BC30D701 /* CheckInSheet.swift */; };
@@ -170,6 +171,7 @@
 		D2893D19CE3A685EBE4DAB83 /* MailComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FE5A0323F1414BAACE600D5 /* MailComposer.swift */; };
 		D3F7FE3DDE339E01DC4D299C /* StoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9A69DB778D8C239A47B3325 /* StoreManager.swift */; };
 		D4231700BA2C2B4F01C915A1 /* CitationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87EC582DBE00A4BCED918921 /* CitationsView.swift */; };
+		D4AA8376DA1D751F20004641 /* OverviewViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92F32690DCE74A759D233DFE /* OverviewViewModel.swift */; };
 		D5E3574C924FD3E0B15177A4 /* GenomeScanRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8BFDBF027486BC4AC7BF9D1 /* GenomeScanRecord.swift */; };
 		D8A1FB27A58BB9ED177A57D1 /* CalendarSchedulerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6A08FFA461E1F414C7EA92E /* CalendarSchedulerSheet.swift */; };
 		DB9AE3620203DE5161A6F0F2 /* Citation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 174D733132F943A870DA79E7 /* Citation.swift */; };
@@ -333,6 +335,7 @@
 		8CA94632A9BE9FBBCFD7A7DD /* SleepView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepView.swift; sourceTree = "<group>"; };
 		8DFE4C5B3F84209835BAB96B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		8E54E96F158C550E8901029A /* AirQualityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AirQualityService.swift; sourceTree = "<group>"; };
+		92F32690DCE74A759D233DFE /* OverviewViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverviewViewModel.swift; sourceTree = "<group>"; };
 		92F50631566FFE40D88FAD5C /* BloodTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BloodTest.swift; sourceTree = "<group>"; };
 		93B5E80AB18D2FA91974ECB6 /* GaitEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GaitEngine.swift; sourceTree = "<group>"; };
 		93CDAC363DF57A04037AECCA /* MortalLoomTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MortalLoomTests.swift; sourceTree = "<group>"; };
@@ -415,6 +418,7 @@
 				2FE5A0323F1414BAACE600D5 /* MailComposer.swift */,
 				D5C2474BC3DD2C321255F1AB /* OnboardingView.swift */,
 				86691FE1BB15DD7BDC355BE6 /* OverviewView.swift */,
+				92F32690DCE74A759D233DFE /* OverviewViewModel.swift */,
 				BC7FF09623E4F8E66F45E59F /* PaywallView.swift */,
 				00277E45B8AC0A7DCCD718D0 /* PillarDashboardView.swift */,
 				17554F4F50A7084DE0587FE8 /* ProBadge.swift */,
@@ -872,6 +876,7 @@
 				DDCFBE5821603C2282544537 /* NotificationService.swift in Sources */,
 				3ED7DB9F890E096685B588FA /* OnboardingView.swift in Sources */,
 				F693696AC5E6CC72FC037C48 /* OverviewView.swift in Sources */,
+				D4AA8376DA1D751F20004641 /* OverviewViewModel.swift in Sources */,
 				B9C3E940ECEF8AACF05AB138 /* PaywallView.swift in Sources */,
 				ABC2A447EFD1536C3D71CEE2 /* PillarDashboardView.swift in Sources */,
 				E9CAFBE806754A59E91B2DBF /* ProBadge.swift in Sources */,
@@ -967,6 +972,7 @@
 				1727883C988E3F00C32C1CB3 /* NotificationService.swift in Sources */,
 				4C7D365FE00B06FD6BEF3568 /* OnboardingView.swift in Sources */,
 				F70C90E5AEE5A80B621DDA0A /* OverviewView.swift in Sources */,
+				C75FCF5F6EC35EB0080C2DAF /* OverviewViewModel.swift in Sources */,
 				8D3F0148D6280967FB75B579 /* PaywallView.swift in Sources */,
 				B88C8B0A483C960B3A068C5A /* PillarDashboardView.swift in Sources */,
 				CD491375649F5117BA797FD4 /* ProBadge.swift in Sources */,

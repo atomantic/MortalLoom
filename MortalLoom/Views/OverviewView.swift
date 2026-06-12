@@ -3,43 +3,20 @@ import Charts
 
 struct OverviewView: View {
     @Binding var selectedTab: Int
-    @State private var data: AppData = .empty
-    @State private var deathClock: DeathClockEngine.DeathClockResult?
-    @State private var levDeathClock: DeathClockEngine.DeathClockResult?
-    @State private var lev: DeathClockEngine.LEVResult?
-    @State private var countdownMode: CountdownMode = .standard
+
+    /// Owns data loading and the multi-engine orchestration; the view binds to
+    /// its published output (issue #23). UI-only state — section toggles, sheet
+    /// presentation, chart selection, layout width — stays in the view.
+    @State private var vm = OverviewViewModel()
+
     @State private var isVisible = false
-    @State private var todayStr: String = DateFormatting.todayString()
-    @State private var weekAgoStr: String = DateFormatting.dateString(daysAgo: 7)
-    // Pre-sorted arrays to avoid sorting in render path
-    @State private var sortedBloodTests: [BloodTest] = []
-    @State private var sortedEpigeneticTests: [EpigeneticTest] = []
-    @State private var sortedEyeExams: [EyeExam] = []
-    // Cached chart data — recomputed in recalculate(), not on every render
-    @State private var cachedAlcoholRisk: AlcoholRisk = .low
-    @State private var cachedHealthScore: Double = 0
-    @State private var cachedNormalPoints: [TrajectoryPoint] = []
-    @State private var cachedLevPoints: [TrajectoryPoint] = []
-    @State private var cachedRecommendations: [RecommendationEngine.Recommendation] = []
-    @AppStorage(HabitTab.selectedKey) private var habitsTab: HabitTab = .myHabits
-    /// Top genome priorities used to seed DNA-derived recommendations alongside
-    /// the lifestyle ones. Computed lazily off the main thread by parsing the
-    /// persisted genome file and re-running the curated marker scan + ClinVar
-    /// match. Empty until that work finishes — `recalculate()` re-runs the
-    /// recommendation engine once it lands.
-    @State private var cachedGenomePriorities: [PriorityFinding] = []
-    /// Guards against re-running the genome scan on every recalculate(); only
-    /// resets when the underlying scan record changes (or the user clears it).
-    @State private var lastScannedAt: Date?
-    @State private var cachedSleepImpact: Double = 0
-    @State private var cachedStagnationSignals: [StagnationSignal] = []
-    @State private var cachedReflectionStreak: Int = 0
-    @State private var cachedApexAlignment: Double?
     @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
     @State private var showCitations = false
     @State private var showAddGoal = false
     @State private var editingGoal: Goal?
     @State private var showWeeklyReview = false
+    @State private var selectedChartYear: Int?
+    @AppStorage(HabitTab.selectedKey) private var habitsTab: HabitTab = .myHabits
     // Sections start expanded. For users with no profile yet we override
     // these to `false` in `loadData()` so the empty-data sections don't
     // dominate the first-launch screen.
@@ -49,9 +26,6 @@ struct OverviewView: View {
     // user expands them again we won't override their choice on the next load.
     @AppStorage("overview.hasCollapsedEmptySections") private var hasCollapsedEmptySections: Bool = false
     private var isWide: Bool { containerWidth >= Layout.wideThreshold }
-
-    private var apexGoal: Goal? { data.goals.activeApex }
-    private var activeGoalCount: Int { data.goals.activeCount }
 
     var body: some View {
         ScrollView {
@@ -79,8 +53,8 @@ struct OverviewView: View {
         .sheet(isPresented: $showAddGoal) {
             GoalEditSheet(
                 goal: nil,
-                allGoals: data.goals,
-                allHabits: data.habits,
+                allGoals: vm.data.goals,
+                allHabits: vm.data.habits,
                 defaultGoalType: .apex,
                 defaultHorizon: .lifetime,
                 defaultPriority: .high,
@@ -102,8 +76,8 @@ struct OverviewView: View {
         .sheet(item: $editingGoal) { goal in
             GoalEditSheet(
                 goal: goal,
-                allGoals: data.goals,
-                allHabits: data.habits,
+                allGoals: vm.data.goals,
+                allHabits: vm.data.habits,
                 onSave: { updated in
                     Task {
                         await DataStore.shared.updateGoal(updated)
@@ -126,9 +100,9 @@ struct OverviewView: View {
         }
         .sheet(isPresented: $showWeeklyReview) {
             WeeklyReviewSheet(
-                apex: apexGoal,
-                allGoals: data.goals,
-                habits: data.habits
+                apex: vm.apexGoal,
+                allGoals: vm.data.goals,
+                habits: vm.data.habits
             ) { updated in
                 Task {
                     await DataStore.shared.updateGoal(updated)
@@ -149,8 +123,8 @@ struct OverviewView: View {
     private var topChromeStack: some View {
         if needsSetupRecovery { finishSetupBanner }
         goalPromptCard
-        if WeeklyReview.isDue && apexGoal != nil { weeklyReviewCTA }
-        if !cachedStagnationSignals.isEmpty { attentionCard }
+        if WeeklyReview.isDue && vm.apexGoal != nil { weeklyReviewCTA }
+        if !vm.cachedStagnationSignals.isEmpty { attentionCard }
 
         // Runway strip — compact summary of time remaining, expandable
         // to the full longevity clock / LEV / factors detail.
@@ -176,7 +150,7 @@ struct OverviewView: View {
             healthGrid
         }
 
-        if !cachedRecommendations.isEmpty { recommendationsCard }
+        if !vm.cachedRecommendations.isEmpty { recommendationsCard }
     }
 
     @ViewBuilder
@@ -184,10 +158,10 @@ struct OverviewView: View {
         VStack(spacing: 16) {
             topChromeStack
             if runwayExpanded {
-                if let lev { levCard(lev) }
+                if let lev = vm.lev { levCard(lev) }
                 deathClockCard
-                if deathClock != nil { lifeExpectancyFactorsCard }
-                if let dc = deathClock { lifetimeHealthChart(dc) }
+                if vm.deathClock != nil { lifeExpectancyFactorsCard }
+                if let dc = vm.deathClock { lifetimeHealthChart(dc) }
             }
             bottomChromeStack
         }
@@ -198,7 +172,7 @@ struct OverviewView: View {
     /// out of the 13-step flow before the lifestyle questions. Shows a
     /// banner that offers to re-run the setup wizard without erasing data.
     private var needsSetupRecovery: Bool {
-        data.profile.birthDate == nil
+        vm.data.profile.birthDate == nil
     }
 
     @ViewBuilder
@@ -254,14 +228,14 @@ struct OverviewView: View {
         VStack(spacing: 16) {
             topChromeStack
             if runwayExpanded {
-                if let lev { levCard(lev) }
+                if let lev = vm.lev { levCard(lev) }
                 HStack(alignment: .top, spacing: 16) {
                     deathClockCard
-                    if deathClock != nil {
+                    if vm.deathClock != nil {
                         lifeExpectancyFactorsCard
                     }
                 }
-                if let dc = deathClock {
+                if let dc = vm.deathClock {
                     lifetimeHealthChart(dc)
                         .frame(maxWidth: .infinity)
                 }
@@ -274,7 +248,7 @@ struct OverviewView: View {
     /// section when collapsed, so the user always sees the time framing even
     /// if they've hidden the detail.
     private var runwaySubtitle: String? {
-        guard let dc = deathClock else { return nil }
+        guard let dc = vm.deathClock else { return nil }
         let years = Int(dc.yearsRemaining)
         if years <= 0 { return nil }
         return "~\(years) years estimated remaining"
@@ -351,7 +325,7 @@ struct OverviewView: View {
     /// to a 2-row preview. Tapping jumps to Reports for the full list.
     @ViewBuilder
     private var attentionCard: some View {
-        let topSignals = Array(cachedStagnationSignals.prefix(3))
+        let topSignals = Array(vm.cachedStagnationSignals.prefix(3))
         Button {
             selectedTab = AppPage.reports.rawValue
         } label: {
@@ -365,7 +339,7 @@ struct OverviewView: View {
                         .textCase(.uppercase)
                         .tracking(1)
                     Spacer()
-                    Text("\(cachedStagnationSignals.count)")
+                    Text("\(vm.cachedStagnationSignals.count)")
                         .font(.caption).fontWeight(.semibold)
                         .foregroundColor(.textMuted)
                     Image(systemName: "chevron.right")
@@ -388,8 +362,8 @@ struct OverviewView: View {
                         }
                     }
                 }
-                Text(cachedStagnationSignals.count > 3
-                     ? "+\(cachedStagnationSignals.count - 3) more — tap to review in Reports"
+                Text(vm.cachedStagnationSignals.count > 3
+                     ? "+\(vm.cachedStagnationSignals.count - 3) more — tap to review in Reports"
                      : "Tap to review in Reports")
                     .font(.caption2)
                     .foregroundColor(.textMuted)
@@ -405,173 +379,28 @@ struct OverviewView: View {
 
     // MARK: - Data Loading
 
+    /// View-side load: delegates data + engine orchestration to the view-model,
+    /// then applies the first-launch section collapse (a UI-only preference the
+    /// view owns).
     private func loadData() async {
-        let loaded = await DataStore.shared.getData()
-        data = loaded
-        sortedBloodTests = loaded.bloodTests.sorted(by: { $0.date > $1.date })
-        sortedEpigeneticTests = loaded.epigeneticTests.sorted(by: { $0.date > $1.date })
-        sortedEyeExams = loaded.eyeExams.sorted(by: { $0.date > $1.date })
+        await vm.load()
         // First-launch collapse: if the user hasn't set a birth date yet
         // the runway/health sections would render empty "—" placeholders.
         // Collapse them by default so the set-North-Star CTA dominates
         // the screen. Once a profile exists we leave the user's explicit
         // preference alone.
-        if loaded.profile.birthDate == nil, !hasCollapsedEmptySections {
+        if vm.data.profile.birthDate == nil, !hasCollapsedEmptySections {
             runwayExpanded = false
             healthExpanded = false
             hasCollapsedEmptySections = true
         }
-        recalculate()
-    }
-
-    private func recalculate() {
-        todayStr = DateFormatting.todayString()
-        weekAgoStr = DateFormatting.dateString(daysAgo: 7)
-
-        guard let birthDate = data.profile.birthDate else {
-            deathClock = nil
-            levDeathClock = nil
-            lev = nil
-            return
-        }
-        countdownMode = data.profile.countdownMode
-        let sleepStages = SleepEngine.stageBreakdown(metrics: data.healthMetrics)
-        deathClock = DeathClockEngine.calculate(
-            birthDateStr: birthDate,
-            sex: data.profile.biologicalSex,
-            lifestyle: data.profile.lifestyle,
-            genome: data.genomeScanRecord,
-            sleepStages: sleepStages,
-            locationProfile: data.profile.locationProfile,
-            socioeconomic: data.profile.socioeconomic,
-            healthMetrics: data.healthMetrics
-        )
-        cachedSleepImpact = SleepEngine.enhancedLongevityImpact(
-            averageHours: data.profile.lifestyle.sleepHoursPerNight,
-            stageBreakdown: sleepStages
-        )
-        cachedAlcoholRisk = DeathClockEngine.alcoholRisk(drinks: data.alcoholDrinks, sex: data.profile.biologicalSex)
-        cachedRecommendations = RecommendationEngine.generate(
-            lifestyle: data.profile.lifestyle,
-            alcoholRisk: cachedAlcoholRisk,
-            hasGenomeData: data.genomeScanRecord != nil,
-            hasEpigeneticData: !data.epigeneticTests.isEmpty,
-            hasBloodTests: !data.bloodTests.isEmpty,
-            genomePriorities: cachedGenomePriorities
-        )
-        Task { await loadGenomePrioritiesIfNeeded() }
-        cachedStagnationSignals = StagnationEngine.signals(
-            goals: data.goals,
-            habits: data.habits,
-            deathDate: deathClock?.deathDate,
-            healthyCognitiveDate: GoalEngine.cognitiveDeadline(from: deathClock)
-        )
-        cachedReflectionStreak = apexGoal.map { GoalEngine.dailyReflectionStreak(for: $0) } ?? 0
-        cachedApexAlignment = apexGoal.flatMap {
-            GoalEngine.alignmentScore(for: $0, in: data.goals, habits: data.habits)
-        }
-        // Reconcile local notifications against the latest signals so the
-        // user isn't nagged about stagnation that no longer exists.
-        let signalsSnapshot = cachedStagnationSignals
-        Task { @MainActor in
-            await NotificationService.shared.reconcileStagnationAlerts(signalsSnapshot)
-        }
-        if let dc = deathClock {
-            levDeathClock = DeathClockEngine.calculateLEVResult(standardResult: dc, birthDateStr: birthDate, levTargetAge: data.profile.levTargetAge)
-            lev = DeathClockEngine.calculateLEV(
-                birthDateStr: birthDate,
-                lifeExpectancy: dc.lifeExpectancy.total
-            )
-            recomputeChartData(dc)
-        }
-    }
-
-    private func recomputeChartData(_ dc: DeathClockEngine.DeathClockResult) {
-        let currentYear = Calendar.current.component(.year, from: Date())
-        let birthYear = currentYear - dc.ageYears
-        let deathYear = birthYear + Int(dc.lifeExpectancy.total)
-        let levYear = DeathClockEngine.Constants.levTargetYear
-        let levDeathYear = birthYear + Int(DeathClockEngine.Constants.levTargetAge)
-
-        cachedHealthScore = DeathClockEngine.healthScore(
-            lifestyle: data.profile.lifestyle,
-            ageYears: dc.ageYears,
-            latestEpigeneticTest: sortedEpigeneticTests.first,
-            alcoholRisk: cachedAlcoholRisk,
-            healthMetrics: data.healthMetrics
-        )
-
-        cachedNormalPoints = normalTrajectory(currentYear: currentYear, deathYear: deathYear, currentHealth: cachedHealthScore)
-        cachedLevPoints = levTrajectory(currentYear: currentYear, levYear: levYear, levDeathYear: levDeathYear, currentHealth: cachedHealthScore, normalPoints: cachedNormalPoints)
-    }
-
-    /// Refresh the cached genome priorities by reading the persisted genome
-    /// file and re-running the curated marker scan + ClinVar match (when an
-    /// index is already on disk). Skips entirely when the user has no scan
-    /// record. Once finished, replays the recommendation engine so DNA-derived
-    /// recs surface alongside the lifestyle ones.
-    private func loadGenomePrioritiesIfNeeded() async {
-        guard let record = data.genomeScanRecord else {
-            // User cleared their genome data — drop any stale priorities.
-            if !cachedGenomePriorities.isEmpty {
-                cachedGenomePriorities = []
-                replayLifestyleRecs()
-            }
-            lastScannedAt = nil
-            return
-        }
-        // Skip the scan if we already have priorities for this exact record.
-        // The scan record updates only when the user re-runs the marker scan,
-        // so a matching `scannedAt` means our cache is current.
-        if lastScannedAt == record.scannedAt, !cachedGenomePriorities.isEmpty { return }
-
-        guard let rawContent = await DataStore.shared.loadGenomeFile() else { return }
-        let actionStates = data.genomeActionStates
-        let lifestyle = data.profile.lifestyle
-        let priorities: [PriorityFinding] = await Task.detached(priority: .utility) {
-            let parsed = GenomeParser.parse(rawContent)
-            guard !parsed.variants.isEmpty else { return [] }
-            let summary = GenomeEngine.fullScan(
-                variants: parsed.variants,
-                markers: GenomeEngine.allCuratedMarkers
-            )
-            let clinvarHits: [ClinVarHit] = {
-                guard let index = ClinVarService.loadIndex() else { return [] }
-                return GenomeEngine.scanClinVar(variants: parsed.variants, index: index)
-            }()
-            return GenomePriorityEngine.rank(
-                summary: summary,
-                clinvarHits: clinvarHits,
-                library: GenomeActionLibrary.all,
-                states: actionStates,
-                lifestyle: lifestyle
-            )
-        }.value
-
-        cachedGenomePriorities = priorities
-        lastScannedAt = record.scannedAt
-        replayLifestyleRecs()
-    }
-
-    /// Re-run `RecommendationEngine.generate` after the genome priorities
-    /// change so the DNA-derived recommendations land in the same list as the
-    /// lifestyle ones (and resort by years gained).
-    private func replayLifestyleRecs() {
-        cachedRecommendations = RecommendationEngine.generate(
-            lifestyle: data.profile.lifestyle,
-            alcoholRisk: cachedAlcoholRisk,
-            hasGenomeData: data.genomeScanRecord != nil,
-            hasEpigeneticData: !data.epigeneticTests.isEmpty,
-            hasBloodTests: !data.bloodTests.isEmpty,
-            genomePriorities: cachedGenomePriorities
-        )
     }
 
     // MARK: - Goal Prompt Card
 
     @ViewBuilder
     private var goalPromptCard: some View {
-        if let apex = apexGoal {
+        if let apex = vm.apexGoal {
             apexGoalCard(apex)
         } else {
             setGoalCard
@@ -583,7 +412,7 @@ struct OverviewView: View {
         let alignment = alignmentScore(for: goal)
         let supportingCount = supportingGoalsCount(for: goal)
         let pillarCount = lifePillarCount(for: goal)
-        let streak = cachedReflectionStreak
+        let streak = vm.cachedReflectionStreak
 
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
@@ -668,7 +497,7 @@ struct OverviewView: View {
             HStack(spacing: 12) {
                 statPill(icon: "star.fill", value: "\(pillarCount)", label: pillarCount == 1 ? "pillar" : "pillars")
                 statPill(icon: "target", value: "\(supportingCount)", label: supportingCount == 1 ? "goal" : "goals")
-                statPill(icon: "circle.grid.2x2.fill", value: "\(activeGoalCount)", label: "total")
+                statPill(icon: "circle.grid.2x2.fill", value: "\(vm.activeGoalCount)", label: "total")
             }
 
             if supportingCount == 0 {
@@ -691,15 +520,15 @@ struct OverviewView: View {
     }
 
     private func alignmentScore(for apex: Goal) -> Double? {
-        cachedApexAlignment
+        vm.cachedApexAlignment
     }
 
     private func supportingGoalsCount(for apex: Goal) -> Int {
-        GoalEngine.activeDescendants(of: apex, in: data.goals).count
+        GoalEngine.activeDescendants(of: apex, in: vm.data.goals).count
     }
 
     private func lifePillarCount(for apex: Goal) -> Int {
-        data.goals.filter { $0.parentId == apex.id && $0.goalType == .subApex && $0.status == .active }.count
+        vm.data.goals.filter { $0.parentId == apex.id && $0.goalType == .subApex && $0.status == .active }.count
     }
 
     @ViewBuilder
@@ -799,15 +628,10 @@ struct OverviewView: View {
 
     // MARK: - Health Summary Hero Card
 
-    private var activeDC: DeathClockEngine.DeathClockResult? {
-        if countdownMode == .lev, let levDC = levDeathClock { return levDC }
-        return deathClock
-    }
-
     @ViewBuilder
     private var deathClockCard: some View {
         VStack(spacing: 16) {
-            if let dc = activeDC {
+            if let dc = vm.activeDC {
                 // Header
                 HStack {
                     Image(systemName: "heart.text.clipboard")
@@ -825,9 +649,9 @@ struct OverviewView: View {
                         .font(.subheadline)
                         .foregroundColor(.textSecondary)
                     Spacer()
-                    Text(String(format: "%.0f / 100", cachedHealthScore))
+                    Text(String(format: "%.0f / 100", vm.cachedHealthScore))
                         .font(.title2).fontWeight(.bold).monospacedDigit()
-                        .foregroundColor(healthScoreColor(cachedHealthScore))
+                        .foregroundColor(healthScoreColor(vm.cachedHealthScore))
                 }
 
                 Divider().background(Color.cardBorder)
@@ -963,24 +787,24 @@ struct OverviewView: View {
 
     @ViewBuilder
     private var lifeExpectancyFactorsCard: some View {
-        let lifestyle = data.profile.lifestyle
-        let metrics = data.healthMetrics
+        let lifestyle = vm.data.profile.lifestyle
+        let metrics = vm.data.healthMetrics
         let recoveries = metrics.compactMap(\.cardioRecovery)
         let cardioImpact = recoveries.isEmpty ? 0.0 : CardioFitnessEngine.recoveryLongevityImpact(recoveries.reduce(0, +) / Double(recoveries.count))
         let speeds = metrics.compactMap(\.walkingSpeed)
-        let gaitImpact = speeds.isEmpty ? 0.0 : GaitEngine.walkingSpeedLongevityImpact(speeds.reduce(0, +) / Double(speeds.count), age: deathClock?.ageYears ?? 0)
+        let gaitImpact = speeds.isEmpty ? 0.0 : GaitEngine.walkingSpeedLongevityImpact(speeds.reduce(0, +) / Double(speeds.count), age: vm.deathClock?.ageYears ?? 0)
         let bds = metrics.compactMap(\.breathingDisturbances)
         let apneaImpact = bds.isEmpty ? 0.0 : SleepEngine.apneaLongevityImpact(bds.reduce(0, +) / Double(bds.count))
 
         let allFactors: [(name: String, icon: String, value: Double)] = [
-            ("Genome", "dna", DeathClockEngine.genomeAdjustment(data.genomeScanRecord)),
+            ("Genome", "dna", DeathClockEngine.genomeAdjustment(vm.data.genomeScanRecord)),
             ("Smoking", "nosign", DeathClockEngine.smokingImpact(lifestyle.smokingStatus)),
             ("Exercise", "figure.run", DeathClockEngine.exerciseImpact(lifestyle.exerciseMinutesPerWeek)),
-            ("Sleep", "bed.double.fill", cachedSleepImpact),
+            ("Sleep", "bed.double.fill", vm.cachedSleepImpact),
             ("Diet", "fork.knife", DeathClockEngine.dietImpact(lifestyle.dietQuality)),
             ("Stress", "brain.head.profile", DeathClockEngine.stressImpact(lifestyle.stressLevel)),
             ("BMI", "scalemass.fill", DeathClockEngine.bmiImpact(lifestyle.bmi)),
-            ("Location", "globe", deathClock?.lifeExpectancy.locationAdjustment ?? 0),
+            ("Location", "globe", vm.deathClock?.lifeExpectancy.locationAdjustment ?? 0),
             ("Cardio Recovery", "heart.fill", cardioImpact),
             ("Walking Speed", "figure.walk", gaitImpact),
             ("Apnea Risk", "lungs.fill", apneaImpact),
@@ -1138,17 +962,6 @@ struct OverviewView: View {
 
     // MARK: - Lifetime Health Chart
 
-    private enum TrajectorySeries: String { case normal = "Expected", lev = "LEV" }
-
-    private struct TrajectoryPoint: Identifiable {
-        let year: Int
-        let health: Double
-        let series: TrajectorySeries
-        let id: Int // precomputed for efficiency
-    }
-
-    @State private var selectedChartYear: Int?
-
     @ViewBuilder
     private func lifetimeHealthChart(_ dc: DeathClockEngine.DeathClockResult) -> some View {
         let currentYear = Calendar.current.component(.year, from: Date())
@@ -1168,15 +981,15 @@ struct OverviewView: View {
                     .font(.title3).fontWeight(.bold)
                     .foregroundColor(.textPrimary)
                 Spacer()
-                Text(String(format: "%.0f%%", cachedHealthScore))
+                Text(String(format: "%.0f%%", vm.cachedHealthScore))
                     .font(.headline).fontWeight(.bold).monospacedDigit()
-                    .foregroundColor(healthScoreColor(cachedHealthScore))
+                    .foregroundColor(healthScoreColor(vm.cachedHealthScore))
             }
 
             ZStack(alignment: .topLeading) {
             Chart {
                 // Normal expected trajectory (now → life expectancy)
-                ForEach(cachedNormalPoints) { pt in
+                ForEach(vm.cachedNormalPoints) { pt in
                     LineMark(
                         x: .value("Year", pt.year),
                         y: .value("Health", pt.health),
@@ -1188,7 +1001,7 @@ struct OverviewView: View {
                 }
 
                 // LEV optimistic trajectory
-                ForEach(cachedLevPoints) { pt in
+                ForEach(vm.cachedLevPoints) { pt in
                     LineMark(
                         x: .value("Year", pt.year),
                         y: .value("Health", pt.health),
@@ -1202,7 +1015,7 @@ struct OverviewView: View {
                 // "Now" dot
                 PointMark(
                     x: .value("Year", currentYear),
-                    y: .value("Health", cachedHealthScore)
+                    y: .value("Health", vm.cachedHealthScore)
                 )
                 .foregroundStyle(Color.accentColor)
                 .symbolSize(80)
@@ -1274,8 +1087,8 @@ struct OverviewView: View {
             // Floating tooltip overlay
             if let yr = selectedChartYear {
                 let age = yr - birthYear
-                let normal = cachedNormalPoints.first(where: { $0.year == yr })?.health
-                let lev = cachedLevPoints.first(where: { $0.year == yr })?.health
+                let normal = vm.cachedNormalPoints.first(where: { $0.year == yr })?.health
+                let lev = vm.cachedLevPoints.first(where: { $0.year == yr })?.health
                 HStack(spacing: 10) {
                     Text("\(yr)")
                         .font(.caption.weight(.bold)).monospacedDigit()
@@ -1322,74 +1135,13 @@ struct OverviewView: View {
         .frame(maxWidth: .infinity)
         .cardStyle()
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Health trajectory chart. Current health score \(String(format: "%.0f", cachedHealthScore)) percent. Shows expected decline and LEV optimistic path from \(currentYear) to \(levDeathYear)")
+        .accessibilityLabel("Health trajectory chart. Current health score \(String(format: "%.0f", vm.cachedHealthScore)) percent. Shows expected decline and LEV optimistic path from \(currentYear) to \(levDeathYear)")
     }
 
     private func healthScoreColor(_ score: Double) -> Color {
         if score >= 75 { return .success }
         if score >= 50 { return .warning }
         return .danger
-    }
-
-    /// Now → LE: flat/improving for ~10 years, gentle decline mid-life, steeper only in final 5 years
-    private func normalTrajectory(currentYear: Int, deathYear: Int, currentHealth: Double) -> [TrajectoryPoint] {
-        var points: [TrajectoryPoint] = []
-        // Three phases: improvement (10yr), slow decline, steep final (5yr)
-        let improvementEndYear = currentYear + 10
-        let steepDeclineYear = deathYear - 5
-        let peakHealth = min(95, currentHealth + 5) // slight improvement from active health work
-        // Health at start of steep decline — gradual loss over the middle years
-        let atSteepStart = peakHealth * 0.55
-
-        for year in stride(from: currentYear, through: deathYear, by: 1) {
-            let health: Double
-            if year <= improvementEndYear {
-                // Flat to slightly improving — active health optimization
-                let t = Double(year - currentYear) / Double(max(1, improvementEndYear - currentYear))
-                health = currentHealth + (peakHealth - currentHealth) * t
-            } else if year <= steepDeclineYear {
-                // Gradual age-related decline
-                let t = Double(year - improvementEndYear) / Double(max(1, steepDeclineYear - improvementEndYear))
-                health = peakHealth + (atSteepStart - peakHealth) * t
-            } else {
-                // Steep final decline
-                let t = Double(year - steepDeclineYear) / Double(max(1, deathYear - steepDeclineYear))
-                health = atSteepStart * (1.0 - t * t)
-            }
-            points.append(TrajectoryPoint(year: year, health: max(0, health), series: .normal, id: year))
-        }
-        return points
-    }
-
-    /// Same as normal until LEV year, then therapies maintain/improve health far longer
-    private func levTrajectory(currentYear: Int, levYear: Int, levDeathYear: Int, currentHealth: Double, normalPoints: [TrajectoryPoint]) -> [TrajectoryPoint] {
-        var points: [TrajectoryPoint] = []
-        // Find health at LEV year from normal trajectory
-        let healthAtLEV = normalPoints.first(where: { $0.year == levYear })?.health ?? currentHealth
-        let peakHealth = min(98, healthAtLEV + 8) // LEV therapies recover + improve
-        let declineStart = levDeathYear - 10
-
-        for year in stride(from: levYear, through: levDeathYear, by: 1) {
-            let health: Double
-            let yearsAfterLEV = Double(year - levYear)
-            let rampUpYears = 10.0 // takes ~10 years for full LEV therapies to kick in
-            if yearsAfterLEV <= rampUpYears {
-                // Recovery and improvement as therapies take effect
-                let t = yearsAfterLEV / rampUpYears
-                health = healthAtLEV + (peakHealth - healthAtLEV) * t
-            } else if year <= declineStart {
-                // Maintained near-peak with very slow aging
-                let t = Double(year - levYear - Int(rampUpYears)) / Double(max(1, declineStart - levYear - Int(rampUpYears)))
-                health = peakHealth - (peakHealth * 0.08 * t)
-            } else {
-                // Gentle decline at end
-                let t = Double(year - declineStart) / Double(max(1, levDeathYear - declineStart))
-                let atDecline = peakHealth * 0.92
-                health = atDecline * (1.0 - 0.6 * t * t)
-            }
-            points.append(TrajectoryPoint(year: year, health: max(0, health), series: .lev, id: year + 10000))
-        }
-        return points
     }
 
     @ViewBuilder
@@ -1415,7 +1167,7 @@ struct OverviewView: View {
 
     @ViewBuilder
     private var vitalStatsRow: some View {
-        let dc = activeDC
+        let dc = vm.activeDC
         HStack(spacing: 12) {
             vitalStatCard(
                 title: "Current Age",
@@ -1427,7 +1179,7 @@ struct OverviewView: View {
                 title: "Years Left",
                 value: dc.map { String(format: "%.1f", $0.yearsRemaining) } ?? "--",
                 icon: "hourglass",
-                color: countdownMode == .lev ? .success : .accentColor
+                color: vm.countdownMode == .lev ? .success : .accentColor
             )
             vitalStatCard(
                 title: "Healthy Years",
@@ -1486,14 +1238,14 @@ struct OverviewView: View {
 
     @ViewBuilder
     private var alcoholTile: some View {
-        let todayDrinks = data.alcoholDrinks.filter { $0.date == todayStr }
+        let todayDrinks = vm.data.alcoholDrinks.filter { $0.date == vm.todayStr }
         let todayGrams = todayDrinks.reduce(0.0) { $0 + $1.gramsAlcohol }
 
-        let weekDrinks = data.alcoholDrinks.filter { $0.date >= weekAgoStr }
+        let weekDrinks = vm.data.alcoholDrinks.filter { $0.date >= vm.weekAgoStr }
         let weeklyGrams = weekDrinks.reduce(0.0) { $0 + $1.gramsAlcohol }
         let dailyAvg7d = weekDrinks.isEmpty ? 0 : weeklyGrams / 7.0
 
-        let riskColor = cachedAlcoholRisk.color
+        let riskColor = vm.cachedAlcoholRisk.color
 
         Button { navigateToHabitTab(.alcohol) } label: {
             VStack(alignment: .leading, spacing: 8) {
@@ -1502,7 +1254,7 @@ struct OverviewView: View {
                         .foregroundColor(riskColor)
                         .font(.title3)
                     Spacer()
-                    Text(cachedAlcoholRisk.rawValue.capitalized)
+                    Text(vm.cachedAlcoholRisk.rawValue.capitalized)
                         .font(.system(size: 10)).fontWeight(.semibold)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
@@ -1526,7 +1278,7 @@ struct OverviewView: View {
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Alcohol: \(String(format: "%.0f grams today", todayGrams)), \(cachedAlcoholRisk.rawValue) risk")
+        .accessibilityLabel("Alcohol: \(String(format: "%.0f grams today", todayGrams)), \(vm.cachedAlcoholRisk.rawValue) risk")
         .accessibilityHint("Opens habits tracking")
     }
 
@@ -1534,7 +1286,7 @@ struct OverviewView: View {
 
     @ViewBuilder
     private var bodyTile: some View {
-        let bmi = data.profile.lifestyle.bmi
+        let bmi = vm.data.profile.lifestyle.bmi
 
         Button { navigateTo(.body) } label: {
             VStack(alignment: .leading, spacing: 8) {
@@ -1553,7 +1305,7 @@ struct OverviewView: View {
                         .font(.headline)
                         .foregroundColor(.textPrimary)
                 }
-                Text(data.eyeExams.isEmpty ? "No exams" : "\(data.eyeExams.count) eye exam\(data.eyeExams.count == 1 ? "" : "s")")
+                Text(vm.data.eyeExams.isEmpty ? "No exams" : "\(vm.data.eyeExams.count) eye exam\(vm.data.eyeExams.count == 1 ? "" : "s")")
                     .font(.caption)
                     .foregroundColor(.textSecondary)
                 Text("Body")
@@ -1574,8 +1326,8 @@ struct OverviewView: View {
 
     @ViewBuilder
     private var bloodTile: some View {
-        let tests = data.bloodTests
-        let latestDate = sortedBloodTests.first?.date
+        let tests = vm.data.bloodTests
+        let latestDate = vm.sortedBloodTests.first?.date
 
         Button { navigateTo(.blood) } label: {
             VStack(alignment: .leading, spacing: 8) {
@@ -1609,7 +1361,7 @@ struct OverviewView: View {
 
     @ViewBuilder
     private var epigeneticTile: some View {
-        let latest = sortedEpigeneticTests.first
+        let latest = vm.sortedEpigeneticTests.first
 
         Button { navigateTo(.genome) } label: {
             VStack(alignment: .leading, spacing: 8) {
@@ -1658,8 +1410,8 @@ struct OverviewView: View {
 
     @ViewBuilder
     private var eyesTile: some View {
-        let exams = data.eyeExams
-        let latestDate = sortedEyeExams.first?.date
+        let exams = vm.data.eyeExams
+        let latestDate = vm.sortedEyeExams.first?.date
 
         Button { navigateTo(.body) } label: {
             VStack(alignment: .leading, spacing: 8) {
@@ -1693,7 +1445,7 @@ struct OverviewView: View {
 
     @ViewBuilder
     private var lifestyleTile: some View {
-        let lifestyle = data.profile.lifestyle
+        let lifestyle = vm.data.profile.lifestyle
         let isConfigured = lifestyle != .default
 
         Button { navigateTo(.lifestyle) } label: {
@@ -1728,8 +1480,8 @@ struct OverviewView: View {
 
     @ViewBuilder
     private var recommendationsCard: some View {
-        let actionable = cachedRecommendations.filter { $0.yearsGained > 0 }
-        let dataGaps = cachedRecommendations.filter { $0.yearsGained == 0 }
+        let actionable = vm.cachedRecommendations.filter { $0.yearsGained > 0 }
+        let dataGaps = vm.cachedRecommendations.filter { $0.yearsGained == 0 }
         let totalGainable = actionable.reduce(0.0) { $0 + $1.yearsGained }
 
         VStack(alignment: .leading, spacing: 12) {
