@@ -12,7 +12,8 @@ enum DeathClockEngine {
         /// Mean days per year (Julian year, includes leap years). Standard
         /// constant for converting between year-fractions and day/second counts.
         static let daysPerYear = 365.25
-        /// Mean days per month: daysPerYear / 12.
+        /// Mean days per month (~daysPerYear / 12 ≈ 30.4375, rounded to 30.44
+        /// as used historically for the countdown breakdown).
         static let daysPerMonth = 30.44
         /// Seconds in a mean year: daysPerYear × 24h × 3600s.
         static let secondsPerYear = daysPerYear * 24 * 3600

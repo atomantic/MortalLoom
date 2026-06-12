@@ -325,7 +325,7 @@ enum GenomePriorityEngine {
         switch source {
         case .apoe(let a):
             // ε4 carriers benefit most from cardio. If exercise is below WHO target, amplify.
-            if (a.haplotype.contains("\u{03B5}4")) && lifestyle.exerciseMinutesPerWeek < 150 {
+            if (a.haplotype.contains("\u{03B5}4")) && lifestyle.exerciseMinutesPerWeek < DeathClockEngine.Constants.exerciseRecommendedMinutes {
                 return 1.4
             }
         case .marker(let r):
