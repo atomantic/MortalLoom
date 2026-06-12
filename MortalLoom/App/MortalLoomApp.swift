@@ -5,6 +5,7 @@ private let appLogger = Logger(subsystem: "net.shadowpuppet.MeatSpaceTracker", c
 
 enum AppConstants {
     static let hasCompletedOnboardingKey = "hasCompletedOnboarding"
+    static let appearanceModeKey = "appearanceMode"
     /// Launch with -sample-data to load realistic test data for screenshots.
     /// Debug-only — Release builds ignore this flag so a shipped binary cannot
     /// be coerced into wiping a real user's data via launch arguments.
