@@ -102,6 +102,7 @@ struct OverviewView: View {
             GoalEditSheet(
                 goal: goal,
                 allGoals: data.goals,
+                allHabits: data.habits,
                 onSave: { updated in
                     Task {
                         await DataStore.shared.updateGoal(updated)
