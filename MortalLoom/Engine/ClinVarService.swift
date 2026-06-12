@@ -124,13 +124,15 @@ enum ClinVarService {
         let metaData = try JSONEncoder().encode(meta)
 
         let local = localDocumentsDir
-        try indexData.write(to: local.appendingPathComponent(indexFileName))
-        try metaData.write(to: local.appendingPathComponent(metaFileName))
+        try indexData.write(to: local.appendingPathComponent(indexFileName), options: [.atomic, .completeFileProtection])
+        try metaData.write(to: local.appendingPathComponent(metaFileName), options: [.atomic, .completeFileProtection])
 
         if let cloud = iCloudDocumentsDir {
             try? FileManager.default.createDirectory(at: cloud, withIntermediateDirectories: true)
-            try? indexData.write(to: cloud.appendingPathComponent(indexFileName))
-            try? metaData.write(to: cloud.appendingPathComponent(metaFileName))
+            // Cloud writes use `.completeFileProtectionUnlessOpen` so the iCloud sync daemon can
+            // upload while the device is locked, matching DataStore's cloud-write convention.
+            try? indexData.write(to: cloud.appendingPathComponent(indexFileName), options: [.atomic, .completeFileProtectionUnlessOpen])
+            try? metaData.write(to: cloud.appendingPathComponent(metaFileName), options: [.atomic, .completeFileProtectionUnlessOpen])
         }
 
         // Cleanup temp file
