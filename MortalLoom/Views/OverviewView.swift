@@ -488,8 +488,8 @@ struct OverviewView: View {
         let currentYear = Calendar.current.component(.year, from: Date())
         let birthYear = currentYear - dc.ageYears
         let deathYear = birthYear + Int(dc.lifeExpectancy.total)
-        let levYear = 2045
-        let levDeathYear = birthYear + 120
+        let levYear = DeathClockEngine.Constants.levTargetYear
+        let levDeathYear = birthYear + Int(DeathClockEngine.Constants.levTargetAge)
 
         cachedHealthScore = DeathClockEngine.healthScore(
             lifestyle: data.profile.lifestyle,
@@ -1152,8 +1152,8 @@ struct OverviewView: View {
         let currentYear = Calendar.current.component(.year, from: Date())
         let birthYear = currentYear - dc.ageYears
         let deathYear = birthYear + Int(dc.lifeExpectancy.total)
-        let levYear = 2045
-        let levDeathYear = birthYear + 120
+        let levYear = DeathClockEngine.Constants.levTargetYear
+        let levDeathYear = birthYear + Int(DeathClockEngine.Constants.levTargetAge)
 
         let chartEndYear = levDeathYear + 1
 

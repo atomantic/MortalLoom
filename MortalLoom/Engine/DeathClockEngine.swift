@@ -2,6 +2,56 @@ import Foundation
 
 enum DeathClockEngine {
 
+    // MARK: - Constants
+    //
+    // Centralized actuarial/time conversions and clinical thresholds so the
+    // high-stakes mortality math doesn't hide its assumptions in scattered
+    // literals. Referenced from every site that previously inlined the value.
+    enum Constants {
+        // Time conversions
+        /// Mean days per year (Julian year, includes leap years). Standard
+        /// constant for converting between year-fractions and day/second counts.
+        static let daysPerYear = 365.25
+        /// Mean days per month: daysPerYear / 12.
+        static let daysPerMonth = 30.44
+        /// Seconds in a mean year: daysPerYear × 24h × 3600s.
+        static let secondsPerYear = daysPerYear * 24 * 3600
+
+        // Longevity Escape Velocity
+        /// Target year by which anti-aging research is projected to reach
+        /// "escape velocity" (Aubrey de Grey / SENS popularized ~2045).
+        static let levTargetYear = 2045
+        /// Year LEV research timeline is anchored to begin.
+        static let levStartYear = 2000
+        /// Hypothetical lifespan (years) if on track for LEV.
+        static let levTargetAge: Double = 120
+
+        // Health-decline estimates
+        /// Rough estimate: the final years of life tend to carry declining
+        /// health, so healthy-years-remaining trims this many years off the
+        /// total remaining lifespan.
+        static let declineYearsStandard = 10.0
+        /// Smaller decline window applied to LEV-extended lifespans.
+        static let declineYearsLEV = 5.0
+
+        // Exercise thresholds (minutes/week) — WHO/ACSM recommend ≥150 min/week
+        // of moderate-intensity activity; ≥75 min/week confers partial benefit.
+        static let exerciseRecommendedMinutes = 150
+        static let exerciseMinimumMinutes = 75
+
+        // Sleep thresholds (hours/night) — NSF: 7–9h optimal for adults;
+        // <6h associated with elevated all-cause mortality.
+        static let sleepOptimalMin = 7.0
+        static let sleepOptimalMax = 9.0
+        static let sleepMinimum = 6.0
+
+        // BMI thresholds (kg/m²) — WHO standard categories.
+        static let bmiUnderweight = 18.5
+        static let bmiOverweight = 25.0
+        static let bmiObese = 30.0
+        static let bmiSevereObese = 35.0
+    }
+
     // MARK: - Life Expectancy Calculation
 
     struct LifeExpectancy: Sendable {
@@ -143,7 +193,7 @@ enum DeathClockEngine {
         guard let birthDate = dateFromString(birthDateStr) else { return nil }
 
         let ageYears = Calendar.current.dateComponents([.year], from: birthDate, to: now).year ?? 0
-        let ageFraction = now.timeIntervalSince(birthDate) / (365.25 * 24 * 3600)
+        let ageFraction = now.timeIntervalSince(birthDate) / Constants.secondsPerYear
 
         let baseline = ssaBaseline(sex: sex, ageYears: ageYears)
         let genomeAdj = genomeAdjustment(genome)
@@ -167,9 +217,9 @@ enum DeathClockEngine {
             total: total
         )
 
-        let deathDate = Calendar.current.date(byAdding: .day, value: Int((total - ageFraction) * 365.25), to: now) ?? now
+        let deathDate = Calendar.current.date(byAdding: .day, value: Int((total - ageFraction) * Constants.daysPerYear), to: now) ?? now
         let yearsRemaining = max(0, total - ageFraction)
-        let healthyYearsRemaining = max(0, yearsRemaining - 10) // Rough estimate: last 10 years may have declining health
+        let healthyYearsRemaining = max(0, yearsRemaining - Constants.declineYearsStandard)
         let percentComplete = total > 0 ? min(100, (ageFraction / total) * 100) : 100
 
         return DeathClockResult(
@@ -196,10 +246,10 @@ enum DeathClockEngine {
         let totalHours = totalMinutes / 60
         let totalDays = totalHours / 24
 
-        let years = Int(Double(totalDays) / 365.25)
-        let remainingDaysAfterYears = totalDays - Int(Double(years) * 365.25)
-        let months = Int(Double(remainingDaysAfterYears) / 30.44)
-        let remainingDaysAfterMonths = remainingDaysAfterYears - Int(Double(months) * 30.44)
+        let years = Int(Double(totalDays) / Constants.daysPerYear)
+        let remainingDaysAfterYears = totalDays - Int(Double(years) * Constants.daysPerYear)
+        let months = Int(Double(remainingDaysAfterYears) / Constants.daysPerMonth)
+        let remainingDaysAfterMonths = remainingDaysAfterYears - Int(Double(months) * Constants.daysPerMonth)
         let weeks = remainingDaysAfterMonths / 7
         let days = remainingDaysAfterMonths - weeks * 7
         let hours = totalHours % 24
@@ -217,7 +267,7 @@ enum DeathClockEngine {
     // MARK: - LEV (Longevity Escape Velocity)
 
     struct LEVResult: Sendable {
-        let targetYear: Int        // 2045
+        let targetYear: Int        // Constants.levTargetYear
         let ageAtLEV: Int
         let yearsToLEV: Int
         let researchProgress: Double  // 0-100
@@ -229,12 +279,12 @@ enum DeathClockEngine {
         guard let birthDate = dateFromString(birthDateStr) else { return nil }
         let birthYear = Calendar.current.component(.year, from: birthDate)
         let currentYear = Calendar.current.component(.year, from: now)
-        let targetYear = 2045
+        let targetYear = Constants.levTargetYear
         let ageAtLEV = targetYear - birthYear
         let yearsToLEV = max(0, targetYear - currentYear)
 
-        // Research timeline 2000-2045
-        let startYear = 2000
+        // Research timeline levStartYear–levTargetYear
+        let startYear = Constants.levStartYear
         let elapsed = Double(currentYear - startYear)
         let total = Double(targetYear - startYear)
         let progress = min(100, max(0, (elapsed / total) * 100))
@@ -253,19 +303,19 @@ enum DeathClockEngine {
 
     /// Calculate a LEV-extended longevity result (target lifespan if on track for LEV).
     /// Accepts a pre-computed standard result to avoid duplicate calculation.
-    static func calculateLEVResult(standardResult: DeathClockResult, birthDateStr: String, levTargetAge: Double = 120, now: Date = Date()) -> DeathClockResult? {
+    static func calculateLEVResult(standardResult: DeathClockResult, birthDateStr: String, levTargetAge: Double = Constants.levTargetAge, now: Date = Date()) -> DeathClockResult? {
         guard let birthDate = dateFromString(birthDateStr) else { return nil }
 
         let birthYear = Calendar.current.component(.year, from: birthDate)
-        let ageAtLEV = 2045 - birthYear
+        let ageAtLEV = Constants.levTargetYear - birthYear
 
         guard standardResult.lifeExpectancy.total >= Double(ageAtLEV) else { return nil }
 
         let levLE = levTargetAge
-        let ageFraction = now.timeIntervalSince(birthDate) / (365.25 * 24 * 3600)
-        let levDeathDate = Calendar.current.date(byAdding: .day, value: Int((levLE - ageFraction) * 365.25), to: now) ?? now
+        let ageFraction = now.timeIntervalSince(birthDate) / Constants.secondsPerYear
+        let levDeathDate = Calendar.current.date(byAdding: .day, value: Int((levLE - ageFraction) * Constants.daysPerYear), to: now) ?? now
         let yearsRemaining = max(0, levLE - ageFraction)
-        let healthyYearsRemaining = max(0, yearsRemaining - 5)
+        let healthyYearsRemaining = max(0, yearsRemaining - Constants.declineYearsLEV)
         let percentComplete = min(100, (ageFraction / levLE) * 100)
 
         let le = LifeExpectancy(
@@ -307,11 +357,15 @@ enum DeathClockEngine {
     }
 
     static func exerciseImpact(_ minutes: Int) -> Double {
-        if minutes > 150 { return 2 } else if minutes >= 75 { return 0.5 } else { return -2 }
+        if minutes > Constants.exerciseRecommendedMinutes { return 2 }
+        else if minutes >= Constants.exerciseMinimumMinutes { return 0.5 }
+        else { return -2 }
     }
 
     static func sleepImpact(_ hours: Double) -> Double {
-        if hours >= 7 && hours <= 9 { return 1 } else if hours >= 6 { return 0 } else { return -1.5 }
+        if hours >= Constants.sleepOptimalMin && hours <= Constants.sleepOptimalMax { return 1 }
+        else if hours >= Constants.sleepMinimum { return 0 }
+        else { return -1.5 }
     }
 
     static func dietImpact(_ quality: DietQuality) -> Double {
@@ -324,9 +378,9 @@ enum DeathClockEngine {
 
     static func bmiImpact(_ bmi: Double?) -> Double {
         guard let bmi, bmi > 0 else { return 0 }
-        if bmi < 18.5 { return -1.5 }
-        if bmi >= 18.5 && bmi < 25 { return 0.5 }
-        if bmi >= 25 && bmi < 30 { return -0.5 }
+        if bmi < Constants.bmiUnderweight { return -1.5 }
+        if bmi >= Constants.bmiUnderweight && bmi < Constants.bmiOverweight { return 0.5 }
+        if bmi >= Constants.bmiOverweight && bmi < Constants.bmiObese { return -0.5 }
         return -3
     }
 
@@ -431,12 +485,12 @@ enum DeathClockEngine {
         case .former: lifestylePts -= 8
         case .current: lifestylePts -= 30
         }
-        // 150+ is the recommendation threshold — full credit at 150
-        if lifestyle.exerciseMinutesPerWeek >= 150 { /* full */ }
-        else if lifestyle.exerciseMinutesPerWeek >= 75 { lifestylePts -= 3 }
+        // Recommended minutes is the threshold — full credit at/above it.
+        if lifestyle.exerciseMinutesPerWeek >= Constants.exerciseRecommendedMinutes { /* full */ }
+        else if lifestyle.exerciseMinutesPerWeek >= Constants.exerciseMinimumMinutes { lifestylePts -= 3 }
         else { lifestylePts -= 10 }
-        if lifestyle.sleepHoursPerNight >= 7 && lifestyle.sleepHoursPerNight <= 9 { /* full */ }
-        else if lifestyle.sleepHoursPerNight >= 6 { lifestylePts -= 2 }
+        if lifestyle.sleepHoursPerNight >= Constants.sleepOptimalMin && lifestyle.sleepHoursPerNight <= Constants.sleepOptimalMax { /* full */ }
+        else if lifestyle.sleepHoursPerNight >= Constants.sleepMinimum { lifestylePts -= 2 }
         else { lifestylePts -= 6 }
         switch lifestyle.dietQuality {
         case .excellent: break
@@ -455,9 +509,9 @@ enum DeathClockEngine {
         let bmiMax = 15.0
         if let bmi = lifestyle.bmi {
             weight += bmiMax
-            if bmi >= 18.5 && bmi < 25 { score += bmiMax }
-            else if bmi >= 25 && bmi < 30 { score += bmiMax * 0.7 }
-            else if bmi >= 30 && bmi < 35 { score += bmiMax * 0.4 }
+            if bmi >= Constants.bmiUnderweight && bmi < Constants.bmiOverweight { score += bmiMax }
+            else if bmi >= Constants.bmiOverweight && bmi < Constants.bmiObese { score += bmiMax * 0.7 }
+            else if bmi >= Constants.bmiObese && bmi < Constants.bmiSevereObese { score += bmiMax * 0.4 }
             else { score += bmiMax * 0.2 }
         }
 
