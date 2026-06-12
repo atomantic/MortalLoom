@@ -1,5 +1,4 @@
 import Foundation
-import SwiftUI
 
 // MARK: - Priority Engine Output Types
 
@@ -97,39 +96,10 @@ struct ActionStateCounts: Sendable {
 }
 
 // MARK: - Shared severity helpers
-
-/// Polarity-aware color for marker findings — `concern` on a protective marker
-/// is "no benefit variant", not an elevated risk, so it stays neutral.
-func severityColor(for source: PriorityFindingSource) -> Color {
-    switch source {
-    case .marker(let r):
-        switch (r.status, r.marker.polarity) {
-        case (.majorConcern, .risk): return .red
-        case (.concern, .risk): return .orange
-        case (.beneficial, _): return .green
-        case (.concern, .protective), (.majorConcern, .protective): return .secondary
-        case (.typical, _), (.notFound, _): return .secondary
-        }
-    case .clinvar(let h):
-        return clinvarSeverityColor(h.entry.severity)
-    case .apoe(let a):
-        switch a.status {
-        case .majorConcern: return .red
-        case .concern: return .orange
-        case .beneficial: return .green
-        default: return .secondary
-        }
-    }
-}
-
-func clinvarSeverityColor(_ severity: String) -> Color {
-    switch severity {
-    case "pathogenic": .red
-    case "drug_response", "risk_factor": .orange
-    case "protective": .green
-    default: .secondary
-    }
-}
+//
+// The `Color`-returning severity helpers live in the Theme layer
+// (Theme/GenomeSeverityColors.swift) so this engine stays free of SwiftUI.
+// Only the framework-agnostic label helper remains here.
 
 func clinvarSeverityLabel(_ severity: String) -> String {
     switch severity {

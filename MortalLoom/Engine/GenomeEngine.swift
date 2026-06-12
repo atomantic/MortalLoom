@@ -144,7 +144,7 @@ enum GenomeEngine {
         if cleaned.contains("/") {
             alleles = cleaned.split(separator: "/").map(String.init)
         } else if cleaned.count == 2 {
-            alleles = [String(cleaned.first!), String(cleaned.last!)]
+            alleles = [String(cleaned.prefix(1)), String(cleaned.suffix(1))]
         } else if cleaned.count == 1 {
             alleles = [cleaned, cleaned]
         } else {
@@ -160,7 +160,7 @@ enum GenomeEngine {
         let cleaned = raw.trimmingCharacters(in: .whitespaces).uppercased()
         guard !cleaned.isEmpty, cleaned != "--", cleaned != "00" else { return nil }
         if cleaned.contains("/") { return cleaned }
-        if cleaned.count == 2 { return "\(cleaned.first!)/\(cleaned.last!)" }
+        if cleaned.count == 2 { return "\(cleaned.prefix(1))/\(cleaned.suffix(1))" }
         if cleaned.count == 1 { return "\(cleaned)/\(cleaned)" }
         return cleaned
     }
