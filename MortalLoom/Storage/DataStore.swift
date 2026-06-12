@@ -12,11 +12,18 @@ enum CloudConfig {
 private let logger = Logger(subsystem: "net.shadowpuppet.MeatSpaceTracker", category: "DataStore")
 
 extension FileManager {
+    /// Modification date of the file at `url`, or nil if it can't be read.
+    /// Centralizes the `attributesOfItem(...)[.modificationDate] as? Date`
+    /// dance so the fragile cast lives in exactly one place.
+    func modificationDate(at url: URL) -> Date? {
+        try? attributesOfItem(atPath: url.path)[.modificationDate] as? Date
+    }
+
     /// Returns the cloud URL if it exists and is newer than the local URL, otherwise the local URL.
     func newerOf(cloud: URL?, local: URL) -> URL {
         guard let cloud, fileExists(atPath: cloud.path) else { return local }
-        let cloudDate = (try? attributesOfItem(atPath: cloud.path)[.modificationDate] as? Date) ?? .distantPast
-        let localDate = (try? attributesOfItem(atPath: local.path)[.modificationDate] as? Date) ?? .distantPast
+        let cloudDate = modificationDate(at: cloud) ?? .distantPast
+        let localDate = modificationDate(at: local) ?? .distantPast
         return cloudDate >= localDate ? cloud : local
     }
 }
@@ -196,7 +203,7 @@ actor DataStore {
                 // as "newer" than our freshly-loaded state. Without this,
                 // lastSaveDate stays at .distantPast and any iCloud push from
                 // another device (even a stale one) unconditionally wins.
-                if let mtime = try? FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate] as? Date {
+                if let mtime = FileManager.default.modificationDate(at: url) {
                     lastSaveDate = mtime
                 }
                 let drinkCount = self.data.alcoholDrinks.count
@@ -237,7 +244,7 @@ actor DataStore {
                             data = decoded
                             // Record the cloud file's mod date so reloadIfNeeded()
                             // doesn't redundantly reload the same data.
-                            lastSaveDate = (try? fm.attributesOfItem(atPath: cloudURL.path)[.modificationDate] as? Date) ?? Date()
+                            lastSaveDate = fm.modificationDate(at: cloudURL) ?? Date()
                             let drinkCount = self.data.alcoholDrinks.count
                             let nicCount = self.data.nicotineEntries.count
                             logger.info("💾 loaded iCloud data after download (\(drinkCount, privacy: .private) drinks, \(nicCount, privacy: .private) nic)")
@@ -284,7 +291,7 @@ actor DataStore {
             return false
         }
 
-        let cloudDate = (try? FileManager.default.attributesOfItem(atPath: cloudURL.path)[.modificationDate] as? Date) ?? .distantPast
+        let cloudDate = FileManager.default.modificationDate(at: cloudURL) ?? .distantPast
         guard cloudDate > lastSaveDate else { return false }
 
         guard let fileData = try? Data(contentsOf: cloudURL),

@@ -865,7 +865,7 @@ struct SettingsView: View {
     private func backupMetadata(_ url: URL) -> BackupMetadata {
         let fm = FileManager.default
         let attrs = try? fm.attributesOfItem(atPath: url.path)
-        let mtime = (attrs?[.modificationDate] as? Date) ?? .distantPast
+        let mtime = fm.modificationDate(at: url) ?? .distantPast
         let size = (attrs?[.size] as? Int) ?? 0
 
         let name = url.deletingPathExtension().lastPathComponent
