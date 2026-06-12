@@ -260,7 +260,7 @@ enum GoalEngine {
     static func cognitiveDeadline(from deathClock: DeathClockEngine.DeathClockResult?, now: Date = Date()) -> Date? {
         guard let dc = deathClock else { return nil }
         let cognitiveYears = dc.healthyYearsRemaining
-        return Calendar.current.date(byAdding: .day, value: Int(cognitiveYears * 365.25), to: now)
+        return Calendar.current.date(byAdding: .day, value: Int(cognitiveYears * DeathClockEngine.Constants.daysPerYear), to: now)
     }
 
     /// Convert active goals into week-index markers relative to a birth date.

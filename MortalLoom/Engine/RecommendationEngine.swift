@@ -114,7 +114,7 @@ enum RecommendationEngine {
         }
 
         // Exercise
-        if lifestyle.exerciseMinutesPerWeek < 75 {
+        if lifestyle.exerciseMinutesPerWeek < DeathClockEngine.Constants.exerciseMinimumMinutes {
             let currentImpact = DeathClockEngine.exerciseImpact(lifestyle.exerciseMinutesPerWeek)
             let targetImpact = DeathClockEngine.exerciseImpact(151)
             let gain = targetImpact - currentImpact
@@ -130,7 +130,7 @@ enum RecommendationEngine {
                     CitationLibrary.arem2015Exercise.id,
                 ]
             ))
-        } else if lifestyle.exerciseMinutesPerWeek < 150 {
+        } else if lifestyle.exerciseMinutesPerWeek < DeathClockEngine.Constants.exerciseRecommendedMinutes {
             let currentImpact = DeathClockEngine.exerciseImpact(lifestyle.exerciseMinutesPerWeek)
             let targetImpact = DeathClockEngine.exerciseImpact(151)
             let gain = targetImpact - currentImpact
@@ -257,7 +257,7 @@ enum RecommendationEngine {
 
         // BMI
         if let bmi = lifestyle.bmi {
-            if bmi >= 30 {
+            if bmi >= DeathClockEngine.Constants.bmiObese {
                 let gain = DeathClockEngine.bmiImpact(24.0) - DeathClockEngine.bmiImpact(bmi)
                 recs.append(Recommendation(
                     id: "improve-bmi",
@@ -271,7 +271,7 @@ enum RecommendationEngine {
                         CitationLibrary.bmiMortality2016.id,
                     ]
                 ))
-            } else if bmi >= 25 {
+            } else if bmi >= DeathClockEngine.Constants.bmiOverweight {
                 let gain = DeathClockEngine.bmiImpact(24.0) - DeathClockEngine.bmiImpact(bmi)
                 recs.append(Recommendation(
                     id: "improve-bmi",
