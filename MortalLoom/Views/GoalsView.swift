@@ -215,7 +215,7 @@ struct GoalsView: View {
 
         var roots = activeGoals.filter { g in
             g.id != apex?.id &&
-            (g.parentId == nil || !activeIds.contains(g.parentId!))
+            (g.parentId.map { !activeIds.contains($0) } ?? true)
         }
 
         if let apex {

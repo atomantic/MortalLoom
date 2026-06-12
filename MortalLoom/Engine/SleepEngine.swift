@@ -142,7 +142,7 @@ enum SleepEngine {
             let avgDaylight = window.map(\.daylight).reduce(0, +) / Double(window.count)
             let score = consistencyScore(window.map(\.sleep))
             points.append(DaylightConsistencyPoint(
-                endDate: window.last!.date,
+                endDate: usable[endIdx].date,
                 avgDaylightMinutes: avgDaylight,
                 consistency: score,
                 nightsInWindow: window.count
