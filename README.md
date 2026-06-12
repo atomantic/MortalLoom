@@ -1,7 +1,7 @@
 # MortalLoom
 
 <p align="center">
-  <img src="LogoSimple.png" alt="MortalLoom" width="200" />
+  <img src="MortalLoom/App/Assets.xcassets/AppLogo.imageset/AppLogo.png" alt="MortalLoom" width="200" />
 </p>
 
 <p align="center">
