@@ -46,11 +46,15 @@ actor DataStore {
     /// enableSampleDataMode(); there is no way to turn it back off.
     private var sampleDataMode = false
 
-    /// Tracks whether the iCloud ubiquity container has been confirmed writable
-    /// this launch. `nil` until the first write probes it; `true`/`false` after.
+    /// Caches a *confirmed-writable* iCloud container so the probe runs once,
+    /// not on every save. `nil` until a write probes it; set to `true` only when
+    /// the container is reachable. A failed probe deliberately leaves this `nil`
+    /// so a later save re-probes — the container is often unreachable for a few
+    /// seconds at first launch (daemon still provisioning) and we don't want to
+    /// disable iCloud for the whole session over a transient early miss.
     /// `url(forUbiquityContainerIdentifier:)` returning non-nil only proves the
-    /// entitlement is configured, NOT that the container is reachable — so we
-    /// probe with a real directory listing before trusting the iCloud write path.
+    /// entitlement is configured, NOT that the container is reachable — hence the
+    /// real directory-listing probe before trusting the iCloud write path.
     private var isICloudWritable: Bool?
     /// Guards `iCloudWriteUnavailable` so the failure toast fires at most once
     /// per launch instead of on every save while iCloud stays unreachable.
@@ -790,14 +794,21 @@ actor DataStore {
     /// signed-out account, an unsigned build, or first launch before the daemon
     /// has provisioned the container, the directory create + a `contentsOfDirectory`
     /// probe still fail. We listing-probe (not `try?`) so a real error is seen,
-    /// cache the result for the process, and on failure surface a one-time toast
+    /// cache only a *successful* result, and on failure surface a one-time toast
     /// and fall back to the local-only copy `save()` already wrote.
+    ///
+    /// A failed probe is NOT cached: `isICloudWritable` stays `nil` so the next
+    /// save re-probes. First-launch unreachability is usually transient (the
+    /// daemon provisions the container a few seconds in), and caching `false`
+    /// would strand the session with no iCloud copy even once it comes online.
+    /// The repeat probe is cheap relative to a save and bounded to the offline
+    /// path; `didWarnICloudUnavailable` still keeps the toast to one per launch.
     ///
     /// `Documents` may legitimately not exist yet on a fresh container, so a
     /// successful `createDirectory` followed by a successful listing is the
     /// signal that the container is live — not the mere presence of files.
     private func ensureICloudWritable(_ cloudURL: URL) -> Bool {
-        if let cached = isICloudWritable { return cached }
+        if isICloudWritable == true { return true }
 
         let dir = cloudURL.deletingLastPathComponent()
         let fm = FileManager.default
@@ -809,8 +820,9 @@ actor DataStore {
             isICloudWritable = true
             return true
         } catch {
+            // Leave isICloudWritable nil so a later save re-probes once the
+            // daemon comes online — see the property doc above.
             logger.error("☁️ iCloud container not writable — saving locally only: \(error.localizedDescription, privacy: .private)")
-            isICloudWritable = false
             noteICloudUnavailable()
             return false
         }
