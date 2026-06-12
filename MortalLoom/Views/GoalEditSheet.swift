@@ -449,12 +449,22 @@ struct GoalEditSheet: View {
     /// Stagnation signals currently applicable to the goal being edited.
     /// Used to present the muting toggles. Computed against the current
     /// state of the goal list, not the edited fields, so live edits don't
-    /// flip alerts mid-form. Habits are passed so habit-cadence signals
-    /// (e.g. a linked daily habit gone stale) show up here too.
+    /// flip alerts mid-form.
+    ///
+    /// Habits are passed so the goal-level signals reflect habit activity —
+    /// a linked daily habit completed recently keeps the goal "fresh" and
+    /// stops a slipping/check-in signal from firing here.
+    ///
+    /// Only **goal-level** signals (`habitId == nil`) are surfaced for
+    /// muting. Muting is persisted by signal *title* (`Goal.mutedSignals`),
+    /// and every per-habit "Habit is slipping" signal shares that one title —
+    /// so exposing them here would let muting one habit's alert silence every
+    /// habit alert on the goal. Per-habit muting needs habit-identity-keyed
+    /// persistence, which is out of scope for this view.
     private var currentSignalsForGoal: [StagnationSignal] {
         guard let goalId = goal?.id else { return [] }
         let all = StagnationEngine.signals(goals: allGoals, habits: allHabits)
-        return all.filter { $0.goalId == goalId }
+        return all.filter { $0.goalId == goalId && $0.habitId == nil }
     }
 
     @ViewBuilder
