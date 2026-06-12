@@ -50,6 +50,7 @@ MortalLoom/
 ├── Theme/        # Colors, layout constants, card styles
 ├── Views/        # SwiftUI views (Overview, Body, Substances, Blood, Genome, Lifestyle, Settings)
 ├── Engine/       # Pure computation (longevity clock, risk assessment, rolling averages)
+├── Services/     # Stateful I/O orchestrators (HealthKit, ClinVar, notifications, StoreKit, calendar, location, air quality)
 ├── Models/       # Data types (health metrics, blood markers, genome variants)
 ├── Storage/      # Actor-based file I/O, iCloud sync
 ```
