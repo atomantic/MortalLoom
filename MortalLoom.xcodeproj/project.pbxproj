@@ -16,8 +16,10 @@
 		082BE98CD23921F4AE51F134 /* SleepEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4866C551187394E53C4FA23A /* SleepEngine.swift */; };
 		0A491EA766254514F8C2D373 /* CuratedMarkers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69B73CEA0F3655CDD11A007C /* CuratedMarkers.swift */; };
 		0A4B66907EB40284D5CBECD4 /* Products.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 223CD2E2AB78B4665CCC4255 /* Products.storekit */; };
+		0AE06067E0CA1F3B14B3AD30 /* GenomeSeverityColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10E42AF1A7595E94B79859A0 /* GenomeSeverityColors.swift */; };
 		0C79D35D1C1B65C542D61330 /* Goal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13547F14B9304DE2AE925ED2 /* Goal.swift */; };
 		0D87387D9625A5E0D6645E02 /* ICloudMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29D32D124C715340FD2DC350 /* ICloudMonitor.swift */; };
+		0EF9B83A68AB89DDAC89CAA9 /* GenomeSeverityColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10E42AF1A7595E94B79859A0 /* GenomeSeverityColors.swift */; };
 		0F45CEE5D6877E0A4FE2C78A /* GenomePrioritiesCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AFF6071DE927F5D3A5A8244 /* GenomePrioritiesCard.swift */; };
 		0F7F142E18D533C8791C697B /* MortalLoomApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25A938EE48931E1A7D80455D /* MortalLoomApp.swift */; };
 		102EC106BBDF1BC27CB3AC74 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A430A6D6F069A9C484A8BB2 /* Theme.swift */; };
@@ -266,6 +268,7 @@
 		04C1C61D4BD2F3E4B50538F2 /* SubstancesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubstancesView.swift; sourceTree = "<group>"; };
 		060756B48008BEC8E34A98B9 /* MortalLoomWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MortalLoomWidget.entitlements; sourceTree = "<group>"; };
 		0D497C5E341E3C4AD2BC442C /* TimeAllocationEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeAllocationEngineTests.swift; sourceTree = "<group>"; };
+		10E42AF1A7595E94B79859A0 /* GenomeSeverityColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenomeSeverityColors.swift; sourceTree = "<group>"; };
 		118A5A1BB8FDFBEDDACD2E0C /* GoalEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalEngine.swift; sourceTree = "<group>"; };
 		12327161D8F5EC268793ADF5 /* RecommendationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecommendationEngine.swift; sourceTree = "<group>"; };
 		13547F14B9304DE2AE925ED2 /* Goal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Goal.swift; sourceTree = "<group>"; };
@@ -563,6 +566,7 @@
 			isa = PBXGroup;
 			children = (
 				765271B94F125643F18F3646 /* AppearanceManager.swift */,
+				10E42AF1A7595E94B79859A0 /* GenomeSeverityColors.swift */,
 				8A430A6D6F069A9C484A8BB2 /* Theme.swift */,
 			);
 			path = Theme;
@@ -841,6 +845,7 @@
 				0F45CEE5D6877E0A4FE2C78A /* GenomePrioritiesCard.swift in Sources */,
 				5B8007ADE13DE8C1F64EF121 /* GenomePriorityEngine.swift in Sources */,
 				BEE388BE5DE93624D6A2303B /* GenomeScanRecord.swift in Sources */,
+				0AE06067E0CA1F3B14B3AD30 /* GenomeSeverityColors.swift in Sources */,
 				5856806DFBD48F39BDC89F9B /* GenomeVariant.swift in Sources */,
 				6EF9106333950CF8212C2EA0 /* GenomeView.swift in Sources */,
 				6B4C00F0E0B21BEDAE6656D2 /* GenomeVisit.swift in Sources */,
@@ -935,6 +940,7 @@
 				18E8C35A626B92F9B584C3A7 /* GenomePrioritiesCard.swift in Sources */,
 				07360E9FDDAA0021818C9F4B /* GenomePriorityEngine.swift in Sources */,
 				D5E3574C924FD3E0B15177A4 /* GenomeScanRecord.swift in Sources */,
+				0EF9B83A68AB89DDAC89CAA9 /* GenomeSeverityColors.swift in Sources */,
 				59FA49AE381843566B3539B2 /* GenomeVariant.swift in Sources */,
 				259AA046172B3216F2A26D31 /* GenomeView.swift in Sources */,
 				A219E92A26CEA7CAB05EF161 /* GenomeVisit.swift in Sources */,

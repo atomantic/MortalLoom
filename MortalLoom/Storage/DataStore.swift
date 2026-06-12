@@ -353,7 +353,13 @@ actor DataStore {
 
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        guard let encoded = try? encoder.encode(data) else { return }
+        let encoded: Data
+        do {
+            encoded = try encoder.encode(data)
+        } catch {
+            logger.error("💾 Failed to encode data — save aborted, no data written: \(error.localizedDescription, privacy: .private)")
+            return
+        }
 
         // Health profile contains birth date, sex, and behavioral data — write
         // with .complete file protection so the file is unreadable while the
