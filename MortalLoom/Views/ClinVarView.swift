@@ -225,7 +225,7 @@ struct ClinVarView: View {
                 HStack(spacing: 10) {
                     Image(systemName: theme.icon)
                         .font(.body)
-                        .foregroundColor(GenomeViewHelpers.clinvarSeverityColor(worstSeverity))
+                        .foregroundColor(clinvarSeverityColor(worstSeverity))
                         .frame(width: 28, height: 28)
 
                     VStack(alignment: .leading, spacing: 2) {
@@ -321,7 +321,7 @@ struct ClinVarView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
                     Circle()
-                        .fill(GenomeViewHelpers.clinvarSeverityColor(hit.entry.severity))
+                        .fill(clinvarSeverityColor(hit.entry.severity))
                         .frame(width: 8, height: 8)
 
                     if !hit.entry.gene.isEmpty {
@@ -359,7 +359,7 @@ struct ClinVarView: View {
                     Text(GenomeViewHelpers.clinvarSeverityLabel(hit.entry.severity))
                         .font(.caption2)
                         .fontWeight(.medium)
-                        .foregroundColor(GenomeViewHelpers.clinvarSeverityColor(hit.entry.severity))
+                        .foregroundColor(clinvarSeverityColor(hit.entry.severity))
                     if hit.entry.submissions > 1 {
                         Text("\(hit.entry.submissions) submissions")
                             .font(.caption2)

@@ -91,16 +91,6 @@ enum GenomeViewHelpers {
         return .typical
     }
 
-    static func clinvarSeverityColor(_ severity: String) -> Color {
-        switch severity {
-        case "pathogenic": .red
-        case "drug_response": .orange
-        case "risk_factor": .orange
-        case "protective": .green
-        default: .secondary
-        }
-    }
-
     static func clinvarSeverityLabel(_ severity: String) -> String {
         switch severity {
         case "pathogenic": "Pathogenic"
