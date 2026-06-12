@@ -267,9 +267,10 @@ final class SleepEngineTests: XCTestCase {
 
     func testDaylightConsistencyCoefficientZeroVarianceReturnsNil() {
         // All-identical daylight → x-variance is 0 → nil (no correlation defined)
-        let pts = (0..<5).map { i in
-            SleepEngine.DaylightConsistencyPoint(
-                endDate: Date(timeIntervalSince1970: TimeInterval(1_700_000_000 + i * 86_400)),
+        let pts = (0..<5).map { (i: Int) -> SleepEngine.DaylightConsistencyPoint in
+            let timestamp = TimeInterval(1_700_000_000 + i * 86_400)
+            return SleepEngine.DaylightConsistencyPoint(
+                endDate: Date(timeIntervalSince1970: timestamp),
                 avgDaylightMinutes: 60,
                 consistency: Double(50 + i * 10),
                 nightsInWindow: 7
@@ -280,9 +281,10 @@ final class SleepEngineTests: XCTestCase {
 
     func testDaylightConsistencyCoefficientPerfectPositive() {
         // Linear daylight & consistency → r = +1.0
-        let pts = (0..<5).map { i in
-            SleepEngine.DaylightConsistencyPoint(
-                endDate: Date(timeIntervalSince1970: TimeInterval(1_700_000_000 + i * 86_400)),
+        let pts = (0..<5).map { (i: Int) -> SleepEngine.DaylightConsistencyPoint in
+            let timestamp = TimeInterval(1_700_000_000 + i * 86_400)
+            return SleepEngine.DaylightConsistencyPoint(
+                endDate: Date(timeIntervalSince1970: timestamp),
                 avgDaylightMinutes: Double(30 + i * 10),
                 consistency: Double(40 + i * 10),
                 nightsInWindow: 7
@@ -341,9 +343,10 @@ final class SleepEngineTests: XCTestCase {
 
     func testDaylightConsistencyCoefficientPerfectNegative() {
         // Daylight ↑, consistency ↓ → r = -1.0
-        let pts = (0..<5).map { i in
-            SleepEngine.DaylightConsistencyPoint(
-                endDate: Date(timeIntervalSince1970: TimeInterval(1_700_000_000 + i * 86_400)),
+        let pts = (0..<5).map { (i: Int) -> SleepEngine.DaylightConsistencyPoint in
+            let timestamp = TimeInterval(1_700_000_000 + i * 86_400)
+            return SleepEngine.DaylightConsistencyPoint(
+                endDate: Date(timeIntervalSince1970: timestamp),
                 avgDaylightMinutes: Double(30 + i * 10),
                 consistency: Double(90 - i * 10),
                 nightsInWindow: 7
