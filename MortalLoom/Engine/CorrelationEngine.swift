@@ -31,6 +31,27 @@ struct AlcoholSleepDataPoint: Sendable {
     let nextNightTotalHours: Double? // total sleep hours the following night
 }
 
+/// Nicotine usage over the last 30 days paired with same-day heart rate, plus a
+/// high-vs-low comparison summarising the heart-rate difference between the
+/// user's nicotine (or higher-usage) days and their clean (or lower-usage) days.
+struct NicotineHRCorrelation: Sendable {
+    let correlationData: [NicotineHRDataPoint]
+    let highLabel: String
+    let lowLabel: String
+    let avgHigh: Double
+    let avgLow: Double
+    let hasData: Bool
+    let explanation: String
+}
+
+/// One day's heart rate paired with that day's total nicotine intake.
+struct NicotineHRDataPoint: Sendable {
+    let date: String
+    let hr: Double?
+    let rhr: Double?
+    let nicotineMg: Double
+}
+
 enum CorrelationEngine {
 
     // MARK: - Sauna → HRV / Sleep Quality
@@ -205,6 +226,85 @@ enum CorrelationEngine {
                 nextNightDisturbances: disturbances
             )
         }.sorted { $0.date < $1.date }
+    }
+
+    // MARK: - Nicotine → Heart Rate
+
+    /// Correlate the last 30 days of nicotine intake with same-day heart rate.
+    ///
+    /// Builds two comparison groups: prefer clean-vs-used when the user has at
+    /// least 3 days of each. For daily users (few or no zero-nicotine days), fall
+    /// back to a median split — high-usage days vs low-usage days — so the card
+    /// still shows a meaningful contrast.
+    static func nicotineHeartRateCorrelation(
+        entries: [NicotineEntry],
+        healthMetrics: [HealthMetricEntry],
+        now: Date = Date()
+    ) -> NicotineHRCorrelation {
+        let days = (0..<30).reversed().map { DateFormatting.dateString(daysAgo: $0, from: now) }
+        let metricsByDate = Dictionary(healthMetrics.map { ($0.date, $0) }, uniquingKeysWith: { _, latest in latest })
+        let nicoByDate = Dictionary(grouping: entries, by: \.date)
+
+        let correlationData: [NicotineHRDataPoint] = days.map { day in
+            let metric = metricsByDate[day]
+            let mg = (nicoByDate[day] ?? []).reduce(0.0) { $0 + $1.totalMg }
+            return NicotineHRDataPoint(date: day, hr: metric?.heartRate, rhr: metric?.restingHeartRate, nicotineMg: mg)
+        }
+
+        // Build comparison groups. Prefer clean-vs-used when the user has enough
+        // of both. For daily users (few or no zero-nicotine days), fall back to
+        // a median split: high-usage days vs low-usage days.
+        let daysWithHR = correlationData.filter { $0.hr != nil }
+        let zeroDays = daysWithHR.filter { $0.nicotineMg == 0 }
+        let usedDays = daysWithHR.filter { $0.nicotineMg > 0 }
+
+        let cleanVsUsed = zeroDays.count >= 3 && usedDays.count >= 3
+        let highGroup: [NicotineHRDataPoint]
+        let lowGroup: [NicotineHRDataPoint]
+        let highLabel: String
+        let lowLabel: String
+        let explanation: String
+
+        if cleanVsUsed {
+            highGroup = usedDays
+            lowGroup = zeroDays
+            highLabel = "Nicotine Days"
+            lowLabel = "Clean Days"
+            explanation = "Nicotine raises heart rate by stimulating adrenaline release."
+        } else {
+            // Median split on usage among days with HR data. Prefer used-only
+            // days when there are enough of them.
+            let pool = usedDays.count >= 4 ? usedDays : daysWithHR
+            let sortedMg = pool.map(\.nicotineMg).sorted()
+            let median: Double
+            if sortedMg.isEmpty {
+                median = 0
+            } else {
+                let mid = sortedMg.count / 2
+                median = sortedMg.count % 2 == 0
+                    ? (sortedMg[mid - 1] + sortedMg[mid]) / 2
+                    : sortedMg[mid]
+            }
+            highGroup = pool.filter { $0.nicotineMg > median }
+            lowGroup = pool.filter { $0.nicotineMg <= median }
+            highLabel = "High Usage"
+            lowLabel = "Low Usage"
+            explanation = "Comparing your higher-usage days against your lower-usage days. Nicotine raises heart rate by stimulating adrenaline release."
+        }
+
+        let avgHigh = highGroup.isEmpty ? 0 : highGroup.compactMap(\.hr).reduce(0, +) / Double(highGroup.count)
+        let avgLow = lowGroup.isEmpty ? 0 : lowGroup.compactMap(\.hr).reduce(0, +) / Double(lowGroup.count)
+        let hasData = !highGroup.isEmpty && !lowGroup.isEmpty
+
+        return NicotineHRCorrelation(
+            correlationData: correlationData,
+            highLabel: highLabel,
+            lowLabel: lowLabel,
+            avgHigh: avgHigh,
+            avgLow: avgLow,
+            hasData: hasData,
+            explanation: explanation
+        )
     }
 
     // MARK: - Activity → Blood Markers

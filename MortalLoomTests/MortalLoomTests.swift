@@ -3738,3 +3738,75 @@ final class PresetReorderTests: XCTestCase {
         XCTAssertNil(presetMoved(list, id: UUID(), offset: 1))
     }
 }
+
+// MARK: - CorrelationEngine Tests
+
+final class CorrelationEngineNicotineHRTests: XCTestCase {
+
+    /// Fixed reference "today" so the engine's 30-day window is deterministic.
+    private let now = DateFormatting.dateFromString("2026-06-01")!
+
+    private func day(_ daysAgo: Int) -> String {
+        DateFormatting.dateString(daysAgo: daysAgo, from: now)
+    }
+
+    func testNoDataWhenEmpty() {
+        let model = CorrelationEngine.nicotineHeartRateCorrelation(
+            entries: [], healthMetrics: [], now: now
+        )
+        XCTAssertFalse(model.hasData)
+        // The 30-day skeleton is still built so the chart can render axes.
+        XCTAssertEqual(model.correlationData.count, 30)
+    }
+
+    func testCleanVsUsedSplitWhenBothGroupsLargeEnough() {
+        // 3 clean days (HR present, zero nicotine) + 3 used days (HR + nicotine).
+        var entries: [NicotineEntry] = []
+        var metrics: [HealthMetricEntry] = []
+        for i in 0..<3 {
+            // used days: higher HR
+            entries.append(NicotineEntry(product: "Zyn", mgPerUnit: 6, count: 1, date: day(i)))
+            metrics.append(HealthMetricEntry(date: day(i), heartRate: 80))
+        }
+        for i in 3..<6 {
+            // clean days: lower HR, no nicotine entry
+            metrics.append(HealthMetricEntry(date: day(i), heartRate: 60))
+        }
+
+        let model = CorrelationEngine.nicotineHeartRateCorrelation(
+            entries: entries, healthMetrics: metrics, now: now
+        )
+
+        XCTAssertTrue(model.hasData)
+        XCTAssertEqual(model.highLabel, "Nicotine Days")
+        XCTAssertEqual(model.lowLabel, "Clean Days")
+        XCTAssertEqual(model.avgHigh, 80, accuracy: 0.001)
+        XCTAssertEqual(model.avgLow, 60, accuracy: 0.001)
+    }
+
+    func testMedianSplitForDailyUserWithoutCleanDays() {
+        // Daily user: every day has nicotine, so there are no clean days — the
+        // engine should fall back to a high-vs-low median split.
+        var entries: [NicotineEntry] = []
+        var metrics: [HealthMetricEntry] = []
+        // 4 high-usage days (12mg, HR 85) and 4 low-usage days (3mg, HR 65).
+        for i in 0..<4 {
+            entries.append(NicotineEntry(product: "Zyn", mgPerUnit: 12, count: 1, date: day(i)))
+            metrics.append(HealthMetricEntry(date: day(i), heartRate: 85))
+        }
+        for i in 4..<8 {
+            entries.append(NicotineEntry(product: "Zyn", mgPerUnit: 3, count: 1, date: day(i)))
+            metrics.append(HealthMetricEntry(date: day(i), heartRate: 65))
+        }
+
+        let model = CorrelationEngine.nicotineHeartRateCorrelation(
+            entries: entries, healthMetrics: metrics, now: now
+        )
+
+        XCTAssertTrue(model.hasData)
+        XCTAssertEqual(model.highLabel, "High Usage")
+        XCTAssertEqual(model.lowLabel, "Low Usage")
+        XCTAssertEqual(model.avgHigh, 85, accuracy: 0.001)
+        XCTAssertEqual(model.avgLow, 65, accuracy: 0.001)
+    }
+}
