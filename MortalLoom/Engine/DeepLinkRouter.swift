@@ -35,6 +35,24 @@ enum DeepLinkRoute: Equatable, Sendable {
         case .substancesAlias: .habits
         }
     }
+
+    /// Apply the non-navigation side effects a route implies (posting the
+    /// reflect-sheet request, pre-selecting the Habits alcohol tab). Keeps the
+    /// dispatch in one place so the iOS and macOS `onOpenURL` handlers stay
+    /// identical — they navigate via `targetPage`, then call this. `parse(_:)`
+    /// itself stays pure; the effects live here, at the call site.
+    @MainActor
+    func applySideEffects() {
+        switch self {
+        case .goalReflect(let id):
+            NotificationCenter.default.post(name: .openGoalReflect, object: id)
+        case .substancesAlias:
+            // Legacy mortalloom://substances alias — land on the alcohol tab.
+            UserDefaults.standard.set(HabitTab.alcohol.rawValue, forKey: HabitTab.selectedKey)
+        case .page, .goalEdit, .weeklyReview:
+            break
+        }
+    }
 }
 
 // MARK: - DeepLinkRouter

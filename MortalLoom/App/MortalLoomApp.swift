@@ -140,13 +140,7 @@ struct ContentView: View {
                 return
             }
             selectedPage = route.targetPage
-            if case .goalReflect(let id) = route {
-                NotificationCenter.default.post(name: .openGoalReflect, object: id)
-            }
-            if case .substancesAlias = route {
-                // Legacy mortalloom://substances alias — land on the alcohol tab.
-                UserDefaults.standard.set(HabitTab.alcohol.rawValue, forKey: HabitTab.selectedKey)
-            }
+            route.applySideEffects()
         }
         #endif
         .task {
@@ -379,13 +373,7 @@ struct MacContentView: View {
         .onOpenURL { url in
             guard let route = DeepLinkRouter.parse(url) else { return }
             selectedPage = route.targetPage
-            if case .goalReflect(let id) = route {
-                NotificationCenter.default.post(name: .openGoalReflect, object: id)
-            }
-            if case .substancesAlias = route {
-                // Legacy mortalloom://substances alias — land on the alcohol tab.
-                UserDefaults.standard.set(HabitTab.alcohol.rawValue, forKey: HabitTab.selectedKey)
-            }
+            route.applySideEffects()
         }
     }
 }
