@@ -254,8 +254,8 @@ struct WeeklyReviewSheet: View {
             }
             .frame(maxWidth: .infinity)
             // Hero number is a fixed 72pt; cap the companion label's Dynamic Type
-            // growth so it doesn't overflow this compact rating block at AX sizes.
-            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+            // growth so it doesn't overflow this compact rating block beyond AX3.
+            .dynamicTypeSize(...DynamicTypeSize.accessibility3)
 
             Slider(value: $alignmentRating, in: 1...10, step: 1)
         }

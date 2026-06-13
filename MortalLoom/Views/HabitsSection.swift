@@ -306,8 +306,8 @@ struct HabitsSection: View {
         .padding(.vertical, 32)
         .frame(maxWidth: .infinity)
         // Hero glyph is a fixed 44pt; cap the surrounding copy's Dynamic Type
-        // growth so the empty state stays balanced at AX sizes.
-        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+        // growth so the empty state stays balanced beyond AX3.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility3)
         .cardStyle()
     }
 
