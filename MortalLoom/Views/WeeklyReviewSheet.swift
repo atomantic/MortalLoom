@@ -23,6 +23,7 @@ struct WeeklyReviewSheet: View {
     let onSave: (Goal) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var step: Step = .review
     @State private var selectedPrompt: String = ""
     @State private var answer: String = ""
@@ -319,7 +320,7 @@ struct WeeklyReviewSheet: View {
         HStack(spacing: 12) {
             if step.rawValue > 0 {
                 Button {
-                    withAnimation { step = Step(rawValue: step.rawValue - 1) ?? .review }
+                    withAnimation(reduceMotion ? nil : .default) { step = Step(rawValue: step.rawValue - 1) ?? .review }
                 } label: {
                     Label("Back", systemImage: "chevron.left")
                         .padding(.horizontal, 16)
@@ -333,7 +334,7 @@ struct WeeklyReviewSheet: View {
                 if step == .commit {
                     finish()
                 } else {
-                    withAnimation { step = Step(rawValue: step.rawValue + 1) ?? .commit }
+                    withAnimation(reduceMotion ? nil : .default) { step = Step(rawValue: step.rawValue + 1) ?? .commit }
                 }
             } label: {
                 HStack {
