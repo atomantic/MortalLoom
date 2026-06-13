@@ -480,10 +480,13 @@ final class GenomeViewModel {
 
     private func runClinVarScan() {
         guard !allGenomeVariants.isEmpty else { return }
-        guard let index = ClinVarService.loadIndex() else { return }
 
         let variants = allGenomeVariants
         Task.detached(priority: .userInitiated) {
+            // Load + decode the 5–10 MB ClinVar index off the main actor. This is a
+            // @MainActor method, so doing the read here would freeze the UI when the
+            // genome page first opens with an existing index (issue #29).
+            guard let index = ClinVarService.loadIndex() else { return }
             let hits = GenomeEngine.scanClinVar(variants: variants, index: index)
             await MainActor.run {
                 withAnimation {
