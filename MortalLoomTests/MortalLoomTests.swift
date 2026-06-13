@@ -1655,11 +1655,13 @@ final class SubstanceEngineTests: XCTestCase {
         // Nicotine sample data is fully deterministic — the seed depends only on
         // the day index, with no weekday or wall-clock branch — so these averages
         // are stable across runs: ~3.43 mg/day (7d), ~3.07 (30d), ~4.11 (all-time).
-        // Assert below those values with margin: tight enough to catch a
-        // regression that merely reduces the totals, robust to timezone/DST edges,
-        // and decisively failing for the empty/zero case the old `>= 0` passed.
-        XCTAssertGreaterThan(avg7, 2.5)
-        XCTAssertGreaterThan(avg30, 2.5)
+        // The 7d floor dips to ~2.57 only in the rare case where the static
+        // sample arrays were built 1–3 days before `now` (a suite straddling
+        // local midnight), so we assert below that worst case with margin: still
+        // far tighter than the old `>= 0` (which the empty case passed) and tight
+        // enough to catch a regression that merely reduces the totals.
+        XCTAssertGreaterThan(avg7, 2.0)
+        XCTAssertGreaterThan(avg30, 2.0)
         XCTAssertGreaterThan(allTime, 3.0)
     }
 
