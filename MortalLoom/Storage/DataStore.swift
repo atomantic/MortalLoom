@@ -3,6 +3,16 @@ import os
 
 extension Notification.Name {
     static let dataDidSync = Notification.Name("dataDidSync")
+    /// Posted (at most once per launch) when the ubiquity container *resolves to
+    /// a URL* but its directory operations then fail — i.e. the entitlement is
+    /// configured yet the container isn't actually reachable/writable (first
+    /// launch before the daemon provisions it, an unsigned build, a transient
+    /// daemon error). Data is still saved locally; the UI surfaces a one-time
+    /// toast so this otherwise-silent failure isn't invisible. Note this does
+    /// NOT fire when iCloud is simply not configured — a signed-out account
+    /// usually yields a nil container URL, which is a supported local-only mode,
+    /// not an error worth toasting on every launch.
+    static let iCloudWriteUnavailable = Notification.Name("iCloudWriteUnavailable")
 }
 
 enum CloudConfig {
@@ -39,6 +49,24 @@ actor DataStore {
     /// overwrite a real user's iCloud container. Set once at app launch via
     /// enableSampleDataMode(); there is no way to turn it back off.
     private var sampleDataMode = false
+
+    /// Caches a *confirmed-reachable* iCloud container so the probe runs once,
+    /// not on every save. `nil` until a write probes it; set to `true` only when
+    /// the container's Documents dir can be created and listed. A failed probe
+    /// deliberately leaves this `nil` so a later save re-probes — the container
+    /// is often unreachable for a few seconds at first launch (daemon still
+    /// provisioning) and we don't want to disable iCloud for the whole session
+    /// over a transient early miss.
+    ///
+    /// `url(forUbiquityContainerIdentifier:)` returning non-nil only proves the
+    /// entitlement is configured, NOT that the container is reachable — hence the
+    /// real directory-listing probe. We probe *reachability* (create + list), not
+    /// literal writability; the actual `write(to:)` below still has its own catch,
+    /// so a directory that lists but rejects the write is still handled there.
+    private var isICloudReachable: Bool?
+    /// Guards `iCloudWriteUnavailable` so the failure toast fires at most once
+    /// per launch instead of on every save while iCloud stays unreachable.
+    private var didWarnICloudUnavailable = false
 
     /// Debug-only: switch this store into in-memory mode so writes don't
     /// touch disk or iCloud. Irreversible for the process lifetime.
@@ -373,13 +401,7 @@ actor DataStore {
         }
         lastSaveDate = Date()
 
-        if let cloudURL = iCloudURL {
-            let dir = cloudURL.deletingLastPathComponent()
-            do {
-                try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            } catch {
-                logger.error("☁️ Failed to create iCloud directory: \(error.localizedDescription, privacy: .private)")
-            }
+        if let cloudURL = iCloudURL, ensureICloudReachable(cloudURL) {
             // iCloud Documents propagates protection class via the container's
             // security policy; pass .completeUnlessOpen so the iCloud daemon
             // can still read it for sync after first authentication.
@@ -387,6 +409,7 @@ actor DataStore {
                 try encoded.write(to: cloudURL, options: [.atomic, .completeFileProtectionUnlessOpen])
             } catch {
                 logger.error("☁️ Failed to write iCloud data: \(error.localizedDescription, privacy: .private)")
+                noteICloudUnavailable()
             }
         }
 
@@ -403,6 +426,12 @@ actor DataStore {
     func updateProfile(_ profile: HealthProfile) {
         var d = load()
         d.profile = profile
+        save(d)
+    }
+
+    func updateCountdownMode(_ mode: CountdownMode) {
+        var d = load()
+        d.profile.countdownMode = mode
         save(d)
     }
 
@@ -720,17 +749,12 @@ actor DataStore {
         } catch {
             logger.error("🧬 Failed to write local genome file: \(error.localizedDescription, privacy: .private)")
         }
-        if let cloudURL = iCloudGenomeURL {
-            let dir = cloudURL.deletingLastPathComponent()
-            do {
-                try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            } catch {
-                logger.error("🧬 Failed to create iCloud genome directory: \(error.localizedDescription, privacy: .private)")
-            }
+        if let cloudURL = iCloudGenomeURL, ensureICloudReachable(cloudURL) {
             do {
                 try data.write(to: cloudURL, options: [.atomic, .completeFileProtectionUnlessOpen])
             } catch {
                 logger.error("🧬 Failed to write iCloud genome file: \(error.localizedDescription, privacy: .private)")
+                noteICloudUnavailable()
             }
         }
     }
@@ -770,5 +794,57 @@ actor DataStore {
 
     private func bestURL() -> URL {
         FileManager.default.newerOf(cloud: iCloudURL, local: localURL)
+    }
+
+    /// Confirm the iCloud ubiquity container is actually reachable before we
+    /// trust the iCloud write path. `url(forUbiquityContainerIdentifier:)`
+    /// returning a non-nil URL only means the entitlement is configured — on an
+    /// unsigned build or first launch before the daemon has provisioned the
+    /// container, the directory create + a `contentsOfDirectory` probe still
+    /// fail. We listing-probe (not `try?`) so a real error is seen, cache only a
+    /// *successful* result, and on failure surface a one-time toast and fall back
+    /// to the local-only copy `save()` already wrote.
+    ///
+    /// A failed probe is NOT cached: `isICloudReachable` stays `nil` so the next
+    /// save re-probes. First-launch unreachability is usually transient (the
+    /// daemon provisions the container a few seconds in), and caching `false`
+    /// would strand the session with no iCloud copy even once it comes online.
+    /// The repeat probe is cheap relative to a save and bounded to the offline
+    /// path; `didWarnICloudUnavailable` still keeps the toast to one per launch.
+    ///
+    /// This proves *reachability*, not literal writability — `Documents` may
+    /// legitimately not exist yet on a fresh container, so a successful
+    /// `createDirectory` followed by a successful listing is the signal that the
+    /// container is live. The actual `write(to:)` in the caller has its own catch,
+    /// so a dir that lists but rejects the write is still surfaced there.
+    private func ensureICloudReachable(_ cloudURL: URL) -> Bool {
+        if isICloudReachable == true { return true }
+
+        let dir = cloudURL.deletingLastPathComponent()
+        let fm = FileManager.default
+        do {
+            try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            // The probe: a reachable container lists its Documents dir without
+            // throwing. An unreachable one throws here (or at createDirectory).
+            _ = try fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil)
+            isICloudReachable = true
+            return true
+        } catch {
+            // Leave isICloudReachable nil so a later save re-probes once the
+            // daemon comes online — see the property doc above.
+            logger.error("☁️ iCloud container not reachable — saving locally only: \(error.localizedDescription, privacy: .private)")
+            noteICloudUnavailable()
+            return false
+        }
+    }
+
+    /// Post the iCloud-unavailable notification at most once per launch. Hops to
+    /// `@MainActor` like the other DataStore notifications since the UI observes it.
+    private func noteICloudUnavailable() {
+        guard !didWarnICloudUnavailable else { return }
+        didWarnICloudUnavailable = true
+        Task { @MainActor in
+            NotificationCenter.default.post(name: .iCloudWriteUnavailable, object: nil)
+        }
     }
 }
