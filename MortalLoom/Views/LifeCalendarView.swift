@@ -15,6 +15,12 @@ struct LifeCalendarView: View {
     @State private var goalMarkers: [GoalMarker] = []
     @State private var goalWeekSet: Set<Int> = []
     @State private var projectedWeekSet: Set<Int> = []
+    // Month-bucket indices, cached here instead of recomputed in the view body.
+    // The months grid read these inside a GeometryReader, so the previous
+    // computed-property versions rebuilt both Sets over every goal marker on
+    // each render pass (#31). Populated by recalculate().
+    @State private var goalMonthSet: Set<Int> = []
+    @State private var projectedMonthSet: Set<Int> = []
     @State private var tooltipInfo: CellTooltip?
     @State private var isLoaded = false
     /// When false, lived weeks/months/years are rendered the same as future
@@ -123,13 +129,6 @@ struct LifeCalendarView: View {
     @State private var goalsByMonth: [Int: [GoalMarker]] = [:]
     @State private var goalsByWeek: [Int: [GoalMarker]] = [:]
 
-    private var goalMonthSet: Set<Int> {
-        Set(goalMarkers.filter { !$0.isProjected }.map { Int(Double($0.weekIndex) / 4.33) })
-    }
-    private var projectedMonthSet: Set<Int> {
-        Set(goalMarkers.filter { $0.isProjected }.map { Int(Double($0.weekIndex) / 4.33) })
-    }
-
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
@@ -169,55 +168,102 @@ struct LifeCalendarView: View {
     private func loadData() async {
         let loaded = await DataStore.shared.getData()
         data = loaded
-        recalculate()
+        await recalculate()
         isLoaded = true
     }
 
-    private func recalculate() {
+    /// Holds the off-main recalculation output. Returned from a detached task,
+    /// so every field is `Sendable` (the engine result types already are).
+    private struct CalendarRecalc: Sendable {
+        var deathClock: DeathClockEngine.DeathClockResult?
+        var levDeathClock: DeathClockEngine.DeathClockResult?
+        var markers: [GoalMarker] = []
+        var goalWeekSet: Set<Int> = []
+        var projectedWeekSet: Set<Int> = []
+        var goalMonthSet: Set<Int> = []
+        var projectedMonthSet: Set<Int> = []
+        var goalsByYear: [Int: [GoalMarker]] = [:]
+        var goalsByMonth: [Int: [GoalMarker]] = [:]
+        var goalsByWeek: [Int: [GoalMarker]] = [:]
+    }
+
+    private func recalculate() async {
         guard let birthDateStr = data.profile.birthDate else {
             deathClock = nil
             levDeathClock = nil
             goalMarkers = []
+            goalWeekSet = []
+            projectedWeekSet = []
+            goalMonthSet = []
+            projectedMonthSet = []
+            goalsByYear = [:]
+            goalsByMonth = [:]
+            goalsByWeek = [:]
             return
         }
         countdownMode = data.profile.countdownMode
-        let dc = DeathClockEngine.calculate(
-            birthDateStr: birthDateStr,
-            sex: data.profile.biologicalSex,
-            lifestyle: data.profile.lifestyle,
-            genome: data.genomeScanRecord,
-            locationProfile: data.profile.locationProfile,
-            socioeconomic: data.profile.socioeconomic,
-            healthMetrics: data.healthMetrics
-        )
-        deathClock = dc
-        levDeathClock = dc.flatMap { DeathClockEngine.calculateLEVResult(standardResult: $0, birthDateStr: birthDateStr, levTargetAge: data.profile.levTargetAge) }
 
-        guard let birth = DeathClockEngine.dateFromString(birthDateStr) else {
-            goalMarkers = []
-            return
-        }
+        // Run the mortality + goal-marker engines off the main actor (mirrors the
+        // genome-scan pattern) so reloads — including the double-fire this issue
+        // also addresses — don't block rendering (#31). Capture the value-type
+        // inputs up front; results are published back on the main actor below.
+        let profile = data.profile
+        let goals = data.goals
+        let genome = data.genomeScanRecord
+        let healthMetrics = data.healthMetrics
+        let result = await Task.detached(priority: .utility) {
+            let dc = DeathClockEngine.calculate(
+                birthDateStr: birthDateStr,
+                sex: profile.biologicalSex,
+                lifestyle: profile.lifestyle,
+                genome: genome,
+                locationProfile: profile.locationProfile,
+                socioeconomic: profile.socioeconomic,
+                healthMetrics: healthMetrics
+            )
+            let lev = dc.flatMap {
+                DeathClockEngine.calculateLEVResult(standardResult: $0, birthDateStr: birthDateStr, levTargetAge: profile.levTargetAge)
+            }
+            guard let birth = DeathClockEngine.dateFromString(birthDateStr) else {
+                return CalendarRecalc(deathClock: dc, levDeathClock: lev)
+            }
+            let cogDate = GoalEngine.cognitiveDeadline(from: dc)
+            let markers = GoalEngine.goalMarkers(
+                goals: goals, birthDate: birth,
+                deathDate: dc?.deathDate, healthyCognitiveDate: cogDate
+            )
+            var byYear: [Int: [GoalMarker]] = [:]
+            var byMonth: [Int: [GoalMarker]] = [:]
+            var byWeek: [Int: [GoalMarker]] = [:]
+            for m in markers {
+                byYear[m.weekIndex / 52, default: []].append(m)
+                byMonth[Int(Double(m.weekIndex) / 4.33), default: []].append(m)
+                byWeek[m.weekIndex, default: []].append(m)
+            }
+            return CalendarRecalc(
+                deathClock: dc,
+                levDeathClock: lev,
+                markers: markers,
+                goalWeekSet: Set(markers.filter { !$0.isProjected }.map(\.weekIndex)),
+                projectedWeekSet: Set(markers.filter { $0.isProjected }.map(\.weekIndex)),
+                goalMonthSet: Set(markers.filter { !$0.isProjected }.map { Int(Double($0.weekIndex) / 4.33) }),
+                projectedMonthSet: Set(markers.filter { $0.isProjected }.map { Int(Double($0.weekIndex) / 4.33) }),
+                goalsByYear: byYear,
+                goalsByMonth: byMonth,
+                goalsByWeek: byWeek
+            )
+        }.value
 
-        let cogDate = GoalEngine.cognitiveDeadline(from: dc)
-        let markers = GoalEngine.goalMarkers(
-            goals: data.goals, birthDate: birth,
-            deathDate: dc?.deathDate, healthyCognitiveDate: cogDate
-        )
-        goalMarkers = markers
-        goalWeekSet = Set(markers.filter { !$0.isProjected }.map(\.weekIndex))
-        projectedWeekSet = Set(markers.filter { $0.isProjected }.map(\.weekIndex))
-
-        var byYear: [Int: [GoalMarker]] = [:]
-        var byMonth: [Int: [GoalMarker]] = [:]
-        var byWeek: [Int: [GoalMarker]] = [:]
-        for m in markers {
-            byYear[m.weekIndex / 52, default: []].append(m)
-            byMonth[Int(Double(m.weekIndex) / 4.33), default: []].append(m)
-            byWeek[m.weekIndex, default: []].append(m)
-        }
-        goalsByYear = byYear
-        goalsByMonth = byMonth
-        goalsByWeek = byWeek
+        deathClock = result.deathClock
+        levDeathClock = result.levDeathClock
+        goalMarkers = result.markers
+        goalWeekSet = result.goalWeekSet
+        projectedWeekSet = result.projectedWeekSet
+        goalMonthSet = result.goalMonthSet
+        projectedMonthSet = result.projectedMonthSet
+        goalsByYear = result.goalsByYear
+        goalsByMonth = result.goalsByMonth
+        goalsByWeek = result.goalsByWeek
     }
 
     // MARK: - Empty State

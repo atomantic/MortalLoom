@@ -67,6 +67,12 @@ struct SettingsView: View {
             .onReceive(NotificationCenter.default.publisher(for: .profileDidChange)) { _ in
                 Task { await loadCountdownMode() }
             }
+            // An iCloud sync now posts only `.dataDidSync` (#31); observe it too
+            // so a countdown-mode change synced from another device still
+            // refreshes this screen.
+            .onReceive(NotificationCenter.default.publisher(for: .dataDidSync)) { _ in
+                Task { await loadCountdownMode() }
+            }
             .sheet(isPresented: $showPaywall) { PaywallView() }
             .sheet(isPresented: $showCitations) { CitationsView() }
             #if os(iOS)
