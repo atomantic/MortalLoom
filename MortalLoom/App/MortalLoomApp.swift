@@ -269,6 +269,13 @@ struct ContentView: View {
     /// launches and from the onboarding cover's `onDismiss` on first launch, so
     /// the import isn't deferred to the next run when onboarding owns the prompt.
     private func requestHealthKitAndSync() async {
+        // Never touch HealthKit in the isolated debug modes. Sample-data and
+        // fresh-start runs stay in-memory so screenshot / new-user flows can't
+        // pull real health samples into the supposedly empty store. The startup
+        // .task enforces this by returning before HealthKit, but the onboarding
+        // onDismiss path also lands here in fresh-start mode (which presents
+        // onboarding), so guard it here too.
+        guard !AppConstants.useSampleData, !AppConstants.useFreshStart else { return }
         guard HealthKitService.shared.isAvailable else { return }
         await HealthKitService.shared.requestAuthorization()
         guard HealthKitService.shared.authorizationRequestCompleted else { return }
