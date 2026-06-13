@@ -357,16 +357,16 @@ struct LifeCalendarView: View {
                 GridItem(.flexible(), spacing: 8),
                 GridItem(.flexible(), spacing: 8)
             ], spacing: 8) {
-                statCard(value: String(format: "%.1f", yearsRemaining), label: "Years", icon: "calendar.circle", color: .accentColor)
-                statCard(value: "\(monthsRemaining)", label: "Months", icon: "calendar", color: .purple)
-                statCard(value: formatLargeNumber(weeksRemaining), label: "Weeks", icon: "calendar.day.timeline.left", color: .teal)
-                statCard(value: formatLargeNumber(daysRemaining), label: "Days", icon: "sun.max.fill", color: .orange)
-                statCard(value: formatLargeNumber(saturdaysRemaining), label: "Saturdays", icon: "star.fill", color: .yellow)
-                statCard(
+                lifeStatBadge(value: String(format: "%.1f", yearsRemaining), label: "Years", icon: "calendar.circle", tint: .accentColor)
+                lifeStatBadge(value: "\(monthsRemaining)", label: "Months", icon: "calendar", tint: .purple)
+                lifeStatBadge(value: formatLargeNumber(weeksRemaining), label: "Weeks", icon: "calendar.day.timeline.left", tint: .teal)
+                lifeStatBadge(value: formatLargeNumber(daysRemaining), label: "Days", icon: "sun.max.fill", tint: .orange)
+                lifeStatBadge(value: formatLargeNumber(saturdaysRemaining), label: "Saturdays", icon: "star.fill", tint: .yellow)
+                lifeStatBadge(
                     value: formatLargeNumber(awakeDaysRemaining),
                     label: "Awake Days",
                     icon: "eye.fill",
-                    color: .blue
+                    tint: .blue
                 )
                 .overlay(alignment: .topTrailing) {
                     Button {
@@ -401,29 +401,8 @@ struct LifeCalendarView: View {
     }
 
     @ViewBuilder
-    private func statCard(value: String, label: String, icon: String, color: Color) -> some View {
-        VStack(spacing: 4) {
-            Image(systemName: icon)
-                .foregroundColor(color)
-                .font(.caption)
-            Text(value)
-                .font(.headline).fontWeight(.bold).monospacedDigit()
-                .foregroundColor(.textPrimary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-            Text(label)
-                .font(.caption2)
-                .foregroundColor(.textSecondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 8)
-        .padding(.horizontal, 4)
-        .background(Color.bgInput.opacity(0.5))
-        .cornerRadius(8)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(value) \(label) remaining")
+    private func lifeStatBadge(value: String, label: String, icon: String, tint: Color) -> StatBadge {
+        StatBadge(value: value, label: label, icon: icon, tint: tint, accessibilityText: "\(value) \(label) remaining")
     }
 
     // MARK: - View Mode Picker
