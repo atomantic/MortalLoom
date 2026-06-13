@@ -21,6 +21,10 @@ struct LifeCalendarView: View {
     // each render pass (#31). Populated by recalculate().
     @State private var goalMonthSet: Set<Int> = []
     @State private var projectedMonthSet: Set<Int> = []
+    // Bumped at the start of each recalculate(); the async off-main pass only
+    // publishes if it's still the latest, so two overlapping reloads can't let
+    // an older result overwrite a newer one (#31).
+    @State private var recalcGeneration = 0
     @State private var tooltipInfo: CellTooltip?
     @State private var isLoaded = false
     /// When false, lived weeks/months/years are rendered the same as future
@@ -188,6 +192,8 @@ struct LifeCalendarView: View {
     }
 
     private func recalculate() async {
+        recalcGeneration += 1
+        let generation = recalcGeneration
         guard let birthDateStr = data.profile.birthDate else {
             deathClock = nil
             levDeathClock = nil
@@ -254,6 +260,9 @@ struct LifeCalendarView: View {
             )
         }.value
 
+        // A newer recalculate() started while this one was off the main actor —
+        // drop this (now stale) result so it can't clobber the newer data (#31).
+        guard generation == recalcGeneration else { return }
         deathClock = result.deathClock
         levDeathClock = result.levDeathClock
         goalMarkers = result.markers
