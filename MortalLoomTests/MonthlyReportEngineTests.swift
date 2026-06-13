@@ -252,6 +252,34 @@ final class MonthlyRethinkEngineTests: XCTestCase {
         XCTAssertEqual(outcome?.editedCount, 1)
         XCTAssertEqual(outcome?.archivedCount, 0)
         XCTAssertEqual(outcome?.keptCount, 4)
+        // The edited goal must be returned for persistence (edits are deferred
+        // to finish, not saved as they happen).
+        XCTAssertEqual(outcome?.editedGoals.map(\.id), [editedG2.id])
+        XCTAssertEqual(outcome?.editedGoals.first?.title, "Sleep 9h")
+    }
+
+    func testGoalsToSaveCoversEditsArchivesAndApexExactlyOnce() {
+        let t = tree()
+        var editedPillar = t.pillar
+        editedPillar.title = "Wellbeing"          // edited, kept
+        let working = [t.apex, editedPillar, t.g1, t.g2]
+        let outcome = MonthlyRethinkEngine.summarize(
+            allGoals: [t.apex, t.pillar, t.g1, t.g2],
+            workingGoals: working,
+            archivedIds: [t.g1.id],               // g1 archived
+            answer: "done",
+            alignmentRating: 8,
+            prompt: "x"
+        )
+        let o = try? XCTUnwrap(outcome)
+        let savedIds = o?.goalsToSave.map(\.id) ?? []
+        // Edited pillar + archived g1 + apex — and nothing saved twice.
+        XCTAssertEqual(Set(savedIds), Set([editedPillar.id, t.g1.id, t.apex.id]))
+        XCTAssertEqual(savedIds.count, 3)
+        // Apex (carrying the check-in) is persisted last.
+        XCTAssertEqual(savedIds.last, t.apex.id)
+        // Unchanged, non-archived g2 is NOT persisted.
+        XCTAssertFalse(savedIds.contains(t.g2.id))
     }
 
     func testReturnsNilWithoutApex() {

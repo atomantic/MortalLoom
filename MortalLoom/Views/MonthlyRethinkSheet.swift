@@ -96,10 +96,14 @@ struct MonthlyRethinkSheet: View {
                     allGoals: workingGoals,
                     allHabits: habits,
                     onSave: { updated in
+                        // Hold the edit in the working copy only — it's
+                        // persisted once, with the archive/check-in writes, in
+                        // finish(). Saving here too would race those final
+                        // writes (each onSaveGoal runs in its own Task) and
+                        // could clobber them.
                         if let idx = workingGoals.firstIndex(where: { $0.id == updated.id }) {
                             workingGoals[idx] = updated
                         }
-                        onSaveGoal(updated)
                     }
                 )
             }
@@ -282,10 +286,10 @@ struct MonthlyRethinkSheet: View {
             prompt: selectedPrompt
         ) else { return }
 
-        for goal in outcome.archivedGoals {
+        // Persist every changed goal exactly once (edits + archives + apex).
+        for goal in outcome.goalsToSave {
             onSaveGoal(goal)
         }
-        onSaveGoal(outcome.apexToSave)
 
         MonthlyRethink.recordCompletion()
         onComplete()

@@ -204,13 +204,23 @@ enum MonthlyReportEngine {
 /// goals to persist.
 enum MonthlyRethinkEngine {
     struct Outcome {
-        /// The apex carrying the newly-appended compound check-in.
+        /// The apex carrying the newly-appended compound check-in (and any
+        /// inline edits the user made to the apex during the session).
         let apexToSave: Goal
         /// Descendants whose status was set to `.abandoned`.
         let archivedGoals: [Goal]
+        /// Non-apex, non-archived descendants that were inline-edited and so
+        /// must be persisted. Edits are deferred to `finish()` (not saved as
+        /// they happen) so every goal is written exactly once and the save
+        /// order can't race the final archive/check-in writes.
+        let editedGoals: [Goal]
         let keptCount: Int
         let editedCount: Int
         let archivedCount: Int
+
+        /// Everything to persist, apex last. Disjoint by construction (an id
+        /// is at most one of archived / edited / apex).
+        var goalsToSave: [Goal] { editedGoals + archivedGoals + [apexToSave] }
     }
 
     /// Build the persistence outcome for a finished rethink. Returns `nil`
@@ -239,12 +249,17 @@ enum MonthlyRethinkEngine {
         }
         let archivedCount = archivedGoals.count
 
-        // Edited = differs from the original snapshot AND not archived (an
-        // archived goal is reported as archived, not edited).
+        // Edited = differs from the original snapshot, not archived (an
+        // archived goal is reported as archived, not edited), and not the apex
+        // (the apex is persisted separately via apexToSave, carrying both its
+        // edits and the compound check-in).
         let originalById = Dictionary(allGoals.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        let editedCount = workingGoals.filter { working in
-            originalById[working.id] != working && !archivedIds.contains(working.id)
-        }.count
+        let editedGoals = workingGoals.filter { working in
+            working.id != apex.id
+                && !archivedIds.contains(working.id)
+                && originalById[working.id] != working
+        }
+        let editedCount = editedGoals.count
 
         // Active tree size = apex + its active descendants.
         let activeCount = GoalEngine.activeDescendants(of: apex, in: workingGoals).count + 1
@@ -267,6 +282,7 @@ enum MonthlyRethinkEngine {
         return Outcome(
             apexToSave: apex,
             archivedGoals: archivedGoals,
+            editedGoals: editedGoals,
             keptCount: keptCount,
             editedCount: editedCount,
             archivedCount: archivedCount
