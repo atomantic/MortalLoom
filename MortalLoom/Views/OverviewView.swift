@@ -395,16 +395,23 @@ struct OverviewView: View {
         // one-shot we leave the user's explicit preference alone.
         if !hasAppliedFirstLaunchSectionState {
             let defaults = UserDefaults.standard
+            let runwayKey = "overview.runwaySectionExpanded"
+            let healthKey = "overview.healthSectionExpanded"
             // An install that already persisted a section preference (or the
-            // legacy collapse flag) is an upgrade, not a first launch — respect
-            // whatever the user last chose and don't re-expand a section they
-            // had deliberately collapsed.
+            // legacy collapse flag) is an upgrade, not a first launch.
             let isExistingInstall =
-                defaults.object(forKey: "overview.runwaySectionExpanded") != nil
-                || defaults.object(forKey: "overview.healthSectionExpanded") != nil
+                defaults.object(forKey: runwayKey) != nil
+                || defaults.object(forKey: healthKey) != nil
                 || defaults.object(forKey: "overview.hasCollapsedEmptySections") != nil
             if isExistingInstall {
-                // Nothing to apply — leave their stored preferences alone.
+                // Migrate per section. The @AppStorage default flipped true→false,
+                // so an ABSENT key — which used to render as expanded — would now
+                // silently collapse a section the user never touched. Seed each
+                // missing key to the old expanded default to preserve behavior; a
+                // section the user explicitly collapsed already has its key stored
+                // (false) and is left exactly as they set it.
+                if defaults.object(forKey: runwayKey) == nil { runwayExpanded = true }
+                if defaults.object(forKey: healthKey) == nil { healthExpanded = true }
                 hasAppliedFirstLaunchSectionState = true
             } else if vm.data.profile.birthDate != nil {
                 // Fresh install with data available (typed during onboarding, or
