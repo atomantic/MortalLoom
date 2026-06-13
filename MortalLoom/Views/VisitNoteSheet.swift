@@ -39,9 +39,7 @@ struct VisitNoteSheet: View {
             }
             .macGroupedFormStyle()
             .navigationTitle("Add Visit Note")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .macSheetFrame()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
