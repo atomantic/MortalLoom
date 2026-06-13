@@ -1632,10 +1632,19 @@ final class SubstanceEngineTests: XCTestCase {
         let avg30 = SubstanceEngine.rollingAverageGrams(drinks: SampleData.alcoholDrinks, days: 30)
         let allTime = SubstanceEngine.allTimeAverageGrams(drinks: SampleData.alcoholDrinks)
 
-        // Sample data has active drinker, should have non-zero averages
-        XCTAssertGreaterThanOrEqual(avg7, 0)
-        XCTAssertGreaterThanOrEqual(avg30, 0)
-        XCTAssertGreaterThan(allTime, 0)
+        // SampleData seeds a regular drinker across 90 days. Each day index has
+        // a fixed seed, so the days that drink regardless of weekday
+        // (seededRandom(day*7) < 0.35) form a weekday-INDEPENDENT floor — weekend
+        // days only ever add more. Counting only those days (and the rolling
+        // window's inclusive boundary day) the provable floor is ~6.4 g/day (7d),
+        // ~4.9 (30d), ~4.0 (all-time); the true averages run higher still (~7+).
+        // We assert below the provable floor so the test is robust to which
+        // weekday "today" is, yet tight enough that a real regression — e.g. a
+        // halved gramsAlcohol conversion, which would drop the 7d/30d averages
+        // to ~3.5 — fails, unlike the old `>= 0` the empty case silently passed.
+        XCTAssertGreaterThan(avg7, 4.0)
+        XCTAssertGreaterThan(avg30, 3.0)
+        XCTAssertGreaterThan(allTime, 3.0)
     }
 
     func testSubstanceEngineWithSampleNicotine() {
@@ -1643,9 +1652,17 @@ final class SubstanceEngineTests: XCTestCase {
         let avg30 = SubstanceEngine.rollingAverageMg(entries: SampleData.nicotineEntries, days: 30)
         let allTime = SubstanceEngine.allTimeAverageMg(entries: SampleData.nicotineEntries)
 
-        XCTAssertGreaterThanOrEqual(avg7, 0)
-        XCTAssertGreaterThanOrEqual(avg30, 0)
-        XCTAssertGreaterThan(allTime, 0)
+        // Nicotine sample data is fully deterministic — the seed depends only on
+        // the day index, with no weekday or wall-clock branch — so these averages
+        // are stable across runs: ~3.43 mg/day (7d), ~3.07 (30d), ~4.11 (all-time).
+        // The 7d floor dips to ~2.57 only in the rare case where the static
+        // sample arrays were built 1–3 days before `now` (a suite straddling
+        // local midnight), so we assert below that worst case with margin: still
+        // far tighter than the old `>= 0` (which the empty case passed) and tight
+        // enough to catch a regression that merely reduces the totals.
+        XCTAssertGreaterThan(avg7, 2.0)
+        XCTAssertGreaterThan(avg30, 2.0)
+        XCTAssertGreaterThan(allTime, 3.0)
     }
 
     // MARK: Sauna All-Time Average
@@ -2050,8 +2067,12 @@ final class EdgeCaseTests: XCTestCase {
     // MARK: LifestyleData Edge Cases
 
     func testLifestyleDataExtremeSleepValues() {
-        XCTAssertEqual(DeathClockEngine.sleepImpact(3.0), -1.5)
-        XCTAssertEqual(DeathClockEngine.sleepImpact(12.0), 0) // Too much sleep counts as borderline
+        // sleepImpact: 7–9h is optimal (+1), <6h is a penalty (-1.5), and
+        // everything else — including oversleep — is neutral (0), NOT a penalty.
+        XCTAssertEqual(DeathClockEngine.sleepImpact(3.0), -1.5)  // severe deprivation
+        XCTAssertEqual(DeathClockEngine.sleepImpact(9.0), 1)     // optimal upper bound (inclusive)
+        XCTAssertEqual(DeathClockEngine.sleepImpact(9.1), 0)     // just past optimal → neutral
+        XCTAssertEqual(DeathClockEngine.sleepImpact(12.0), 0)    // oversleep → neutral, not a penalty
     }
 
     func testLifestyleDataExtremeExercise() {
@@ -2139,8 +2160,11 @@ final class GoalEngineUrgencyTests: XCTestCase {
     func testCompletedGoalProjection() {
         var goal = Goal(title: "Done", completedDate: DateFormatting.todayString(), status: .completed)
         goal.checkIns = [GoalCheckIn(progressPct: 100)]
-        _ = GoalEngine.project(goal: goal, deathDate: nil, healthyCognitiveDate: nil)
+        let projection = GoalEngine.project(goal: goal, deathDate: nil, healthyCognitiveDate: nil)
         XCTAssertEqual(goal.progressPercent, 100)
+        // A completed goal with no target date is fully on track with no slippage.
+        XCTAssertEqual(projection.urgencyLevel, .onTrack)
+        XCTAssertEqual(projection.slippageDays, 0)
     }
 }
 
