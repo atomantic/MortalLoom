@@ -90,18 +90,19 @@ struct MortalLoomApp: App {
                 }
                 .keyboardShortcut("q", modifiers: .command)
             }
-            // Cmd+, → route the main window to its Settings page. The app surfaces
-            // settings inline in the sidebar, so this stays in one window instead
-            // of opening a separate settings scene.
-            CommandGroup(replacing: .appSettings) {
-                Button("Settings…") {
-                    NotificationCenter.default.post(name: .navigateToPage, object: AppPage.settings)
-                }
-                .keyboardShortcut(",", modifiers: .command)
-            }
             // Suppress the default Cmd+N "New Window" — a second window is just a
             // duplicate of this single-window app.
             CommandGroup(replacing: .newItem) {}
+        }
+        #endif
+
+        #if os(macOS)
+        // A real Settings scene gives the HIG-expected Cmd+, (SwiftUI wires the
+        // menu item automatically) and works even when the main window has been
+        // closed — unlike routing a notification into the main window, which has
+        // no observer in that state.
+        Settings {
+            SettingsView()
         }
         #endif
     }
