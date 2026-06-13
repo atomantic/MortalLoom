@@ -11,6 +11,8 @@ struct GenomeView: View {
     @State private var activeTab: GenomeTab = .bioAge
     @State private var showingAddTest = false
     @State private var showingFileImporter = false
+    @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
+    private var isWide: Bool { containerWidth >= Layout.wideThreshold }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -36,6 +38,13 @@ struct GenomeView: View {
                     }
                 }
                 .padding()
+                // Cap the single-column genome content to a readable width and
+                // center it on wide windows so charts/lists don't stretch across
+                // a full Mac/iPad window. A full two-pane layout (GenomeSplitView)
+                // is tracked separately in #50.
+                .frame(maxWidth: isWide ? Layout.wideThreshold : .infinity)
+                .frame(maxWidth: .infinity)
+                .readContainerWidth { containerWidth = $0 }
             }
         }
         .background(Color.bg)

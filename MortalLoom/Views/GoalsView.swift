@@ -27,17 +27,40 @@ struct GoalsView: View {
     private static let treeLineWidth: CGFloat = 1.5
     private static let treeColumnWidth: CGFloat = 24
 
+    @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
+    private var isWide: Bool { containerWidth >= Layout.wideThreshold }
+
     private typealias HierarchyItem = GoalEngine.HierarchyItem
 
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                headerCard
-                apexSection
-                hierarchySection
-                completedGoalsSection
+                if isWide {
+                    // On wide windows (iPad / macOS) the single goal column left
+                    // ~900pt of dead space. Put the framing — header + North Star —
+                    // in the left column and the goal tree + completed list in the
+                    // right so both halves use the available width.
+                    HStack(alignment: .top, spacing: 16) {
+                        VStack(spacing: 16) {
+                            headerCard
+                            apexSection
+                        }
+                        .frame(maxWidth: .infinity, alignment: .top)
+                        VStack(spacing: 16) {
+                            hierarchySection
+                            completedGoalsSection
+                        }
+                        .frame(maxWidth: .infinity, alignment: .top)
+                    }
+                } else {
+                    headerCard
+                    apexSection
+                    hierarchySection
+                    completedGoalsSection
+                }
             }
             .padding()
+            .readContainerWidth { containerWidth = $0 }
         }
         .background(Color.bg)
         #if os(macOS)
