@@ -136,6 +136,14 @@ final class GenomeViewModel {
                 genomeVariants = Array(parseResult.variants.prefix(1000))
                 runMarkerScan()
             }
+        } else if scanSummary == nil, !allGenomeVariants.isEmpty, !isScanning {
+            // Variants are loaded but there's no scan result and nothing is
+            // running — i.e. a previous scan was cancelled mid-flight (#30,
+            // e.g. cancelScans() on teardown). Re-run it so the screen recovers
+            // instead of showing an empty Genome tab. Guarded on !isScanning so
+            // a load() triggered while the initial scan is still in progress
+            // doesn't restart it.
+            runMarkerScan()
         }
     }
 
@@ -528,6 +536,10 @@ final class GenomeViewModel {
     func cancelScans() {
         markerScanTask?.cancel()
         clinvarScanTask?.cancel()
+        // A cancelled scan is no longer in progress — clear the flag so the
+        // view never strands on a permanent "scanning" spinner if this model
+        // outlives the teardown (#30). load() re-runs the scan on return.
+        isScanning = false
     }
 
     func syncClinVar() {
