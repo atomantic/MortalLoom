@@ -40,6 +40,7 @@
 		285C3B38D82FDF5C57FDAA1E /* EpigeneticTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DE7B02859718A26B4B9906E /* EpigeneticTest.swift */; };
 		29AFDFA8BC814239784F41DC /* BodyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4711239695D8FA36364CFC90 /* BodyView.swift */; };
 		2B2BA86256AC43A4DD348D56 /* GenomeViewHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = C625B2850BACDA66FC085B87 /* GenomeViewHelpers.swift */; };
+		2B8E0187D145C2CCA2BF2E10 /* CollectionMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF14662C31A489DE85B5CABE /* CollectionMath.swift */; };
 		2CB9A37BB736198316B44405 /* GoalEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 118A5A1BB8FDFBEDDACD2E0C /* GoalEngine.swift */; };
 		2E1D5E1CCBA2285ED8D913BD /* ScreenshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B2CB5E984C7556ED4DE0610 /* ScreenshotTests.swift */; };
 		2EB412FB4F7A9CB04F8FEA67 /* SubstancesShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF5185384006A3DC1455D845 /* SubstancesShared.swift */; };
@@ -169,6 +170,7 @@
 		C27099DAB0C46C3647878607 /* BloodView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BB3FF2B8EF635AAE437983D /* BloodView.swift */; };
 		C389F96C64CCE6A9E5706FB2 /* HabitEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 879315E40D95F4453EFFC676 /* HabitEngine.swift */; };
 		C41D60E4758EAA39ED0E77A8 /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 122239D01E7F6BBD60C37DE8 /* LocationService.swift */; };
+		C44427C13AD0C0AA2386B7C1 /* CollectionMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF14662C31A489DE85B5CABE /* CollectionMath.swift */; };
 		C505D8C48C08E5ECEAE8215B /* BloodTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92F50631566FFE40D88FAD5C /* BloodTest.swift */; };
 		C67BE9934D2AADF7D3D8EC77 /* SaunaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCD31434B17EF3EF7CDD5819 /* SaunaView.swift */; };
 		C6F5E6886D7CABB0D1096EBD /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 122239D01E7F6BBD60C37DE8 /* LocationService.swift */; };
@@ -375,6 +377,7 @@
 		A6A08FFA461E1F414C7EA92E /* CalendarSchedulerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarSchedulerSheet.swift; sourceTree = "<group>"; };
 		A953CF0633A4E3BA09593D5E /* GenomeScanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenomeScanView.swift; sourceTree = "<group>"; };
 		AAB2C9C845CDE8F2A4335C20 /* GoalsViewHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalsViewHelpers.swift; sourceTree = "<group>"; };
+		AF14662C31A489DE85B5CABE /* CollectionMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionMath.swift; sourceTree = "<group>"; };
 		B460A824B27B5049B354A64C /* StagnationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StagnationEngine.swift; sourceTree = "<group>"; };
 		B4C6F3F7D27B38D804FA5B61 /* DeathClockEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeathClockEngine.swift; sourceTree = "<group>"; };
 		BC7FF09623E4F8E66F45E59F /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
@@ -493,6 +496,7 @@
 				E1EEC8E756E144273D6BC24A /* BloodTrendEngine.swift */,
 				F70D7D3B99416A3F8E976C2B /* CardioFitnessEngine.swift */,
 				174D733132F943A870DA79E7 /* Citation.swift */,
+				AF14662C31A489DE85B5CABE /* CollectionMath.swift */,
 				98CE91B429B04C112C38D411 /* CorrelationEngine.swift */,
 				69B73CEA0F3655CDD11A007C /* CuratedMarkers.swift */,
 				B4C6F3F7D27B38D804FA5B61 /* DeathClockEngine.swift */,
@@ -885,6 +889,7 @@
 				21A2A1DBCC8BE8414A650920 /* CitationsView.swift in Sources */,
 				1A2A9528B6DD2454557BA690 /* ClinVarService.swift in Sources */,
 				F5429C14A6627FB6915804E6 /* ClinVarView.swift in Sources */,
+				C44427C13AD0C0AA2386B7C1 /* CollectionMath.swift in Sources */,
 				C880829A818791EC492E79A8 /* CorrelationEngine.swift in Sources */,
 				0A491EA766254514F8C2D373 /* CuratedMarkers.swift in Sources */,
 				4C31E78A1FDAC239E647CB2D /* DataStore.swift in Sources */,
@@ -990,6 +995,7 @@
 				D4231700BA2C2B4F01C915A1 /* CitationsView.swift in Sources */,
 				D1BEDA20FE95BA52C519F854 /* ClinVarService.swift in Sources */,
 				86524C5AD7E83B48901489AE /* ClinVarView.swift in Sources */,
+				2B8E0187D145C2CCA2BF2E10 /* CollectionMath.swift in Sources */,
 				74DDF95780AC8638A23077D4 /* CorrelationEngine.swift in Sources */,
 				884893922D3689B12DC1E4C6 /* CuratedMarkers.swift in Sources */,
 				4E21F7279130B3025E25A8EA /* DataStore.swift in Sources */,

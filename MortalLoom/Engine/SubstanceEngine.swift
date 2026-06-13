@@ -35,12 +35,26 @@ enum SubstanceEngine {
         return total / Double(dayCount)
     }
 
+    /// Average per-day value over the trailing `days` window. Each item exposes a
+    /// `"yyyy-MM-dd"` date string and a numeric value; the divisor is the window
+    /// span (not the entry count), matching the alcohol/nicotine/sauna rolling
+    /// stats that previously duplicated this arithmetic three times.
+    static func rollingAverage<T>(
+        items: [T],
+        days: Int,
+        date: KeyPath<T, String>,
+        value: (T) -> Double,
+        now: Date = Date()
+    ) -> Double {
+        let cutoff = DateFormatting.dateString(daysAgo: days, from: now)
+        let total = items.filter { $0[keyPath: date] >= cutoff }.reduce(0.0) { $0 + value($1) }
+        return total / Double(max(1, days))
+    }
+
     // MARK: - Alcohol
 
     static func rollingAverageGrams(drinks: [AlcoholDrink], days: Int, now: Date = Date()) -> Double {
-        let cutoff = DateFormatting.dateString(daysAgo: days, from: now)
-        let total = drinks.filter { $0.date >= cutoff }.reduce(0.0) { $0 + $1.gramsAlcohol }
-        return total / Double(max(1, days))
+        rollingAverage(items: drinks, days: days, date: \.date, value: { $0.gramsAlcohol }, now: now)
     }
 
     static func weeklyTotalStandardDrinks(drinks: [AlcoholDrink], now: Date = Date()) -> Double {
@@ -86,9 +100,7 @@ enum SubstanceEngine {
     // MARK: - Nicotine
 
     static func rollingAverageMg(entries: [NicotineEntry], days: Int, now: Date = Date()) -> Double {
-        let cutoff = DateFormatting.dateString(daysAgo: days, from: now)
-        let total = entries.filter { $0.date >= cutoff }.reduce(0.0) { $0 + $1.totalMg }
-        return total / Double(max(1, days))
+        rollingAverage(items: entries, days: days, date: \.date, value: { $0.totalMg }, now: now)
     }
 
     static func weeklyTotalMg(entries: [NicotineEntry], now: Date = Date()) -> Double {
@@ -103,9 +115,7 @@ enum SubstanceEngine {
     // MARK: - Sauna
 
     static func rollingAverageMinutes(sessions: [SaunaSession], days: Int, now: Date = Date()) -> Double {
-        let cutoff = DateFormatting.dateString(daysAgo: days, from: now)
-        let total = sessions.filter { $0.date >= cutoff }.reduce(0) { $0 + $1.durationMinutes }
-        return Double(total) / Double(max(1, days))
+        rollingAverage(items: sessions, days: days, date: \.date, value: { Double($0.durationMinutes) }, now: now)
     }
 
     static func weeklyTotalMinutes(sessions: [SaunaSession], now: Date = Date()) -> Int {

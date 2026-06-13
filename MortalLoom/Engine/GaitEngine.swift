@@ -115,15 +115,10 @@ enum GaitEngine {
 
     /// Build a gait summary from recent health metrics.
     static func summarize(metrics: [HealthMetricEntry], age: Int) -> GaitSummary {
-        let speeds = metrics.compactMap(\.walkingSpeed)
-        let distances = metrics.compactMap(\.walkingDistance)
-        let asymmetries = metrics.compactMap(\.walkingAsymmetry)
-        let doubleSupportValues = metrics.compactMap(\.walkingDoubleSupport)
-
-        let avgSpeed = speeds.isEmpty ? nil : speeds.reduce(0, +) / Double(speeds.count)
-        let avgDist = distances.isEmpty ? nil : distances.reduce(0, +) / Double(distances.count)
-        let avgAsym = asymmetries.isEmpty ? nil : asymmetries.reduce(0, +) / Double(asymmetries.count)
-        let avgDS = doubleSupportValues.isEmpty ? nil : doubleSupportValues.reduce(0, +) / Double(doubleSupportValues.count)
+        let avgSpeed = metrics.compactAverage(\.walkingSpeed)
+        let avgDist = metrics.compactAverage(\.walkingDistance)
+        let avgAsym = metrics.compactAverage(\.walkingAsymmetry)
+        let avgDS = metrics.compactAverage(\.walkingDoubleSupport)
 
         let speedLevel = avgSpeed.map { classifyWalkingSpeed($0, age: age) }
         let fallRisk = assessFallRisk(asymmetry: avgAsym, doubleSupport: avgDS)

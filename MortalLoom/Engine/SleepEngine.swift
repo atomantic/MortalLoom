@@ -292,15 +292,10 @@ enum SleepEngine {
         let withStages = metrics.filter { $0.sleepDeepHours != nil || $0.sleepRemHours != nil }
         guard !withStages.isEmpty else { return nil }
 
-        let deepVals = withStages.compactMap(\.sleepDeepHours)
-        let remVals = withStages.compactMap(\.sleepRemHours)
-        let coreVals = withStages.compactMap(\.sleepCoreHours)
-        let totalVals = withStages.compactMap(\.sleepHours)
-
-        let avgDeep = deepVals.isEmpty ? 0 : deepVals.reduce(0, +) / Double(deepVals.count)
-        let avgRem = remVals.isEmpty ? 0 : remVals.reduce(0, +) / Double(remVals.count)
-        let avgCore = coreVals.isEmpty ? 0 : coreVals.reduce(0, +) / Double(coreVals.count)
-        let avgTotal = totalVals.isEmpty ? 1 : totalVals.reduce(0, +) / Double(totalVals.count)
+        let avgDeep = withStages.compactAverage(\.sleepDeepHours) ?? 0
+        let avgRem = withStages.compactAverage(\.sleepRemHours) ?? 0
+        let avgCore = withStages.compactAverage(\.sleepCoreHours) ?? 0
+        let avgTotal = withStages.compactAverage(\.sleepHours) ?? 1
 
         let deepPct = avgTotal > 0 ? (avgDeep / avgTotal) * 100 : 0
         let remPct = avgTotal > 0 ? (avgRem / avgTotal) * 100 : 0
@@ -415,8 +410,7 @@ enum SleepEngine {
         let stages = stageBreakdown(metrics: metrics)
         let longevity = enhancedLongevityImpact(averageHours: avg, stageBreakdown: stages)
 
-        let bdValues = metrics.compactMap(\.breathingDisturbances)
-        let avgBD = bdValues.isEmpty ? nil : bdValues.reduce(0, +) / Double(bdValues.count)
+        let avgBD = metrics.compactAverage(\.breathingDisturbances)
         let apnea = avgBD.map { classifyApneaRisk($0) }
 
         return SleepSummary(
