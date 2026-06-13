@@ -312,7 +312,7 @@ struct BodyView: View {
                             unit: "mL/kg/min",
                             date: vo2MaxDate,
                             classification: CardioFitnessEngine.classifyVO2Max(vo2, age: userAge, sex: userSex).rawValue,
-                            classificationColor: colorForName(CardioFitnessEngine.classifyVO2Max(vo2, age: userAge, sex: userSex).color),
+                            classificationColor: CardioFitnessEngine.classifyVO2Max(vo2, age: userAge, sex: userSex).color.semanticColor,
                             icon: CardioFitnessEngine.classifyVO2Max(vo2, age: userAge, sex: userSex).systemImage
                         )
                     }
@@ -324,7 +324,7 @@ struct BodyView: View {
                             unit: "bpm",
                             date: restingHRDate,
                             classification: zone.rawValue,
-                            classificationColor: colorForName(zone.color),
+                            classificationColor: zone.color.semanticColor,
                             icon: "heart.fill"
                         )
                     }
@@ -336,7 +336,7 @@ struct BodyView: View {
                             unit: "ms",
                             date: hrvDate,
                             classification: level.rawValue,
-                            classificationColor: colorForName(level.color),
+                            classificationColor: level.color.semanticColor,
                             icon: "waveform.path.ecg"
                         )
                     }
@@ -351,7 +351,7 @@ struct BodyView: View {
                         unit: "bpm drop/1min",
                         date: cardioRecoveryDate,
                         classification: level.rawValue,
-                        classificationColor: colorForName(level.color),
+                        classificationColor: level.color.semanticColor,
                         icon: level.systemImage
                     )
                 }
@@ -420,17 +420,6 @@ struct BodyView: View {
         .accessibilityLabel("\(label): \(value) \(unit), \(classification)")
     }
 
-    private func colorForName(_ name: String) -> Color {
-        switch name {
-        case "green": return .success
-        case "blue": return .accentColor
-        case "yellow": return .warning
-        case "orange": return .orange
-        case "red": return .danger
-        default: return .textSecondary
-        }
-    }
-
     // MARK: - Blood Pressure Section
 
     private var bloodPressureSection: some View {
@@ -492,7 +481,7 @@ struct BodyView: View {
                     unit: "mmHg",
                     date: latest.date,
                     classification: category.rawValue,
-                    classificationColor: colorForName(category.color),
+                    classificationColor: category.color.semanticColor,
                     icon: category.systemImage
                 )
 
@@ -590,7 +579,7 @@ struct BodyView: View {
                             HStack(spacing: 4) {
                                 Image(systemName: level.systemImage)
                                     .font(.caption2)
-                                    .foregroundColor(colorForName(level.color))
+                                    .foregroundColor(level.color.semanticColor)
                                 Text("Walk Speed")
                                     .font(.caption)
                                     .foregroundColor(.textMuted)
@@ -605,7 +594,7 @@ struct BodyView: View {
                             Text(level.rawValue)
                                 .font(.caption2)
                                 .fontWeight(.semibold)
-                                .foregroundColor(colorForName(level.color))
+                                .foregroundColor(level.color.semanticColor)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .accessibilityElement(children: .combine)
@@ -639,7 +628,7 @@ struct BodyView: View {
                         HStack(spacing: 4) {
                             Image(systemName: "exclamationmark.shield")
                                 .font(.caption2)
-                                .foregroundColor(colorForName(gait.fallRisk.color))
+                                .foregroundColor(gait.fallRisk.color.semanticColor)
                             Text("Fall Risk")
                                 .font(.caption)
                                 .foregroundColor(.textMuted)
@@ -647,7 +636,7 @@ struct BodyView: View {
                         Text(gait.fallRisk.rawValue)
                             .font(.title3)
                             .fontWeight(.bold)
-                            .foregroundColor(colorForName(gait.fallRisk.color))
+                            .foregroundColor(gait.fallRisk.color.semanticColor)
                         if let asym = gait.avgAsymmetry {
                             Text(String(format: "%.1f%% asym", asym))
                                 .font(.caption2)

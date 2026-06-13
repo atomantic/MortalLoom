@@ -121,7 +121,7 @@ struct SleepView: View {
             HStack {
                 Image(systemName: summary.rating.systemImage)
                     .font(.title2)
-                    .foregroundColor(colorForName(summary.rating.color))
+                    .foregroundColor(summary.rating.color.semanticColor)
                 Text("Sleep Overview")
                     .font(.headline)
                     .foregroundColor(.textPrimary)
@@ -129,7 +129,7 @@ struct SleepView: View {
                 Text(summary.rating.rawValue)
                     .font(.subheadline)
                     .fontWeight(.semibold)
-                    .foregroundColor(colorForName(summary.rating.color))
+                    .foregroundColor(summary.rating.color.semanticColor)
             }
 
             HStack(spacing: 24) {
@@ -290,7 +290,7 @@ struct SleepView: View {
             HStack(spacing: 4) {
                 Image(systemName: icon)
                     .font(.caption2)
-                    .foregroundColor(quality.map { colorForName($0.color) } ?? .textMuted)
+                    .foregroundColor(quality.map { $0.color.semanticColor } ?? .textMuted)
                 Text(label)
                     .font(.caption)
                     .foregroundColor(.textMuted)
@@ -306,7 +306,7 @@ struct SleepView: View {
                 Text(quality.rawValue)
                     .font(.caption2)
                     .fontWeight(.semibold)
-                    .foregroundColor(colorForName(quality.color))
+                    .foregroundColor(quality.color.semanticColor)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -368,7 +368,7 @@ struct SleepView: View {
             HStack {
                 Image(systemName: apnea.systemImage)
                     .font(.title2)
-                    .foregroundColor(colorForName(apnea.color))
+                    .foregroundColor(apnea.color.semanticColor)
                 Text("Breathing During Sleep")
                     .font(.headline)
                     .foregroundColor(.textPrimary)
@@ -376,7 +376,7 @@ struct SleepView: View {
                 Text(apnea.rawValue)
                     .font(.subheadline)
                     .fontWeight(.semibold)
-                    .foregroundColor(colorForName(apnea.color))
+                    .foregroundColor(apnea.color.semanticColor)
             }
 
             if let avgBD {
@@ -663,18 +663,5 @@ struct SleepView: View {
         daylightConsistencyR = SleepEngine.daylightConsistencyCorrelationCoefficient(dcPoints)
 
         isLoading = false
-    }
-
-    // MARK: - Helpers
-
-    private func colorForName(_ name: String) -> Color {
-        switch name {
-        case "green": return .success
-        case "blue": return .accentColor
-        case "yellow": return .warning
-        case "orange": return .orange
-        case "red": return .danger
-        default: return .textSecondary
-        }
     }
 }
