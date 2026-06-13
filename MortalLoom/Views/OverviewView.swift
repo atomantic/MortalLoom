@@ -394,9 +394,20 @@ struct OverviewView: View {
         // brand-new users keep the collapsed CTA-forward screen. After this
         // one-shot we leave the user's explicit preference alone.
         if !hasAppliedFirstLaunchSectionState {
-            let hasProfile = vm.data.profile.birthDate != nil
-            runwayExpanded = hasProfile
-            healthExpanded = hasProfile
+            let defaults = UserDefaults.standard
+            // An install that already persisted a section preference (or the
+            // legacy collapse flag) is an upgrade, not a first launch — respect
+            // whatever the user last chose and don't re-expand a section they
+            // had deliberately collapsed. The one-shot only governs genuinely
+            // fresh installs (including iCloud restores, which arrive with data).
+            let isExistingInstall =
+                defaults.object(forKey: "overview.runwaySectionExpanded") != nil
+                || defaults.object(forKey: "overview.healthSectionExpanded") != nil
+                || defaults.object(forKey: "overview.hasCollapsedEmptySections") != nil
+            if !isExistingInstall, vm.data.profile.birthDate != nil {
+                runwayExpanded = true
+                healthExpanded = true
+            }
             hasAppliedFirstLaunchSectionState = true
         }
     }
