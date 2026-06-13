@@ -791,12 +791,9 @@ struct OverviewView: View {
     private var lifeExpectancyFactorsCard: some View {
         let lifestyle = vm.data.profile.lifestyle
         let metrics = vm.data.healthMetrics
-        let recoveries = metrics.compactMap(\.cardioRecovery)
-        let cardioImpact = recoveries.isEmpty ? 0.0 : CardioFitnessEngine.recoveryLongevityImpact(recoveries.reduce(0, +) / Double(recoveries.count))
-        let speeds = metrics.compactMap(\.walkingSpeed)
-        let gaitImpact = speeds.isEmpty ? 0.0 : GaitEngine.walkingSpeedLongevityImpact(speeds.reduce(0, +) / Double(speeds.count), age: vm.deathClock?.ageYears ?? 0)
-        let bds = metrics.compactMap(\.breathingDisturbances)
-        let apneaImpact = bds.isEmpty ? 0.0 : SleepEngine.apneaLongevityImpact(bds.reduce(0, +) / Double(bds.count))
+        let cardioImpact = metrics.compactAverage(\.cardioRecovery).map { CardioFitnessEngine.recoveryLongevityImpact($0) } ?? 0.0
+        let gaitImpact = metrics.compactAverage(\.walkingSpeed).map { GaitEngine.walkingSpeedLongevityImpact($0, age: vm.deathClock?.ageYears ?? 0) } ?? 0.0
+        let apneaImpact = metrics.compactAverage(\.breathingDisturbances).map { SleepEngine.apneaLongevityImpact($0) } ?? 0.0
 
         let allFactors: [(name: String, icon: String, value: Double)] = [
             ("Genome", "dna", DeathClockEngine.genomeAdjustment(vm.data.genomeScanRecord)),

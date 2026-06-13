@@ -276,8 +276,8 @@ enum CorrelationEngine {
             explanation = "Comparing your higher-usage days against your lower-usage days. Nicotine raises heart rate by stimulating adrenaline release."
         }
 
-        let avgHigh = highGroup.isEmpty ? 0 : highGroup.compactMap(\.hr).reduce(0, +) / Double(highGroup.count)
-        let avgLow = lowGroup.isEmpty ? 0 : lowGroup.compactMap(\.hr).reduce(0, +) / Double(lowGroup.count)
+        let avgHigh = highGroup.compactAverage(\.hr) ?? 0
+        let avgLow = lowGroup.compactAverage(\.hr) ?? 0
         let hasData = !highGroup.isEmpty && !lowGroup.isEmpty
 
         return NicotineHRCorrelation(
