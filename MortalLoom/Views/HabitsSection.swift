@@ -109,6 +109,7 @@ struct HabitStats: Sendable {
 }
 
 struct HabitsSection: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var habits: [Habit] = []
     @State private var goals: [Goal] = []
     @State private var habitStats: [UUID: HabitStats] = [:]
@@ -196,7 +197,7 @@ struct HabitsSection: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: showDailyNudge)
+        .animation(reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.85), value: showDailyNudge)
     }
 
     // MARK: Data loading
