@@ -148,32 +148,14 @@ struct AlcoholView: View {
             return DailyAmount(date: day, amount: grams)
         }
 
-        return VStack(alignment: .leading, spacing: 8) {
-            Text("Daily Alcohol (30 days)")
-                .font(.headline)
-                .foregroundColor(.textPrimary)
-
-            Chart(dailyData) { item in
-                BarMark(
-                    x: .value("Date", item.date),
-                    y: .value("Grams", item.amount)
-                )
-                .foregroundStyle(Color.accentColor.gradient)
-                .cornerRadius(2)
-            }
-            .chartXAxis {
-                AxisMarks(values: .stride(by: .day, count: 7)) { _ in
-                    AxisGridLine()
-                    AxisValueLabel(format: .dateTime.month(.abbreviated).day(), centered: true)
-                }
-            }
-            .chartYAxisLabel("grams")
-            .frame(height: Layout.chartFrameHeight)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Daily alcohol consumption chart showing grams of alcohol over the last 30 days")
-        }
-        .padding()
-        .cardStyle()
+        return DailyBarChartCard(
+            title: "Daily Alcohol (30 days)",
+            data: dailyData,
+            barValueLabel: "Grams",
+            yAxisLabel: "grams",
+            color: .accentColor,
+            accessibilityLabel: "Daily alcohol consumption chart showing grams of alcohol over the last 30 days"
+        )
     }
 
     // MARK: Alcohol + HRV Correlation
@@ -540,49 +522,13 @@ struct AlcoholView: View {
     // MARK: Alcohol Quick Add
 
     private var alcoholQuickAdd: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Quick Add")
-                    .font(.headline)
-                    .foregroundColor(.textPrimary)
-                Spacer()
-                managePresetsLink { showAlcoholPresetManager = true }
-            }
-
-            if alcoholPresets.isEmpty {
-                Text("No presets configured. Tap Manage Presets to add some.")
-                    .font(.caption)
-                    .foregroundColor(.textMuted)
-            } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(alcoholPresets) { preset in
-                            Button {
-                                Task { await quickAddAlcohol(preset) }
-                            } label: {
-                                Text(preset.name)
-                                    .font(.caption)
-                                    .foregroundColor(.textPrimary)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 8)
-                                    .background(Color.bgInput)
-                                    .cornerRadius(8)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(Color.cardBorder, lineWidth: 1)
-                                    )
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("Quick add \(preset.name)")
-                            .accessibilityHint("Logs one \(preset.name) drink. Drag to reorder.")
-                            .modifier(ReorderableChip(preset: preset, presets: $alcoholPresets) { saved in Task { await DataStore.shared.setAlcoholPresets(saved) } })
-                        }
-                    }
-                }
-            }
-        }
-        .padding()
-        .cardStyle()
+        QuickAddPresetRow(
+            presets: $alcoholPresets,
+            accessibilityHint: { "Logs one \($0.name) drink. Drag to reorder." },
+            onAdd: { preset in Task { await quickAddAlcohol(preset) } },
+            onManage: { showAlcoholPresetManager = true },
+            persist: { saved in Task { await DataStore.shared.setAlcoholPresets(saved) } }
+        )
     }
 
     // MARK: Alcohol Custom Form
@@ -761,30 +707,17 @@ struct AlcoholView: View {
             Text(String(format: "%.1f", drink.standardDrinks))
                 .frame(width: 40, alignment: .trailing)
         }
-        .font(.caption)
-        .foregroundColor(.textPrimary)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 7)
-        .background(rowIndex.isMultiple(of: 2) ? Color.clear : Color.tableRowAlt)
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(drink.name): \(String(format: "%.1f", drink.gramsAlcohol)) grams, \(String(format: "%.1f", drink.standardDrinks)) standard drinks")
-        .accessibilityHint("Tap to edit")
-        .accessibilityAddTraits(.isButton)
-        .onTapGesture { startEditingDrink(drink) }
-        .contextMenu {
-            Button { startEditingDrink(drink) } label: {
-                Label("Edit", systemImage: "pencil")
-            }
-            Button(role: .destructive) {
+        .modifier(SubstanceRowChrome(
+            rowIndex: rowIndex,
+            accessibilityLabel: "\(drink.name): \(String(format: "%.1f", drink.gramsAlcohol)) grams, \(String(format: "%.1f", drink.standardDrinks)) standard drinks",
+            onEdit: { startEditingDrink(drink) },
+            onDelete: {
                 Task {
                     await DataStore.shared.removeAlcoholDrink(id: drink.id)
                     await loadData()
                 }
-            } label: {
-                Label("Delete", systemImage: "trash")
             }
-        }
+        ))
     }
 
     // MARK: Alcohol Edit Sheet

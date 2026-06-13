@@ -105,32 +105,14 @@ struct NicotineView: View {
             return DailyAmount(date: day, amount: mg)
         }
 
-        return VStack(alignment: .leading, spacing: 8) {
-            Text("Daily Nicotine (30 days)")
-                .font(.headline)
-                .foregroundColor(.textPrimary)
-
-            Chart(dailyData) { item in
-                BarMark(
-                    x: .value("Date", item.date),
-                    y: .value("mg", item.amount)
-                )
-                .foregroundStyle(Color.warning.gradient)
-                .cornerRadius(2)
-            }
-            .chartXAxis {
-                AxisMarks(values: .stride(by: .day, count: 7)) { _ in
-                    AxisGridLine()
-                    AxisValueLabel(format: .dateTime.month(.abbreviated).day(), centered: true)
-                }
-            }
-            .chartYAxisLabel("mg")
-            .frame(height: Layout.chartFrameHeight)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Daily nicotine consumption chart showing milligrams over the last 30 days")
-        }
-        .padding()
-        .cardStyle()
+        return DailyBarChartCard(
+            title: "Daily Nicotine (30 days)",
+            data: dailyData,
+            barValueLabel: "mg",
+            yAxisLabel: "mg",
+            color: .warning,
+            accessibilityLabel: "Daily nicotine consumption chart showing milligrams over the last 30 days"
+        )
     }
 
     // MARK: Nicotine + Heart Rate Correlation
@@ -232,49 +214,13 @@ struct NicotineView: View {
     // MARK: Nicotine Quick Add
 
     private var nicotineQuickAdd: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Quick Add")
-                    .font(.headline)
-                    .foregroundColor(.textPrimary)
-                Spacer()
-                managePresetsLink { showNicotinePresetManager = true }
-            }
-
-            if nicotinePresets.isEmpty {
-                Text("No presets configured. Tap Manage Presets to add some.")
-                    .font(.caption)
-                    .foregroundColor(.textMuted)
-            } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(nicotinePresets) { preset in
-                            Button {
-                                Task { await quickAddNicotine(preset) }
-                            } label: {
-                                Text(preset.name)
-                                    .font(.caption)
-                                    .foregroundColor(.textPrimary)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 8)
-                                    .background(Color.bgInput)
-                                    .cornerRadius(8)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .stroke(Color.cardBorder, lineWidth: 1)
-                                    )
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("Quick add \(preset.name)")
-                            .accessibilityHint("Logs one \(preset.name) nicotine entry. Drag to reorder.")
-                            .modifier(ReorderableChip(preset: preset, presets: $nicotinePresets) { saved in Task { await DataStore.shared.setNicotinePresets(saved) } })
-                        }
-                    }
-                }
-            }
-        }
-        .padding()
-        .cardStyle()
+        QuickAddPresetRow(
+            presets: $nicotinePresets,
+            accessibilityHint: { "Logs one \($0.name) nicotine entry. Drag to reorder." },
+            onAdd: { preset in Task { await quickAddNicotine(preset) } },
+            onManage: { showNicotinePresetManager = true },
+            persist: { saved in Task { await DataStore.shared.setNicotinePresets(saved) } }
+        )
     }
 
     // MARK: Nicotine Custom Form
@@ -427,30 +373,17 @@ struct NicotineView: View {
                 .frame(width: 64, alignment: .trailing)
                 .fontWeight(.semibold)
         }
-        .font(.caption)
-        .foregroundColor(.textPrimary)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 7)
-        .background(rowIndex.isMultiple(of: 2) ? Color.clear : Color.tableRowAlt)
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(entry.product): \(String(format: "%.1f", entry.totalMg)) milligrams total, \(String(format: "%.1f", entry.mgPerUnit)) mg per unit, \(entry.count) units")
-        .accessibilityHint("Tap to edit")
-        .accessibilityAddTraits(.isButton)
-        .onTapGesture { startEditingNicotine(entry) }
-        .contextMenu {
-            Button { startEditingNicotine(entry) } label: {
-                Label("Edit", systemImage: "pencil")
-            }
-            Button(role: .destructive) {
+        .modifier(SubstanceRowChrome(
+            rowIndex: rowIndex,
+            accessibilityLabel: "\(entry.product): \(String(format: "%.1f", entry.totalMg)) milligrams total, \(String(format: "%.1f", entry.mgPerUnit)) mg per unit, \(entry.count) units",
+            onEdit: { startEditingNicotine(entry) },
+            onDelete: {
                 Task {
                     await DataStore.shared.removeNicotineEntry(id: entry.id)
                     await loadData()
                 }
-            } label: {
-                Label("Delete", systemImage: "trash")
             }
-        }
+        ))
     }
 
     // MARK: Nicotine Edit Sheet
