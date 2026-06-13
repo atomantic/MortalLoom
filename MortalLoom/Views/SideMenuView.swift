@@ -85,32 +85,40 @@ private let menuSections: [MenuSection] = [
 struct SideMenuView: View {
     @Binding var selectedPage: AppPage
     @Binding var isPresented: Bool
-    @State private var menuOffset: CGFloat = -UIScreen.main.bounds.width
-    private let menuWidth: CGFloat = min(UIScreen.main.bounds.width * 0.8, 320)
+    /// Drives the slide-in/out. The panel is offset by its own width when
+    /// hidden, so we never need the screen width — only `isShown`.
+    @State private var isShown = false
 
     var body: some View {
-        ZStack(alignment: .leading) {
-            // Dimmed backdrop
-            Color.black.opacity(0.4)
-                .ignoresSafeArea()
-                .onTapGesture { dismiss() }
-                .accessibilityLabel("Close menu")
-                .accessibilityAddTraits(.isButton)
+        // Read the window (not screen) width via GeometryReader. `UIScreen.main`
+        // returns the full physical screen, which is wrong in iPad Split View /
+        // Stage Manager where the app occupies only part of the screen.
+        GeometryReader { geo in
+            let menuWidth = min(geo.size.width * 0.8, 320)
+            ZStack(alignment: .leading) {
+                // Dimmed backdrop
+                Color.black.opacity(0.4)
+                    .ignoresSafeArea()
+                    .onTapGesture { dismiss() }
+                    .accessibilityLabel("Close menu")
+                    .accessibilityAddTraits(.isButton)
 
-            // Menu panel
-            VStack(alignment: .leading, spacing: 0) {
-                menuHeader
-                Divider().background(Color.cardBorder)
-                menuContent
+                // Menu panel
+                VStack(alignment: .leading, spacing: 0) {
+                    menuHeader
+                    Divider().background(Color.cardBorder)
+                    menuContent
+                }
+                .frame(width: menuWidth)
+                .frame(maxHeight: .infinity)
+                .background(Color.bgCard)
+                .offset(x: isShown ? 0 : -menuWidth)
             }
-            .frame(width: menuWidth)
-            .frame(maxHeight: .infinity)
-            .background(Color.bgCard)
-            .offset(x: menuOffset)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .onAppear {
             withAnimation(.easeOut(duration: 0.25)) {
-                menuOffset = 0
+                isShown = true
             }
         }
     }
@@ -195,7 +203,7 @@ struct SideMenuView: View {
 
     private func dismiss() {
         withAnimation(.easeIn(duration: 0.2)) {
-            menuOffset = -UIScreen.main.bounds.width
+            isShown = false
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             isPresented = false
