@@ -130,15 +130,21 @@ struct OverviewView: View {
         // goalPrompt + weeklyReview + attention can be four full-width cards,
         // which on an iPhone SE pushes the primary "YOUR RUNWAY" content below
         // the fold. Wide layouts have the vertical room, so show both; narrow
-        // shows only the single highest-priority secondary banner (stagnation
-        // signals over the weekly-review nudge, since they're more actionable).
+        // shows only the single highest-priority secondary banner.
+        //
+        // Priority on narrow: the weekly-review CTA wins, because this banner
+        // is its ONLY in-app entry point — suppressing it would strand a due
+        // review. The attention card yields: its content is fully reachable on
+        // the Reports tab (tapping it just navigates there), so hiding the
+        // banner loses no access.
+        let weeklyReviewDue = WeeklyReview.isDue && vm.apexGoal != nil
         if isWide {
-            if WeeklyReview.isDue && vm.apexGoal != nil { weeklyReviewCTA }
+            if weeklyReviewDue { weeklyReviewCTA }
             if !vm.cachedStagnationSignals.isEmpty { attentionCard }
+        } else if weeklyReviewDue {
+            weeklyReviewCTA
         } else if !vm.cachedStagnationSignals.isEmpty {
             attentionCard
-        } else if WeeklyReview.isDue && vm.apexGoal != nil {
-            weeklyReviewCTA
         }
 
         // Runway strip — compact summary of time remaining, expandable

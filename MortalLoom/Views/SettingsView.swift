@@ -1086,11 +1086,13 @@ struct SettingsView: View {
             isPresented: $showResetConfirmation,
             titleVisibility: .visible
         ) {
+            // The destructive role plus the dialog message already convey the
+            // consequence to VoiceOver; custom accessibility modifiers on a
+            // confirmationDialog button aren't reliably surfaced by the system
+            // presentation, so the title carries the meaning instead.
             Button("Delete Everything", role: .destructive) {
                 Task { await resetAllData() }
             }
-            .accessibilityLabel("Confirm delete all data")
-            .accessibilityHint("This will permanently delete all your MortalLoom data")
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("This permanently deletes all your MortalLoom data and can't be undone.")
