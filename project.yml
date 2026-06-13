@@ -64,13 +64,12 @@ targets:
         DEVELOPMENT_TEAM: TYQ32QCF6K
         CODE_SIGN_STYLE: Automatic
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
-        INFOPLIST_KEY_CFBundleDisplayName: MortalLoom
-        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.healthcare-fitness
-        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: false
-        INFOPLIST_KEY_NSHealthShareUsageDescription: "MortalLoom reads your health data to display metrics and trends."
-        INFOPLIST_KEY_NSHealthUpdateUsageDescription: "MortalLoom writes health data to keep your records in sync."
-        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
-        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        # NOTE: no INFOPLIST_KEY_* here. This target ships a custom Info.plist
+        # (info.path below) and does not set GENERATE_INFOPLIST_FILE=YES, so any
+        # INFOPLIST_KEY_* build settings would be inert — the authoritative
+        # values (incl. the HealthKit/location/calendar usage strings) live in
+        # `info.properties` / Info.plist. Keep them there only, to avoid a
+        # confusing dual source (#33).
         SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: false
         # MortalLoom-macOS.entitlements is a manually-maintained file because XcodeGen
         # cannot generate per-SDK entitlements from the `entitlements:` section below.

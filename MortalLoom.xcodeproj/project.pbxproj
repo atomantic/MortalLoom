@@ -1202,13 +1202,6 @@
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = TYQ32QCF6K;
 				INFOPLIST_FILE = MortalLoom/App/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = MortalLoom;
-				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "MortalLoom reads your health data to display metrics and trends.";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "MortalLoom writes health data to keep your records in sync.";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -1279,13 +1272,6 @@
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = TYQ32QCF6K;
 				INFOPLIST_FILE = MortalLoom/App/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = MortalLoom;
-				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "MortalLoom reads your health data to display metrics and trends.";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "MortalLoom writes health data to keep your records in sync.";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -1377,13 +1363,6 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = TYQ32QCF6K;
 				INFOPLIST_FILE = MortalLoom/App/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = MortalLoom;
-				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "MortalLoom reads your health data to display metrics and trends.";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "MortalLoom writes health data to keep your records in sync.";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -1405,13 +1384,6 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				DEVELOPMENT_TEAM = TYQ32QCF6K;
 				INFOPLIST_FILE = MortalLoom/App/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = MortalLoom;
-				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "MortalLoom reads your health data to display metrics and trends.";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "MortalLoom writes health data to keep your records in sync.";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
