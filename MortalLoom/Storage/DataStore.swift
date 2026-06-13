@@ -423,6 +423,28 @@ actor DataStore {
     // Convenience accessors
     func getData() -> AppData { load() }
 
+    /// Atomically read-modify-write the store in a single actor hop.
+    ///
+    /// Unlike a `getData()` … (await) … `save()` pair — which suspends
+    /// between the read and the write, letting a concurrent caller's stale
+    /// snapshot clobber this one's changes (issue #28) — the closure here runs
+    /// with no suspension point, so the actor serializes whole read-modify-write
+    /// cycles. Callers that must `await` external work (e.g. HealthKit fetches)
+    /// should do that work FIRST, then apply every resulting change inside a
+    /// single `mutate`.
+    ///
+    /// The closure returns `(persist:, result:)`: `persist == false` skips the
+    /// write entirely so a sync that finds nothing new doesn't trigger a
+    /// redundant save + iCloud broadcast. `result` is handed back to the caller
+    /// (e.g. to decide which change notifications to post).
+    @discardableResult
+    func mutate<R: Sendable>(_ body: @Sendable (inout AppData) -> (persist: Bool, result: R)) -> R {
+        var d = load()
+        let (persist, result) = body(&d)
+        if persist { save(d) }
+        return result
+    }
+
     func updateProfile(_ profile: HealthProfile) {
         var d = load()
         d.profile = profile

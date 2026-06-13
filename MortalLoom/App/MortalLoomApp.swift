@@ -204,9 +204,12 @@ struct ContentView: View {
             }
             if HealthKitService.shared.isAvailable && HealthKitService.shared.authorizationRequestCompleted {
                 appLogger.info("🏃 syncing HealthKit data to iCloud…")
-                async let body: Void = HealthKitSync.shared.syncBodyMetrics()
-                async let metrics: Void = HealthKitSync.shared.syncHealthMetrics()
-                _ = await (body, metrics)
+                // Run sequentially, NOT concurrently. Both syncs read-modify-write
+                // the same AppData; running them with `async let` let whichever
+                // finished last clobber the other's mutations, silently dropping
+                // ~half the synced data each launch (issue #28).
+                await HealthKitSync.shared.syncBodyMetrics()
+                await HealthKitSync.shared.syncHealthMetrics()
                 appLogger.info("✅ HealthKit sync complete")
             }
             #endif
