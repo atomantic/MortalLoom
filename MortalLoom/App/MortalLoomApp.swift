@@ -170,7 +170,12 @@ struct ContentView: View {
                       duration: 5.0)
         }
         #if os(iOS)
-        .fullScreenCover(isPresented: $showOnboarding) {
+        .fullScreenCover(isPresented: $showOnboarding, onDismiss: {
+            // Onboarding made its own HealthKit request (step 5); now that the
+            // cover has dismissed, run the import the root .task skipped while it
+            // was presenting — so first-launch metrics land without a relaunch.
+            Task { await requestHealthKitAndSync() }
+        }) {
             OnboardingView(isPresented: $showOnboarding)
         }
         #else
@@ -244,25 +249,46 @@ struct ContentView: View {
             }
 
             #if os(iOS)
-            // Request HealthKit auth on every launch (prompt shows once; subsequent calls are no-ops)
-            if HealthKitService.shared.isAvailable {
-                await HealthKitService.shared.requestAuthorization()
-            }
-            if HealthKitService.shared.isAvailable && HealthKitService.shared.authorizationRequestCompleted {
-                appLogger.info("🏃 syncing HealthKit data to iCloud…")
-                // Run sequentially, NOT concurrently. Both syncs read-modify-write
-                // the same AppData; running them with `async let` let whichever
-                // finished last clobber the other's mutations, silently dropping
-                // ~half the synced data each launch (issue #28).
-                await HealthKitSync.shared.syncBodyMetrics()
-                await HealthKitSync.shared.syncHealthMetrics()
-                appLogger.info("✅ HealthKit sync complete")
+            // Skip the app-level HealthKit request/sync while onboarding is presenting:
+            // onboarding step 5 primes and makes this exact request with context (see
+            // OnboardingView). Firing it here too would throw the system permission sheet
+            // over the onboarding cover on first launch, before the user sees why. The
+            // first-launch import instead runs from the cover's onDismiss, once onboarding
+            // has made its own request — so metrics still land on the first run.
+            if !showOnboarding {
+                await requestHealthKitAndSync()
             }
             #endif
         }
     }
 
     #if os(iOS)
+    /// Requests HealthKit authorization (a no-op once already requested — the
+    /// system prompt only shows once) and, if the request has completed, imports
+    /// body + health metrics into iCloud. Called from the root `.task` on normal
+    /// launches and from the onboarding cover's `onDismiss` on first launch, so
+    /// the import isn't deferred to the next run when onboarding owns the prompt.
+    private func requestHealthKitAndSync() async {
+        // Never touch HealthKit in the isolated debug modes. Sample-data and
+        // fresh-start runs stay in-memory so screenshot / new-user flows can't
+        // pull real health samples into the supposedly empty store. The startup
+        // .task enforces this by returning before HealthKit, but the onboarding
+        // onDismiss path also lands here in fresh-start mode (which presents
+        // onboarding), so guard it here too.
+        guard !AppConstants.useSampleData, !AppConstants.useFreshStart else { return }
+        guard HealthKitService.shared.isAvailable else { return }
+        await HealthKitService.shared.requestAuthorization()
+        guard HealthKitService.shared.authorizationRequestCompleted else { return }
+        appLogger.info("🏃 syncing HealthKit data to iCloud…")
+        // Run sequentially, NOT concurrently. Both syncs read-modify-write
+        // the same AppData; running them with `async let` let whichever
+        // finished last clobber the other's mutations, silently dropping
+        // ~half the synced data each launch (issue #28).
+        await HealthKitSync.shared.syncBodyMetrics()
+        await HealthKitSync.shared.syncHealthMetrics()
+        appLogger.info("✅ HealthKit sync complete")
+    }
+
     private var iOSContent: some View {
         ZStack {
             VStack(spacing: 0) {
