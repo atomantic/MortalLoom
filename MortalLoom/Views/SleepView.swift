@@ -141,6 +141,9 @@ struct SleepView: View {
                         .font(.caption)
                         .foregroundColor(.textMuted)
                 }
+                // Hero is a fixed 32pt; cap the caption's Dynamic Type growth so
+                // this stat column stays legible alongside it at AX sizes.
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
 
                 Divider().frame(height: 48)
 
@@ -385,6 +388,9 @@ struct SleepView: View {
                         .font(.caption)
                         .foregroundColor(.textMuted)
                 }
+                // Hero is a fixed 28pt; cap the caption's Dynamic Type growth so
+                // the row stays on one line at AX sizes.
+                .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
             }
 
             HStack(alignment: .top, spacing: 4) {

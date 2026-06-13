@@ -304,6 +304,9 @@ struct HabitsSection: View {
         }
         .padding(.vertical, 32)
         .frame(maxWidth: .infinity)
+        // Hero glyph is a fixed 44pt; cap the surrounding copy's Dynamic Type
+        // growth so the empty state stays balanced at AX sizes.
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
         .cardStyle()
     }
 
@@ -375,6 +378,8 @@ struct HabitsSection: View {
             }
         }
         .onTapGesture { editingHabit = habit }
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Opens the habit editor")
     }
 
     private func habitIcon(_ habit: Habit) -> some View {
@@ -438,6 +443,9 @@ struct HabitsSection: View {
                 .padding(10)
                 .cardStyle()
                 .onTapGesture { editingHabit = habit }
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityHint("Opens the habit editor")
             }
         }
     }

@@ -252,6 +252,9 @@ struct WeeklyReviewSheet: View {
                     .foregroundColor(.textSecondary)
             }
             .frame(maxWidth: .infinity)
+            // Hero number is a fixed 72pt; cap the companion label's Dynamic Type
+            // growth so it doesn't overflow this compact rating block at AX sizes.
+            .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
 
             Slider(value: $alignmentRating, in: 1...10, step: 1)
         }
