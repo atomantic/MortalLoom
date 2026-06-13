@@ -244,8 +244,11 @@ struct ContentView: View {
             }
 
             #if os(iOS)
-            // Request HealthKit auth on every launch (prompt shows once; subsequent calls are no-ops)
-            if HealthKitService.shared.isAvailable {
+            // Request HealthKit auth on every launch (prompt shows once; subsequent calls are no-ops).
+            // Skip while onboarding is presenting: onboarding step 5 primes and makes this exact
+            // request with context (see OnboardingView). Firing it here too would throw the system
+            // permission sheet over the onboarding cover on first launch, before the user sees why.
+            if HealthKitService.shared.isAvailable && !showOnboarding {
                 await HealthKitService.shared.requestAuthorization()
             }
             if HealthKitService.shared.isAvailable && HealthKitService.shared.authorizationRequestCompleted {

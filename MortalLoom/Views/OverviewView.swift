@@ -19,14 +19,15 @@ struct OverviewView: View {
     @State private var showWeeklyReview = false
     @State private var selectedChartYear: Int?
     @AppStorage(HabitTab.selectedKey) private var habitsTab: HabitTab = .myHabits
-    // Sections start expanded. For users with no profile yet we override
-    // these to `false` in `loadData()` so the empty-data sections don't
-    // dominate the first-launch screen.
-    @AppStorage("overview.runwaySectionExpanded") private var runwayExpanded: Bool = true
-    @AppStorage("overview.healthSectionExpanded") private var healthExpanded: Bool = true
-    // One-shot flag so we only auto-collapse on a given device once; if the
-    // user expands them again we won't override their choice on the next load.
-    @AppStorage("overview.hasCollapsedEmptySections") private var hasCollapsedEmptySections: Bool = false
+    // Sections start collapsed so the first frame never flashes tall empty
+    // "—" placeholders before data loads (a visible snap on launch). Once we
+    // know a profile with a birth date exists, `loadData()` expands them a
+    // single time so users with real data see their runway/health up front.
+    @AppStorage("overview.runwaySectionExpanded") private var runwayExpanded: Bool = false
+    @AppStorage("overview.healthSectionExpanded") private var healthExpanded: Bool = false
+    // One-shot flag so we only apply the first-launch expansion on a given
+    // device once; afterwards we leave the user's explicit choice alone.
+    @AppStorage("overview.hasAppliedFirstLaunchSectionState") private var hasAppliedFirstLaunchSectionState: Bool = false
     private var isWide: Bool { containerWidth >= Layout.wideThreshold }
 
     var body: some View {
@@ -386,15 +387,17 @@ struct OverviewView: View {
     /// view owns).
     private func loadData() async {
         await vm.load()
-        // First-launch collapse: if the user hasn't set a birth date yet
-        // the runway/health sections would render empty "—" placeholders.
-        // Collapse them by default so the set-North-Star CTA dominates
-        // the screen. Once a profile exists we leave the user's explicit
-        // preference alone.
-        if vm.data.profile.birthDate == nil, !hasCollapsedEmptySections {
-            runwayExpanded = false
-            healthExpanded = false
-            hasCollapsedEmptySections = true
+        // First-launch section state: the sections default to collapsed so the
+        // first frame doesn't flash tall empty "—" placeholders. Once data has
+        // loaded, expand them a single time iff a profile with a birth date
+        // exists — users with real data want their runway/health up front, while
+        // brand-new users keep the collapsed CTA-forward screen. After this
+        // one-shot we leave the user's explicit preference alone.
+        if !hasAppliedFirstLaunchSectionState {
+            let hasProfile = vm.data.profile.birthDate != nil
+            runwayExpanded = hasProfile
+            healthExpanded = hasProfile
+            hasAppliedFirstLaunchSectionState = true
         }
     }
 
