@@ -398,17 +398,28 @@ struct OverviewView: View {
             // An install that already persisted a section preference (or the
             // legacy collapse flag) is an upgrade, not a first launch — respect
             // whatever the user last chose and don't re-expand a section they
-            // had deliberately collapsed. The one-shot only governs genuinely
-            // fresh installs (including iCloud restores, which arrive with data).
+            // had deliberately collapsed.
             let isExistingInstall =
                 defaults.object(forKey: "overview.runwaySectionExpanded") != nil
                 || defaults.object(forKey: "overview.healthSectionExpanded") != nil
                 || defaults.object(forKey: "overview.hasCollapsedEmptySections") != nil
-            if !isExistingInstall, vm.data.profile.birthDate != nil {
+            if isExistingInstall {
+                // Nothing to apply — leave their stored preferences alone.
+                hasAppliedFirstLaunchSectionState = true
+            } else if vm.data.profile.birthDate != nil {
+                // Fresh install with data available (typed during onboarding, or
+                // arrived via iCloud restore): expand once so real runway/health
+                // shows up front, then stop overriding the user's choice.
                 runwayExpanded = true
                 healthExpanded = true
+                hasAppliedFirstLaunchSectionState = true
             }
-            hasAppliedFirstLaunchSectionState = true
+            // else: fresh install whose profile hasn't loaded yet (e.g. the
+            // first load happens under the onboarding cover, before a birth date
+            // is saved). Leave the one-shot UNSET so a later reload — the
+            // .profileDidChange that fires when onboarding saves the profile —
+            // can still apply the expansion. Until then the collapsed defaults
+            // stand, which is exactly the no-data first-launch screen we want.
         }
     }
 
