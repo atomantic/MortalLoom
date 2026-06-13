@@ -211,11 +211,13 @@ EOF
 # altool exits 0 even when uploads fail — grep for definitive banners only.
 FAIL_MARKERS="UPLOAD FAILED|Validation failed \(|ERROR ITMS-|product-errors"
 
-# DEPRECATION: `xcrun altool --upload-app` is deprecated as of Xcode 14. Before the
-# next Xcode major, migrate the upload steps below to `xcrun notarytool` (for
-# notarization) + `xcodebuild -exportArchive`/`-uploadPackage` (App Store Connect
-# upload), which Apple now treats as the supported path. The FAIL_MARKERS grep above
-# exists because altool's exit code is unreliable; notarytool reports status properly.
+# altool note: what Xcode 14 deprecated was altool's Apple-ID / app-specific-password
+# authentication (and altool for *notarization* — use `xcrun notarytool` there). The
+# `--upload-app` App Store Connect delivery path used below, with API-key auth
+# (--apiKey/--apiIssuer), remains supported — notarytool does NOT do App Store uploads.
+# Apple is steering delivery toward Transporter / `xcodebuild -exportArchive`, so
+# revisit before the next Xcode major. The FAIL_MARKERS grep above exists because
+# altool's exit code is unreliable on failed uploads.
 
 UPLOADED_ONE=false
 inter_upload_delay() {
