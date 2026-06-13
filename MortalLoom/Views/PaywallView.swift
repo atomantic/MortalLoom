@@ -26,9 +26,7 @@ struct PaywallView: View {
             }
             .background(Color.bg)
             .navigationTitle("MortalLoom Pro")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .macSheetFrame(minHeight: 480, idealHeight: 560)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

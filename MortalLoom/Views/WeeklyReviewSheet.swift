@@ -68,9 +68,7 @@ struct WeeklyReviewSheet: View {
             }
             .background(Color.bg)
             .navigationTitle("Weekly Review")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .macSheetFrame()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

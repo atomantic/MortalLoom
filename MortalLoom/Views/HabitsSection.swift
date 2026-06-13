@@ -696,9 +696,7 @@ struct HabitEditSheet: View {
             }
             .macGroupedFormStyle()
             .navigationTitle(prefillEvidence != nil ? "Suggested Habit" : (habit == nil ? "New Habit" : "Edit Habit"))
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .macSheetFrame()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

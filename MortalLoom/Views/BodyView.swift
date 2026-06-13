@@ -1161,9 +1161,7 @@ private struct EyeExamFormView: View {
             }
             .macGroupedFormStyle()
             .navigationTitle(existing == nil ? "Add Eye Exam" : "Edit Eye Exam")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }

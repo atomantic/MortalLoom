@@ -610,9 +610,7 @@ private struct BloodTestFormView: View {
             }
             .background(Color.bg)
             .navigationTitle("Add Blood Test")
-            #if os(iOS)
-            .navigationBarTitleDisplayMode(.inline)
-            #endif
+            .inlineNavigationTitle()
             .macSheetFrame()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

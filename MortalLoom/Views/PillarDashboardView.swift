@@ -40,9 +40,7 @@ struct PillarDashboardView: View {
             await loadTimeAllocation()
         }
         .navigationTitle(pillar.title)
-        #if os(iOS)
-        .navigationBarTitleDisplayMode(.inline)
-        #endif
+        .inlineNavigationTitle()
     }
 
     // MARK: Time allocation loader
