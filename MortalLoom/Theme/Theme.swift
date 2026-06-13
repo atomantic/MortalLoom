@@ -159,6 +159,168 @@ struct EmptyStateView: View {
     }
 }
 
+/// Leading-aligned label + value stat tile with an optional secondary line.
+/// Consolidates the near-identical `statCard` helpers that previously lived in
+/// BodyView and SleepView (label on top, value below, an optional detail/date line).
+struct StatCell: View {
+    let label: String
+    let value: String
+    /// Optional descriptive line under the value (e.g. SleepView's "below target").
+    var secondary: String? = nil
+    /// Optional date line under the value, rendered abbreviated (e.g. BodyView's measurement date).
+    var date: Date? = nil
+    var valueColor: Color = .textPrimary
+    var valueFont: Font = .subheadline
+    var valueWeight: Font.Weight = .semibold
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.caption)
+                .foregroundColor(.textMuted)
+            Text(value)
+                .font(valueFont)
+                .fontWeight(valueWeight)
+                .foregroundColor(valueColor)
+            if let secondary {
+                Text(secondary)
+                    .font(.caption2)
+                    .foregroundColor(.textSecondary)
+            }
+            if let date {
+                Text(date.formatted(date: .abbreviated, time: .omitted))
+                    .font(.caption2)
+                    .foregroundColor(.textMuted)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(secondary.map { "\(label): \(value), \($0)" } ?? "\(label): \(value)")
+    }
+}
+
+/// Centered icon + value + label badge on a subtle background.
+/// Consolidates the centered stat cards from LifeCalendarView (compact, input
+/// background) and the Overview vitals row (prominent, card background).
+struct StatBadge: View {
+    enum Size { case compact, prominent }
+
+    let value: String
+    let label: String
+    let icon: String
+    var tint: Color = .accentColor
+    var size: Size = .compact
+    /// Overrides the default "<value> <label>" combined accessibility label.
+    var accessibilityText: String? = nil
+
+    var body: some View {
+        VStack(spacing: size == .prominent ? 6 : 4) {
+            Image(systemName: icon)
+                .foregroundColor(tint)
+                .font(size == .prominent ? .title3 : .caption)
+            Text(value)
+                .font(size == .prominent ? .title2 : .headline)
+                .fontWeight(.bold)
+                .monospacedDigit()
+                .foregroundColor(.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            Text(label)
+                .font(size == .prominent ? .caption : .caption2)
+                .foregroundColor(.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity)
+        .modifier(StatBadgeBackground(size: size))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityText ?? "\(value) \(label)")
+    }
+}
+
+private struct StatBadgeBackground: ViewModifier {
+    let size: StatBadge.Size
+
+    func body(content: Content) -> some View {
+        switch size {
+        case .compact:
+            content
+                .padding(.vertical, 8)
+                .padding(.horizontal, 4)
+                .background(Color.bgInput.opacity(0.5))
+                .cornerRadius(8)
+        case .prominent:
+            content
+                .padding(.vertical, 12)
+                .padding(.horizontal, 8)
+                .cardStyle()
+        }
+    }
+}
+
+/// Tappable summary tile used in the Overview health grid: an icon header, one or
+/// more value lines (supplied via `content`), and a muted footer label, wrapped in
+/// a card-styled button. An optional `header` accessory renders a trailing badge
+/// next to the icon (e.g. the alcohol risk pill).
+struct HealthSummaryTile<Header: View, Content: View>: View {
+    let icon: String
+    let iconColor: Color
+    let label: String
+    let accessibilityLabel: String
+    var accessibilityHint: String? = nil
+    let action: () -> Void
+    @ViewBuilder let header: () -> Header
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: icon)
+                        .foregroundColor(iconColor)
+                        .font(.title3)
+                    Spacer()
+                    header()
+                }
+                content()
+                Text(label)
+                    .font(.caption)
+                    .foregroundColor(.textMuted)
+            }
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .cardStyle()
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityHint(accessibilityHint ?? "")
+    }
+}
+
+extension HealthSummaryTile where Header == EmptyView {
+    init(
+        icon: String,
+        iconColor: Color,
+        label: String,
+        accessibilityLabel: String,
+        accessibilityHint: String? = nil,
+        action: @escaping () -> Void,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.init(
+            icon: icon,
+            iconColor: iconColor,
+            label: label,
+            accessibilityLabel: accessibilityLabel,
+            accessibilityHint: accessibilityHint,
+            action: action,
+            header: { EmptyView() },
+            content: content
+        )
+    }
+}
+
 // MARK: - Layout Constants
 
 enum Layout {

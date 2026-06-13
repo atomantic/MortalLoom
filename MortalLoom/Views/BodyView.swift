@@ -174,9 +174,9 @@ struct BodyView: View {
 
             // Latest values
             HStack(spacing: 16) {
-                statCard(label: "Weight", value: latestWeight.map { String(format: "%.1f lbs", $0) } ?? "—", date: weightDate)
-                statCard(label: "Body Fat", value: latestBodyFat.map { String(format: "%.1f%%", $0) } ?? "—", date: bodyFatDate)
-                statCard(label: "Lean Mass", value: latestLeanMass.map { String(format: "%.1f lbs", $0) } ?? "—", date: nil)
+                StatCell(label: "Weight", value: latestWeight.map { String(format: "%.1f lbs", $0) } ?? "—", date: weightDate)
+                StatCell(label: "Body Fat", value: latestBodyFat.map { String(format: "%.1f%%", $0) } ?? "—", date: bodyFatDate)
+                StatCell(label: "Lean Mass", value: latestLeanMass.map { String(format: "%.1f lbs", $0) } ?? "—")
             }
 
             // Manual entry toggle
@@ -196,26 +196,6 @@ struct BodyView: View {
         }
         .padding()
         .cardStyle()
-    }
-
-    private func statCard(label: String, value: String, date: Date?) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(label)
-                .font(.caption)
-                .foregroundColor(.textMuted)
-            Text(value)
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundColor(.textPrimary)
-            if let date {
-                Text(date.formatted(date: .abbreviated, time: .omitted))
-                    .font(.caption2)
-                    .foregroundColor(.textMuted)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(label): \(value)")
     }
 
     private var manualEntryForm: some View {
@@ -388,7 +368,11 @@ struct BodyView: View {
         }
     }
 
-    private func cardioMetricCard(label: String, value: String, unit: String, date: Date?, classification: String, classificationColor: Color, icon: String) -> some View {
+    /// Leading-aligned metric card: an icon+label header, a bold value, and
+    /// optional unit / classification / date lines. The icon and classification
+    /// share `classificationColor`; `valueColor` tints the value independently.
+    /// Used for cardio readings as well as the gait, mobility, and activity metrics.
+    private func cardioMetricCard(label: String, value: String, unit: String? = nil, date: Date? = nil, classification: String? = nil, classificationColor: Color, icon: String, valueColor: Color = .textPrimary) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {
                 Image(systemName: icon)
@@ -401,14 +385,18 @@ struct BodyView: View {
             Text(value)
                 .font(.title3)
                 .fontWeight(.bold)
-                .foregroundColor(.textPrimary)
-            Text(unit)
-                .font(.caption2)
-                .foregroundColor(.textMuted)
-            Text(classification)
-                .font(.caption2)
-                .fontWeight(.semibold)
-                .foregroundColor(classificationColor)
+                .foregroundColor(valueColor)
+            if let unit {
+                Text(unit)
+                    .font(.caption2)
+                    .foregroundColor(.textMuted)
+            }
+            if let classification {
+                Text(classification)
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundColor(classificationColor)
+            }
             if let date {
                 Text(date.formatted(date: .abbreviated, time: .omitted))
                     .font(.caption2)
@@ -417,7 +405,7 @@ struct BodyView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(label): \(value) \(unit), \(classification)")
+        .accessibilityLabel("\(label): \(value)\(unit.map { " \($0)" } ?? "")\(classification.map { ", \($0)" } ?? "")")
     }
 
     // MARK: - Blood Pressure Section
@@ -575,77 +563,34 @@ struct BodyView: View {
 
                 HStack(spacing: 12) {
                     if let speed = gait.avgWalkingSpeed, let level = gait.speedLevel {
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(spacing: 4) {
-                                Image(systemName: level.systemImage)
-                                    .font(.caption2)
-                                    .foregroundColor(level.color.semanticColor)
-                                Text("Walk Speed")
-                                    .font(.caption)
-                                    .foregroundColor(.textMuted)
-                            }
-                            Text(String(format: "%.2f", speed))
-                                .font(.title3)
-                                .fontWeight(.bold)
-                                .foregroundColor(.textPrimary)
-                            Text("m/s")
-                                .font(.caption2)
-                                .foregroundColor(.textMuted)
-                            Text(level.rawValue)
-                                .font(.caption2)
-                                .fontWeight(.semibold)
-                                .foregroundColor(level.color.semanticColor)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .accessibilityElement(children: .combine)
-                        .accessibilityLabel("Walking speed: \(String(format: "%.2f", speed)) meters per second, \(level.rawValue)")
+                        cardioMetricCard(
+                            label: "Walk Speed",
+                            value: String(format: "%.2f", speed),
+                            unit: "m/s",
+                            classification: level.rawValue,
+                            classificationColor: level.color.semanticColor,
+                            icon: level.systemImage
+                        )
                     }
 
                     if let dist = gait.avgWalkingDistance {
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "figure.walk")
-                                    .font(.caption2)
-                                    .foregroundColor(.accentColor)
-                                Text("Daily Distance")
-                                    .font(.caption)
-                                    .foregroundColor(.textMuted)
-                            }
-                            Text(String(format: "%.1f", dist))
-                                .font(.title3)
-                                .fontWeight(.bold)
-                                .foregroundColor(.textPrimary)
-                            Text("km avg")
-                                .font(.caption2)
-                                .foregroundColor(.textMuted)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .accessibilityElement(children: .combine)
-                        .accessibilityLabel("Daily walking distance: \(String(format: "%.1f", dist)) kilometers average")
+                        cardioMetricCard(
+                            label: "Daily Distance",
+                            value: String(format: "%.1f", dist),
+                            unit: "km avg",
+                            classificationColor: .accentColor,
+                            icon: "figure.walk"
+                        )
                     }
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "exclamationmark.shield")
-                                .font(.caption2)
-                                .foregroundColor(gait.fallRisk.color.semanticColor)
-                            Text("Fall Risk")
-                                .font(.caption)
-                                .foregroundColor(.textMuted)
-                        }
-                        Text(gait.fallRisk.rawValue)
-                            .font(.title3)
-                            .fontWeight(.bold)
-                            .foregroundColor(gait.fallRisk.color.semanticColor)
-                        if let asym = gait.avgAsymmetry {
-                            Text(String(format: "%.1f%% asym", asym))
-                                .font(.caption2)
-                                .foregroundColor(.textMuted)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("Fall risk: \(gait.fallRisk.rawValue)\(gait.avgAsymmetry.map { String(format: ", %.1f percent asymmetry", $0) } ?? "")")
+                    cardioMetricCard(
+                        label: "Fall Risk",
+                        value: gait.fallRisk.rawValue,
+                        unit: gait.avgAsymmetry.map { String(format: "%.1f%% asym", $0) },
+                        classificationColor: gait.fallRisk.color.semanticColor,
+                        icon: "exclamationmark.shield",
+                        valueColor: gait.fallRisk.color.semanticColor
+                    )
                 }
 
                 // Longevity impact
@@ -681,72 +626,34 @@ struct BodyView: View {
 
                 HStack(spacing: 12) {
                     if let stand = latestStandMinutes {
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "figure.stand")
-                                    .font(.caption2)
-                                    .foregroundColor(.accentColor)
-                                Text("Stand Time")
-                                    .font(.caption)
-                                    .foregroundColor(.textMuted)
-                            }
-                            Text(String(format: "%.0f", stand))
-                                .font(.title3)
-                                .fontWeight(.bold)
-                                .foregroundColor(.textPrimary)
-                            Text("min/day avg")
-                                .font(.caption2)
-                                .foregroundColor(.textMuted)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .accessibilityElement(children: .combine)
-                        .accessibilityLabel("Stand time: \(String(format: "%.0f", stand)) minutes per day average")
+                        cardioMetricCard(
+                            label: "Stand Time",
+                            value: String(format: "%.0f", stand),
+                            unit: "min/day avg",
+                            classificationColor: .accentColor,
+                            icon: "figure.stand"
+                        )
                     }
 
                     if let basal = latestBasalEnergy {
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "flame")
-                                    .font(.caption2)
-                                    .foregroundColor(.orange)
-                                Text("Basal Energy")
-                                    .font(.caption)
-                                    .foregroundColor(.textMuted)
-                            }
-                            Text(String(format: "%.0f", basal))
-                                .font(.title3)
-                                .fontWeight(.bold)
-                                .foregroundColor(.textPrimary)
-                            Text("kcal/day")
-                                .font(.caption2)
-                                .foregroundColor(.textMuted)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .accessibilityElement(children: .combine)
-                        .accessibilityLabel("Basal energy: \(String(format: "%.0f", basal)) kilocalories per day")
+                        cardioMetricCard(
+                            label: "Basal Energy",
+                            value: String(format: "%.0f", basal),
+                            unit: "kcal/day",
+                            classificationColor: .orange,
+                            icon: "flame"
+                        )
                     }
 
                     if let daylight = latestDaylightMinutes {
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "sun.max.fill")
-                                    .font(.caption2)
-                                    .foregroundColor(.yellow)
-                                Text("Daylight")
-                                    .font(.caption)
-                                    .foregroundColor(.textMuted)
-                            }
-                            Text(String(format: "%.0f", daylight))
-                                .font(.title3)
-                                .fontWeight(.bold)
-                                .foregroundColor(daylight >= 30 ? .success : .warning)
-                            Text("min/day avg")
-                                .font(.caption2)
-                                .foregroundColor(.textMuted)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .accessibilityElement(children: .combine)
-                        .accessibilityLabel("Daylight exposure: \(String(format: "%.0f", daylight)) minutes per day average, \(daylight >= 30 ? "meeting" : "below") recommended 30 minutes")
+                        cardioMetricCard(
+                            label: "Daylight",
+                            value: String(format: "%.0f", daylight),
+                            unit: "min/day avg",
+                            classificationColor: .yellow,
+                            icon: "sun.max.fill",
+                            valueColor: daylight >= 30 ? .success : .warning
+                        )
                     }
                 }
 

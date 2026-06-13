@@ -1168,48 +1168,29 @@ struct OverviewView: View {
     private var vitalStatsRow: some View {
         let dc = vm.activeDC
         HStack(spacing: 12) {
-            vitalStatCard(
-                title: "Current Age",
+            vitalBadge(
                 value: dc.map { "\($0.ageYears)" } ?? "--",
+                label: "Current Age",
                 icon: "person.fill",
-                color: .blue
+                tint: .blue
             )
-            vitalStatCard(
-                title: "Years Left",
+            vitalBadge(
                 value: dc.map { String(format: "%.1f", $0.yearsRemaining) } ?? "--",
+                label: "Years Left",
                 icon: "hourglass",
-                color: vm.countdownMode == .lev ? .success : .accentColor
+                tint: vm.countdownMode == .lev ? .success : .accentColor
             )
-            vitalStatCard(
-                title: "Healthy Years",
+            vitalBadge(
                 value: dc.map { String(format: "%.1f", $0.healthyYearsRemaining) } ?? "--",
+                label: "Healthy Years",
                 icon: "heart.fill",
-                color: .success
+                tint: .success
             )
         }
     }
 
-    @ViewBuilder
-    private func vitalStatCard(title: String, value: String, icon: String, color: Color) -> some View {
-        VStack(spacing: 6) {
-            Image(systemName: icon)
-                .foregroundColor(color)
-                .font(.title3)
-            Text(value)
-                .font(.title2).fontWeight(.bold).monospacedDigit()
-                .foregroundColor(.textPrimary)
-            Text(title)
-                .font(.caption)
-                .foregroundColor(.textSecondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
-        .padding(.horizontal, 8)
-        .cardStyle()
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(title): \(value)")
+    private func vitalBadge(value: String, label: String, icon: String, tint: Color) -> StatBadge {
+        StatBadge(value: value, label: label, icon: icon, tint: tint, size: .prominent, accessibilityText: "\(label): \(value)")
     }
 
     // MARK: - Health Summary Grid
@@ -1246,39 +1227,30 @@ struct OverviewView: View {
 
         let riskColor = vm.cachedAlcoholRisk.color
 
-        Button { navigateToHabitTab(.alcohol) } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Image(systemName: "wineglass.fill")
-                        .foregroundColor(riskColor)
-                        .font(.title3)
-                    Spacer()
-                    Text(vm.cachedAlcoholRisk.rawValue.capitalized)
-                        .font(.system(size: 10)).fontWeight(.semibold)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(riskColor.opacity(0.2))
-                        .foregroundColor(riskColor)
-                        .cornerRadius(4)
-                }
-                Text(String(format: "%.0fg today", todayGrams))
-                    .font(.headline).monospacedDigit()
-                    .foregroundColor(.textPrimary)
-                Text(String(format: "%.0fg/d avg (7d)", dailyAvg7d))
-                    .font(.caption).monospacedDigit()
-                    .foregroundColor(.textSecondary)
-                Text("Alcohol")
-                    .font(.caption)
-                    .foregroundColor(.textMuted)
+        HealthSummaryTile(
+            icon: "wineglass.fill",
+            iconColor: riskColor,
+            label: "Alcohol",
+            accessibilityLabel: "Alcohol: \(String(format: "%.0f grams today", todayGrams)), \(vm.cachedAlcoholRisk.rawValue) risk",
+            accessibilityHint: "Opens habits tracking",
+            action: { navigateToHabitTab(.alcohol) },
+            header: {
+                Text(vm.cachedAlcoholRisk.rawValue.capitalized)
+                    .font(.system(size: 10)).fontWeight(.semibold)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(riskColor.opacity(0.2))
+                    .foregroundColor(riskColor)
+                    .cornerRadius(4)
             }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .cardStyle()
+        ) {
+            Text(String(format: "%.0fg today", todayGrams))
+                .font(.headline).monospacedDigit()
+                .foregroundColor(.textPrimary)
+            Text(String(format: "%.0fg/d avg (7d)", dailyAvg7d))
+                .font(.caption).monospacedDigit()
+                .foregroundColor(.textSecondary)
         }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Alcohol: \(String(format: "%.0f grams today", todayGrams)), \(vm.cachedAlcoholRisk.rawValue) risk")
-        .accessibilityHint("Opens habits tracking")
     }
 
     // MARK: - Body Tile
@@ -1287,38 +1259,27 @@ struct OverviewView: View {
     private var bodyTile: some View {
         let bmi = vm.data.profile.lifestyle.bmi
 
-        Button { navigateTo(.body) } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Image(systemName: "figure.stand")
-                        .foregroundColor(.blue)
-                        .font(.title3)
-                    Spacer()
-                }
-                if let bmi {
-                    Text(String(format: "BMI %.1f", bmi))
-                        .font(.headline).monospacedDigit()
-                        .foregroundColor(.textPrimary)
-                } else {
-                    Text("--")
-                        .font(.headline)
-                        .foregroundColor(.textPrimary)
-                }
-                Text(vm.data.eyeExams.isEmpty ? "No exams" : "\(vm.data.eyeExams.count) eye exam\(vm.data.eyeExams.count == 1 ? "" : "s")")
-                    .font(.caption)
-                    .foregroundColor(.textSecondary)
-                Text("Body")
-                    .font(.caption)
-                    .foregroundColor(.textMuted)
+        HealthSummaryTile(
+            icon: "figure.stand",
+            iconColor: .blue,
+            label: "Body",
+            accessibilityLabel: "Body: \(bmi.map { String(format: "BMI %.1f", $0) } ?? "no BMI data")",
+            accessibilityHint: "Opens body composition",
+            action: { navigateTo(.body) }
+        ) {
+            if let bmi {
+                Text(String(format: "BMI %.1f", bmi))
+                    .font(.headline).monospacedDigit()
+                    .foregroundColor(.textPrimary)
+            } else {
+                Text("--")
+                    .font(.headline)
+                    .foregroundColor(.textPrimary)
             }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .cardStyle()
+            Text(vm.data.eyeExams.isEmpty ? "No exams" : "\(vm.data.eyeExams.count) eye exam\(vm.data.eyeExams.count == 1 ? "" : "s")")
+                .font(.caption)
+                .foregroundColor(.textSecondary)
         }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Body: \(bmi.map { String(format: "BMI %.1f", $0) } ?? "no BMI data")")
-        .accessibilityHint("Opens body composition")
     }
 
     // MARK: - Blood Tile
@@ -1328,32 +1289,21 @@ struct OverviewView: View {
         let tests = vm.data.bloodTests
         let latestDate = vm.sortedBloodTests.first?.date
 
-        Button { navigateTo(.blood) } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Image(systemName: "drop.fill")
-                        .foregroundColor(.accentColor)
-                        .font(.title3)
-                    Spacer()
-                }
-                Text("\(tests.count) test\(tests.count == 1 ? "" : "s")")
-                    .font(.headline)
-                    .foregroundColor(.textPrimary)
-                Text(latestDate ?? "No tests")
-                    .font(.caption)
-                    .foregroundColor(.textSecondary)
-                Text("Blood")
-                    .font(.caption)
-                    .foregroundColor(.textMuted)
-            }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .cardStyle()
+        HealthSummaryTile(
+            icon: "drop.fill",
+            iconColor: .accentColor,
+            label: "Blood",
+            accessibilityLabel: "Blood: \(tests.count) test\(tests.count == 1 ? "" : "s")",
+            accessibilityHint: "Opens blood test tracking",
+            action: { navigateTo(.blood) }
+        ) {
+            Text("\(tests.count) test\(tests.count == 1 ? "" : "s")")
+                .font(.headline)
+                .foregroundColor(.textPrimary)
+            Text(latestDate ?? "No tests")
+                .font(.caption)
+                .foregroundColor(.textSecondary)
         }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Blood: \(tests.count) test\(tests.count == 1 ? "" : "s")")
-        .accessibilityHint("Opens blood test tracking")
     }
 
     // MARK: - Epigenetic Tile
@@ -1362,46 +1312,35 @@ struct OverviewView: View {
     private var epigeneticTile: some View {
         let latest = vm.sortedEpigeneticTests.first
 
-        Button { navigateTo(.genome) } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Image(systemName: "dna")
-                        .foregroundColor(.purple)
-                        .font(.title3)
-                    Spacer()
+        HealthSummaryTile(
+            icon: "dna",
+            iconColor: .purple,
+            label: "Epigenetic",
+            accessibilityLabel: "Epigenetic age: \(latest.map { String(format: "biological %.1f years, chronological %.1f years", $0.biologicalAge, $0.chronologicalAge) } ?? "no tests")",
+            accessibilityHint: "Opens genome and epigenetic tracking",
+            action: { navigateTo(.genome) }
+        ) {
+            if let t = latest {
+                Text(String(format: "Bio %.1f yr", t.biologicalAge))
+                    .font(.headline).monospacedDigit()
+                    .foregroundColor(.textPrimary)
+                if let pace = t.paceOfAging {
+                    Text(String(format: "Pace: %.2f", pace))
+                        .font(.caption).monospacedDigit()
+                        .foregroundColor(pace < 1 ? .success : .warning)
                 }
-                if let t = latest {
-                    Text(String(format: "Bio %.1f yr", t.biologicalAge))
-                        .font(.headline).monospacedDigit()
-                        .foregroundColor(.textPrimary)
-                    if let pace = t.paceOfAging {
-                        Text(String(format: "Pace: %.2f", pace))
-                            .font(.caption).monospacedDigit()
-                            .foregroundColor(pace < 1 ? .success : .warning)
-                    }
-                    Text(String(format: "Chrono %.1f yr", t.chronologicalAge))
-                        .font(.caption)
-                        .foregroundColor(.textSecondary)
-                } else {
-                    Text("--")
-                        .font(.headline)
-                        .foregroundColor(.textPrimary)
-                    Text("No tests")
-                        .font(.caption)
-                        .foregroundColor(.textSecondary)
-                }
-                Text("Epigenetic")
+                Text(String(format: "Chrono %.1f yr", t.chronologicalAge))
                     .font(.caption)
-                    .foregroundColor(.textMuted)
+                    .foregroundColor(.textSecondary)
+            } else {
+                Text("--")
+                    .font(.headline)
+                    .foregroundColor(.textPrimary)
+                Text("No tests")
+                    .font(.caption)
+                    .foregroundColor(.textSecondary)
             }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .cardStyle()
         }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Epigenetic age: \(latest.map { String(format: "biological %.1f years, chronological %.1f years", $0.biologicalAge, $0.chronologicalAge) } ?? "no tests")")
-        .accessibilityHint("Opens genome and epigenetic tracking")
         .proGated()
     }
 
@@ -1412,32 +1351,21 @@ struct OverviewView: View {
         let exams = vm.data.eyeExams
         let latestDate = vm.sortedEyeExams.first?.date
 
-        Button { navigateTo(.body) } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Image(systemName: "eye.fill")
-                        .foregroundColor(.teal)
-                        .font(.title3)
-                    Spacer()
-                }
-                Text("\(exams.count) exam\(exams.count == 1 ? "" : "s")")
-                    .font(.headline)
-                    .foregroundColor(.textPrimary)
-                Text(latestDate ?? "No exams")
-                    .font(.caption)
-                    .foregroundColor(.textSecondary)
-                Text("Eyes")
-                    .font(.caption)
-                    .foregroundColor(.textMuted)
-            }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .cardStyle()
+        HealthSummaryTile(
+            icon: "eye.fill",
+            iconColor: .teal,
+            label: "Eyes",
+            accessibilityLabel: "Eyes: \(exams.count) exam\(exams.count == 1 ? "" : "s")",
+            accessibilityHint: "Opens body and eye tracking",
+            action: { navigateTo(.body) }
+        ) {
+            Text("\(exams.count) exam\(exams.count == 1 ? "" : "s")")
+                .font(.headline)
+                .foregroundColor(.textPrimary)
+            Text(latestDate ?? "No exams")
+                .font(.caption)
+                .foregroundColor(.textSecondary)
         }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Eyes: \(exams.count) exam\(exams.count == 1 ? "" : "s")")
-        .accessibilityHint("Opens body and eye tracking")
     }
 
     // MARK: - Lifestyle Tile
@@ -1447,32 +1375,21 @@ struct OverviewView: View {
         let lifestyle = vm.data.profile.lifestyle
         let isConfigured = lifestyle != .default
 
-        Button { navigateTo(.lifestyle) } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Image(systemName: "list.bullet.clipboard")
-                        .foregroundColor(.green)
-                        .font(.title3)
-                    Spacer()
-                }
-                Text(isConfigured ? "Active" : "Not Set")
-                    .font(.headline)
-                    .foregroundColor(isConfigured ? .success : .textMuted)
-                Text(isConfigured ? "Questionnaire complete" : "Tap to configure")
-                    .font(.caption)
-                    .foregroundColor(.textSecondary)
-                Text("Lifestyle")
-                    .font(.caption)
-                    .foregroundColor(.textMuted)
-            }
-            .padding()
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .cardStyle()
+        HealthSummaryTile(
+            icon: "list.bullet.clipboard",
+            iconColor: .green,
+            label: "Lifestyle",
+            accessibilityLabel: "Lifestyle: \(isConfigured ? "questionnaire complete" : "not configured")",
+            accessibilityHint: "Opens lifestyle questionnaire",
+            action: { navigateTo(.lifestyle) }
+        ) {
+            Text(isConfigured ? "Active" : "Not Set")
+                .font(.headline)
+                .foregroundColor(isConfigured ? .success : .textMuted)
+            Text(isConfigured ? "Questionnaire complete" : "Tap to configure")
+                .font(.caption)
+                .foregroundColor(.textSecondary)
         }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Lifestyle: \(isConfigured ? "questionnaire complete" : "not configured")")
-        .accessibilityHint("Opens lifestyle questionnaire")
     }
 
     // MARK: - Recommendations Card

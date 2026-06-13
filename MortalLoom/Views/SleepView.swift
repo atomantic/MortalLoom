@@ -418,40 +418,26 @@ struct SleepView: View {
                 .foregroundColor(.textPrimary)
 
             HStack(spacing: 16) {
-                statCard(
+                StatCell(
                     label: "Consistency",
                     value: String(format: "%.0f%%", summary.consistency),
-                    detail: consistencyLabel(summary.consistency),
-                    color: consistencyColor(summary.consistency)
+                    secondary: consistencyLabel(summary.consistency),
+                    valueColor: consistencyColor(summary.consistency),
+                    valueFont: .title3,
+                    valueWeight: .bold
                 )
-                statCard(
+                StatCell(
                     label: "Sleep Debt",
                     value: formatDebt(summary.debt),
-                    detail: summary.debt < 0 ? "below target" : "above target",
-                    color: summary.debt < -5 ? .danger : summary.debt < 0 ? .warning : .success
+                    secondary: summary.debt < 0 ? "below target" : "above target",
+                    valueColor: summary.debt < -5 ? .danger : summary.debt < 0 ? .warning : .success,
+                    valueFont: .title3,
+                    valueWeight: .bold
                 )
             }
         }
         .padding()
         .cardStyle()
-    }
-
-    private func statCard(label: String, value: String, detail: String, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(label)
-                .font(.caption)
-                .foregroundColor(.textMuted)
-            Text(value)
-                .font(.title3)
-                .fontWeight(.bold)
-                .foregroundColor(color)
-            Text(detail)
-                .font(.caption2)
-                .foregroundColor(.textSecondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(label): \(value), \(detail)")
     }
 
     private func consistencyLabel(_ score: Double) -> String {
