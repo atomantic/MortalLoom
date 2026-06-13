@@ -696,12 +696,8 @@ struct OnboardingView: View {
                         .font(.subheadline).fontWeight(.medium)
                         .foregroundColor(.textSecondary)
 
-                    HStack(spacing: 8) {
-                        ForEach(DietQuality.allCases, id: \.self) { quality in
-                            choiceButton(quality.rawValue.capitalized, isSelected: dietQuality == quality) {
-                                dietQuality = quality
-                            }
-                        }
+                    adaptiveChoiceRow(DietQuality.allCases, label: { $0.rawValue.capitalized }, isSelected: { dietQuality == $0 }) {
+                        dietQuality = $0
                     }
                 }
 
@@ -710,12 +706,8 @@ struct OnboardingView: View {
                         .font(.subheadline).fontWeight(.medium)
                         .foregroundColor(.textSecondary)
 
-                    HStack(spacing: 8) {
-                        ForEach(StressLevel.allCases, id: \.self) { level in
-                            choiceButton(level.rawValue.capitalized, isSelected: stressLevel == level) {
-                                stressLevel = level
-                            }
-                        }
+                    adaptiveChoiceRow(StressLevel.allCases, label: { $0.rawValue.capitalized }, isSelected: { stressLevel == $0 }) {
+                        stressLevel = $0
                     }
                 }
 
@@ -736,8 +728,44 @@ struct OnboardingView: View {
         }
     }
 
+    /// A row of `choiceButton` chips that lays out horizontally when the
+    /// labels fit, and falls back to a two-column grid on narrow devices
+    /// (e.g. iPhone SE at default text size) so full-word labels like
+    /// "Excellent" don't truncate. Mirrors the LazyVGrid chip pattern used
+    /// for the goal-category step.
     @ViewBuilder
-    private func choiceButton(_ label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+    private func adaptiveChoiceRow<Item: Hashable>(
+        _ items: [Item],
+        label: @escaping (Item) -> String,
+        isSelected: @escaping (Item) -> Bool,
+        action: @escaping (Item) -> Void
+    ) -> some View {
+        ViewThatFits(in: .horizontal) {
+            // Preferred single row. The chips size to their natural width here
+            // (fillWidth: false) — a `.frame(maxWidth: .infinity)` child would
+            // accept any proposed width and make ViewThatFits always pick this
+            // candidate, leaving the grid fallback unreachable. With natural
+            // width, this row's ideal size honestly reflects whether the full
+            // labels fit on one line; if they don't, ViewThatFits drops to the
+            // grid instead of shrinking the text.
+            HStack(spacing: 8) {
+                ForEach(items, id: \.self) { item in
+                    choiceButton(label(item), isSelected: isSelected(item), fillWidth: false) { action(item) }
+                }
+            }
+            LazyVGrid(
+                columns: [GridItem(.flexible()), GridItem(.flexible())],
+                spacing: 8
+            ) {
+                ForEach(items, id: \.self) { item in
+                    choiceButton(label(item), isSelected: isSelected(item)) { action(item) }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func choiceButton(_ label: String, isSelected: Bool, fillWidth: Bool = true, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(label)
                 .font(.subheadline).fontWeight(.medium)
@@ -745,7 +773,7 @@ struct OnboardingView: View {
                 .minimumScaleFactor(0.7)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 10)
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: fillWidth ? .infinity : nil)
                 .foregroundColor(isSelected ? .white : .textPrimary)
                 .background(isSelected ? Color.accentColor : Color.bgCard)
                 .cornerRadius(10)

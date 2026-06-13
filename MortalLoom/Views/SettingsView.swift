@@ -1060,56 +1060,43 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 12) {
             SectionLabel(text: "DANGER ZONE")
 
-            if showResetConfirmation {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Are you sure? This will permanently delete all your data.")
-                        .font(.caption)
-                        .foregroundColor(.danger)
-
-                    HStack(spacing: 12) {
-                        Button {
-                            showResetConfirmation = false
-                        } label: {
-                            Text("Cancel")
-                                .fontWeight(.semibold)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 10)
-                        }
-                        .buttonStyle(.bordered)
-
-                        Button {
-                            Task { await resetAllData() }
-                        } label: {
-                            Text("Yes, Delete Everything")
-                                .fontWeight(.semibold)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 10)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.danger)
-                        .accessibilityLabel("Confirm delete all data")
-                        .accessibilityHint("This will permanently delete all your MortalLoom data")
-                    }
+            Button {
+                showResetConfirmation = true
+            } label: {
+                HStack {
+                    Image(systemName: "trash")
+                    Text("Reset All Data")
+                        .fontWeight(.semibold)
                 }
-            } else {
-                Button {
-                    showResetConfirmation = true
-                } label: {
-                    HStack {
-                        Image(systemName: "trash")
-                        Text("Reset All Data")
-                            .fontWeight(.semibold)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.danger)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
             }
+            .buttonStyle(.borderedProminent)
+            .tint(.danger)
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
+        // Use the standard destructive-confirmation pattern (a
+        // confirmationDialog with a role: .destructive button), matching
+        // every other delete in the app, instead of a bespoke inline
+        // expand-in-place.
+        .confirmationDialog(
+            "Reset all data?",
+            isPresented: $showResetConfirmation,
+            titleVisibility: .visible
+        ) {
+            // The destructive role plus the dialog message already convey the
+            // consequence to VoiceOver; custom accessibility modifiers on a
+            // confirmationDialog button aren't reliably surfaced by the system
+            // presentation, so the title carries the meaning instead.
+            Button("Delete Everything", role: .destructive) {
+                Task { await resetAllData() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This permanently deletes all your MortalLoom data and can't be undone.")
+        }
     }
 
     // MARK: - Support
@@ -1256,7 +1243,6 @@ struct SettingsView: View {
         await DataStore.shared.backupCurrentFile(reason: "reset")
         await DataStore.shared.save(.empty)
         exportDocument = nil
-        showResetConfirmation = false
         importMessage = nil
         UserDefaults.standard.set(false, forKey: AppConstants.hasCompletedOnboardingKey)
         NotificationCenter.default.post(name: .showOnboarding, object: nil)

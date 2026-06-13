@@ -180,11 +180,7 @@ struct HabitsSection: View {
         } message: {
             Text("This removes the habit and all its completions.")
         }
-        .overlay(alignment: .top) {
-            if let msg = toastMessage {
-                ToastView(message: msg)
-            }
-        }
+        .toast($toastMessage)
         .overlay(alignment: .bottom) {
             if showDailyNudge, let apex = apexGoal {
                 DailyNudgeCard(
@@ -460,15 +456,15 @@ struct HabitsSection: View {
             await DataStore.shared.logHabitCompletion(habitId: habit.id, completion: completion)
             await loadData()
             await MainActor.run {
-                toastMessage = "\(habit.name) ✓"
+                // Shared toast (Theme.swift) auto-clears and shows a
+                // checkmark icon, so the message is just the habit name.
+                showToast($toastMessage, message: habit.name, duration: 1.5)
                 if apexGoal != nil
                     && apexNeedsReflectionToday()
                     && nudgeDismissedOn != todayStr {
                     showDailyNudge = true
                 }
             }
-            try? await Task.sleep(for: .seconds(1.5))
-            await MainActor.run { toastMessage = nil }
         }
     }
 }
@@ -789,23 +785,5 @@ struct HabitEditSheet: View {
         }
         onSave(result)
         dismiss()
-    }
-}
-
-// MARK: - Toast
-
-private struct ToastView: View {
-    let message: String
-
-    var body: some View {
-        Text(message)
-            .font(.subheadline).fontWeight(.semibold)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(Color.textPrimary.opacity(0.9))
-            .foregroundColor(.bg)
-            .cornerRadius(20)
-            .padding(.top, 12)
-            .transition(.move(edge: .top).combined(with: .opacity))
     }
 }
