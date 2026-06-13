@@ -372,7 +372,9 @@ struct BodyView: View {
     /// optional unit / classification / date lines. The icon and classification
     /// share `classificationColor`; `valueColor` tints the value independently.
     /// Used for cardio readings as well as the gait, mobility, and activity metrics.
-    private func cardioMetricCard(label: String, value: String, unit: String? = nil, date: Date? = nil, classification: String? = nil, classificationColor: Color, icon: String, valueColor: Color = .textPrimary) -> some View {
+    /// `accessibilityLabel` overrides the default value+unit spoken label — pass a
+    /// fully spelled-out string when the abbreviated unit reads poorly via VoiceOver.
+    private func cardioMetricCard(label: String, value: String, unit: String? = nil, date: Date? = nil, classification: String? = nil, classificationColor: Color, icon: String, valueColor: Color = .textPrimary, accessibilityLabel: String? = nil) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 4) {
                 Image(systemName: icon)
@@ -405,7 +407,7 @@ struct BodyView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(label): \(value)\(unit.map { " \($0)" } ?? "")\(classification.map { ", \($0)" } ?? "")")
+        .accessibilityLabel(accessibilityLabel ?? "\(label): \(value)\(unit.map { " \($0)" } ?? "")\(classification.map { ", \($0)" } ?? "")")
     }
 
     // MARK: - Blood Pressure Section
@@ -569,7 +571,8 @@ struct BodyView: View {
                             unit: "m/s",
                             classification: level.rawValue,
                             classificationColor: level.color.semanticColor,
-                            icon: level.systemImage
+                            icon: level.systemImage,
+                            accessibilityLabel: "Walking speed: \(String(format: "%.2f", speed)) meters per second, \(level.rawValue)"
                         )
                     }
 
@@ -579,7 +582,8 @@ struct BodyView: View {
                             value: String(format: "%.1f", dist),
                             unit: "km avg",
                             classificationColor: .accentColor,
-                            icon: "figure.walk"
+                            icon: "figure.walk",
+                            accessibilityLabel: "Daily walking distance: \(String(format: "%.1f", dist)) kilometers average"
                         )
                     }
 
@@ -589,7 +593,8 @@ struct BodyView: View {
                         unit: gait.avgAsymmetry.map { String(format: "%.1f%% asym", $0) },
                         classificationColor: gait.fallRisk.color.semanticColor,
                         icon: "exclamationmark.shield",
-                        valueColor: gait.fallRisk.color.semanticColor
+                        valueColor: gait.fallRisk.color.semanticColor,
+                        accessibilityLabel: "Fall risk: \(gait.fallRisk.rawValue)\(gait.avgAsymmetry.map { String(format: ", %.1f percent asymmetry", $0) } ?? "")"
                     )
                 }
 
@@ -631,7 +636,8 @@ struct BodyView: View {
                             value: String(format: "%.0f", stand),
                             unit: "min/day avg",
                             classificationColor: .accentColor,
-                            icon: "figure.stand"
+                            icon: "figure.stand",
+                            accessibilityLabel: "Stand time: \(String(format: "%.0f", stand)) minutes per day average"
                         )
                     }
 
@@ -641,7 +647,8 @@ struct BodyView: View {
                             value: String(format: "%.0f", basal),
                             unit: "kcal/day",
                             classificationColor: .orange,
-                            icon: "flame"
+                            icon: "flame",
+                            accessibilityLabel: "Basal energy: \(String(format: "%.0f", basal)) kilocalories per day"
                         )
                     }
 
@@ -652,7 +659,8 @@ struct BodyView: View {
                             unit: "min/day avg",
                             classificationColor: .yellow,
                             icon: "sun.max.fill",
-                            valueColor: daylight >= 30 ? .success : .warning
+                            valueColor: daylight >= 30 ? .success : .warning,
+                            accessibilityLabel: "Daylight exposure: \(String(format: "%.0f", daylight)) minutes per day average, \(daylight >= 30 ? "meeting" : "below") recommended 30 minutes"
                         )
                     }
                 }
