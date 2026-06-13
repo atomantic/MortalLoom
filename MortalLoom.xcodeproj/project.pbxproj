@@ -25,9 +25,11 @@
 		0F7F142E18D533C8791C697B /* MortalLoomApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 25A938EE48931E1A7D80455D /* MortalLoomApp.swift */; };
 		102EC106BBDF1BC27CB3AC74 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A430A6D6F069A9C484A8BB2 /* Theme.swift */; };
 		10DC413D0994D9741BBE014D /* Citation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 174D733132F943A870DA79E7 /* Citation.swift */; };
+		128ABEA21F49A5FCCF0DD61B /* MonthlyReportEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 038303F3796007C73C84D087 /* MonthlyReportEngine.swift */; };
 		145F0400BD461D20A4796C85 /* StoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7550FA85EC464896DD44671A /* StoreManager.swift */; };
 		14A98367FEFFEE3C76345C9B /* DataStoreConcurrencyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2498128807CA3134DE063CAD /* DataStoreConcurrencyTests.swift */; };
 		15A261E4D605DF9B412F6A13 /* VisitNoteSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3475291D6C3512857F14B23 /* VisitNoteSheet.swift */; };
+		15AF6AF87570B48813D162AB /* MonthlyReportEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 038303F3796007C73C84D087 /* MonthlyReportEngine.swift */; };
 		18E8C35A626B92F9B584C3A7 /* GenomePrioritiesCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AFF6071DE927F5D3A5A8244 /* GenomePrioritiesCard.swift */; };
 		19289FFA2C96047B0983D646 /* CardioFitnessEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71F3FCA56AD265801EE97643 /* CardioFitnessEngineTests.swift */; };
 		193B171336A15EE178F25D61 /* ICloudMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29D32D124C715340FD2DC350 /* ICloudMonitor.swift */; };
@@ -124,6 +126,7 @@
 		7F7F4630EB6FC3520EF29934 /* CheckInSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B0F90005664C275BC30D701 /* CheckInSheet.swift */; };
 		8188C74010141640C74E16A5 /* GoalEngine+ViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F5050189FF755E67D823D83 /* GoalEngine+ViewModel.swift */; };
 		82CC4290606C361863AABCDA /* BloodTrendEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1EEC8E756E144273D6BC24A /* BloodTrendEngine.swift */; };
+		8401E8917A3996E71CDF7B45 /* MonthlyReportEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36EE02EED59E765612370BAC /* MonthlyReportEngineTests.swift */; };
 		8511F3B807C1BD9B498818D4 /* HealthMetricEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44962B353191269E702D9756 /* HealthMetricEntry.swift */; };
 		85F2BC8B825D9C8422B28F0E /* GenomeScanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A953CF0633A4E3BA09593D5E /* GenomeScanView.swift */; };
 		86524C5AD7E83B48901489AE /* ClinVarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEB9A10C3E2202B80634C242 /* ClinVarView.swift */; };
@@ -137,6 +140,7 @@
 		9393C42959D11A766BDA5E2B /* HealthKitSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEDEBF77B9539CDD83293A44 /* HealthKitSync.swift */; };
 		95980F1A20C4AD1E940663E0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8DFE4C5B3F84209835BAB96B /* Assets.xcassets */; };
 		967F36EB418C363A98C18B85 /* DeepLinkRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA5A7CE3AEC1DE3E57F0FF1B /* DeepLinkRouter.swift */; };
+		9746518260ED291AE34F4F89 /* MonthlyRethinkSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53AC2B20CDA2DF4556301207 /* MonthlyRethinkSheet.swift */; };
 		99A081BD3681AC75216C1C84 /* GenomeActionLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B3EFC3FC269FB7ACFE515BA /* GenomeActionLibrary.swift */; };
 		9D54A8470E4B66EA28F7DBE9 /* BodyEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DE6F91C7E33B0F86F79570E /* BodyEntry.swift */; };
 		A1FBD8F4C173AA81799B2489 /* AppDataMergeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 859D4E25FD093A28421D8FC3 /* AppDataMergeTests.swift */; };
@@ -159,6 +163,7 @@
 		B7F6281A505841E019DE76FA /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 581A48FA229D5FCAD176458F /* SampleData.swift */; };
 		B88C8B0A483C960B3A068C5A /* PillarDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00277E45B8AC0A7DCCD718D0 /* PillarDashboardView.swift */; };
 		B9213D6340E8F1D9CCA44431 /* TimeAllocationEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D497C5E341E3C4AD2BC442C /* TimeAllocationEngineTests.swift */; };
+		B9B22B82A0517DB419670B78 /* MonthlyRethinkSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53AC2B20CDA2DF4556301207 /* MonthlyRethinkSheet.swift */; };
 		B9C3E940ECEF8AACF05AB138 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC7FF09623E4F8E66F45E59F /* PaywallView.swift */; };
 		B9CD04929700DA3CFF13A92E /* SubstanceEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14643E58DFCB5BCF7D13DC86 /* SubstanceEntry.swift */; };
 		B9F53FBE8CD41370F1F66ACD /* AppDataMergeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 859D4E25FD093A28421D8FC3 /* AppDataMergeTests.swift */; };
@@ -189,6 +194,7 @@
 		CAE4E3026BDDD0FF4A4CBBA1 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37A71E4A0A8F1CD94F8E00BB /* SettingsView.swift */; };
 		CB1C6721BDC103D7EAF2E7A4 /* GenomeViewHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = C625B2850BACDA66FC085B87 /* GenomeViewHelpers.swift */; };
 		CD491375649F5117BA797FD4 /* ProBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17554F4F50A7084DE0587FE8 /* ProBadge.swift */; };
+		CE0DDC39A1947817A3289CA3 /* MonthlyReportEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36EE02EED59E765612370BAC /* MonthlyReportEngineTests.swift */; };
 		D028C27222FD94D765484920 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 811CC2035836AB23A2308593 /* NotificationService.swift */; };
 		D06B71BF35A556716608E6C3 /* CorrelationEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BB37D64EF6CDD1D02E11D48 /* CorrelationEngineTests.swift */; };
 		D1A9296D6DA5F480C2CBBC87 /* CollectionMathTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DE70D58A4D6C99B9125E523 /* CollectionMathTests.swift */; };
@@ -297,6 +303,7 @@
 /* Begin PBXFileReference section */
 		00277E45B8AC0A7DCCD718D0 /* PillarDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PillarDashboardView.swift; sourceTree = "<group>"; };
 		02C324CF3FE8BFA8C6F99EFA /* Habit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Habit.swift; sourceTree = "<group>"; };
+		038303F3796007C73C84D087 /* MonthlyReportEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthlyReportEngine.swift; sourceTree = "<group>"; };
 		04C1C61D4BD2F3E4B50538F2 /* SubstancesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubstancesView.swift; sourceTree = "<group>"; };
 		060756B48008BEC8E34A98B9 /* MortalLoomWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MortalLoomWidget.entitlements; sourceTree = "<group>"; };
 		0BB37D64EF6CDD1D02E11D48 /* CorrelationEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CorrelationEngineTests.swift; sourceTree = "<group>"; };
@@ -329,6 +336,7 @@
 		2FFA7BCC54AF267C06B3057C /* LocationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationEngine.swift; sourceTree = "<group>"; };
 		30EE7BA4A05136BEC466F9B5 /* MortalLoomWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MortalLoomWidget.swift; sourceTree = "<group>"; };
 		3158B5BEBEBEF577E8FEF31C /* NicotineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NicotineView.swift; sourceTree = "<group>"; };
+		36EE02EED59E765612370BAC /* MonthlyReportEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthlyReportEngineTests.swift; sourceTree = "<group>"; };
 		37A71E4A0A8F1CD94F8E00BB /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		3B3EFC3FC269FB7ACFE515BA /* GenomeActionLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenomeActionLibrary.swift; sourceTree = "<group>"; };
 		3D7711FFF525E3315AB74655 /* AlcoholView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlcoholView.swift; sourceTree = "<group>"; };
@@ -343,6 +351,7 @@
 		4FCF31AF121B47E7C7DF22B1 /* HealthProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthProfile.swift; sourceTree = "<group>"; };
 		50C5058BFC45EAA680969317 /* SideMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideMenuView.swift; sourceTree = "<group>"; };
 		50CD8AAEAC2CD5E6011D3BDC /* HabitEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitEngineTests.swift; sourceTree = "<group>"; };
+		53AC2B20CDA2DF4556301207 /* MonthlyRethinkSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthlyRethinkSheet.swift; sourceTree = "<group>"; };
 		565672385B1B8A18B64FC8A8 /* MortalLoomUITests_iOS.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MortalLoomUITests_iOS.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		581A48FA229D5FCAD176458F /* SampleData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleData.swift; sourceTree = "<group>"; };
 		5ABFE2DBE2C3A4FAFEE5EE6E /* LifeCalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifeCalendarView.swift; sourceTree = "<group>"; };
@@ -467,6 +476,7 @@
 				5ABFE2DBE2C3A4FAFEE5EE6E /* LifeCalendarView.swift */,
 				DFAFEF1D1D8E89AA3E949F4F /* LifestyleView.swift */,
 				2FE5A0323F1414BAACE600D5 /* MailComposer.swift */,
+				53AC2B20CDA2DF4556301207 /* MonthlyRethinkSheet.swift */,
 				3158B5BEBEBEF577E8FEF31C /* NicotineView.swift */,
 				D5C2474BC3DD2C321255F1AB /* OnboardingView.swift */,
 				86691FE1BB15DD7BDC355BE6 /* OverviewView.swift */,
@@ -521,6 +531,7 @@
 				3F5050189FF755E67D823D83 /* GoalEngine+ViewModel.swift */,
 				879315E40D95F4453EFFC676 /* HabitEngine.swift */,
 				2FFA7BCC54AF267C06B3057C /* LocationEngine.swift */,
+				038303F3796007C73C84D087 /* MonthlyReportEngine.swift */,
 				12327161D8F5EC268793ADF5 /* RecommendationEngine.swift */,
 				581A48FA229D5FCAD176458F /* SampleData.swift */,
 				4866C551187394E53C4FA23A /* SleepEngine.swift */,
@@ -567,6 +578,7 @@
 				A5F956F2D094587B4EA40CB4 /* GoalEngineTests.swift */,
 				50CD8AAEAC2CD5E6011D3BDC /* HabitEngineTests.swift */,
 				E57DA8048A455E727B5CC4DB /* LocationEngineTests.swift */,
+				36EE02EED59E765612370BAC /* MonthlyReportEngineTests.swift */,
 				93CDAC363DF57A04037AECCA /* MortalLoomTests.swift */,
 				7AF84C540C7407CE0252EB08 /* SleepEngineTests.swift */,
 				0D497C5E341E3C4AD2BC442C /* TimeAllocationEngineTests.swift */,
@@ -855,6 +867,7 @@
 				BBE0C483FDA4056C043614E5 /* GoalEngineTests.swift in Sources */,
 				E3CF7266A68515B1E60E79E9 /* HabitEngineTests.swift in Sources */,
 				7E4E92253B912DCEDAAF3099 /* LocationEngineTests.swift in Sources */,
+				CE0DDC39A1947817A3289CA3 /* MonthlyReportEngineTests.swift in Sources */,
 				FB48FECF084FE4302BBFD024 /* MortalLoomTests.swift in Sources */,
 				59E2123B5F1AEE23FDD9ED46 /* SleepEngineTests.swift in Sources */,
 				D210A96BFFE78D876DBC76DA /* TimeAllocationEngineTests.swift in Sources */,
@@ -877,6 +890,7 @@
 				7CE5EB3F19F402E5B46A93F5 /* GoalEngineTests.swift in Sources */,
 				627029C94C24078EFECB36BC /* HabitEngineTests.swift in Sources */,
 				BC7C7D186F1EE75C2A4DFCC9 /* LocationEngineTests.swift in Sources */,
+				8401E8917A3996E71CDF7B45 /* MonthlyReportEngineTests.swift in Sources */,
 				3765ED39C36AEB475A71D25C /* MortalLoomTests.swift in Sources */,
 				DF92AD1C9E4C28EED73F714D /* SleepEngineTests.swift in Sources */,
 				B9213D6340E8F1D9CCA44431 /* TimeAllocationEngineTests.swift in Sources */,
@@ -957,6 +971,8 @@
 				4DA69A63521BEA2D096D6042 /* LocationEngine.swift in Sources */,
 				C41D60E4758EAA39ED0E77A8 /* LocationService.swift in Sources */,
 				028A35AB8384DBEB44873B03 /* MailComposer.swift in Sources */,
+				128ABEA21F49A5FCCF0DD61B /* MonthlyReportEngine.swift in Sources */,
+				B9B22B82A0517DB419670B78 /* MonthlyRethinkSheet.swift in Sources */,
 				0F7F142E18D533C8791C697B /* MortalLoomApp.swift in Sources */,
 				69F67DA523AFB94973BFE4C1 /* NicotineView.swift in Sources */,
 				D028C27222FD94D765484920 /* NotificationService.swift in Sources */,
@@ -1063,6 +1079,8 @@
 				4D083D606DB0957171834D76 /* LocationEngine.swift in Sources */,
 				C6F5E6886D7CABB0D1096EBD /* LocationService.swift in Sources */,
 				D2893D19CE3A685EBE4DAB83 /* MailComposer.swift in Sources */,
+				15AF6AF87570B48813D162AB /* MonthlyReportEngine.swift in Sources */,
+				9746518260ED291AE34F4F89 /* MonthlyRethinkSheet.swift in Sources */,
 				3EB4BFEEC7B0A7546C3AA212 /* MortalLoomApp.swift in Sources */,
 				E5DD89257C2BCA0E3B1EF4C0 /* NicotineView.swift in Sources */,
 				3B1A768295708BD97E6CD508 /* NotificationService.swift in Sources */,

@@ -1,5 +1,6 @@
 import SwiftUI
 import Charts
+import UniformTypeIdentifiers
 
 // MARK: - ReportsView (MVP)
 
@@ -32,6 +33,11 @@ struct ReportsView: View {
     @State private var newGoalDefaultType: GoalType?
     /// Sheet trigger for adding a habit from an empty-state CTA.
     @State private var showAddHabit = false
+    /// Markdown "Export last month" state.
+    @State private var showReportExporter = false
+    @State private var reportDocument: MortalLoomMarkdownDocument?
+    @State private var reportFilename = "MortalLoom-Report.md"
+    @State private var reportMessage: String?
 
     var body: some View {
         ScrollView {
@@ -109,6 +115,20 @@ struct ReportsView: View {
                 }
             }
         }
+        .fileExporter(
+            isPresented: $showReportExporter,
+            document: reportDocument,
+            contentType: .markdownReport,
+            defaultFilename: reportFilename
+        ) { result in
+            switch result {
+            case .success(let url):
+                reportMessage = "Saved \(url.lastPathComponent)"
+            case .failure(let error):
+                reportMessage = "Export failed: \(error.localizedDescription)"
+            }
+            reportDocument = nil
+        }
     }
 
     // MARK: Data
@@ -164,10 +184,39 @@ struct ReportsView: View {
             Text("Your alignment, what's stalling, and which pillars are carrying the load.")
                 .font(.caption)
                 .foregroundColor(.textSecondary)
+
+            Button {
+                prepareReport()
+            } label: {
+                Label("Export last month", systemImage: "square.and.arrow.up")
+                    .font(.caption).fontWeight(.semibold)
+            }
+            .buttonStyle(.plain)
+            .foregroundColor(.accentColor)
+            .padding(.top, 2)
+
+            if let reportMessage {
+                Text(reportMessage)
+                    .font(.caption2)
+                    .foregroundColor(.textMuted)
+            }
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
+    }
+
+    /// Build last month's markdown report and hand it to the file exporter.
+    private func prepareReport() {
+        guard let month = MonthlyReportEngine.lastCompleteMonth() else {
+            reportMessage = "Couldn't determine last month."
+            return
+        }
+        let markdown = MonthlyReportEngine.markdown(from: data, month: month)
+        reportDocument = MortalLoomMarkdownDocument(text: markdown)
+        reportFilename = String(format: "MortalLoom-Report-%04d-%02d.md", month.year, month.month)
+        reportMessage = nil
+        showReportExporter = true
     }
 
     // MARK: Alignment trend
@@ -578,5 +627,36 @@ struct ReportsView: View {
     private func alignmentWeekOverWeekDelta() -> Double? {
         guard trendPoints.count >= 2 else { return nil }
         return trendPoints[trendPoints.count - 1].score - trendPoints[trendPoints.count - 2].score
+    }
+}
+
+// MARK: - Markdown export document
+
+extension UTType {
+    /// Markdown content type for the monthly report export. Falls back to
+    /// plain text on the rare system that can't resolve the `.md` extension,
+    /// so the export always succeeds.
+    static var markdownReport: UTType {
+        UTType(filenameExtension: "md") ?? .plainText
+    }
+}
+
+/// FileDocument wrapper that writes a UTF-8 markdown string. Mirrors the
+/// JSON `MortalLoomExportDocument` used by Settings.
+struct MortalLoomMarkdownDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.markdownReport, .plainText] }
+    static var writableContentTypes: [UTType] { [.markdownReport, .plainText] }
+
+    let text: String
+
+    init(text: String) { self.text = text }
+
+    init(configuration: ReadConfiguration) throws {
+        let data = configuration.file.regularFileContents ?? Data()
+        self.text = String(decoding: data, as: UTF8.self)
+    }
+
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        FileWrapper(regularFileWithContents: Data(text.utf8))
     }
 }
