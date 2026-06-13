@@ -67,12 +67,22 @@ extension Notification.Name {
 
 @main
 struct MortalLoomApp: App {
+    #if os(macOS)
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    #endif
+
     var body: some Scene {
-        WindowGroup {
+        // Stable `id` so macOS can restore the single main window across launches
+        // and on Dock-icon reopen rather than spawning an anonymous duplicate.
+        WindowGroup(id: "main") {
             ContentView()
         }
         #if os(macOS)
         .defaultSize(width: 1200, height: 800)
+        // Drive the window's minimum size from the content's, so it can't shrink
+        // below the wide-layout threshold and overlap the sidebar (the detail
+        // column carries a minWidth in MacContentView).
+        .windowResizability(.contentMinSize)
         .commands {
             CommandGroup(replacing: .appTermination) {
                 Button("Quit MortalLoom") {
@@ -80,10 +90,46 @@ struct MortalLoomApp: App {
                 }
                 .keyboardShortcut("q", modifiers: .command)
             }
+            // Suppress the default Cmd+N "New Window" — a second window is just a
+            // duplicate of this single-window app.
+            CommandGroup(replacing: .newItem) {}
+        }
+        #endif
+
+        #if os(macOS)
+        // A real Settings scene gives the HIG-expected Cmd+, (SwiftUI wires the
+        // menu item automatically) and works even when the main window has been
+        // closed — unlike routing a notification into the main window, which has
+        // no observer in that state.
+        Settings {
+            SettingsView()
         }
         #endif
     }
 }
+
+#if os(macOS)
+/// Keeps the app running when the last window is closed (so Dock-icon reopen
+/// restores the window instead of relaunching — App Store Guideline 4.2) and
+/// brings the window back on reopen.
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag {
+            // No visible window: order any existing (e.g. minimized) window
+            // forward. If none remain, returning true lets AppKit recreate the
+            // WindowGroup's window.
+            for window in sender.windows {
+                window.makeKeyAndOrderFront(self)
+            }
+        }
+        return true
+    }
+}
+#endif
 
 struct ContentView: View {
     @State private var appearance = AppearanceManager.shared
@@ -375,7 +421,11 @@ struct MacContentView: View {
                     ReportsView()
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // Keep the detail pane above the wide-layout threshold (700) so the
+            // content stays in its two-column layout and the window (sized via
+            // .windowResizability(.contentMinSize)) can't shrink small enough to
+            // overlap the sidebar.
+            .frame(minWidth: 720, maxWidth: .infinity, maxHeight: .infinity)
             .background(Color.bg)
         }
         .onReceive(NotificationCenter.default.publisher(for: .navigateToPage)) { notif in
