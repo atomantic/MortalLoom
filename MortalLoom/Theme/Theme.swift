@@ -33,6 +33,23 @@ extension Color {
     #endif
 }
 
+extension String {
+    /// Maps a semantic color name — as returned by the engines' `color`
+    /// computed vars ("green"/"blue"/"yellow"/"orange"/"red") — to its adaptive
+    /// `Color`. Single source of truth for the mapping the views previously each
+    /// duplicated as a private `colorForName(_:)`.
+    var semanticColor: Color {
+        switch self {
+        case "green": return .success
+        case "blue": return .accentColor
+        case "yellow": return .warning
+        case "orange": return .orange
+        case "red": return .danger
+        default: return .textSecondary
+        }
+    }
+}
+
 // MARK: - Shared Date Formatting
 
 enum DateFormatting {
