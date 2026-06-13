@@ -6,7 +6,7 @@ import XCTest
 // Targeted coverage for high-stakes mortality branches that the existing
 // DeathClockEngineTests / LocationEngineTests suites left untested (issue #42):
 //   • educationImpact / incomeImpact — every enum case directly
-//   • socioeconomicImpact — both-present averaging and the single-dimension path
+//   • socioeconomicImpact — a positive half-and-round case (the branches live in LocationEngineTests)
 //   • calculateLEVResult — on-track, off-track, and the 5-year (not 10-year) healthy window
 //   • healthMetricsAdjustment — empty, single-factor paths, combined, and the [-6,+4] clamp
 //   • bmiImpact — the underweight branch (only the 18.5 boundary was pinned before)
@@ -45,28 +45,20 @@ final class DeathClockEngineMortalityMathTests: XCTestCase {
         XCTAssertEqual(DeathClockEngine.incomeImpact(.q1), -3.5)
     }
 
-    // MARK: socioeconomicImpact — averaging and single-dimension paths
-
-    func testSocioeconomicImpactBothPresentAverages() {
-        // bachelors (+1.0) + q4 (+1.0) → (1.0 + 1.0)/2 = 1.0
-        let profile = SocioeconomicProfile(education: .bachelors, incomeBracket: .q4)
-        XCTAssertEqual(DeathClockEngine.socioeconomicImpact(profile), 1.0, accuracy: 0.001)
-    }
-
-    func testSocioeconomicImpactOnlyEducationHalvedAgainstNeutralIncome() {
-        // highSchool (-1.0), income missing → treated as 0 → avg = -0.5
-        let profile = SocioeconomicProfile(education: .highSchool, incomeBracket: nil)
-        XCTAssertEqual(DeathClockEngine.socioeconomicImpact(profile), -0.5, accuracy: 0.001)
-    }
+    // MARK: socioeconomicImpact — single-dimension (positive-rounding) path
+    //
+    // LocationEngineTests already covers socioeconomicImpact's branches (nil,
+    // both-nil, education-only, income-only, both-present averaging, and the
+    // reachable extremes). This adds only the positive half-and-round case
+    // (q5 → 1.25 → 1.3) that complements the existing negative one (q1 → -1.8);
+    // the per-case educationImpact/incomeImpact assertions above are the new
+    // coverage this file contributes.
 
     func testSocioeconomicImpactOnlyIncomeHalvedAgainstNeutralEducation() {
         // q5 (+2.5), education missing → treated as 0 → avg = 1.25 → rounds to 1.3
         let profile = SocioeconomicProfile(education: nil, incomeBracket: .q5)
         XCTAssertEqual(DeathClockEngine.socioeconomicImpact(profile), 1.3, accuracy: 0.001)
     }
-    // (The clamp [-4,+3] is unreachable headroom given the value tables; the
-    // reachable max/min — graduate+q5 → 2.3 and noHighSchool+q1 → -3.0 — are
-    // already pinned by LocationEngineTests.)
 
     // MARK: calculateLEVResult
 
@@ -91,7 +83,7 @@ final class DeathClockEngineMortalityMathTests: XCTestCase {
         )
     }
 
-    func testCalculateLEVResultOnTrackReturnsTargetAge() {
+    func testCalculateLEVResultOnTrackUsesLEVTargetLifespan() {
         // birthYear 1980 → ageAtLEV = 2045 - 1980 = 65. total (85) ≥ 65 → on track.
         let result = DeathClockEngine.calculateLEVResult(
             standardResult: standardResult(total: 85),
@@ -114,7 +106,7 @@ final class DeathClockEngineMortalityMathTests: XCTestCase {
         XCTAssertNil(result)
     }
 
-    func testCalculateLEVResultUsesFiveYearDeclineWindow() {
+    func testCalculateLEVResultUsesFiveYearDeclineWindow() throws {
         // LEV uses the smaller 5-year decline window (declineYearsLEV), not the
         // standard 10. healthyYearsRemaining = yearsRemaining - 5, so the gap
         // between the two reported figures must be exactly 5 years.
@@ -123,7 +115,7 @@ final class DeathClockEngineMortalityMathTests: XCTestCase {
             birthDateStr: "1980-01-01",
             now: testNow
         )
-        let r = try! XCTUnwrap(result)
+        let r = try XCTUnwrap(result)
         XCTAssertEqual(r.yearsRemaining - r.healthyYearsRemaining, 5.0, accuracy: 0.001)
     }
 
