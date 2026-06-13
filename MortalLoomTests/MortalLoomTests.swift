@@ -1667,6 +1667,43 @@ final class SubstanceEngineTests: XCTestCase {
         let avg = SubstanceEngine.allTimeAverageMinutes(sessions: sessions, now: now)
         XCTAssertEqual(avg, 40.0 / 7.0, accuracy: 0.001)
     }
+
+    // MARK: Sauna Rolling Average / Weekly Totals
+
+    func testRollingAverageMinutesCountsOnlyInWindow() {
+        let now = DateFormatting.dateFromString("2024-01-10")!
+        // 7-day cutoff is 2024-01-03 (inclusive). The cutoff-day session is IN;
+        // the older one is OUT. Divisor is the window span (7), not entry count.
+        let sessions = [
+            SaunaSession(saunaType: .infrared, temperatureF: 140, durationMinutes: 30, date: "2024-01-08"),
+            SaunaSession(saunaType: .steam, temperatureF: 175, durationMinutes: 20, date: "2024-01-03"),
+            SaunaSession(saunaType: .infrared, temperatureF: 150, durationMinutes: 60, date: "2023-12-20"),
+        ]
+        let avg = SubstanceEngine.rollingAverageMinutes(sessions: sessions, days: 7, now: now)
+        XCTAssertEqual(avg, (30.0 + 20.0) / 7.0, accuracy: 0.001)
+    }
+
+    func testWeeklyTotalMinutesSumsOnlyLastSevenDays() {
+        let now = DateFormatting.dateFromString("2024-01-10")!
+        let sessions = [
+            SaunaSession(saunaType: .infrared, temperatureF: 140, durationMinutes: 30, date: "2024-01-08"),
+            SaunaSession(saunaType: .steam, temperatureF: 175, durationMinutes: 15, date: "2024-01-04"),
+            SaunaSession(saunaType: .infrared, temperatureF: 150, durationMinutes: 99, date: "2023-12-30"),
+        ]
+        // Only the two in-window sessions count: 30 + 15 = 45.
+        XCTAssertEqual(SubstanceEngine.weeklyTotalMinutes(sessions: sessions, now: now), 45)
+    }
+
+    func testWeeklySessionCountCountsOnlyLastSevenDays() {
+        let now = DateFormatting.dateFromString("2024-01-10")!
+        let sessions = [
+            SaunaSession(saunaType: .infrared, temperatureF: 140, durationMinutes: 30, date: "2024-01-08"),
+            SaunaSession(saunaType: .steam, temperatureF: 175, durationMinutes: 15, date: "2024-01-03"),
+            SaunaSession(saunaType: .infrared, temperatureF: 150, durationMinutes: 99, date: "2023-12-30"),
+        ]
+        // Two sessions fall on/after the 2024-01-03 cutoff; the December one is out.
+        XCTAssertEqual(SubstanceEngine.weeklySessionCount(sessions: sessions, now: now), 2)
+    }
 }
 
 // MARK: - GenomeParser Tests
@@ -3117,6 +3154,31 @@ final class BloodTrendEngineTests: XCTestCase {
         XCTAssertEqual(trends[0].severity, .stable)
     }
 
+    func testApproachingSeverityNearLowerBoundary() {
+        // HDL range 40–100 (size 60). Value 45 is within 15% of the min (5/60 ≈ 0.08)
+        // AND falling toward it → approaching. Exercises the headingToMin branch the
+        // upper-boundary test doesn't reach.
+        let tests = [
+            makeTest(date: "2026-01-01", markers: ["hdl": 50]),
+            makeTest(date: "2026-02-01", markers: ["hdl": 45]),
+        ]
+        let trends = BloodTrendEngine.analyze(tests: tests)
+        XCTAssertEqual(trends[0].severity, .approaching)
+    }
+
+    func testNearBoundaryButMovingAwayIsStable() {
+        // LDL at 97 is within 15% of the max (3/100) but FALLING — i.e. moving away
+        // from the boundary. The proximity threshold alone must not trigger
+        // .approaching; only a value heading toward the boundary does. Pins the
+        // "near boundary, wrong direction → stable" half of the threshold.
+        let tests = [
+            makeTest(date: "2026-01-01", markers: ["ldl": 99]),
+            makeTest(date: "2026-02-01", markers: ["ldl": 97]),
+        ]
+        let trends = BloodTrendEngine.analyze(tests: tests)
+        XCTAssertEqual(trends[0].severity, .stable)
+    }
+
     // MARK: - Alerts Filter
 
     func testAlertsReturnsOnlyConcerning() {
@@ -3682,6 +3744,42 @@ final class DeepLinkRouterTests: XCTestCase {
         XCTAssertEqual(route?.targetPage, .habits)
         // parse must NOT have touched the persisted tab selection.
         XCTAssertNil(UserDefaults.standard.string(forKey: key))
+    }
+
+    /// The side effect parse deliberately omits — pre-selecting the Habits
+    /// alcohol tab — lives in `applySideEffects()` at the call site. Verify that
+    /// applying it persists `HabitTab.alcohol`.
+    @MainActor
+    func testSubstancesAliasSideEffectSelectsAlcoholTab() {
+        let key = HabitTab.selectedKey
+        let original = UserDefaults.standard.string(forKey: key)
+        defer {
+            if let original {
+                UserDefaults.standard.set(original, forKey: key)
+            } else {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+        }
+        UserDefaults.standard.removeObject(forKey: key)
+
+        DeepLinkRoute.substancesAlias.applySideEffects()
+        XCTAssertEqual(UserDefaults.standard.string(forKey: key), HabitTab.alcohol.rawValue)
+    }
+
+    func testReviewWithoutSegmentReturnsNil() {
+        // `mortalloom://review` alone (no `/weekly`) is not a valid route.
+        let url = URL(string: "mortalloom://review")!
+        XCTAssertNil(DeepLinkRouter.parse(url))
+    }
+
+    func testAllPagesReachableByTitle() {
+        // Every AppPage must be addressable via `mortalloom://<title>` so deep
+        // links stay in sync as pages are added.
+        for page in AppPage.allCases {
+            let url = URL(string: "mortalloom://\(page.title.lowercased())")!
+            XCTAssertEqual(DeepLinkRouter.parse(url), .page(page),
+                           "AppPage \(page.title) should be reachable by its title")
+        }
     }
 }
 

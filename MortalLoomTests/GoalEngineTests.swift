@@ -231,4 +231,82 @@ final class GoalEngineViewModelTests: XCTestCase {
         let withoutHabit = GoalEngine.buildGoalsViewModel(from: appData(goals: [g]))
         XCTAssertTrue(withoutHabit.effectiveNeedsCheckInIds.contains(goalId))
     }
+
+    // MARK: - alignmentScore
+
+    /// A daily habit linked to `parent`, completed today so it has a non-zero
+    /// (but unasserted) `alignmentContribution`. The blend tests assert against
+    /// the engine's own contribution value rather than a hard-coded rate, so the
+    /// exact 30-day hit-rate doesn't need to be reproduced here.
+    private func linkedHabit(to parent: UUID) -> Habit {
+        Habit(
+            name: "Linked",
+            parentGoalId: parent,
+            completions: [HabitCompletion(date: DateFormatting.todayString())]
+        )
+    }
+
+    func testAlignmentScoreGoalsOnlyAveragesStandardDescendants() {
+        let rootId = UUID()
+        let root = goalWithId(rootId, title: "Pillar", type: .subApex)
+        let goals = [
+            root,
+            goal(title: "A", parent: rootId, progress: 80),
+            goal(title: "B", parent: rootId, progress: 40),
+        ]
+        // No linked habits → pure goal average (80 + 40) / 2 = 60.
+        let score = GoalEngine.alignmentScore(for: root, in: goals, habits: [])
+        XCTAssertEqual(try XCTUnwrap(score), 60, accuracy: 0.0001)
+    }
+
+    func testAlignmentScoreHabitsOnlyWhenNoStandardDescendants() {
+        let rootId = UUID()
+        let root = goalWithId(rootId, title: "Pillar", type: .subApex)
+        let habit = linkedHabit(to: rootId)
+        // Root has no standard descendants → score is the linked-habit average,
+        // which for a single habit equals its alignmentContribution.
+        let score = GoalEngine.alignmentScore(for: root, in: [root], habits: [habit])
+        XCTAssertEqual(try XCTUnwrap(score),
+                       HabitEngine.alignmentContribution(habit), accuracy: 0.0001)
+    }
+
+    func testAlignmentScoreBlendsGoalAndHabitAtDefaultWeight() {
+        let rootId = UUID()
+        let root = goalWithId(rootId, title: "Pillar", type: .subApex)
+        let goals = [root, goal(title: "A", parent: rootId, progress: 80)]
+        let habit = linkedHabit(to: rootId)
+        // Default habitWeight 0.3 → goal*0.7 + habit*0.3.
+        let contribution = HabitEngine.alignmentContribution(habit)
+        let score = GoalEngine.alignmentScore(for: root, in: goals, habits: [habit])
+        XCTAssertEqual(try XCTUnwrap(score), 80 * 0.7 + contribution * 0.3, accuracy: 0.0001)
+    }
+
+    func testAlignmentScoreNilWhenNeitherGoalsNorHabits() {
+        let rootId = UUID()
+        let root = goalWithId(rootId, title: "Empty Pillar", type: .subApex)
+        // No standard descendants and no linked habits → nothing to score.
+        XCTAssertNil(GoalEngine.alignmentScore(for: root, in: [root], habits: []))
+    }
+
+    func testAlignmentScoreHonorsCustomHabitWeight() {
+        let rootId = UUID()
+        let root = goalWithId(rootId, title: "Pillar", type: .subApex)
+        let goals = [root, goal(title: "A", parent: rootId, progress: 80)]
+        let habit = linkedHabit(to: rootId)
+        let contribution = HabitEngine.alignmentContribution(habit)
+        // A heavier habit weight shifts the blend toward the habit average.
+        let score = GoalEngine.alignmentScore(for: root, in: goals, habits: [habit], habitWeight: 0.6)
+        XCTAssertEqual(try XCTUnwrap(score), 80 * 0.4 + contribution * 0.6, accuracy: 0.0001)
+    }
+
+    func testAlignmentScoreIgnoresArchivedHabit() {
+        let rootId = UUID()
+        let root = goalWithId(rootId, title: "Pillar", type: .subApex)
+        let goals = [root, goal(title: "A", parent: rootId, progress: 80)]
+        var archived = linkedHabit(to: rootId)
+        archived.archivedDate = DateFormatting.todayString()
+        // An inactive habit doesn't count, so the score stays the goal-only average.
+        let score = GoalEngine.alignmentScore(for: root, in: goals, habits: [archived])
+        XCTAssertEqual(try XCTUnwrap(score), 80, accuracy: 0.0001)
+    }
 }
