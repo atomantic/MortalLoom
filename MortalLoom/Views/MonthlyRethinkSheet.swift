@@ -269,38 +269,23 @@ struct MonthlyRethinkSheet: View {
     // MARK: Finish
 
     private func finish() {
-        guard var apex = workingGoals.activeApex else { return }
-
-        // Apply archive decisions. Use the working copy (which carries any
-        // inline edits) as the source of truth, but skip the apex defensively
-        // — its chip never offers Archive.
-        var archivedCount = 0
-        for (goalId, decision) in decisions where decision == .archive {
-            guard goalId != apex.id,
-                  var goal = workingGoals.first(where: { $0.id == goalId }) else { continue }
-            goal.status = .abandoned
-            onSaveGoal(goal)
-            archivedCount += 1
-        }
-
-        let originalById = Dictionary(allGoals.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        let editedCount = workingGoals.filter { originalById[$0.id] != $0 }.count
-        let activeCount = treeRows.count
-        let keptCount = max(0, activeCount - archivedCount)
-
-        var summary = "Monthly rethink: kept \(keptCount), edited \(editedCount), archived \(archivedCount)."
-        let trimmedAnswer = answer.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmedAnswer.isEmpty {
-            summary += "\n\n\(trimmedAnswer)"
-        }
-
-        apex.checkIns.append(GoalCheckIn(
-            progressPct: 0,
-            note: summary,
+        // All the archive/count/check-in bookkeeping lives in a pure,
+        // tested helper; the view only persists the result. The apex copy
+        // it returns carries any inline edits plus the new compound check-in.
+        let archivedIds = Set(decisions.filter { $0.value == .archive }.keys)
+        guard let outcome = MonthlyRethinkEngine.summarize(
+            allGoals: allGoals,
+            workingGoals: workingGoals,
+            archivedIds: archivedIds,
+            answer: answer,
             alignmentRating: Int(alignmentRating),
-            promptAnswered: selectedPrompt
-        ))
-        onSaveGoal(apex)
+            prompt: selectedPrompt
+        ) else { return }
+
+        for goal in outcome.archivedGoals {
+            onSaveGoal(goal)
+        }
+        onSaveGoal(outcome.apexToSave)
 
         MonthlyRethink.recordCompletion()
         onComplete()

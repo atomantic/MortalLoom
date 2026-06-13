@@ -145,3 +145,125 @@ final class MonthlyRethinkSchedulingTests: XCTestCase {
         XCTAssertFalse(MonthlyRethink.isDue(now: date(2026, 5, 15), lastDate: nil))
     }
 }
+
+// MARK: - MonthlyRethinkEngine (finish bookkeeping)
+
+final class MonthlyRethinkEngineTests: XCTestCase {
+
+    private func goal(_ title: String, type: GoalType, parent: UUID? = nil) -> Goal {
+        Goal(title: title, status: .active, parentId: parent, goalType: type)
+    }
+
+    /// apex → [pillar] → [g1, g2] tree.
+    private func tree() -> (apex: Goal, pillar: Goal, g1: Goal, g2: Goal) {
+        let apex = goal("North Star", type: .apex)
+        let pillar = goal("Health", type: .subApex, parent: apex.id)
+        let g1 = goal("Run 5k", type: .standard, parent: pillar.id)
+        let g2 = goal("Sleep 8h", type: .standard, parent: pillar.id)
+        return (apex, pillar, g1, g2)
+    }
+
+    func testArchivesNonApexAndAppendsSingleCheckIn() {
+        let t = tree()
+        let goals = [t.apex, t.pillar, t.g1, t.g2]
+        let outcome = MonthlyRethinkEngine.summarize(
+            allGoals: goals,
+            workingGoals: goals,
+            archivedIds: [t.g1.id],
+            answer: "Refocusing on sleep.",
+            alignmentRating: 7,
+            prompt: "Are these still the right goals?",
+            checkInDate: "2026-05-31"
+        )
+        let o = try? XCTUnwrap(outcome)
+        // One goal archived → status .abandoned.
+        XCTAssertEqual(o?.archivedGoals.count, 1)
+        XCTAssertEqual(o?.archivedGoals.first?.id, t.g1.id)
+        XCTAssertEqual(o?.archivedGoals.first?.status, .abandoned)
+        XCTAssertEqual(o?.archivedCount, 1)
+        // Tree has apex + pillar + 2 goals = 4 active; 1 archived → 3 kept.
+        XCTAssertEqual(o?.keptCount, 3)
+        XCTAssertEqual(o?.editedCount, 0)
+        // Exactly one compound check-in appended to the apex.
+        XCTAssertEqual(o?.apexToSave.id, t.apex.id)
+        XCTAssertEqual(o?.apexToSave.checkIns.count, 1)
+        let ci = o?.apexToSave.checkIns.last
+        XCTAssertEqual(ci?.alignmentRating, 7)
+        XCTAssertEqual(ci?.date, "2026-05-31")
+        XCTAssertEqual(ci?.promptAnswered, "Are these still the right goals?")
+        XCTAssertEqual(ci?.progressPct, 0)
+        XCTAssertTrue(ci?.note.contains("kept 3, edited 0, archived 1") ?? false)
+        XCTAssertTrue(ci?.note.contains("Refocusing on sleep.") ?? false)
+    }
+
+    func testApexIsNeverArchivedEvenIfRequested() {
+        let t = tree()
+        let goals = [t.apex, t.pillar, t.g1, t.g2]
+        let outcome = MonthlyRethinkEngine.summarize(
+            allGoals: goals,
+            workingGoals: goals,
+            archivedIds: [t.apex.id, t.g2.id],
+            answer: "",
+            alignmentRating: 5,
+            prompt: "x"
+        )
+        let o = try? XCTUnwrap(outcome)
+        // Apex id was in archivedIds but must not be archived.
+        XCTAssertFalse(o?.archivedGoals.contains { $0.id == t.apex.id } ?? true)
+        XCTAssertEqual(o?.archivedGoals.map(\.id), [t.g2.id])
+        XCTAssertEqual(o?.archivedCount, 1)
+    }
+
+    func testEditedAndArchivedGoalCountsOnlyAsArchived() {
+        let t = tree()
+        var editedG1 = t.g1
+        editedG1.title = "Run 10k"        // inline-edited
+        // g1 is BOTH edited and archived.
+        let working = [t.apex, t.pillar, editedG1, t.g2]
+        let outcome = MonthlyRethinkEngine.summarize(
+            allGoals: [t.apex, t.pillar, t.g1, t.g2],
+            workingGoals: working,
+            archivedIds: [editedG1.id],
+            answer: "",
+            alignmentRating: 5,
+            prompt: "x"
+        )
+        let o = try? XCTUnwrap(outcome)
+        XCTAssertEqual(o?.archivedCount, 1)
+        // g1 was edited but is archived → not double-counted as edited.
+        XCTAssertEqual(o?.editedCount, 0)
+        // 4 active − 1 archived = 3 kept; counts never exceed tree size.
+        XCTAssertEqual(o?.keptCount, 3)
+    }
+
+    func testCountsEditedGoal() {
+        let t = tree()
+        var editedG2 = t.g2
+        editedG2.title = "Sleep 9h"
+        let working = [t.apex, t.pillar, t.g1, editedG2]
+        let outcome = MonthlyRethinkEngine.summarize(
+            allGoals: [t.apex, t.pillar, t.g1, t.g2],
+            workingGoals: working,
+            archivedIds: [],
+            answer: "",
+            alignmentRating: 5,
+            prompt: "x"
+        )
+        XCTAssertEqual(outcome?.editedCount, 1)
+        XCTAssertEqual(outcome?.archivedCount, 0)
+        XCTAssertEqual(outcome?.keptCount, 4)
+    }
+
+    func testReturnsNilWithoutApex() {
+        let pillar = goal("Health", type: .subApex)
+        let outcome = MonthlyRethinkEngine.summarize(
+            allGoals: [pillar],
+            workingGoals: [pillar],
+            archivedIds: [],
+            answer: "",
+            alignmentRating: 5,
+            prompt: "x"
+        )
+        XCTAssertNil(outcome)
+    }
+}

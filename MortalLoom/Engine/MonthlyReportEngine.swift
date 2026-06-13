@@ -192,3 +192,84 @@ enum MonthlyReportEngine {
         return out
     }
 }
+
+// MARK: - MonthlyRethinkEngine
+
+/// Pure bookkeeping for committing a monthly rethink. Extracted from the
+/// sheet's `finish()` so the riskiest part of the feature — applying archive
+/// decisions, protecting the apex, tallying kept/edited/archived counts, and
+/// building the single compound reflection check-in — is testable in
+/// isolation. The view supplies the working goal list (carrying any inline
+/// edits) and the set of ids the user chose to archive; this returns the
+/// goals to persist.
+enum MonthlyRethinkEngine {
+    struct Outcome {
+        /// The apex carrying the newly-appended compound check-in.
+        let apexToSave: Goal
+        /// Descendants whose status was set to `.abandoned`.
+        let archivedGoals: [Goal]
+        let keptCount: Int
+        let editedCount: Int
+        let archivedCount: Int
+    }
+
+    /// Build the persistence outcome for a finished rethink. Returns `nil`
+    /// when there's no active apex to attach the reflection to.
+    ///
+    /// - The apex is never archived, even if its id appears in `archivedIds`.
+    /// - A goal that was both inline-edited and archived counts only as
+    ///   archived, so kept + edited + archived never exceeds the tree size.
+    static func summarize(
+        allGoals: [Goal],
+        workingGoals: [Goal],
+        archivedIds: Set<UUID>,
+        answer: String,
+        alignmentRating: Int,
+        prompt: String,
+        checkInDate: String = DateFormatting.todayString()
+    ) -> Outcome? {
+        guard var apex = workingGoals.activeApex else { return nil }
+
+        // Apply archive decisions to active, non-apex goals only.
+        var archivedGoals: [Goal] = []
+        for id in archivedIds where id != apex.id {
+            guard var goal = workingGoals.first(where: { $0.id == id }), goal.status == .active else { continue }
+            goal.status = .abandoned
+            archivedGoals.append(goal)
+        }
+        let archivedCount = archivedGoals.count
+
+        // Edited = differs from the original snapshot AND not archived (an
+        // archived goal is reported as archived, not edited).
+        let originalById = Dictionary(allGoals.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let editedCount = workingGoals.filter { working in
+            originalById[working.id] != working && !archivedIds.contains(working.id)
+        }.count
+
+        // Active tree size = apex + its active descendants.
+        let activeCount = GoalEngine.activeDescendants(of: apex, in: workingGoals).count + 1
+        let keptCount = max(0, activeCount - archivedCount)
+
+        var summary = "Monthly rethink: kept \(keptCount), edited \(editedCount), archived \(archivedCount)."
+        let trimmedAnswer = answer.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedAnswer.isEmpty {
+            summary += "\n\n\(trimmedAnswer)"
+        }
+
+        apex.checkIns.append(GoalCheckIn(
+            date: checkInDate,
+            progressPct: 0,
+            note: summary,
+            alignmentRating: alignmentRating,
+            promptAnswered: prompt
+        ))
+
+        return Outcome(
+            apexToSave: apex,
+            archivedGoals: archivedGoals,
+            keptCount: keptCount,
+            editedCount: editedCount,
+            archivedCount: archivedCount
+        )
+    }
+}
