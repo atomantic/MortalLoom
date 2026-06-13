@@ -123,8 +123,14 @@ final class ICloudMonitor {
     private func applyReloadIfNeeded() async {
         let didChange = await DataStore.shared.reloadIfNeeded()
         if didChange {
+            // One notification per sync. A full reload refreshes the profile too,
+            // so `.dataDidSync` alone is a sufficient signal — posting
+            // `.profileDidChange` as a companion made the three screens that
+            // observe BOTH (Overview, Goals, LifeCalendar) reload and re-run
+            // their engines twice for every sync (#31). The lone profile-only
+            // observer (Settings countdown mode) now listens to `.dataDidSync`
+            // as well, so nothing loses its sync refresh.
             NotificationCenter.default.post(name: .dataDidSync, object: nil)
-            NotificationCenter.default.post(name: .profileDidChange, object: nil)
             logger.info("☁️ sync: data updated from iCloud")
         }
     }

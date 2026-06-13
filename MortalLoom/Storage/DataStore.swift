@@ -41,6 +41,28 @@ extension FileManager {
 actor DataStore {
     static let shared = DataStore()
 
+    init() {
+        // The resolved ubiquity-container URL and the reachability probe are
+        // cached for the session (see `cachedUbiquityURL` / `isICloudReachable`).
+        // Those caches are only valid for the *current* iCloud identity, so drop
+        // them when the user signs in/out or switches accounts mid-session —
+        // otherwise we'd keep returning a stale container URL and skip resolving
+        // the new (or now-absent) one (#31).
+        NotificationCenter.default.addObserver(
+            forName: .NSUbiquityIdentityDidChange, object: nil, queue: nil
+        ) { [weak self] _ in
+            Task { await self?.invalidateICloudCaches() }
+        }
+    }
+
+    /// Reset the cached iCloud container URL + reachability so the next access
+    /// re-resolves for the current iCloud identity.
+    private func invalidateICloudCaches() {
+        cachedUbiquityURL = nil
+        isICloudReachable = nil
+        didWarnICloudUnavailable = false
+    }
+
     private var data: AppData = .empty
     private var loaded = false
     private var lastSaveDate: Date = .distantPast
@@ -97,9 +119,24 @@ actor DataStore {
             .appendingPathComponent("MortalLoom.json")
     }
 
+    // Resolving the ubiquity container (`url(forUbiquityContainerIdentifier:)`)
+    // hits the iCloud daemon and is documented as slow — it was re-resolved on
+    // every read/write access (#31). Cache the resolved container URL once.
+    // Only a NON-nil result is cached: early in launch (before the iCloud
+    // account loads) it can return nil, and we must keep re-resolving until the
+    // container actually appears rather than latching nil for the session.
+    private var cachedUbiquityURL: URL?
+    private var ubiquityContainerURL: URL? {
+        if let cachedUbiquityURL { return cachedUbiquityURL }
+        guard let url = FileManager.default.url(forUbiquityContainerIdentifier: CloudConfig.containerID) else {
+            return nil
+        }
+        cachedUbiquityURL = url
+        return url
+    }
+
     private var iCloudURL: URL? {
-        FileManager.default.url(forUbiquityContainerIdentifier: CloudConfig.containerID)?
-            .appendingPathComponent("Documents/MortalLoom.json")
+        ubiquityContainerURL?.appendingPathComponent("Documents/MortalLoom.json")
     }
 
     private var localGenomeURL: URL {
@@ -108,9 +145,16 @@ actor DataStore {
     }
 
     private var iCloudGenomeURL: URL? {
-        FileManager.default.url(forUbiquityContainerIdentifier: CloudConfig.containerID)?
-            .appendingPathComponent("Documents/genome-raw.txt")
+        ubiquityContainerURL?.appendingPathComponent("Documents/genome-raw.txt")
     }
+
+    /// Timestamp formatter for backup filenames, cached to avoid allocating a
+    /// `DateFormatter` (expensive) on every `backupCurrentFile` call (#31).
+    private static let backupStampFormatter: DateFormatter = {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyyMMdd-HHmmss"
+        return fmt
+    }()
 
     /// Rolling backups of the main data file. Written before destructive
     /// operations (reset, import) so we always have an undo path. Lives in
@@ -142,9 +186,7 @@ actor DataStore {
             return nil
         }
 
-        let fmt = DateFormatter()
-        fmt.dateFormat = "yyyyMMdd-HHmmss"
-        let stamp = fmt.string(from: Date())
+        let stamp = Self.backupStampFormatter.string(from: Date())
         let dest = backupsDirectory.appendingPathComponent("MortalLoom-\(stamp)-\(reason).json")
 
         do {
