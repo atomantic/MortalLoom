@@ -211,6 +211,12 @@ EOF
 # altool exits 0 even when uploads fail — grep for definitive banners only.
 FAIL_MARKERS="UPLOAD FAILED|Validation failed \(|ERROR ITMS-|product-errors"
 
+# DEPRECATION: `xcrun altool --upload-app` is deprecated as of Xcode 14. Before the
+# next Xcode major, migrate the upload steps below to `xcrun notarytool` (for
+# notarization) + `xcodebuild -exportArchive`/`-uploadPackage` (App Store Connect
+# upload), which Apple now treats as the supported path. The FAIL_MARKERS grep above
+# exists because altool's exit code is unreliable; notarytool reports status properly.
+
 UPLOADED_ONE=false
 inter_upload_delay() {
     if $UPLOADED_ONE; then
@@ -225,6 +231,13 @@ if $BUILD_IOS; then
     EXPORT_IOS="$BUILD_DIR/export_ios"
 
     echo "📦 Archiving iOS..."
+    # PROVISIONING: -allowProvisioningUpdates auto-manages signing for the CURRENT
+    # capability set, but it canNOT create a profile for a newly-added entitlement
+    # (App Groups, iCloud containers, HealthKit). After adding one, open the project
+    # in Xcode → Signing & Capabilities and let it provision once, or this archive
+    # fails with the misleading "Authentication failed: bearer token" (swift-gotchas
+    # #9). Applies to the macOS/watchOS archive blocks below as well. The CI workflow
+    # is currently disabled (.github/workflows/ci.yml.disabled).
     xcodebuild archive \
         -project "$PROJECT" \
         -scheme "$SCHEME_IOS" \
@@ -323,7 +336,8 @@ if $BUILD_MACOS; then
         --file "$PKG_PATH" \
         --type macos \
         --apiKey "$APPSTORE_API_KEY_ID" \
-        --apiIssuer "$APPSTORE_ISSUER_ID" 2>&1 | tee "$MACOS_UPLOAD_LOG"
+        --apiIssuer "$APPSTORE_ISSUER_ID" \
+        --transport DAV 2>&1 | tee "$MACOS_UPLOAD_LOG"
     MACOS_UPLOAD_STATUS=${PIPESTATUS[0]}
     set -e
     if [ "$MACOS_UPLOAD_STATUS" -ne 0 ] || grep -qE "$FAIL_MARKERS" "$MACOS_UPLOAD_LOG"; then
