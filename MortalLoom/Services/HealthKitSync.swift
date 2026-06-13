@@ -18,48 +18,56 @@ final class HealthKitSync {
     func syncBodyMetrics() async {
         guard hk.isAvailable, hk.authorizationRequestCompleted else { return }
 
-        var data = await DataStore.shared.getData()
-        var changed = false
+        // Fetch every HealthKit value FIRST, before touching the store. Each
+        // `await hk.…` is a suspension point; doing them up front means the
+        // read-modify-write below runs without one, so it can't be clobbered by
+        // a concurrent sync's stale snapshot (issue #28).
+        let weight = await hk.latestValue(for: .bodyMass, unit: .pound())
+        let bodyFat = await hk.latestValue(for: .bodyFatPercentage, unit: .percent())
+        let bmi = await hk.latestValue(for: .bodyMassIndex, unit: .count())
 
-        // Sync weight
-        if let result = await hk.latestValue(for: .bodyMass, unit: .pound()) {
-            let dateStr = DateFormatting.dateString(result.date)
-            if let idx = data.bodyEntries.firstIndex(where: { $0.date == dateStr }) {
-                if data.bodyEntries[idx].weightLbs != result.value {
-                    data.bodyEntries[idx].weightLbs = result.value
+        let changed = await DataStore.shared.mutate { data -> (persist: Bool, result: Bool) in
+            var changed = false
+
+            // Sync weight
+            if let result = weight {
+                let dateStr = DateFormatting.dateString(result.date)
+                if let idx = data.bodyEntries.firstIndex(where: { $0.date == dateStr }) {
+                    if data.bodyEntries[idx].weightLbs != result.value {
+                        data.bodyEntries[idx].weightLbs = result.value
+                        changed = true
+                    }
+                } else {
+                    data.bodyEntries.append(BodyEntry(date: dateStr, weightLbs: result.value))
                     changed = true
                 }
-            } else {
-                data.bodyEntries.append(BodyEntry(date: dateStr, weightLbs: result.value))
-                changed = true
             }
-        }
 
-        // Sync body fat percentage
-        if let result = await hk.latestValue(for: .bodyFatPercentage, unit: .percent()) {
-            let dateStr = DateFormatting.dateString(result.date)
-            let pct = result.value * 100 // HealthKit returns 0-1
-            if let idx = data.bodyEntries.firstIndex(where: { $0.date == dateStr }) {
-                if data.bodyEntries[idx].bodyFatPct != pct {
-                    data.bodyEntries[idx].bodyFatPct = pct
+            // Sync body fat percentage
+            if let result = bodyFat {
+                let dateStr = DateFormatting.dateString(result.date)
+                let pct = result.value * 100 // HealthKit returns 0-1
+                if let idx = data.bodyEntries.firstIndex(where: { $0.date == dateStr }) {
+                    if data.bodyEntries[idx].bodyFatPct != pct {
+                        data.bodyEntries[idx].bodyFatPct = pct
+                        changed = true
+                    }
+                } else {
+                    data.bodyEntries.append(BodyEntry(date: dateStr, bodyFatPct: pct))
                     changed = true
                 }
-            } else {
-                data.bodyEntries.append(BodyEntry(date: dateStr, bodyFatPct: pct))
-                changed = true
             }
-        }
 
-        // Sync BMI into lifestyle profile if available
-        if let result = await hk.latestValue(for: .bodyMassIndex, unit: .count()) {
-            if data.profile.lifestyle.bmi != result.value {
+            // Sync BMI into lifestyle profile if available
+            if let result = bmi, data.profile.lifestyle.bmi != result.value {
                 data.profile.lifestyle.bmi = result.value
                 changed = true
             }
+
+            return (persist: changed, result: changed)
         }
 
         if changed {
-            await DataStore.shared.save(data)
             NotificationCenter.default.post(name: .profileDidChange, object: nil)
         }
     }
@@ -74,20 +82,22 @@ final class HealthKitSync {
         let weightData = await hk.dailyStats(for: .bodyMass, unit: .pound(), aggregation: .average, from: from, to: to)
         guard !weightData.isEmpty else { return }
 
-        var data = await DataStore.shared.getData()
-        let existingDates = Set(data.bodyEntries.map(\.date))
-        var changed = false
-
-        for entry in weightData {
-            let dateStr = DateFormatting.dateString(entry.date)
-            if !existingDates.contains(dateStr) {
-                data.bodyEntries.append(BodyEntry(date: dateStr, weightLbs: entry.value))
-                changed = true
+        // Apply atomically — fetch is already done, so the read-modify-write
+        // runs in a single actor hop and can't lose a concurrent sync's changes.
+        let changed = await DataStore.shared.mutate { data -> (persist: Bool, result: Bool) in
+            let existingDates = Set(data.bodyEntries.map(\.date))
+            var changed = false
+            for entry in weightData {
+                let dateStr = DateFormatting.dateString(entry.date)
+                if !existingDates.contains(dateStr) {
+                    data.bodyEntries.append(BodyEntry(date: dateStr, weightLbs: entry.value))
+                    changed = true
+                }
             }
+            return (persist: changed, result: changed)
         }
 
         if changed {
-            await DataStore.shared.save(data)
             NotificationCenter.default.post(name: .profileDidChange, object: nil)
         }
     }
@@ -272,35 +282,44 @@ final class HealthKitSync {
         await DataStore.shared.upsertHealthMetrics(Array(byDate.values))
         NotificationCenter.default.post(name: .dataDidSync, object: nil)
 
+        // Derive the lifestyle-profile patches from the already-fetched data,
+        // then apply BOTH in one atomic read-modify-write. Previously each patch
+        // did its own getData()→mutate→save round trip, which could interleave
+        // with the body sync (or an iCloud reload) and lose changes (issue #28).
+
         // Sync 30-day average sleep hours into lifestyle profile (HealthKit as source of truth)
         let recentSleepNights = sleepStages.filter { $0.totalHours > 0 }.suffix(30)
-        if recentSleepNights.count >= 3 {
-            let avgSleep = (recentSleepNights.map(\.totalHours).reduce(0, +) / Double(recentSleepNights.count) * 10).rounded() / 10
-            var profileData = await DataStore.shared.getData()
-            if abs(profileData.profile.lifestyle.sleepHoursPerNight - avgSleep) >= 0.05 {
-                profileData.profile.lifestyle.sleepHoursPerNight = avgSleep
-                await DataStore.shared.save(profileData)
-                NotificationCenter.default.post(name: .profileDidChange, object: nil)
+        let avgSleep: Double? = recentSleepNights.count >= 3
+            ? (recentSleepNights.map(\.totalHours).reduce(0, +) / Double(recentSleepNights.count) * 10).rounded() / 10
+            : nil
+
+        // Rounding to the slider's 15-min step avoids a save + broadcast on
+        // every sync when HealthKit drifts by a minute or two day-to-day.
+        let recentExerciseDays = exercise.suffix(7)
+        let weeklyMinutes: Int? = recentExerciseDays.count >= 3
+            ? Int((recentExerciseDays.map(\.value).reduce(0, +) / 15).rounded()) * 15
+            : nil
+
+        let didPatchProfile = await DataStore.shared.mutate { data -> (persist: Bool, result: Bool) in
+            var changed = false
+            if let avgSleep, abs(data.profile.lifestyle.sleepHoursPerNight - avgSleep) >= 0.05 {
+                data.profile.lifestyle.sleepHoursPerNight = avgSleep
+                changed = true
                 // Average is a rolling 30-day mean — privacy: .private keeps the
                 // numeric value out of system log streams, but the sync event is
                 // worth recording for diagnostics.
                 logger.info("💤 Synced sleep avg from HealthKit: \(avgSleep, privacy: .private)h/night")
             }
-        }
-
-        // Rounding to the slider's 15-min step avoids a save + broadcast on
-        // every sync when HealthKit drifts by a minute or two day-to-day.
-        let recentExerciseDays = exercise.suffix(7)
-        if recentExerciseDays.count >= 3 {
-            let raw = recentExerciseDays.map(\.value).reduce(0, +)
-            let weeklyMinutes = Int((raw / 15).rounded()) * 15
-            var profileData = await DataStore.shared.getData()
-            if profileData.profile.lifestyle.exerciseMinutesPerWeek != weeklyMinutes {
-                profileData.profile.lifestyle.exerciseMinutesPerWeek = weeklyMinutes
-                await DataStore.shared.save(profileData)
-                NotificationCenter.default.post(name: .profileDidChange, object: nil)
+            if let weeklyMinutes, data.profile.lifestyle.exerciseMinutesPerWeek != weeklyMinutes {
+                data.profile.lifestyle.exerciseMinutesPerWeek = weeklyMinutes
+                changed = true
                 logger.info("🏃 Synced weekly exercise from HealthKit: \(weeklyMinutes, privacy: .private) min/week")
             }
+            return (persist: changed, result: changed)
+        }
+
+        if didPatchProfile {
+            NotificationCenter.default.post(name: .profileDidChange, object: nil)
         }
     }
 }
