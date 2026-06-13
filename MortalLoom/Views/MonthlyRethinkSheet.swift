@@ -125,13 +125,14 @@ struct MonthlyRethinkSheet: View {
 
     @ViewBuilder
     private var goalTreeSection: some View {
-        if treeRows.isEmpty {
+        let rows = treeRows
+        if rows.isEmpty {
             Text("Set a North Star to start your monthly rethink.")
                 .font(.subheadline)
                 .foregroundColor(.textSecondary)
         } else {
             VStack(alignment: .leading, spacing: 14) {
-                ForEach(treeRows) { row(for: $0) }
+                ForEach(rows) { row(for: $0) }
             }
         }
     }
@@ -282,10 +283,8 @@ struct MonthlyRethinkSheet: View {
             archivedCount += 1
         }
 
-        let editedCount = workingGoals.filter { working in
-            guard let original = allGoals.first(where: { $0.id == working.id }) else { return false }
-            return original != working
-        }.count
+        let originalById = Dictionary(allGoals.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let editedCount = workingGoals.filter { originalById[$0.id] != $0 }.count
         let activeCount = treeRows.count
         let keptCount = max(0, activeCount - archivedCount)
 

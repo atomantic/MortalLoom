@@ -97,7 +97,7 @@ enum MonthlyReportEngine {
             return out
         }
 
-        let avg = Double(ratings.map(\.rating).reduce(0, +)) / Double(ratings.count)
+        let avg = Double(ratings.reduce(0) { $0 + $1.rating }) / Double(ratings.count)
         out.append(String(format: "- Average alignment: **%.1f / 10** (%@) across %d reflection%@",
                           avg,
                           AlignmentScale.label(for: Int(avg.rounded())),
