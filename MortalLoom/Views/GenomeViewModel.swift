@@ -37,6 +37,15 @@ final class GenomeViewModel {
     var expandedCategories: Set<MarkerCategory> = []
     var showNotFound = false
 
+    /// Handle to the in-flight marker `Task.detached`. A rapid re-import (or a
+    /// view teardown) cancels it so a stale scan can't race the new one to set
+    /// `scanSummary` or write a `GenomeScanRecord` from outdated variants (#30).
+    private var markerScanTask: Task<Void, Never>?
+
+    /// Handle to the in-flight ClinVar `Task.detached`, cancelled for the same
+    /// reason as `markerScanTask` (#30).
+    private var clinvarScanTask: Task<Void, Never>?
+
     // MARK: - Sex filter
     private(set) var sexFilter: SexFilter = .all
     private var hasInitializedSexFilter = false
@@ -127,6 +136,14 @@ final class GenomeViewModel {
                 genomeVariants = Array(parseResult.variants.prefix(1000))
                 runMarkerScan()
             }
+        } else if scanSummary == nil, !allGenomeVariants.isEmpty, !isScanning {
+            // Variants are loaded but there's no scan result and nothing is
+            // running — i.e. a previous scan was cancelled mid-flight (#30,
+            // e.g. cancelScans() on teardown). Re-run it so the screen recovers
+            // instead of showing an empty Genome tab. Guarded on !isScanning so
+            // a load() triggered while the initial scan is still in progress
+            // doesn't restart it.
+            runMarkerScan()
         }
     }
 
@@ -447,17 +464,26 @@ final class GenomeViewModel {
     // MARK: - Marker Scan Logic
 
     private func runMarkerScan() {
+        // A marker scan supersedes any in-flight scan: cancel the prior marker
+        // task and the dependent ClinVar task so neither writes stale results
+        // (scanSummary / GenomeScanRecord / clinvarHits) for the previous
+        // variants once the new import's data arrives (#30).
+        markerScanTask?.cancel()
+        clinvarScanTask?.cancel()
+
         isScanning = true
         scanSummary = nil
         expandedCategories = []
 
         let variants = allGenomeVariants
         let markers = GenomeEngine.allCuratedMarkers
-        Task.detached(priority: .userInitiated) {
+        markerScanTask = Task.detached(priority: .userInitiated) {
             let summary = GenomeEngine.fullScan(variants: variants, markers: markers)
+            if Task.isCancelled { return }
             let record = GenomeScanRecord.from(summary)
             await DataStore.shared.saveGenomeScanRecord(record)
             await MainActor.run {
+                guard !Task.isCancelled else { return }
                 withAnimation(.easeInOut(duration: 0.3)) {
                     self.scanSummary = summary
                     self.isScanning = false
@@ -481,14 +507,19 @@ final class GenomeViewModel {
     private func runClinVarScan() {
         guard !allGenomeVariants.isEmpty else { return }
 
+        // Supersede any in-flight ClinVar scan so a rapid re-import doesn't race
+        // two tasks to set clinvarHits from different variant sets (#30).
+        clinvarScanTask?.cancel()
+
         let variants = allGenomeVariants
-        Task.detached(priority: .userInitiated) {
+        clinvarScanTask = Task.detached(priority: .userInitiated) {
             // Load + decode the 5–10 MB ClinVar index off the main actor. This is a
             // @MainActor method, so doing the read here would freeze the UI when the
             // genome page first opens with an existing index (issue #29).
             guard let index = ClinVarService.loadIndex() else { return }
             let hits = GenomeEngine.scanClinVar(variants: variants, index: index)
             await MainActor.run {
+                guard !Task.isCancelled else { return }
                 withAnimation {
                     self.clinvarHits = hits
                     self.clinvarStatus = ClinVarService.getStatus()
@@ -497,6 +528,18 @@ final class GenomeViewModel {
                 self.tryResolvePendingFinding()
             }
         }
+    }
+
+    /// Cancel any in-flight marker/ClinVar scans. Called from the view's
+    /// `.onDisappear` so leaving the Genome screen mid-scan doesn't leave a
+    /// detached task running (and racing) in the background (#30).
+    func cancelScans() {
+        markerScanTask?.cancel()
+        clinvarScanTask?.cancel()
+        // A cancelled scan is no longer in progress — clear the flag so the
+        // view never strands on a permanent "scanning" spinner if this model
+        // outlives the teardown (#30). load() re-runs the scan on return.
+        isScanning = false
     }
 
     func syncClinVar() {
