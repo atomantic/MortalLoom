@@ -1016,14 +1016,9 @@ struct BodyView: View {
         gaitSummary = GaitEngine.summarize(metrics: Array(recentMetrics), age: userAge)
 
         // Latest averages for activity section
-        let standValues = recentMetrics.compactMap(\.standMinutes)
-        latestStandMinutes = standValues.isEmpty ? nil : standValues.reduce(0, +) / Double(standValues.count)
-
-        let basalValues = recentMetrics.compactMap(\.basalEnergy)
-        latestBasalEnergy = basalValues.isEmpty ? nil : basalValues.reduce(0, +) / Double(basalValues.count)
-
-        let daylightValues = recentMetrics.compactMap(\.daylightMinutes)
-        latestDaylightMinutes = daylightValues.isEmpty ? nil : daylightValues.reduce(0, +) / Double(daylightValues.count)
+        latestStandMinutes = recentMetrics.compactAverage(\.standMinutes)
+        latestBasalEnergy = recentMetrics.compactAverage(\.basalEnergy)
+        latestDaylightMinutes = recentMetrics.compactAverage(\.daylightMinutes)
     }
 
     private func saveManualEntry() {

@@ -438,23 +438,17 @@ enum DeathClockEngine {
         var adj = 0.0
 
         // Cardio recovery impact
-        let recoveries = metrics.compactMap(\.cardioRecovery)
-        if !recoveries.isEmpty {
-            let avgRecovery = recoveries.reduce(0, +) / Double(recoveries.count)
+        if let avgRecovery = metrics.compactAverage(\.cardioRecovery) {
             adj += CardioFitnessEngine.recoveryLongevityImpact(avgRecovery)
         }
 
         // Walking speed / gait impact
-        let speeds = metrics.compactMap(\.walkingSpeed)
-        if !speeds.isEmpty {
-            let avgSpeed = speeds.reduce(0, +) / Double(speeds.count)
+        if let avgSpeed = metrics.compactAverage(\.walkingSpeed) {
             adj += GaitEngine.walkingSpeedLongevityImpact(avgSpeed, age: age)
         }
 
         // Breathing disturbances / apnea impact
-        let bds = metrics.compactMap(\.breathingDisturbances)
-        if !bds.isEmpty {
-            let avgBD = bds.reduce(0, +) / Double(bds.count)
+        if let avgBD = metrics.compactAverage(\.breathingDisturbances) {
             adj += SleepEngine.apneaLongevityImpact(avgBD)
         }
 
@@ -538,9 +532,7 @@ enum DeathClockEngine {
 
         // Cardio recovery (max 10 pts) — when measured
         let cardioMax = 10.0
-        let recoveries = healthMetrics.compactMap(\.cardioRecovery)
-        if !recoveries.isEmpty {
-            let avgRecovery = recoveries.reduce(0, +) / Double(recoveries.count)
+        if let avgRecovery = healthMetrics.compactAverage(\.cardioRecovery) {
             weight += cardioMax
             let level = CardioFitnessEngine.classifyRecovery(avgRecovery)
             switch level {

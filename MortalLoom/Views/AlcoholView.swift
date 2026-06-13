@@ -193,8 +193,8 @@ struct AlcoholView: View {
         // Calculate summary stats
         let drinkingDays = correlationData.filter { $0.alcoholGrams > 1 && $0.hrv != nil }
         let soberDays = correlationData.filter { $0.alcoholGrams <= 1 && $0.hrv != nil }
-        let avgDrinking = drinkingDays.isEmpty ? 0 : drinkingDays.compactMap(\.hrv).reduce(0, +) / Double(drinkingDays.count)
-        let avgSober = soberDays.isEmpty ? 0 : soberDays.compactMap(\.hrv).reduce(0, +) / Double(soberDays.count)
+        let avgDrinking = drinkingDays.compactAverage(\.hrv) ?? 0
+        let avgSober = soberDays.compactAverage(\.hrv) ?? 0
         let hasData = !drinkingDays.isEmpty && !soberDays.isEmpty
 
         if hasData {
