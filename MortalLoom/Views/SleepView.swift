@@ -423,16 +423,14 @@ struct SleepView: View {
                     value: String(format: "%.0f%%", summary.consistency),
                     secondary: consistencyLabel(summary.consistency),
                     valueColor: consistencyColor(summary.consistency),
-                    valueFont: .title3,
-                    valueWeight: .bold
+                    prominent: true
                 )
                 StatCell(
                     label: "Sleep Debt",
                     value: formatDebt(summary.debt),
                     secondary: summary.debt < 0 ? "below target" : "above target",
                     valueColor: summary.debt < -5 ? .danger : summary.debt < 0 ? .warning : .success,
-                    valueFont: .title3,
-                    valueWeight: .bold
+                    prominent: true
                 )
             }
         }

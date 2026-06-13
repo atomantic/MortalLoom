@@ -944,6 +944,9 @@ struct OverviewView: View {
         .cardStyle()
     }
 
+    // A one-off value-above-label readout used only in the LEV row; intentionally
+    // kept local rather than folded into StatCell (which is label-above-value),
+    // since generalizing for a single call site would add single-use parameters.
     @ViewBuilder
     private func levStatItem(_ label: String, value: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {

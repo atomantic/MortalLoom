@@ -170,8 +170,9 @@ struct StatCell: View {
     /// Optional date line under the value, rendered abbreviated (e.g. BodyView's measurement date).
     var date: Date? = nil
     var valueColor: Color = .textPrimary
-    var valueFont: Font = .subheadline
-    var valueWeight: Font.Weight = .semibold
+    /// When true the value is rendered larger/bolder (title3) for emphasis, as in
+    /// SleepView; the default is the more compact subheadline used in BodyView.
+    var prominent: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -179,8 +180,8 @@ struct StatCell: View {
                 .font(.caption)
                 .foregroundColor(.textMuted)
             Text(value)
-                .font(valueFont)
-                .fontWeight(valueWeight)
+                .font(prominent ? .title3 : .subheadline)
+                .fontWeight(prominent ? .bold : .semibold)
                 .foregroundColor(valueColor)
             if let secondary {
                 Text(secondary)
