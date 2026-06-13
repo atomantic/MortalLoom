@@ -277,15 +277,14 @@ final class HealthKitSync {
         merge(spo2, into: \.oxygenSaturation, transform: toPercent)
         merge(steadiness, into: \.walkingSteadiness, transform: toPercent)
 
-        guard !byDate.isEmpty else { return }
+        // Derive the lifestyle-profile patches from the already-fetched data so
+        // the metric upsert AND both profile patches can be applied in ONE
+        // atomic read-modify-write. Previously the upsert and each patch did
+        // their own getData()→mutate→save round trips across separate actor
+        // hops, any of which could interleave with the body sync or an iCloud
+        // reload and lose changes (issue #28).
 
-        await DataStore.shared.upsertHealthMetrics(Array(byDate.values))
-        NotificationCenter.default.post(name: .dataDidSync, object: nil)
-
-        // Derive the lifestyle-profile patches from the already-fetched data,
-        // then apply BOTH in one atomic read-modify-write. Previously each patch
-        // did its own getData()→mutate→save round trip, which could interleave
-        // with the body sync (or an iCloud reload) and lose changes (issue #28).
+        let newMetrics = Array(byDate.values)
 
         // Sync 30-day average sleep hours into lifestyle profile (HealthKit as source of truth)
         let recentSleepNights = sleepStages.filter { $0.totalHours > 0 }.suffix(30)
@@ -300,11 +299,31 @@ final class HealthKitSync {
             ? Int((recentExerciseDays.map(\.value).reduce(0, +) / 15).rounded()) * 15
             : nil
 
-        let didPatchProfile = await DataStore.shared.mutate { data -> (persist: Bool, result: Bool) in
-            var changed = false
+        guard !newMetrics.isEmpty || avgSleep != nil || weeklyMinutes != nil else { return }
+
+        // result: (metricsChanged, profileChanged) — drives which notifications
+        // to post after the single transaction commits.
+        let (metricsChanged, profileChanged) = await DataStore.shared.mutate { data -> (persist: Bool, result: (Bool, Bool)) in
+            // Upsert health metrics by date (mirrors DataStore.upsertHealthMetrics).
+            var metricsChanged = false
+            if !newMetrics.isEmpty {
+                var idxByDate: [String: Int] = [:]
+                for (idx, m) in data.healthMetrics.enumerated() { idxByDate[m.date] = idx }
+                for entry in newMetrics {
+                    if let idx = idxByDate[entry.date] {
+                        data.healthMetrics[idx].mergeFields(from: entry)
+                    } else {
+                        idxByDate[entry.date] = data.healthMetrics.count
+                        data.healthMetrics.append(entry)
+                    }
+                }
+                metricsChanged = true
+            }
+
+            var profileChanged = false
             if let avgSleep, abs(data.profile.lifestyle.sleepHoursPerNight - avgSleep) >= 0.05 {
                 data.profile.lifestyle.sleepHoursPerNight = avgSleep
-                changed = true
+                profileChanged = true
                 // Average is a rolling 30-day mean — privacy: .private keeps the
                 // numeric value out of system log streams, but the sync event is
                 // worth recording for diagnostics.
@@ -312,13 +331,17 @@ final class HealthKitSync {
             }
             if let weeklyMinutes, data.profile.lifestyle.exerciseMinutesPerWeek != weeklyMinutes {
                 data.profile.lifestyle.exerciseMinutesPerWeek = weeklyMinutes
-                changed = true
+                profileChanged = true
                 logger.info("🏃 Synced weekly exercise from HealthKit: \(weeklyMinutes, privacy: .private) min/week")
             }
-            return (persist: changed, result: changed)
+
+            return (persist: metricsChanged || profileChanged, result: (metricsChanged, profileChanged))
         }
 
-        if didPatchProfile {
+        if metricsChanged {
+            NotificationCenter.default.post(name: .dataDidSync, object: nil)
+        }
+        if profileChanged {
             NotificationCenter.default.post(name: .profileDidChange, object: nil)
         }
     }
