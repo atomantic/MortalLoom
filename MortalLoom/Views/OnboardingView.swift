@@ -741,9 +741,16 @@ struct OnboardingView: View {
         action: @escaping (Item) -> Void
     ) -> some View {
         ViewThatFits(in: .horizontal) {
+            // Preferred single row. The chips size to their natural width here
+            // (fillWidth: false) — a `.frame(maxWidth: .infinity)` child would
+            // accept any proposed width and make ViewThatFits always pick this
+            // candidate, leaving the grid fallback unreachable. With natural
+            // width, this row's ideal size honestly reflects whether the full
+            // labels fit on one line; if they don't, ViewThatFits drops to the
+            // grid instead of shrinking the text.
             HStack(spacing: 8) {
                 ForEach(items, id: \.self) { item in
-                    choiceButton(label(item), isSelected: isSelected(item)) { action(item) }
+                    choiceButton(label(item), isSelected: isSelected(item), fillWidth: false) { action(item) }
                 }
             }
             LazyVGrid(
@@ -758,7 +765,7 @@ struct OnboardingView: View {
     }
 
     @ViewBuilder
-    private func choiceButton(_ label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+    private func choiceButton(_ label: String, isSelected: Bool, fillWidth: Bool = true, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(label)
                 .font(.subheadline).fontWeight(.medium)
@@ -766,7 +773,7 @@ struct OnboardingView: View {
                 .minimumScaleFactor(0.7)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 10)
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: fillWidth ? .infinity : nil)
                 .foregroundColor(isSelected ? .white : .textPrimary)
                 .background(isSelected ? Color.accentColor : Color.bgCard)
                 .cornerRadius(10)
