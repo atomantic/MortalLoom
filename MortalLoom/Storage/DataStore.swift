@@ -41,6 +41,28 @@ extension FileManager {
 actor DataStore {
     static let shared = DataStore()
 
+    init() {
+        // The resolved ubiquity-container URL and the reachability probe are
+        // cached for the session (see `cachedUbiquityURL` / `isICloudReachable`).
+        // Those caches are only valid for the *current* iCloud identity, so drop
+        // them when the user signs in/out or switches accounts mid-session —
+        // otherwise we'd keep returning a stale container URL and skip resolving
+        // the new (or now-absent) one (#31).
+        NotificationCenter.default.addObserver(
+            forName: .NSUbiquityIdentityDidChange, object: nil, queue: nil
+        ) { [weak self] _ in
+            Task { await self?.invalidateICloudCaches() }
+        }
+    }
+
+    /// Reset the cached iCloud container URL + reachability so the next access
+    /// re-resolves for the current iCloud identity.
+    private func invalidateICloudCaches() {
+        cachedUbiquityURL = nil
+        isICloudReachable = nil
+        didWarnICloudUnavailable = false
+    }
+
     private var data: AppData = .empty
     private var loaded = false
     private var lastSaveDate: Date = .distantPast
