@@ -3659,6 +3659,30 @@ final class DeepLinkRouterTests: XCTestCase {
         let url = URL(string: "mortalloom://goal/not-a-uuid")!
         XCTAssertNil(DeepLinkRouter.parse(url))
     }
+
+    /// The legacy `mortalloom://substances` alias maps to `.substancesAlias`
+    /// (targeting Habits) without any side effect — `parse` is pure, so the
+    /// tab-selection write lives at the call site, not here.
+    func testParsesSubstancesAliasWithoutSideEffect() {
+        let key = HabitTab.selectedKey
+        let original = UserDefaults.standard.string(forKey: key)
+        defer {
+            if let original {
+                UserDefaults.standard.set(original, forKey: key)
+            } else {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+        }
+        UserDefaults.standard.removeObject(forKey: key)
+
+        let url = URL(string: "mortalloom://substances")!
+        let route = DeepLinkRouter.parse(url)
+
+        XCTAssertEqual(route, .substancesAlias)
+        XCTAssertEqual(route?.targetPage, .habits)
+        // parse must NOT have touched the persisted tab selection.
+        XCTAssertNil(UserDefaults.standard.string(forKey: key))
+    }
 }
 
 // MARK: - Quick-Add Chip Reordering Tests

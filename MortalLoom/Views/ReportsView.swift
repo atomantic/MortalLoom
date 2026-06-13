@@ -64,6 +64,7 @@ struct ReportsView: View {
             GoalEditSheet(
                 goal: nil,
                 allGoals: data.goals,
+                allHabits: data.habits,
                 defaultGoalType: newGoalDefaultType,
                 defaultHorizon: newGoalDefaultType == .apex ? .lifetime : nil,
                 defaultPriority: .high,

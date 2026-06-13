@@ -94,6 +94,10 @@ struct ContentView: View {
     // determines whether the user has data (local or iCloud). This prevents
     // the wizard from appearing on a new device that already has iCloud data.
     @State private var showOnboarding: Bool = false
+    // One-time banner shown when DataStore detects the iCloud container is
+    // unreachable — data is still saved locally, but the user has no iCloud
+    // copy, so we tell them rather than failing silently.
+    @State private var iCloudWarning: String?
 
     // Bridge for OverviewView's Int-based selectedTab binding
     private var selectedTabBinding: Binding<Int> {
@@ -113,6 +117,12 @@ struct ContentView: View {
         }
         .preferredColorScheme(appearance.mode.colorScheme)
         .environment(store)
+        .toast($iCloudWarning, icon: "icloud.slash", tint: .warning)
+        .onReceive(NotificationCenter.default.publisher(for: .iCloudWriteUnavailable)) { _ in
+            showToast($iCloudWarning,
+                      message: "iCloud unavailable — saving on this device only",
+                      duration: 5.0)
+        }
         #if os(iOS)
         .fullScreenCover(isPresented: $showOnboarding) {
             OnboardingView(isPresented: $showOnboarding)
@@ -140,9 +150,7 @@ struct ContentView: View {
                 return
             }
             selectedPage = route.targetPage
-            if case .goalReflect(let id) = route {
-                NotificationCenter.default.post(name: .openGoalReflect, object: id)
-            }
+            route.applySideEffects()
         }
         #endif
         .task {
@@ -375,9 +383,7 @@ struct MacContentView: View {
         .onOpenURL { url in
             guard let route = DeepLinkRouter.parse(url) else { return }
             selectedPage = route.targetPage
-            if case .goalReflect(let id) = route {
-                NotificationCenter.default.post(name: .openGoalReflect, object: id)
-            }
+            route.applySideEffects()
         }
     }
 }

@@ -6,9 +6,9 @@
 # Generate Xcode project (required after project.yml changes)
 xcodegen generate
 
-# Build iOS
+# Build iOS (adjust simulator name/OS to one installed locally: `xcrun simctl list devices available`)
 xcodebuild build -project MortalLoom.xcodeproj -scheme MortalLoom_iOS \
-  -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.6' \
+  -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' \
   -configuration Debug CODE_SIGNING_ALLOWED=NO -quiet
 
 # Build macOS
@@ -17,7 +17,7 @@ xcodebuild build -project MortalLoom.xcodeproj -scheme MortalLoom_macOS \
 
 # Run tests
 xcodebuild test -project MortalLoom.xcodeproj -scheme MortalLoomTests_iOS \
-  -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.6' \
+  -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' \
   -configuration Debug CODE_SIGNING_ALLOWED=NO -quiet
 
 # Deploy to TestFlight
@@ -50,6 +50,7 @@ MortalLoom/
 ├── Theme/        # Colors, layout constants, card styles
 ├── Views/        # SwiftUI views (Overview, Body, Substances, Blood, Genome, Lifestyle, Settings)
 ├── Engine/       # Pure computation (longevity clock, risk assessment, rolling averages)
+├── Services/     # Stateful I/O orchestrators (HealthKit, ClinVar, notifications, StoreKit, calendar, location, air quality)
 ├── Models/       # Data types (health metrics, blood markers, genome variants)
 ├── Storage/      # Actor-based file I/O, iCloud sync
 ```

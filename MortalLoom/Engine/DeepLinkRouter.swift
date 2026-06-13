@@ -20,12 +20,37 @@ enum DeepLinkRoute: Equatable, Sendable {
     case goalReflect(UUID)
     /// Trigger the weekly review sheet.
     case weeklyReview
+    /// Legacy `mortalloom://substances` alias — navigate to Habits with the
+    /// alcohol tab pre-selected. Kept as a distinct case (rather than a plain
+    /// `.page(.habits)`) so `parse(_:)` stays pure: the tab-selection side
+    /// effect is applied by the call site, the same way `.goalReflect` posts
+    /// its notification there.
+    case substancesAlias
 
     var targetPage: AppPage {
         switch self {
         case .page(let page): page
         case .goalEdit, .goalReflect: .goals
         case .weeklyReview: .overview
+        case .substancesAlias: .habits
+        }
+    }
+
+    /// Apply the non-navigation side effects a route implies (posting the
+    /// reflect-sheet request, pre-selecting the Habits alcohol tab). Keeps the
+    /// dispatch in one place so the iOS and macOS `onOpenURL` handlers stay
+    /// identical — they navigate via `targetPage`, then call this. `parse(_:)`
+    /// itself stays pure; the effects live here, at the call site.
+    @MainActor
+    func applySideEffects() {
+        switch self {
+        case .goalReflect(let id):
+            NotificationCenter.default.post(name: .openGoalReflect, object: id)
+        case .substancesAlias:
+            // Legacy mortalloom://substances alias — land on the alcohol tab.
+            UserDefaults.standard.set(HabitTab.alcohol.rawValue, forKey: HabitTab.selectedKey)
+        case .page, .goalEdit, .weeklyReview:
+            break
         }
     }
 }
@@ -33,9 +58,9 @@ enum DeepLinkRoute: Equatable, Sendable {
 // MARK: - DeepLinkRouter
 
 /// Maps `mortalloom://` URLs to typed `DeepLinkRoute` values. Invalid URLs
-/// return nil. Mostly pure — the legacy `mortalloom://substances` alias
-/// pre-sets the persisted Habits tab so the user lands on the alcohol
-/// tracker. Supported URL shapes:
+/// return nil. Pure — no side effects. The legacy `mortalloom://substances`
+/// alias maps to `.substancesAlias`; the call site is responsible for
+/// pre-selecting the Habits alcohol tab. Supported URL shapes:
 ///
 /// - `mortalloom://overview` / `mortalloom://goals` / `mortalloom://reflections`
 ///   / `mortalloom://reports` / `mortalloom://calendar` / `mortalloom://habits`
@@ -76,9 +101,9 @@ enum DeepLinkRouter {
         default:
             // Legacy alias for widgets / shortcuts still using
             // mortalloom://substances — land on the alcohol tab in Habits.
+            // The tab-selection side effect lives at the call site.
             if head == "substances" {
-                UserDefaults.standard.set(HabitTab.alcohol.rawValue, forKey: HabitTab.selectedKey)
-                return .page(.habits)
+                return .substancesAlias
             }
             if let page = AppPage.allCases.first(where: { $0.title.lowercased() == head }) {
                 return .page(page)
