@@ -102,32 +102,14 @@ struct SaunaView: View {
             DailyAmount(date: day, amount: Double(grouped[day]?.reduce(0) { $0 + $1.durationMinutes } ?? 0))
         }
 
-        return VStack(alignment: .leading, spacing: 8) {
-            Text("Daily Sauna (30 days)")
-                .font(.headline)
-                .foregroundColor(.textPrimary)
-
-            Chart(points) { point in
-                BarMark(
-                    x: .value("Date", point.date),
-                    y: .value("Minutes", point.amount)
-                )
-                .foregroundStyle(Color.orange.gradient)
-                .cornerRadius(2)
-            }
-            .chartXAxis {
-                AxisMarks(values: .stride(by: .day, count: 7)) { _ in
-                    AxisGridLine()
-                    AxisValueLabel(format: .dateTime.month(.abbreviated).day(), centered: true)
-                }
-            }
-            .chartYAxisLabel("minutes")
-            .frame(height: Layout.chartFrameHeight)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Daily sauna duration chart showing minutes over the last 30 days")
-        }
-        .padding()
-        .cardStyle()
+        return DailyBarChartCard(
+            title: "Daily Sauna (30 days)",
+            data: points,
+            barValueLabel: "Minutes",
+            yAxisLabel: "minutes",
+            color: .orange,
+            accessibilityLabel: "Daily sauna duration chart showing minutes over the last 30 days"
+        )
     }
 
     // MARK: Sauna + Recovery Correlation
@@ -448,30 +430,17 @@ struct SaunaView: View {
             Text("\(session.durationMinutes) min")
                 .frame(width: 64, alignment: .trailing)
         }
-        .font(.caption)
-        .foregroundColor(.textPrimary)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 7)
-        .background(rowIndex.isMultiple(of: 2) ? Color.clear : Color.tableRowAlt)
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(session.saunaType.rawValue) sauna: \(session.temperatureF) degrees Fahrenheit for \(session.durationMinutes) minutes")
-        .accessibilityHint("Tap to edit")
-        .accessibilityAddTraits(.isButton)
-        .onTapGesture { startEditingSauna(session) }
-        .contextMenu {
-            Button { startEditingSauna(session) } label: {
-                Label("Edit", systemImage: "pencil")
-            }
-            Button(role: .destructive) {
+        .modifier(SubstanceRowChrome(
+            rowIndex: rowIndex,
+            accessibilityLabel: "\(session.saunaType.rawValue) sauna: \(session.temperatureF) degrees Fahrenheit for \(session.durationMinutes) minutes",
+            onEdit: { startEditingSauna(session) },
+            onDelete: {
                 Task {
                     await DataStore.shared.removeSaunaSession(id: session.id)
                     await loadData()
                 }
-            } label: {
-                Label("Delete", systemImage: "trash")
             }
-        }
+        ))
     }
 
     // MARK: Sauna Edit Sheet

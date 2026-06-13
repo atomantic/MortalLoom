@@ -196,3 +196,155 @@ struct ReorderableChip<T: Identifiable>: ViewModifier where T.ID == UUID {
         persist(reordered)
     }
 }
+
+// MARK: - Daily Bar Chart Card
+
+/// The 30-day daily bar chart shared by the alcohol / nicotine / sauna trackers.
+/// Each tracker supplies its own per-day totals as `DailyAmount`s; only the
+/// title, bar color, unit labels, and accessibility description differ.
+struct DailyBarChartCard: View {
+    let title: String
+    let data: [DailyAmount]
+    /// Label for the bar's y-`value` (VoiceOver/inspector), e.g. "Grams", "mg", "Minutes".
+    let barValueLabel: String
+    /// `.chartYAxisLabel` shown beside the axis, e.g. "grams", "mg", "minutes".
+    let yAxisLabel: String
+    let color: Color
+    let accessibilityLabel: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.headline)
+                .foregroundColor(.textPrimary)
+
+            Chart(data) { item in
+                BarMark(
+                    x: .value("Date", item.date),
+                    y: .value(barValueLabel, item.amount)
+                )
+                .foregroundStyle(color.gradient)
+                .cornerRadius(2)
+            }
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .day, count: 7)) { _ in
+                    AxisGridLine()
+                    AxisValueLabel(format: .dateTime.month(.abbreviated).day(), centered: true)
+                }
+            }
+            .chartYAxisLabel(yAxisLabel)
+            .frame(height: Layout.chartFrameHeight)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(accessibilityLabel)
+        }
+        .padding()
+        .cardStyle()
+    }
+}
+
+// MARK: - Quick-Add Preset Row
+
+/// A preset with a display name and a UUID identity — the shape `QuickAddPresetRow`
+/// needs to render and reorder a tracker's quick-add chips.
+protocol NamedPreset: Identifiable where ID == UUID {
+    var name: String { get }
+}
+
+extension AlcoholPreset: NamedPreset {}
+extension NicotinePreset: NamedPreset {}
+
+/// The "Quick Add" card with a horizontal row of tappable preset chips, shared by
+/// the alcohol and nicotine trackers (whose chips are plain name labels). Sauna's
+/// quick-add uses a richer icon chip and keeps its own card. Each chip logs its
+/// preset via `onAdd`, supports drag/accessibility reordering (persisted through
+/// `persist`), and the header links to the preset manager via `onManage`.
+struct QuickAddPresetRow<Preset: NamedPreset>: View {
+    @Binding var presets: [Preset]
+    /// VoiceOver hint for a chip, e.g. "Logs one Beer drink. Drag to reorder."
+    let accessibilityHint: (Preset) -> String
+    let onAdd: (Preset) -> Void
+    let onManage: () -> Void
+    let persist: ([Preset]) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Quick Add")
+                    .font(.headline)
+                    .foregroundColor(.textPrimary)
+                Spacer()
+                managePresetsLink(action: onManage)
+            }
+
+            if presets.isEmpty {
+                Text("No presets configured. Tap Manage Presets to add some.")
+                    .font(.caption)
+                    .foregroundColor(.textMuted)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(presets) { preset in
+                            Button {
+                                onAdd(preset)
+                            } label: {
+                                Text(preset.name)
+                                    .font(.caption)
+                                    .foregroundColor(.textPrimary)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .background(Color.bgInput)
+                                    .cornerRadius(8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(Color.cardBorder, lineWidth: 1)
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Quick add \(preset.name)")
+                            .accessibilityHint(accessibilityHint(preset))
+                            .modifier(ReorderableChip(preset: preset, presets: $presets, persist: persist))
+                        }
+                    }
+                }
+            }
+        }
+        .padding()
+        .cardStyle()
+    }
+}
+
+// MARK: - Substance History Row Chrome
+
+/// The shared chrome for a substance history row: caption styling, zebra-striped
+/// background, tap-to-edit, and an Edit/Delete context menu. The column content
+/// (which differs per tracker) is supplied as the modified view; only the
+/// accessibility label and the edit/delete actions vary.
+struct SubstanceRowChrome: ViewModifier {
+    let rowIndex: Int
+    let accessibilityLabel: String
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .font(.caption)
+            .foregroundColor(.textPrimary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 7)
+            .background(rowIndex.isMultiple(of: 2) ? Color.clear : Color.tableRowAlt)
+            .contentShape(Rectangle())
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(accessibilityLabel)
+            .accessibilityHint("Tap to edit")
+            .accessibilityAddTraits(.isButton)
+            .onTapGesture(perform: onEdit)
+            .contextMenu {
+                Button(action: onEdit) {
+                    Label("Edit", systemImage: "pencil")
+                }
+                Button(role: .destructive, action: onDelete) {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
+    }
+}
