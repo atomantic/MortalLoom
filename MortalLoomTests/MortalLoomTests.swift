@@ -1632,16 +1632,19 @@ final class SubstanceEngineTests: XCTestCase {
         let avg30 = SubstanceEngine.rollingAverageGrams(drinks: SampleData.alcoholDrinks, days: 30)
         let allTime = SubstanceEngine.allTimeAverageGrams(drinks: SampleData.alcoholDrinks)
 
-        // SampleData seeds a regular drinker across 90 days. The seed for each
-        // day index is fixed, so the days that drink regardless of weekday
-        // (seededRandom(day*7) < 0.35) form a deterministic floor — weekend days
-        // only ever add more. Those floors are ~4.6 g/day (7d), ~4.4 (30d), and
-        // ~3.9 (all-time); we assert comfortably below them so the test stays
-        // robust to which weekday "today" falls on, while still failing for the
-        // empty/zero case (which the old `>= 0` assertions silently passed).
-        XCTAssertGreaterThan(avg7, 2.0)
-        XCTAssertGreaterThan(avg30, 2.0)
-        XCTAssertGreaterThan(allTime, 2.0)
+        // SampleData seeds a regular drinker across 90 days. Each day index has
+        // a fixed seed, so the days that drink regardless of weekday
+        // (seededRandom(day*7) < 0.35) form a weekday-INDEPENDENT floor — weekend
+        // days only ever add more. Counting only those days (and the rolling
+        // window's inclusive boundary day) the provable floor is ~6.4 g/day (7d),
+        // ~4.9 (30d), ~4.0 (all-time); the true averages run higher still (~7+).
+        // We assert below the provable floor so the test is robust to which
+        // weekday "today" is, yet tight enough that a real regression — e.g. a
+        // halved gramsAlcohol conversion, which would drop the 7d/30d averages
+        // to ~3.5 — fails, unlike the old `>= 0` the empty case silently passed.
+        XCTAssertGreaterThan(avg7, 4.0)
+        XCTAssertGreaterThan(avg30, 3.0)
+        XCTAssertGreaterThan(allTime, 3.0)
     }
 
     func testSubstanceEngineWithSampleNicotine() {
@@ -1649,14 +1652,15 @@ final class SubstanceEngineTests: XCTestCase {
         let avg30 = SubstanceEngine.rollingAverageMg(entries: SampleData.nicotineEntries, days: 30)
         let allTime = SubstanceEngine.allTimeAverageMg(entries: SampleData.nicotineEntries)
 
-        // Nicotine sample data is fully deterministic (the seed depends only on
-        // the day index, with no weekday branch), so these averages are stable
-        // across runs: ~2.57 mg/day (7d), ~2.93 (30d), ~4.02 (all-time). Assert
-        // below those floors — strong enough to fail for the empty/zero case the
-        // old `>= 0` assertions passed, loose enough to absorb timezone edges.
-        XCTAssertGreaterThan(avg7, 1.0)
-        XCTAssertGreaterThan(avg30, 1.0)
-        XCTAssertGreaterThan(allTime, 2.0)
+        // Nicotine sample data is fully deterministic — the seed depends only on
+        // the day index, with no weekday or wall-clock branch — so these averages
+        // are stable across runs: ~3.43 mg/day (7d), ~3.07 (30d), ~4.11 (all-time).
+        // Assert below those values with margin: tight enough to catch a
+        // regression that merely reduces the totals, robust to timezone/DST edges,
+        // and decisively failing for the empty/zero case the old `>= 0` passed.
+        XCTAssertGreaterThan(avg7, 2.5)
+        XCTAssertGreaterThan(avg30, 2.5)
+        XCTAssertGreaterThan(allTime, 3.0)
     }
 
     // MARK: Sauna All-Time Average
