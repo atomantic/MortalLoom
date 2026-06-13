@@ -52,6 +52,9 @@ struct PaywallView: View {
                 .foregroundColor(.textMuted)
         }
         .padding(.top, 8)
+        // Hero glyph is a fixed 60pt; cap the title/subtitle Dynamic Type growth
+        // so the header stays balanced beyond AX3.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility3)
     }
 
     // MARK: - Feature List

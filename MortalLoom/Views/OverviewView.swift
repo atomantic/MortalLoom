@@ -4,6 +4,8 @@ import Charts
 struct OverviewView: View {
     @Binding var selectedTab: Int
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     /// Owns data loading and the multi-engine orchestration; the view binds to
     /// its published output (issue #23). UI-only state — section toggles, sheet
     /// presentation, chart selection, layout width — stays in the view.
@@ -262,7 +264,7 @@ struct OverviewView: View {
         expanded: Binding<Bool>
     ) -> some View {
         Button {
-            withAnimation(.easeInOut(duration: 0.2)) { expanded.wrappedValue.toggle() }
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) { expanded.wrappedValue.toggle() }
         } label: {
             HStack(spacing: 8) {
                 Text(title)

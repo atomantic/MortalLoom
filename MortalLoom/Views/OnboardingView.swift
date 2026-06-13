@@ -2,6 +2,7 @@ import SwiftUI
 
 struct OnboardingView: View {
     @Binding var isPresented: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var currentStep = 0
     @State private var birthDate = Calendar.current.date(byAdding: .year, value: -30, to: Date()) ?? Date()
     @State private var biologicalSex: BiologicalSex?
@@ -54,7 +55,7 @@ struct OnboardingView: View {
             #if os(iOS)
             .tabViewStyle(.page(indexDisplayMode: .never))
             #endif
-            .animation(.easeInOut(duration: 0.3), value: currentStep)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: currentStep)
 
             progressDots
                 .padding(.bottom, 16)
@@ -90,7 +91,7 @@ struct OnboardingView: View {
     }
 
     private func goBack() {
-        withAnimation(.easeInOut(duration: 0.2)) {
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
             currentStep = max(currentStep - 1, 0)
         }
     }
@@ -104,7 +105,7 @@ struct OnboardingView: View {
                 Circle()
                     .fill(index == currentStep ? Color.accentColor : Color.textMuted.opacity(0.3))
                     .frame(width: 8, height: 8)
-                    .animation(.easeInOut(duration: 0.2), value: currentStep)
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: currentStep)
             }
         }
         .padding(.vertical, 8)
@@ -1101,7 +1102,7 @@ struct OnboardingView: View {
             )
             lifeExpectancyResult = DeathClockEngine.calculate(birthDateStr: birthDateStr, sex: biologicalSex, lifestyle: lifestyle)
         }
-        withAnimation(.easeInOut(duration: 0.3)) {
+        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.3)) {
             currentStep = nextStep
         }
     }

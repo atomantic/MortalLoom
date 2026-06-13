@@ -109,6 +109,7 @@ struct HabitStats: Sendable {
 }
 
 struct HabitsSection: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var habits: [Habit] = []
     @State private var goals: [Goal] = []
     @State private var habitStats: [UUID: HabitStats] = [:]
@@ -196,7 +197,7 @@ struct HabitsSection: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: showDailyNudge)
+        .animation(reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.85), value: showDailyNudge)
     }
 
     // MARK: Data loading
@@ -304,6 +305,9 @@ struct HabitsSection: View {
         }
         .padding(.vertical, 32)
         .frame(maxWidth: .infinity)
+        // Hero glyph is a fixed 44pt; cap the surrounding copy's Dynamic Type
+        // growth so the empty state stays balanced beyond AX3.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility3)
         .cardStyle()
     }
 
@@ -375,6 +379,8 @@ struct HabitsSection: View {
             }
         }
         .onTapGesture { editingHabit = habit }
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Opens the habit editor")
     }
 
     private func habitIcon(_ habit: Habit) -> some View {
@@ -438,6 +444,9 @@ struct HabitsSection: View {
                 .padding(10)
                 .cardStyle()
                 .onTapGesture { editingHabit = habit }
+                .accessibilityElement(children: .combine)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityHint("Opens the habit editor")
             }
         }
     }

@@ -3,6 +3,8 @@ import SwiftUI
 // MARK: - GoalsView
 
 struct GoalsView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     /// All derived state computed in one pure pass by `GoalEngine`. The view
     /// itself does no business logic — it renders this value and re-flattens
     /// the tree on collapse/expand.
@@ -368,7 +370,7 @@ struct GoalsView: View {
             } else {
                 collapsedIds.insert(id)
             }
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.2)) {
                 hierarchyItems = GoalEngine.buildHierarchy(
                     roots: vm.roots,
                     activeByParent: vm.activeByParent,
