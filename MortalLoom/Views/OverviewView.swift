@@ -126,8 +126,20 @@ struct OverviewView: View {
     private var topChromeStack: some View {
         if needsSetupRecovery { finishSetupBanner }
         goalPromptCard
-        if WeeklyReview.isDue && vm.apexGoal != nil { weeklyReviewCTA }
-        if !vm.cachedStagnationSignals.isEmpty { attentionCard }
+        // Cap stacked attention banners on narrow widths: finishSetup +
+        // goalPrompt + weeklyReview + attention can be four full-width cards,
+        // which on an iPhone SE pushes the primary "YOUR RUNWAY" content below
+        // the fold. Wide layouts have the vertical room, so show both; narrow
+        // shows only the single highest-priority secondary banner (stagnation
+        // signals over the weekly-review nudge, since they're more actionable).
+        if isWide {
+            if WeeklyReview.isDue && vm.apexGoal != nil { weeklyReviewCTA }
+            if !vm.cachedStagnationSignals.isEmpty { attentionCard }
+        } else if !vm.cachedStagnationSignals.isEmpty {
+            attentionCard
+        } else if WeeklyReview.isDue && vm.apexGoal != nil {
+            weeklyReviewCTA
+        }
 
         // Runway strip — compact summary of time remaining, expandable
         // to the full longevity clock / LEV / factors detail.
@@ -917,6 +929,8 @@ struct OverviewView: View {
             Text(name)
                 .font(.subheadline)
                 .foregroundColor(.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
                 .frame(width: 70, alignment: .leading)
             GeometryReader { geo in
                 let maxAbsValue = 10.0 // scale: max |-10| for smoking
@@ -935,6 +949,8 @@ struct OverviewView: View {
             Text(String(format: "%+.1f yr", value))
                 .font(.caption).fontWeight(.bold).monospacedDigit()
                 .foregroundColor(value > 0 ? .success : .danger)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
                 .frame(width: 56, alignment: .trailing)
         }
         .accessibilityElement(children: .combine)
