@@ -95,6 +95,7 @@ struct GenomeView: View {
             )
         }
         .task { await vm.load() }
+        .onDisappear { vm.cancelScans() }
         .onReceive(NotificationCenter.default.publisher(for: .dataDidSync)) { _ in
             Task { await vm.load() }
         }
