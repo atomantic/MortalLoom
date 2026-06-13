@@ -15,6 +15,7 @@ import Charts
 struct ReportsView: View {
     @State private var data: AppData = .empty
     @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
+    private var isWide: Bool { containerWidth >= Layout.wideThreshold }
     @State private var stagnationSignals: [StagnationSignal] = []
     /// Pre-computed 12-week alignment trend — cached in loadData so the
     /// chart + week-over-week delta don't recompute per render.
@@ -36,10 +37,28 @@ struct ReportsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 headerCard
-                alignmentTrendCard
-                stagnationCard
-                pillarBreakdownCard
-                habitHealthCard
+                if isWide {
+                    // Two balanced columns on wide windows (iPad / macOS): trend +
+                    // pillar breakdown on the left, attention + habit streaks on the
+                    // right, instead of one narrow column with dead space.
+                    HStack(alignment: .top, spacing: 16) {
+                        VStack(spacing: 16) {
+                            alignmentTrendCard
+                            pillarBreakdownCard
+                        }
+                        .frame(maxWidth: .infinity, alignment: .top)
+                        VStack(spacing: 16) {
+                            stagnationCard
+                            habitHealthCard
+                        }
+                        .frame(maxWidth: .infinity, alignment: .top)
+                    }
+                } else {
+                    alignmentTrendCard
+                    stagnationCard
+                    pillarBreakdownCard
+                    habitHealthCard
+                }
             }
             .padding()
             .readContainerWidth { containerWidth = $0 }

@@ -54,6 +54,7 @@ struct ReflectionsView: View {
     @State private var streakText: String?
     @State private var filter: ReflectionFilter = .all
     @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
+    private var isWide: Bool { containerWidth >= Layout.wideThreshold }
 
     var body: some View {
         ScrollView {
@@ -156,6 +157,18 @@ struct ReflectionsView: View {
     private var entries: some View {
         if filteredEntries.isEmpty {
             emptyState
+        } else if isWide {
+            // Flow reflection cards into two columns on wide windows so the
+            // journal fills the available width instead of a narrow column.
+            LazyVGrid(
+                columns: [GridItem(.flexible(), spacing: 10, alignment: .top),
+                          GridItem(.flexible(), spacing: 10, alignment: .top)],
+                spacing: 10
+            ) {
+                ForEach(filteredEntries) { entry in
+                    reflectionCard(entry)
+                }
+            }
         } else {
             VStack(spacing: 10) {
                 ForEach(filteredEntries) { entry in
