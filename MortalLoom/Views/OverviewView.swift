@@ -17,6 +17,7 @@ struct OverviewView: View {
     @State private var showAddGoal = false
     @State private var editingGoal: Goal?
     @State private var showWeeklyReview = false
+    @State private var showMonthlyRethink = false
     @State private var selectedChartYear: Int?
     @AppStorage(HabitTab.selectedKey) private var habitsTab: HabitTab = .myHabits
     // Sections start collapsed so the first frame never flashes tall empty
@@ -113,6 +114,21 @@ struct OverviewView: View {
                 }
             }
         }
+        .sheet(isPresented: $showMonthlyRethink) {
+            MonthlyRethinkSheet(
+                allGoals: vm.data.goals,
+                habits: vm.data.habits,
+                onSaveGoal: { updated in
+                    Task {
+                        await DataStore.shared.updateGoal(updated)
+                        await loadData()
+                    }
+                },
+                onComplete: {
+                    Task { await loadData() }
+                }
+            )
+        }
     }
 
     // Narrow and wide stacks share the same top-of-page (setup recovery,
@@ -138,11 +154,17 @@ struct OverviewView: View {
         // the Reports tab (tapping it just navigates there), so hiding the
         // banner loses no access.
         let weeklyReviewDue = WeeklyReview.isDue && vm.apexGoal != nil
+        // The monthly rethink only surfaces in the closing days of the month
+        // (and until completed for that month) — see MonthlyRethink.isDue.
+        let monthlyRethinkDue = MonthlyRethink.isDueNow && vm.apexGoal != nil
         if isWide {
             if weeklyReviewDue { weeklyReviewCTA }
+            if monthlyRethinkDue { monthlyRethinkCTA }
             if !vm.cachedStagnationSignals.isEmpty { attentionCard }
         } else if weeklyReviewDue {
             weeklyReviewCTA
+        } else if monthlyRethinkDue {
+            monthlyRethinkCTA
         } else if !vm.cachedStagnationSignals.isEmpty {
             attentionCard
         }
@@ -335,6 +357,39 @@ struct OverviewView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(LinearGradient.proBrand)
             .cornerRadius(14)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Monthly Rethink CTA
+
+    /// End-of-month prompt to walk the goal tree and decide what to keep,
+    /// edit, or archive. Surfaced only by `MonthlyRethink.isDueNow`.
+    @ViewBuilder
+    private var monthlyRethinkCTA: some View {
+        Button {
+            showMonthlyRethink = true
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "calendar.badge.exclamationmark")
+                    .font(.title2)
+                    .foregroundColor(.accentColor)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Monthly Rethink")
+                        .font(.headline).fontWeight(.bold)
+                        .foregroundColor(.textPrimary)
+                    Text("Are these still the right goals? Keep, edit, or let some go.")
+                        .font(.caption)
+                        .foregroundColor(.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundColor(.textMuted)
+            }
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .cardStyle(fill: .accentColor.opacity(0.08), border: .accentColor.opacity(0.25))
         }
         .buttonStyle(.plain)
     }
