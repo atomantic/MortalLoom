@@ -255,7 +255,10 @@ struct GenomeVisitModeView: View {
         ) else { return }
         if existingId == nil {
             savedNoteIds[key] = note.id
-            Task { await vm.addVisitNote(note) }
+            // Don't bulk auto-discuss pending actions — the checklist toggles
+            // are authoritative in Visit Mode, so an unchecked action stays
+            // pending even when a note is saved.
+            Task { await vm.addVisitNote(note, autoDiscussPending: false) }
         } else {
             // Already saved this visit — update the same note rather than
             // appending a duplicate.

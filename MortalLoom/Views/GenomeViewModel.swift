@@ -407,8 +407,8 @@ final class GenomeViewModel {
         await load()
     }
 
-    func addVisitNote(_ note: VisitNote) async {
-        await DataStore.shared.addVisitNote(note)
+    func addVisitNote(_ note: VisitNote, autoDiscussPending: Bool = true) async {
+        await DataStore.shared.addVisitNote(note, autoDiscussPending: autoDiscussPending)
         await load()
     }
 

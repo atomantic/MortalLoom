@@ -765,24 +765,30 @@ actor DataStore {
         save(d)
     }
 
-    /// Add a doctor visit note. Auto-flips any pending actions on the same
-    /// finding to `discussed` and stamps `linkedVisitNoteId` so the genome
-    /// detail view can navigate from the action back to the conversation.
-    func addVisitNote(_ note: VisitNote) {
+    /// Add a doctor visit note. When `autoDiscussPending` is true (the default,
+    /// used by the detail sheet's quick "add note" form), any pending actions on
+    /// the same finding are flipped to `discussed` and stamped with
+    /// `linkedVisitNoteId` so the genome detail view can navigate from the action
+    /// back to the conversation. Visit Mode passes `false`: it has an explicit
+    /// per-action checklist, so the checkbox toggles — not the act of saving a
+    /// note — are the source of truth for what was discussed, and a deliberately
+    /// unchecked (pending) action must not be auto-completed.
+    func addVisitNote(_ note: VisitNote, autoDiscussPending: Bool = true) {
         var d = load()
         d.genomeVisitNotes.append(note)
-        // Auto-flip pending actions on this finding to discussed.
-        let prefix = "\(note.findingKey):"
-        for (key, state) in d.genomeActionStates where key.hasPrefix(prefix) && state.status == .pending {
-            d.genomeActionStates[key] = GenomeActionState(
-                key: key,
-                status: .discussed,
-                updatedAt: DateFormatting.todayString(),
-                note: state.note,
-                linkedGoalId: state.linkedGoalId,
-                linkedHabitId: state.linkedHabitId,
-                linkedVisitNoteId: note.id
-            )
+        if autoDiscussPending {
+            let prefix = "\(note.findingKey):"
+            for (key, state) in d.genomeActionStates where key.hasPrefix(prefix) && state.status == .pending {
+                d.genomeActionStates[key] = GenomeActionState(
+                    key: key,
+                    status: .discussed,
+                    updatedAt: DateFormatting.todayString(),
+                    note: state.note,
+                    linkedGoalId: state.linkedGoalId,
+                    linkedHabitId: state.linkedHabitId,
+                    linkedVisitNoteId: note.id
+                )
+            }
         }
         save(d)
     }
