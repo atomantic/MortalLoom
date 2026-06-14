@@ -349,11 +349,17 @@ enum CorrelationEngine {
     ) -> [ExerciseCardioRecoveryDataPoint] {
         guard !healthMetrics.isEmpty else { return [] }
 
+        // Collapse to one entry per date first — the rest of the engine treats
+        // health metrics as one-per-day (see `nextDayPairing` / `buildCorrelationData`),
+        // so a stray duplicate shouldn't double-count a week's exercise or recovery.
+        let metricsByDate = Dictionary(grouping: healthMetrics, by: \.date)
+            .compactMapValues(\.first)
+
         var exerciseByWeek: [String: Double] = [:]
         var recoverySumByWeek: [String: Double] = [:]
         var recoveryCountByWeek: [String: Int] = [:]
 
-        for metric in healthMetrics {
+        for metric in metricsByDate.values {
             guard let day = DateFormatting.dateFromString(metric.date) else { continue }
             let weekStart = DateFormatting.dateString(HabitEngine.startOfWeek(day))
             if let mins = metric.exerciseMinutes {
