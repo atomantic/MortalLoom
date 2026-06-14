@@ -222,8 +222,23 @@ struct GenomeVisitModeView: View {
     /// captured this visit (with follow-ups), and drug-response variants — and
     /// hand it to the export UI (share sheet on iOS, file exporter on macOS).
     private func exportSummary() {
-        let savedIds = Set(savedNoteIds.values)
-        let notes = vm.visitNotes.filter { savedIds.contains($0.id) }
+        let provider = providerLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Build notes from the live in-editor drafts (via the same trimming
+        // helper used to save), not the async-persisted store — so the summary
+        // reflects exactly what the user has typed, including a note still being
+        // edited or saved a moment ago before its reload lands. `makeNote`
+        // returns nil for a blank body, so empty findings are skipped.
+        let notes = sources.compactMap { source -> VisitNote? in
+            let draft = drafts[source.findingKey] ?? VisitDraft()
+            return GenomeVisitFlow.makeNote(
+                id: savedNoteIds[source.findingKey] ?? UUID(),
+                date: visitDate,
+                providerLabel: providerLabel,
+                findingKey: source.findingKey,
+                body: draft.note,
+                followUp: draft.followUp
+            )
+        }
         let content = GenomeReport.postvisit(
             findings: sources,
             // Match the on-screen ClinVar filter (sex + minimum stars) so the
@@ -231,7 +246,7 @@ struct GenomeVisitModeView: View {
             clinvarHits: vm.filteredClinvarHits,
             notes: notes,
             date: visitDate,
-            provider: providerLabel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : providerLabel
+            provider: provider.isEmpty ? nil : provider
         )
         pdfExport = PDFExport(
             data: GenomeReport.pdfData(for: content),
