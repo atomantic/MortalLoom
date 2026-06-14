@@ -473,6 +473,19 @@ final class CorrelationEngineExerciseCardioRecoveryTests: XCTestCase {
         XCTAssertEqual(result[0].avgCardioRecovery, 22, accuracy: 0.0001)
     }
 
+    func testExerciseCardioRecovery_mergesSameDateSnapshots() {
+        // A day split across two snapshots — exercise in one, recovery in the
+        // other — must merge into a single week point, not drop a field based
+        // on input order (relies on HealthMetricEntry.deduplicatedByDate).
+        let result = CorrelationEngine.exerciseCardioRecoveryCorrelation(healthMetrics: [
+            metric(weekDay(week: 0, day: 1), exercise: 40),
+            metric(weekDay(week: 0, day: 1), recovery: 25),
+        ])
+        XCTAssertEqual(result.count, 1)
+        XCTAssertEqual(result[0].weekExerciseMinutes, 40, accuracy: 0.0001)
+        XCTAssertEqual(result[0].avgCardioRecovery, 25, accuracy: 0.0001)
+    }
+
     func testExerciseCardioRecovery_bucketsDistinctWeeksAndSortsByDate() {
         let result = CorrelationEngine.exerciseCardioRecoveryCorrelation(healthMetrics: [
             metric(weekDay(week: 2, day: 1), exercise: 60, recovery: 40),
