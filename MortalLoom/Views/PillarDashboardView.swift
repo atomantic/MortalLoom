@@ -13,6 +13,10 @@ struct PillarDashboardView: View {
     let onEditGoal: (Goal) -> Void
     let onReflect: (Goal) -> Void
     let onEditHabit: (Habit) -> Void
+    /// Create a new supporting goal parented to this pillar.
+    let onAddGoal: () -> Void
+    /// Create a new habit linked to this pillar.
+    let onAddHabit: () -> Void
 
     @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
     @State private var timeAllocation: TimeAllocationEngine.Allocation?
@@ -277,10 +281,34 @@ struct PillarDashboardView: View {
                     }
                 }
             }
+            addCTAButton(title: "Add supporting goal", icon: "plus.circle", action: onAddGoal)
+                .accessibilityLabel("Add supporting goal to \(pillar.title)")
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
+    }
+
+    /// Full-width dashed "add" affordance shared by the supporting-goals and
+    /// habits cards so the user can create work without navigating back to
+    /// GoalsView/HabitsView.
+    private func addCTAButton(title: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                Text(title)
+                    .fontWeight(.medium)
+            }
+            .font(.caption)
+            .foregroundColor(.accentColor)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .strokeBorder(Color.accentColor.opacity(0.4), style: StrokeStyle(lineWidth: 1, dash: [4]))
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     private func supportingGoalRow(_ goal: Goal) -> some View {
@@ -338,6 +366,8 @@ struct PillarDashboardView: View {
                     }
                 }
             }
+            addCTAButton(title: "Add habit", icon: "plus.circle", action: onAddHabit)
+                .accessibilityLabel("Add habit to \(pillar.title)")
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)

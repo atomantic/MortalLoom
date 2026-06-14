@@ -577,6 +577,7 @@ struct HabitEditSheet: View {
     init(
         habit: Habit?,
         goals: [Goal],
+        defaultParentGoalId: UUID? = nil,
         prefillEvidence: GeneticEvidence? = nil,
         onSave: @escaping (Habit) -> Void,
         onDelete: (() -> Void)? = nil
@@ -594,7 +595,10 @@ struct HabitEditSheet: View {
         _kind = State(initialValue: habit?.kind ?? .positive)
         _cadencePeriod = State(initialValue: habit?.cadence.period ?? .daily)
         _cadenceTarget = State(initialValue: habit?.cadence.target ?? 1)
-        _parentGoalId = State(initialValue: habit?.parentGoalId)
+        // New habits opened from a pillar dashboard default to that pillar as
+        // their parent goal; existing habits keep their saved link (even if nil,
+        // so editing never silently re-parents an intentionally unlinked habit).
+        _parentGoalId = State(initialValue: habit == nil ? defaultParentGoalId : habit?.parentGoalId)
         _archived = State(initialValue: habit?.archivedDate != nil)
     }
 
