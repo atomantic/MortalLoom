@@ -22,12 +22,13 @@ final class HealthKitServiceTests: XCTestCase {
         XCTAssertEqual(a, b, "availability must be a stable per-platform value")
     }
 
-    func testAuthorizationRequestNotCompletedBeforeRequest() {
-        // No test in this suite calls requestAuthorization() (it would trigger a
-        // real, possibly-blocking system prompt), so the flag stays at its
-        // initial false until a real auth round-trip sets it.
-        XCTAssertFalse(HealthKitService.shared.authorizationRequestCompleted)
-    }
+    // NOTE: there is deliberately no test asserting the *initial* value of
+    // `authorizationRequestCompleted`. The unit-test bundle is hosted by the
+    // MortalLoom app, whose launch `.task` calls
+    // `HealthKitService.shared.requestAuthorization()` (MortalLoomApp.swift) —
+    // so on a configuration where that request completes before the tests run,
+    // the flag is already true. Asserting its initial state would be
+    // environment-dependent, not an isolated invariant.
 
     func testDailyStatsEmptyForFutureRange() async {
         guard HealthKitService.shared.isAvailable else { return }
