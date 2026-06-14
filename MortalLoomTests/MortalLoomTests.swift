@@ -3887,6 +3887,22 @@ final class DeepLinkRouterTests: XCTestCase {
         XCTAssertEqual(DeepLinkRouter.parse(url), .weeklyReview)
     }
 
+    func testParsesMonthlyRethinkRoute() {
+        let url = URL(string: "mortalloom://review/monthly")!
+        XCTAssertEqual(DeepLinkRouter.parse(url), .monthlyRethink)
+    }
+
+    func testReviewSheetRoutesTargetOverview() {
+        XCTAssertEqual(DeepLinkRoute.weeklyReview.targetPage, .overview)
+        XCTAssertEqual(DeepLinkRoute.monthlyRethink.targetPage, .overview)
+    }
+
+    func testRejectsUnknownReviewSegment() {
+        // Only weekly/monthly are valid review flows.
+        let url = URL(string: "mortalloom://review/quarterly")!
+        XCTAssertNil(DeepLinkRouter.parse(url))
+    }
+
     func testRejectsUnknownScheme() {
         let url = URL(string: "https://example.com/goals")!
         XCTAssertNil(DeepLinkRouter.parse(url))
@@ -3955,6 +3971,53 @@ final class DeepLinkRouterTests: XCTestCase {
             XCTAssertEqual(DeepLinkRouter.parse(url), .page(page),
                            "AppPage \(page.title) should be reachable by its title")
         }
+    }
+
+    /// The sheet-presenting routes must post the sheet-open request their
+    /// destination view observes — this is the "finish the receiving side"
+    /// half of the deep-link wiring.
+    @MainActor
+    func testSheetRoutesPostOpenRequests() {
+        let goalId = UUID()
+        let cases: [(DeepLinkRoute, Notification.Name, UUID?)] = [
+            (.goalEdit(goalId), .openGoalEdit, goalId),
+            (.goalReflect(goalId), .openGoalReflect, goalId),
+            (.weeklyReview, .openWeeklyReview, nil),
+            (.monthlyRethink, .openMonthlyRethink, nil),
+        ]
+        for (route, name, expectedId) in cases {
+            let expectation = expectation(description: "posts \(name.rawValue)")
+            let token = NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { notif in
+                XCTAssertEqual(notif.object as? UUID, expectedId, "wrong object for \(name.rawValue)")
+                expectation.fulfill()
+            }
+            defer { NotificationCenter.default.removeObserver(token) }
+            route.applySideEffects()
+            wait(for: [expectation], timeout: 1.0)
+        }
+    }
+}
+
+// MARK: - Notification deep links
+
+/// Locks the `mortalloom://` URLs embedded in each reminder's `userInfo` to the
+/// routes `DeepLinkRouter` resolves them to, so a tap can never silently point
+/// at a stale or unparseable destination.
+final class NotificationDeepLinkTests: XCTestCase {
+    private func route(_ urlString: String) -> DeepLinkRoute? {
+        guard let url = URL(string: urlString) else { return nil }
+        return DeepLinkRouter.parse(url)
+    }
+
+    func testReminderDeepLinksResolve() {
+        XCTAssertEqual(route(NotificationService.dailyNudgeDeepLink), .page(.goals))
+        XCTAssertEqual(route(NotificationService.weeklyReviewDeepLink), .weeklyReview)
+        XCTAssertEqual(route(NotificationService.monthlyRethinkDeepLink), .monthlyRethink)
+    }
+
+    func testStagnationDeepLinkResolvesToGoalReflect() {
+        let goalId = UUID()
+        XCTAssertEqual(route(NotificationService.stagnationDeepLink(goalId: goalId)), .goalReflect(goalId))
     }
 }
 

@@ -66,6 +66,22 @@ final class NotificationService {
     static let monthlyRethinkIdentifier = "mortalloom.monthly-rethink"
     static let stagnationPrefix = "mortalloom.stagnation."
 
+    // MARK: Deep links
+
+    /// `mortalloom://` URLs embedded in each reminder's `userInfo` so a tap
+    /// routes through `NotificationDelegate` → `DeepLinkRouter` to the matching
+    /// page / sheet. Kept as constants (rather than inlined at each call site)
+    /// so they're round-trip-tested against the router in one place.
+    nonisolated static let dailyNudgeDeepLink = "mortalloom://goals"
+    nonisolated static let weeklyReviewDeepLink = "mortalloom://review/weekly"
+    nonisolated static let monthlyRethinkDeepLink = "mortalloom://review/monthly"
+
+    /// Per-goal `mortalloom://goal/<uuid>/reflect` link for a stagnation alert,
+    /// so tapping it opens that goal's check-in sheet.
+    nonisolated static func stagnationDeepLink(goalId: UUID) -> String {
+        "mortalloom://goal/\(goalId.uuidString)/reflect"
+    }
+
     // MARK: Authorization
 
     /// Request notification permission. Returns true if the user granted
@@ -129,6 +145,7 @@ final class NotificationService {
             title: "Daily Nudge",
             body: ReflectionPrompts.dailyNudge,
             components: ReflectionPlan.dailyComponents(hour: hour),
+            deepLink: Self.dailyNudgeDeepLink,
             logLabel: "daily nudge hour=\(hour)"
         )
     }
@@ -151,6 +168,7 @@ final class NotificationService {
             title: "Weekly Review",
             body: "5 minutes to reset alignment and plan the week.",
             components: ReflectionPlan.weeklyComponents(weekday: weekday, hour: hour),
+            deepLink: Self.weeklyReviewDeepLink,
             logLabel: "weekly review weekday=\(weekday) hour=\(hour)"
         )
     }
@@ -167,6 +185,7 @@ final class NotificationService {
             title: "Monthly Rethink",
             body: "Step back and reassess your goals for the month ahead.",
             components: ReflectionPlan.monthlyComponents(day: day, hour: hour),
+            deepLink: Self.monthlyRethinkDeepLink,
             logLabel: "monthly rethink day=\(day) hour=\(hour)"
         )
     }
@@ -180,6 +199,7 @@ final class NotificationService {
         title: String,
         body: String,
         components: DateComponents,
+        deepLink: String,
         logLabel: String
     ) async {
         let center = UNUserNotificationCenter.current()
@@ -190,6 +210,7 @@ final class NotificationService {
         content.title = title
         content.body = body
         content.sound = .default
+        content.userInfo[NotificationDelegate.deepLinkUserInfoKey] = deepLink
 
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
         let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
@@ -287,6 +308,10 @@ final class NotificationService {
         content.body = signal.detail
         content.sound = .default
         content.subtitle = signal.suggestedPrompt
+        // Tapping a stagnation alert opens the affected goal's check-in sheet.
+        if let goalId = signal.goalId {
+            content.userInfo[NotificationDelegate.deepLinkUserInfoKey] = Self.stagnationDeepLink(goalId: goalId)
+        }
 
         // Fire once 15 minutes from now so we don't blast the user
         // immediately on app launch. Rescheduling is debounced by the
@@ -369,4 +394,51 @@ enum ReflectionPlan {
     static func clampHour(_ hour: Int) -> Int { min(23, max(0, hour)) }
     static func clampWeekday(_ weekday: Int) -> Int { min(7, max(1, weekday)) }
     static func clampMonthDay(_ day: Int) -> Int { min(28, max(1, day)) }
+}
+
+// MARK: - NotificationDelegate
+
+/// Routes notification taps into the app's deep-link system. Each scheduled
+/// notification carries a `mortalloom://` URL in its `userInfo`; on tap this
+/// delegate parses it with `DeepLinkRouter` and replays the exact navigate +
+/// `applySideEffects()` path the `onOpenURL` handlers use, so a tapped reminder
+/// lands on the same page/sheet a widget tap or pasted URL would.
+///
+/// A class (not an actor or struct) because `UNUserNotificationCenterDelegate`
+/// is an `@objc` protocol that requires an `NSObject` conformer — the same
+/// framework constraint that makes `AppDelegate` a class. It holds no mutable
+/// state (the singleton is immutable and its handlers hop to `@MainActor` for
+/// the actual work), so `@unchecked Sendable` is safe.
+final class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate, @unchecked Sendable {
+    static let shared = NotificationDelegate()
+    private override init() { super.init() }
+
+    /// `userInfo` key under which each notification stores its `mortalloom://`
+    /// deep link. Single source of truth shared by the schedulers (which write
+    /// it) and this delegate (which reads it).
+    static let deepLinkUserInfoKey = "deepLinkURL"
+
+    /// Show banners (and play sound) even while the app is foregrounded, so a
+    /// reminder that fires while the user is in the app isn't silently dropped.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        [.banner, .sound]
+    }
+
+    /// Handle a notification tap by routing its embedded deep link.
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        let userInfo = response.notification.request.content.userInfo
+        guard let urlString = userInfo[Self.deepLinkUserInfoKey] as? String,
+              let url = URL(string: urlString),
+              let route = DeepLinkRouter.parse(url) else { return }
+        await MainActor.run {
+            NotificationCenter.default.post(name: .navigateToPage, object: route.targetPage)
+            route.applySideEffects()
+        }
+    }
 }

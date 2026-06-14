@@ -53,6 +53,15 @@ struct OverviewView: View {
         .onReceive(NotificationCenter.default.publisher(for: .profileDidChange)) { _ in
             Task { await loadData() }
         }
+        // Deep links from the weekly-review / monthly-rethink reminder
+        // notifications (mortalloom://review/weekly|monthly). Overview is the
+        // owning page for both sheets, so it opens them directly on request.
+        .onReceive(NotificationCenter.default.publisher(for: .openWeeklyReview)) { _ in
+            showWeeklyReview = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .openMonthlyRethink)) { _ in
+            showMonthlyRethink = true
+        }
         .sheet(isPresented: $showCitations) { CitationsView() }
         .sheet(isPresented: $showAddGoal) {
             GoalEditSheet(

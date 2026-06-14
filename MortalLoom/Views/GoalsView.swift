@@ -30,6 +30,11 @@ struct GoalsView: View {
     /// `loadData()` so a cold-launch widget tap still opens the sheet.
     @State private var pendingReflectGoalId: UUID?
 
+    /// Goal id requested via `.openGoalEdit` (notification / deep link) before
+    /// `vm.goals` finished loading. Resolved at the end of `loadData()` so a
+    /// cold-launch tap still opens the edit sheet (or pillar dashboard).
+    @State private var pendingEditGoalId: UUID?
+
     private static let treeLineColor = Color.textMuted.opacity(0.4)
     private static let treeLineWidth: CGFloat = 1.5
     private static let treeColumnWidth: CGFloat = 24
@@ -204,6 +209,25 @@ struct GoalsView: View {
                 pendingReflectGoalId = id
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .openGoalEdit)) { notif in
+            guard let id = notif.object as? UUID else { return }
+            if let goal = vm.goals.first(where: { $0.id == id }) {
+                presentEdit(goal)
+            } else {
+                pendingEditGoalId = id
+            }
+        }
+    }
+
+    /// A life pillar (sub-apex) opens its drill-in dashboard; every other goal
+    /// opens the edit sheet — mirroring the tap behaviour in the goal tree so a
+    /// deep link lands on the same destination as a manual tap.
+    private func presentEdit(_ goal: Goal) {
+        if goal.goalType == .subApex {
+            pillarDashboardGoal = goal
+        } else {
+            editingGoal = goal
+        }
     }
 
     private func saveAndReload(_ action: @escaping () async -> Void) {
@@ -227,6 +251,12 @@ struct GoalsView: View {
            let goal = vm.goals.first(where: { $0.id == pending }) {
             pendingReflectGoalId = nil
             checkInGoal = goal
+        }
+
+        if let pending = pendingEditGoalId,
+           let goal = vm.goals.first(where: { $0.id == pending }) {
+            pendingEditGoalId = nil
+            presentEdit(goal)
         }
     }
 
