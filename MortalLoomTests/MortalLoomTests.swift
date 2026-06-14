@@ -2494,6 +2494,28 @@ final class CorrelationEngineEdgeCaseTests: XCTestCase {
         XCTAssertEqual(result.first?.avgDailyActiveDistance ?? 0, 10.0, accuracy: 0.0001)
     }
 
+    func testActiveDistanceAveragesSparseCyclingOverAllDistanceDays() {
+        // Walking every day (4 km), a single cycling ride (30 km) on one day.
+        // Active distance must average the per-day total over all days that had a
+        // distance reading — NOT sum the two independently-averaged series, which
+        // would report 4 + 30 = 34 km/day for the sparse ride.
+        let testDate = "2026-03-15"
+        let test = BloodTest(date: testDate, markers: ["ldl": 100])
+        let metrics = (1...3).map { dayOffset -> HealthMetricEntry in
+            let day = Calendar.current.date(byAdding: .day, value: -dayOffset,
+                                            to: DateFormatting.dateFromString(testDate)!)!
+            return HealthMetricEntry(
+                date: DateFormatting.dateString(day),
+                steps: 5000,
+                walkingDistance: 4.0,
+                distanceCycling: dayOffset == 1 ? 30.0 : nil
+            )
+        }
+        let result = CorrelationEngine.buildCorrelationData(tests: [test], healthMetrics: metrics)
+        // (4 + 4 + 4 + 30) / 3 days = 14, not 4 + 30 = 34.
+        XCTAssertEqual(result.first?.avgDailyActiveDistance ?? 0, 14.0, accuracy: 0.0001)
+    }
+
     func testActiveDistanceNilWhenNoDistanceData() {
         let testDate = "2026-03-15"
         let test = BloodTest(date: testDate, markers: ["ldl": 100])
