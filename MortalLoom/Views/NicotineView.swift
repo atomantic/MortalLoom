@@ -37,6 +37,7 @@ struct NicotineView: View {
             nicotineStatsBar
             nicotineChart
             nicotineHeartRateCorrelation
+            nicotineCardioRecoveryCorrelation
             nicotineCustomForm
             nicotineHistory
         }
@@ -203,6 +204,103 @@ struct NicotineView: View {
                 .frame(maxWidth: .infinity)
 
                 Text(model.explanation)
+                    .font(.caption2)
+                    .foregroundColor(.textMuted)
+            }
+            .padding()
+            .cardStyle()
+        }
+    }
+
+    // MARK: Nicotine + Cardio Recovery Correlation
+
+    /// Pairs daily nicotine intake with the *next* day's cardio recovery (the
+    /// bpm the heart rate drops one minute after exercise — higher is fitter).
+    /// Contrasts the user's nicotine days against their clean days, mirroring the
+    /// alcohol → sleep card.
+    @ViewBuilder
+    private var nicotineCardioRecoveryCorrelation: some View {
+        let dataPoints = CorrelationEngine.nicotineCardioRecoveryCorrelation(
+            entries: nicotineEntries,
+            healthMetrics: healthMetrics
+        )
+
+        let nicotineDays = dataPoints.filter { $0.nicotineMg > 0 }
+        let cleanDays = dataPoints.filter { $0.nicotineMg == 0 }
+
+        let avgRecoveryNicotine = substanceAverage(nicotineDays.compactMap(\.nextDayCardioRecovery))
+        let avgRecoveryClean = substanceAverage(cleanDays.compactMap(\.nextDayCardioRecovery))
+
+        let hasData = !nicotineDays.isEmpty && !cleanDays.isEmpty
+            && avgRecoveryNicotine != nil && avgRecoveryClean != nil
+
+        if hasData {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Nicotine + Cardio Recovery")
+                    .font(.headline)
+                    .foregroundColor(.textPrimary)
+
+                // Last 60 data points max for readability
+                let chartData = dataPoints.suffix(60)
+
+                Chart {
+                    ForEach(Array(chartData), id: \.date) { item in
+                        if item.nicotineMg > 0 {
+                            BarMark(
+                                x: .value("Date", item.date),
+                                y: .value("mg", item.nicotineMg)
+                            )
+                            .foregroundStyle(Color.warning.opacity(0.3))
+                        }
+                        if let recovery = item.nextDayCardioRecovery {
+                            LineMark(
+                                x: .value("Date", item.date),
+                                y: .value("Recovery", recovery),
+                                series: .value("Metric", "Cardio Recovery")
+                            )
+                            .foregroundStyle(Color.success)
+                            .lineStyle(StrokeStyle(lineWidth: 2))
+                        }
+                    }
+                }
+                .chartXAxis {
+                    AxisMarks(values: .stride(by: .day, count: 14)) { _ in
+                        AxisGridLine()
+                        AxisValueLabel(format: .dateTime.month(.abbreviated).day(), centered: true)
+                    }
+                }
+                .chartForegroundStyleScale([
+                    "Cardio Recovery": Color.success,
+                    "Nicotine": Color.warning.opacity(0.3),
+                ])
+                .frame(height: Layout.chartFrameHeight)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Nicotine and cardio recovery correlation. Average next-day recovery after nicotine days: \(String(format: "%.0f", avgRecoveryNicotine ?? 0)) bpm. After clean days: \(String(format: "%.0f", avgRecoveryClean ?? 0)) bpm")
+
+                // Higher recovery is better, so baseline = clean: a positive Δ
+                // means nicotine days recover *less*.
+                let recoveryDiff = substancePctDifference(avgRecoveryClean, avgRecoveryNicotine)
+
+                HStack(spacing: 12) {
+                    sleepStatColumn(
+                        label: "Recovery (Nicotine)",
+                        value: String(format: "%.0f bpm", avgRecoveryNicotine ?? 0),
+                        color: .warning
+                    )
+                    sleepStatColumn(
+                        label: "Recovery (Clean)",
+                        value: String(format: "%.0f bpm", avgRecoveryClean ?? 0),
+                        color: .success
+                    )
+                    sleepStatColumn(
+                        label: "Recovery Δ",
+                        value: String(format: "%.1f%%", abs(recoveryDiff ?? 0)) + (recoveryDiff.map { $0 > 0 ? " less" : " more" } ?? ""),
+                        color: (recoveryDiff ?? 0) > 0 ? .danger : .success
+                    )
+                }
+                .frame(maxWidth: .infinity)
+
+                Text("A faster 1-minute heart-rate drop after exercise signals better cardiovascular fitness. Nicotine constricts blood vessels and elevates heart rate, which can blunt recovery.")
                     .font(.caption2)
                     .foregroundColor(.textMuted)
             }

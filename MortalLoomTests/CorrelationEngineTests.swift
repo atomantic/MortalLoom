@@ -41,6 +41,7 @@ final class CorrelationEngineNextDayPairingTests: XCTestCase {
     private func metric(
         _ date: String,
         hrv: Double? = nil,
+        cardioRecovery: Double? = nil,
         sleepHours: Double? = nil,
         sleepDeepHours: Double? = nil,
         sleepRemHours: Double? = nil,
@@ -52,8 +53,13 @@ final class CorrelationEngineNextDayPairingTests: XCTestCase {
             sleepHours: sleepHours,
             sleepDeepHours: sleepDeepHours,
             sleepRemHours: sleepRemHours,
+            cardioRecovery: cardioRecovery,
             breathingDisturbances: breathingDisturbances
         )
+    }
+
+    private func nicotine(_ date: String, mg: Double) -> NicotineEntry {
+        NicotineEntry(product: "test", mgPerUnit: mg, count: 1, date: date)
     }
 
     // MARK: - sleepStagePercent
@@ -222,5 +228,72 @@ final class CorrelationEngineNextDayPairingTests: XCTestCase {
             healthMetrics: [metric(day(1), sleepHours: 7)]
         )
         XCTAssertTrue(result.isEmpty)
+    }
+
+    // MARK: - nicotineCardioRecoveryCorrelation
+
+    func testNicotineCardioRecovery_emptyInputsReturnEmpty() {
+        XCTAssertTrue(
+            CorrelationEngine.nicotineCardioRecoveryCorrelation(
+                entries: [], healthMetrics: [metric(day(1), cardioRecovery: 30)]
+            ).isEmpty
+        )
+        XCTAssertTrue(
+            CorrelationEngine.nicotineCardioRecoveryCorrelation(
+                entries: [nicotine(day(0), mg: 6)], healthMetrics: []
+            ).isEmpty
+        )
+    }
+
+    func testNicotineCardioRecovery_pairsNicotineWithNextDayRecovery() {
+        let result = CorrelationEngine.nicotineCardioRecoveryCorrelation(
+            entries: [nicotine(day(0), mg: 6)],
+            healthMetrics: [metric(day(1), cardioRecovery: 28)]
+        )
+        XCTAssertEqual(result.count, 1)
+        let p = result[0]
+        XCTAssertEqual(p.date, day(0))
+        XCTAssertEqual(p.nicotineMg, 6, accuracy: 0.0001)
+        XCTAssertEqual(p.nextDayCardioRecovery ?? .nan, 28, accuracy: 0.0001)
+    }
+
+    func testNicotineCardioRecovery_sumsMultipleSameDayEntries() {
+        let result = CorrelationEngine.nicotineCardioRecoveryCorrelation(
+            entries: [nicotine(day(0), mg: 6), nicotine(day(0), mg: 3)],
+            healthMetrics: [metric(day(1), cardioRecovery: 25)]
+        )
+        XCTAssertEqual(result.count, 1)
+        XCTAssertEqual(result[0].nicotineMg, 9, accuracy: 0.0001)
+    }
+
+    func testNicotineCardioRecovery_includesZeroNicotineContrastDay() {
+        // No nicotine near day 3, but a cardio-recovery metric on day 3 seeds its
+        // prior day (day 2) as a zero-nicotine contrast point.
+        let result = CorrelationEngine.nicotineCardioRecoveryCorrelation(
+            entries: [nicotine(day(10), mg: 6)],   // unrelated day, no next-day metric
+            healthMetrics: [metric(day(3), cardioRecovery: 32)]
+        )
+        let contrast = result.first { $0.date == day(2) }
+        XCTAssertNotNil(contrast)
+        XCTAssertEqual(contrast?.nicotineMg, 0)
+        XCTAssertEqual(contrast?.nextDayCardioRecovery ?? .nan, 32, accuracy: 0.0001)
+    }
+
+    func testNicotineCardioRecovery_skipsWhenNoRecoveryData() {
+        // Next-day metric carries only HRV, no cardioRecovery → not relevant.
+        let result = CorrelationEngine.nicotineCardioRecoveryCorrelation(
+            entries: [nicotine(day(0), mg: 6)],
+            healthMetrics: [metric(day(1), hrv: 50)]
+        )
+        XCTAssertTrue(result.isEmpty)
+    }
+
+    func testNicotineCardioRecovery_resultIsSortedByDate() {
+        let result = CorrelationEngine.nicotineCardioRecoveryCorrelation(
+            entries: [nicotine(day(4), mg: 6), nicotine(day(0), mg: 3), nicotine(day(2), mg: 9)],
+            healthMetrics: [metric(day(1), cardioRecovery: 30), metric(day(3), cardioRecovery: 31), metric(day(5), cardioRecovery: 29)]
+        )
+        XCTAssertEqual(result.map(\.date), [day(0), day(2), day(4)])
+        XCTAssertEqual(result.map(\.nicotineMg), [3, 9, 6])   // values survive the sort
     }
 }
