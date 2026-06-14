@@ -47,12 +47,27 @@ struct SettingsView: View {
     // Default on — the entire goal-alignment loop depends on a weekly
     // review. Users who want silence can still turn it off here, but we
     // don't start them out silent.
+    // Daily nudge is opt-in (off by default) — a daily ping is more intrusive
+    // than the weekly review, so we let users reach for it rather than starting
+    // them out with one.
+    @AppStorage(NotificationService.dailyNudgeEnabledKey)
+    private var dailyNudgeEnabled: Bool = false
+    @AppStorage(NotificationService.dailyNudgeHourKey)
+    private var dailyNudgeHour: Int = 9
     @AppStorage(NotificationService.weeklyReviewEnabledKey)
     private var weeklyReviewEnabled: Bool = true
     @AppStorage(NotificationService.weeklyReviewWeekdayKey)
     private var weeklyReviewWeekday: Int = 1  // Sunday
     @AppStorage(NotificationService.weeklyReviewHourKey)
     private var weeklyReviewHour: Int = 18
+    @AppStorage(NotificationService.monthlyRethinkEnabledKey)
+    private var monthlyRethinkEnabled: Bool = false
+    @AppStorage(NotificationService.monthlyRethinkDayKey)
+    private var monthlyRethinkDay: Int = 1
+    @AppStorage(NotificationService.monthlyRethinkHourKey)
+    private var monthlyRethinkHour: Int = 18
+    @AppStorage(NotificationService.defaultCheckInIntervalKey)
+    private var defaultCheckInInterval: Int = 7
     @AppStorage(NotificationService.stagnationAlertsEnabledKey)
     private var stagnationAlertsEnabled: Bool = false
 
@@ -120,6 +135,7 @@ struct SettingsView: View {
                     appearanceSection
                     countdownSection
                     habitsTrackersSection
+                    reflectionCadenceSection
                     notificationsSection
                 }
                 .padding()
@@ -186,6 +202,7 @@ struct SettingsView: View {
             setupGuideSection
             countdownSection
             habitsTrackersSection
+            reflectionCadenceSection
             notificationsSection
         }
     }
@@ -327,22 +344,44 @@ struct SettingsView: View {
         .cardStyle()
     }
 
-    // MARK: - Notifications
+    // MARK: - Reflection Cadence
 
     @ViewBuilder
-    private var notificationsSection: some View {
+    private var reflectionCadenceSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SectionLabel(text: "NOTIFICATIONS")
+            SectionLabel(text: "REFLECTION CADENCE")
 
-            Text("Local reminders only — nothing leaves your device.")
+            Text("Local reminders for your daily, weekly, and monthly reflection rituals — nothing leaves your device.")
                 .font(.caption)
                 .foregroundColor(.textSecondary)
 
-            Toggle("Weekly review reminder", isOn: $weeklyReviewEnabled)
+            // Daily nudge
+            Toggle("Daily nudge", isOn: $dailyNudgeEnabled)
+                .onChange(of: dailyNudgeEnabled) { _, enabled in
+                    Task { await NotificationService.shared.setDailyNudgeEnabled(enabled) }
+                }
+            if dailyNudgeEnabled {
+                HStack {
+                    Text("Hour")
+                        .font(.subheadline)
+                    Spacer()
+                    Stepper(value: $dailyNudgeHour, in: 0...23) {
+                        Text("\(formatHour(dailyNudgeHour))")
+                            .monospacedDigit()
+                    }
+                }
+                .onChange(of: dailyNudgeHour) { _, _ in
+                    Task { await NotificationService.shared.scheduleDailyNudge() }
+                }
+            }
+
+            Divider()
+
+            // Weekly review
+            Toggle("Weekly review", isOn: $weeklyReviewEnabled)
                 .onChange(of: weeklyReviewEnabled) { _, enabled in
                     Task { await NotificationService.shared.setWeeklyReviewEnabled(enabled) }
                 }
-
             if weeklyReviewEnabled {
                 HStack {
                     Text("Day")
@@ -376,6 +415,81 @@ struct SettingsView: View {
                     Task { await NotificationService.shared.scheduleWeeklyReviewReminder() }
                 }
             }
+
+            Divider()
+
+            // Monthly rethink
+            Toggle("Monthly rethink", isOn: $monthlyRethinkEnabled)
+                .onChange(of: monthlyRethinkEnabled) { _, enabled in
+                    Task { await NotificationService.shared.setMonthlyRethinkEnabled(enabled) }
+                }
+            if monthlyRethinkEnabled {
+                HStack {
+                    Text("Day")
+                        .font(.subheadline)
+                    Spacer()
+                    // Day-of-month capped at 28 so the reminder fires every
+                    // month (a 29–31 would skip short months).
+                    Stepper(value: $monthlyRethinkDay, in: 1...28) {
+                        Text("Day \(monthlyRethinkDay)")
+                            .monospacedDigit()
+                    }
+                }
+                HStack {
+                    Text("Hour")
+                        .font(.subheadline)
+                    Spacer()
+                    Stepper(value: $monthlyRethinkHour, in: 0...23) {
+                        Text("\(formatHour(monthlyRethinkHour))")
+                            .monospacedDigit()
+                    }
+                }
+                .onChange(of: monthlyRethinkDay) { _, _ in
+                    Task { await NotificationService.shared.scheduleMonthlyRethinkReminder() }
+                }
+                .onChange(of: monthlyRethinkHour) { _, _ in
+                    Task { await NotificationService.shared.scheduleMonthlyRethinkReminder() }
+                }
+            }
+
+            Divider()
+
+            // Global goal check-in default — the cadence a goal falls back to
+            // when you tap "Follow my global cadence" in the goal editor.
+            HStack {
+                Text("Goal check-in default")
+                    .font(.subheadline)
+                Spacer()
+                Picker("Goal check-in default", selection: $defaultCheckInInterval) {
+                    Text("2 days").tag(2)
+                    Text("3 days").tag(3)
+                    Text("5 days").tag(5)
+                    Text("1 week").tag(7)
+                    Text("2 weeks").tag(14)
+                    Text("1 month").tag(30)
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+            }
+            Text("The fallback cadence for goal reminders. Tap \u{201C}Follow my global cadence\u{201D} on a goal to snap it back to this.")
+                .font(.caption2)
+                .foregroundColor(.textMuted)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle()
+    }
+
+    // MARK: - Notifications
+
+    @ViewBuilder
+    private var notificationsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionLabel(text: "NOTIFICATIONS")
+
+            Text("Local reminders only — nothing leaves your device.")
+                .font(.caption)
+                .foregroundColor(.textSecondary)
 
             Toggle("Stagnation alerts", isOn: $stagnationAlertsEnabled)
                 .onChange(of: stagnationAlertsEnabled) { _, enabled in

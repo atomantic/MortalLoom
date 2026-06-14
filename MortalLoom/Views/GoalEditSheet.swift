@@ -77,7 +77,10 @@ struct GoalEditSheet: View {
             return Calendar.current.date(byAdding: .year, value: 1, to: Date()) ?? Date()
         }())
         _priority = State(initialValue: g?.priority ?? defaultPriority ?? .medium)
-        _checkInInterval = State(initialValue: g?.checkInIntervalDays ?? 7)
+        // Existing goals keep their saved cadence; new goals inherit the
+        // global check-in default (Settings → Reflection Cadence).
+        _checkInInterval = State(initialValue: g?.checkInIntervalDays
+            ?? (UserDefaults.standard.object(forKey: NotificationService.defaultCheckInIntervalKey) as? Int ?? 7))
         _milestoneTexts = State(initialValue: g?.milestones.map {
             MilestoneRow(id: $0.id, text: $0.title, completed: $0.completed)
         } ?? [])
@@ -269,6 +272,17 @@ struct GoalEditSheet: View {
                         } label: {
                             Label("Use smart default for this timeline",
                                   systemImage: "sparkles")
+                                .font(.caption)
+                        }
+                        Button {
+                            // Clear the per-goal override: snap back to the
+                            // global check-in cadence set in Settings →
+                            // Reflection Cadence.
+                            checkInInterval = UserDefaults.standard
+                                .object(forKey: NotificationService.defaultCheckInIntervalKey) as? Int ?? 7
+                        } label: {
+                            Label("Follow my global cadence",
+                                  systemImage: "globe")
                                 .font(.caption)
                         }
                     } header: {

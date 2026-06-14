@@ -31,12 +31,29 @@ final class NotificationService {
 
     // MARK: Keys
 
+    // Daily nudge — a once-a-day reflection prompt at the chosen hour.
+    static let dailyNudgeEnabledKey = "notifications.dailyNudgeEnabled"
+    static let dailyNudgeHourKey = "notifications.dailyNudgeHour"            // 0–23
+
     static let weeklyReviewEnabledKey = "notifications.weeklyReviewEnabled"
     static let weeklyReviewWeekdayKey = "notifications.weeklyReviewWeekday"  // 1=Sun ... 7=Sat
     static let weeklyReviewHourKey = "notifications.weeklyReviewHour"        // 0–23
+
+    // Monthly rethink — a once-a-month prompt on the chosen day-of-month.
+    static let monthlyRethinkEnabledKey = "notifications.monthlyRethinkEnabled"
+    static let monthlyRethinkDayKey = "notifications.monthlyRethinkDay"      // 1–28
+    static let monthlyRethinkHourKey = "notifications.monthlyRethinkHour"    // 0–23
+
     static let stagnationAlertsEnabledKey = "notifications.stagnationAlertsEnabled"
 
+    /// Global default goal check-in interval (days). The "Follow my global
+    /// cadence" button on GoalEditSheet snaps a goal's per-goal override back
+    /// to this value, and new goals inherit it as their reminder cadence.
+    static let defaultCheckInIntervalKey = "reflection.defaultCheckInIntervalDays"
+
+    static let dailyNudgeIdentifier = "mortalloom.daily-nudge"
     static let weeklyReviewIdentifier = "mortalloom.weekly-review"
+    static let monthlyRethinkIdentifier = "mortalloom.monthly-rethink"
     static let stagnationPrefix = "mortalloom.stagnation."
 
     // MARK: Authorization
@@ -62,44 +79,105 @@ final class NotificationService {
         return settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional
     }
 
-    // MARK: Weekly review
+    // MARK: Reflection plan (daily / weekly / monthly)
 
-    /// Schedule the repeating weekly-review reminder at the configured
-    /// weekday + hour. Replaces any existing reminder so settings changes
-    /// take effect immediately. No-op if the user has opted out.
+    /// Register every enabled reflection-cadence reminder against its current
+    /// pref. Each ritual is an independent `UNCalendarNotificationTrigger`
+    /// keyed by a stable identifier, so toggling or retiming one never
+    /// disturbs the others. Idempotent — each call clears and re-adds the
+    /// single pending request for each ritual, so it's safe to run on every
+    /// launch and after any settings change.
+    func scheduleReflectionPlan() async {
+        await scheduleDailyNudge()
+        await scheduleWeeklyReviewReminder()
+        await scheduleMonthlyRethinkReminder()
+    }
+
+    /// Daily nudge — fires every day at the configured hour (default 9am).
+    func scheduleDailyNudge() async {
+        let defaults = UserDefaults.standard
+        let hour = defaults.object(forKey: Self.dailyNudgeHourKey) as? Int ?? 9
+        await scheduleCalendarReminder(
+            enabled: defaults.bool(forKey: Self.dailyNudgeEnabledKey),
+            identifier: Self.dailyNudgeIdentifier,
+            title: "Daily Nudge",
+            body: ReflectionPrompts.dailyNudge,
+            components: ReflectionPlan.dailyComponents(hour: hour),
+            logLabel: "daily nudge hour=\(hour)"
+        )
+    }
+
+    /// Weekly review — fires on the configured weekday + hour (default Sunday
+    /// 6pm). Replaces any existing reminder so settings changes take effect
+    /// immediately. No-op if the user has opted out.
     func scheduleWeeklyReviewReminder() async {
         let defaults = UserDefaults.standard
-        let enabled = defaults.bool(forKey: Self.weeklyReviewEnabledKey)
-        let center = UNUserNotificationCenter.current()
-        center.removePendingNotificationRequests(withIdentifiers: [Self.weeklyReviewIdentifier])
-        guard enabled else { return }
-
-        // Defaults: Sunday at 6pm.
         let weekday = defaults.object(forKey: Self.weeklyReviewWeekdayKey) as? Int ?? 1
         let hour = defaults.object(forKey: Self.weeklyReviewHourKey) as? Int ?? 18
+        await scheduleCalendarReminder(
+            enabled: defaults.bool(forKey: Self.weeklyReviewEnabledKey),
+            identifier: Self.weeklyReviewIdentifier,
+            title: "Weekly Review",
+            body: "5 minutes to reset alignment and plan the week.",
+            components: ReflectionPlan.weeklyComponents(weekday: weekday, hour: hour),
+            logLabel: "weekly review weekday=\(weekday) hour=\(hour)"
+        )
+    }
+
+    /// Monthly rethink — fires on the configured day-of-month + hour (default
+    /// the 1st at 6pm). Day is clamped to 1…28 so it fires every month.
+    func scheduleMonthlyRethinkReminder() async {
+        let defaults = UserDefaults.standard
+        let day = defaults.object(forKey: Self.monthlyRethinkDayKey) as? Int ?? 1
+        let hour = defaults.object(forKey: Self.monthlyRethinkHourKey) as? Int ?? 18
+        await scheduleCalendarReminder(
+            enabled: defaults.bool(forKey: Self.monthlyRethinkEnabledKey),
+            identifier: Self.monthlyRethinkIdentifier,
+            title: "Monthly Rethink",
+            body: "Step back and reassess your goals for the month ahead.",
+            components: ReflectionPlan.monthlyComponents(day: day, hour: hour),
+            logLabel: "monthly rethink day=\(day) hour=\(hour)"
+        )
+    }
+
+    /// Shared scheduler for every plan-based reminder. Clears the existing
+    /// pending request for `identifier`, then (if enabled) registers a single
+    /// repeating calendar trigger built from `components`.
+    private func scheduleCalendarReminder(
+        enabled: Bool,
+        identifier: String,
+        title: String,
+        body: String,
+        components: DateComponents,
+        logLabel: String
+    ) async {
+        let center = UNUserNotificationCenter.current()
+        center.removePendingNotificationRequests(withIdentifiers: [identifier])
+        guard enabled else { return }
 
         let content = UNMutableNotificationContent()
-        content.title = "Weekly Review"
-        content.body = "5 minutes to reset alignment and plan the week."
+        content.title = title
+        content.body = body
         content.sound = .default
 
-        var dateComponents = DateComponents()
-        dateComponents.weekday = weekday
-        dateComponents.hour = hour
-        dateComponents.minute = 0
-
-        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
-        let request = UNNotificationRequest(
-            identifier: Self.weeklyReviewIdentifier,
-            content: content,
-            trigger: trigger
-        )
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
         do {
             try await center.add(request)
-            notificationLogger.info("🔔 scheduled weekly review for weekday=\(weekday), hour=\(hour)")
+            notificationLogger.info("🔔 scheduled \(logLabel, privacy: .public)")
         } catch {
-            notificationLogger.error("🔔 failed to schedule weekly review: \(error.localizedDescription, privacy: .private)")
+            notificationLogger.error("🔔 failed to schedule \(logLabel, privacy: .public): \(error.localizedDescription, privacy: .private)")
         }
+    }
+
+    /// Convenience to toggle the daily nudge on/off. Persists the choice and
+    /// re-schedules (or clears) in one call.
+    func setDailyNudgeEnabled(_ enabled: Bool) async {
+        UserDefaults.standard.set(enabled, forKey: Self.dailyNudgeEnabledKey)
+        if enabled {
+            _ = await requestAuthorization()
+        }
+        await scheduleDailyNudge()
     }
 
     /// Convenience to toggle weekly-review reminders on/off. Persists the
@@ -110,6 +188,16 @@ final class NotificationService {
             _ = await requestAuthorization()
         }
         await scheduleWeeklyReviewReminder()
+    }
+
+    /// Convenience to toggle the monthly rethink on/off. Persists the choice
+    /// and re-schedules (or clears) in one call.
+    func setMonthlyRethinkEnabled(_ enabled: Bool) async {
+        UserDefaults.standard.set(enabled, forKey: Self.monthlyRethinkEnabledKey)
+        if enabled {
+            _ = await requestAuthorization()
+        }
+        await scheduleMonthlyRethinkReminder()
     }
 
     // MARK: Stagnation alerts
@@ -210,4 +298,44 @@ final class NotificationService {
             .filter { $0.isLetter || $0 == "-" }
         return "\(stagnationPrefix)\(goalSegment).\(titleKey)"
     }
+}
+
+// MARK: - ReflectionPlan
+
+/// Pure builders for the reflection-plan calendar triggers. Kept separate from
+/// `NotificationService` (which is `@MainActor` and touches the notification
+/// center) so the date-component math is unit-testable in isolation. Each
+/// builder clamps its inputs to a range the calendar can always satisfy.
+enum ReflectionPlan {
+    /// Daily nudge: matches `hour` on every day → fires once per day.
+    static func dailyComponents(hour: Int) -> DateComponents {
+        var c = DateComponents()
+        c.hour = clampHour(hour)
+        c.minute = 0
+        return c
+    }
+
+    /// Weekly review: matches `weekday` (1=Sun…7=Sat) + `hour` → fires weekly.
+    static func weeklyComponents(weekday: Int, hour: Int) -> DateComponents {
+        var c = DateComponents()
+        c.weekday = clampWeekday(weekday)
+        c.hour = clampHour(hour)
+        c.minute = 0
+        return c
+    }
+
+    /// Monthly rethink: matches `day`-of-month + `hour` → fires monthly. Day is
+    /// clamped to 1…28 so the trigger fires in every month, February included
+    /// (a `day` of 29–31 would silently skip months that lack that date).
+    static func monthlyComponents(day: Int, hour: Int) -> DateComponents {
+        var c = DateComponents()
+        c.day = clampMonthDay(day)
+        c.hour = clampHour(hour)
+        c.minute = 0
+        return c
+    }
+
+    static func clampHour(_ hour: Int) -> Int { min(23, max(0, hour)) }
+    static func clampWeekday(_ weekday: Int) -> Int { min(7, max(1, weekday)) }
+    static func clampMonthDay(_ day: Int) -> Int { min(28, max(1, day)) }
 }
