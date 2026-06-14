@@ -100,6 +100,7 @@ struct GenomeVisitModeView: View {
                 .buttonStyle(.plain)
                 .foregroundColor(.accentColor)
                 .disabled(position <= 1)
+                .accessibilityLabel("Previous finding")
 
                 Spacer()
                 Text("Finding \(position) of \(sources.count) · \(savedKeys.count) noted")
@@ -113,6 +114,7 @@ struct GenomeVisitModeView: View {
                 .buttonStyle(.plain)
                 .foregroundColor(.accentColor)
                 .disabled(position >= sources.count)
+                .accessibilityLabel("Next finding")
             }
             ProgressView(value: Double(savedKeys.count), total: Double(max(sources.count, 1)))
                 .tint(.accentColor)
