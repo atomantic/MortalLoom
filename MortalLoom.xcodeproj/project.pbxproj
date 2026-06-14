@@ -134,6 +134,7 @@
 		7E4E92253B912DCEDAAF3099 /* LocationEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E57DA8048A455E727B5CC4DB /* LocationEngineTests.swift */; };
 		7F7F4630EB6FC3520EF29934 /* CheckInSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B0F90005664C275BC30D701 /* CheckInSheet.swift */; };
 		8188C74010141640C74E16A5 /* GoalEngine+ViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F5050189FF755E67D823D83 /* GoalEngine+ViewModel.swift */; };
+		81A9C1D6E5985BC79D303C8A /* DataStoreCRUDTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C1BB76B4A4CA2EADD781347 /* DataStoreCRUDTests.swift */; };
 		82CC4290606C361863AABCDA /* BloodTrendEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1EEC8E756E144273D6BC24A /* BloodTrendEngine.swift */; };
 		8401E8917A3996E71CDF7B45 /* MonthlyReportEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36EE02EED59E765612370BAC /* MonthlyReportEngineTests.swift */; };
 		8511F3B807C1BD9B498818D4 /* HealthMetricEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44962B353191269E702D9756 /* HealthMetricEntry.swift */; };
@@ -144,6 +145,7 @@
 		869611D2CCF44F18689B994B /* GenomeSplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FFD70EACFB652B2CD985DEB /* GenomeSplitView.swift */; };
 		87D1240D778BA3F731A71EE4 /* GenomeAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E18963CDE5F8FF6970AC611 /* GenomeAction.swift */; };
 		884893922D3689B12DC1E4C6 /* CuratedMarkers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69B73CEA0F3655CDD11A007C /* CuratedMarkers.swift */; };
+		885F71AC8817A013472F5073 /* ICloudMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7701F72D617ADC8861659651 /* ICloudMonitorTests.swift */; };
 		89C3332067D295F52E472691 /* EyeExam.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6800ABC07A07655F56FA658 /* EyeExam.swift */; };
 		8C19A5E55E1FB654D3DA2695 /* ReflectionPlanTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CDF047C232F7CCDA666F5DD /* ReflectionPlanTests.swift */; };
 		8C282E3213684B0F59A9C08A /* GenomeVisitModeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 361D50D058190DD5B013A644 /* GenomeVisitModeView.swift */; };
@@ -159,6 +161,7 @@
 		A1FBD8F4C173AA81799B2489 /* AppDataMergeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 859D4E25FD093A28421D8FC3 /* AppDataMergeTests.swift */; };
 		A219E92A26CEA7CAB05EF161 /* GenomeVisit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 867DC664E8C2F244D4AF5195 /* GenomeVisit.swift */; };
 		A6EB0C62E00D3ED8F86906DE /* VisitNoteSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3475291D6C3512857F14B23 /* VisitNoteSheet.swift */; };
+		A7033F9E54E373E95FE493C8 /* DataStoreCRUDTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C1BB76B4A4CA2EADD781347 /* DataStoreCRUDTests.swift */; };
 		A73CD34088229F306FF7618D /* SubstanceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C204F5FE0B519C1DEDB7AF47 /* SubstanceEngine.swift */; };
 		A99F77F33CA23F911825433B /* MortalLoomWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 9C75EBA8B78FFDE7A1FC5925 /* MortalLoomWidget.appex */; platformFilter = ios; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		AA6C2E9E92FDD28CC9446059 /* SideMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50C5058BFC45EAA680969317 /* SideMenuView.swift */; };
@@ -166,6 +169,7 @@
 		ACE2E4DB9B71C91FFD0CAFB4 /* HabitsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = E111F446BEE46519945A5B55 /* HabitsSection.swift */; };
 		AD707A8477803FC1EF7FE162 /* GenomePriorityEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BE9471821AEECB084B2CBF5 /* GenomePriorityEngineTests.swift */; };
 		AD7F1DCB8D68FC9792B1F154 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8DFE4C5B3F84209835BAB96B /* Assets.xcassets */; };
+		ADC3CE5F4A92A87C128CABB0 /* HealthKitServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EAD39B61C857C0C1EE807FA /* HealthKitServiceTests.swift */; };
 		AE176E056A85CCF2E5584D82 /* GenomeReportPDF.swift in Sources */ = {isa = PBXBuildFile; fileRef = A59C6B49D356BDAB11A9E393 /* GenomeReportPDF.swift */; };
 		AFEC98A04665866E1D63051F /* DataStoreConcurrencyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2498128807CA3134DE063CAD /* DataStoreConcurrencyTests.swift */; };
 		B0022D3DB92D93F00EA04972 /* CalendarService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 723C631FD440620914CDCDDD /* CalendarService.swift */; };
@@ -197,6 +201,7 @@
 		C41D60E4758EAA39ED0E77A8 /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 122239D01E7F6BBD60C37DE8 /* LocationService.swift */; };
 		C44427C13AD0C0AA2386B7C1 /* CollectionMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF14662C31A489DE85B5CABE /* CollectionMath.swift */; };
 		C505D8C48C08E5ECEAE8215B /* BloodTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92F50631566FFE40D88FAD5C /* BloodTest.swift */; };
+		C54576638E375B95A20FA694 /* FileManagerNewerOfTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B691C43C8CC4EB8A2419A180 /* FileManagerNewerOfTests.swift */; };
 		C67BE9934D2AADF7D3D8EC77 /* SaunaView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCD31434B17EF3EF7CDD5819 /* SaunaView.swift */; };
 		C6F5E6886D7CABB0D1096EBD /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 122239D01E7F6BBD60C37DE8 /* LocationService.swift */; };
 		C7369D6EA99910CEA2C27194 /* GoalsViewHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB2C9C845CDE8F2A4335C20 /* GoalsViewHelpers.swift */; };
@@ -242,8 +247,10 @@
 		E9E92C07377B4F5069A8646E /* GoalsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F9ADA70E28A5E28CA55C63F /* GoalsView.swift */; };
 		EB21DC7DD79B1721F735B262 /* TimeAllocationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60C5885AC1B7FC80D46EFD30 /* TimeAllocationEngine.swift */; };
 		EBC172AE4864D745FD07D7AE /* EpigeneticAgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77844CCBF33EB11E4DA82C96 /* EpigeneticAgeView.swift */; };
+		ECAE574495A557F651B91A57 /* HealthKitServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EAD39B61C857C0C1EE807FA /* HealthKitServiceTests.swift */; };
 		ECB7A4227A693D793AA5C0FE /* SubstanceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C204F5FE0B519C1DEDB7AF47 /* SubstanceEngine.swift */; };
 		EEB3ADC7A5DDD3EE840B6AAA /* ReflectionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96374925D1E172E0CA886433 /* ReflectionsView.swift */; };
+		EF9103BAE70E11216C06C458 /* FileManagerNewerOfTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B691C43C8CC4EB8A2419A180 /* FileManagerNewerOfTests.swift */; };
 		F105B03D056A11378D9C492A /* Habit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02C324CF3FE8BFA8C6F99EFA /* Habit.swift */; };
 		F11F28C3D87642D8664D4186 /* GenomeAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E18963CDE5F8FF6970AC611 /* GenomeAction.swift */; };
 		F28C81AC19C7622C2C4C4A5C /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 215B069F66D7F15999E101D1 /* PrivacyInfo.xcprivacy */; };
@@ -256,6 +263,7 @@
 		F9CFE333BC9375AD2A481B9C /* LifestyleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFAFEF1D1D8E89AA3E949F4F /* LifestyleView.swift */; };
 		FA966D2565276920FE650F8E /* AirQualityService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D73A7E2545FD3011BED42B1 /* AirQualityService.swift */; };
 		FB48FECF084FE4302BBFD024 /* MortalLoomTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93CDAC363DF57A04037AECCA /* MortalLoomTests.swift */; };
+		FE4439226152A22A3EF7CCA7 /* ICloudMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7701F72D617ADC8861659651 /* ICloudMonitorTests.swift */; };
 		FEE7009A7FE8005BB9A3E2B0 /* CalendarService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 723C631FD440620914CDCDDD /* CalendarService.swift */; };
 /* End PBXBuildFile section */
 
@@ -374,6 +382,7 @@
 		4866C551187394E53C4FA23A /* SleepEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepEngine.swift; sourceTree = "<group>"; };
 		4BB08E31839DCECA66643126 /* WeeklyReviewSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReviewSheet.swift; sourceTree = "<group>"; };
 		4E3C038E534F934207BB8F73 /* GenomeVisitNotesPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenomeVisitNotesPane.swift; sourceTree = "<group>"; };
+		4EAD39B61C857C0C1EE807FA /* HealthKitServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitServiceTests.swift; sourceTree = "<group>"; };
 		4F60EF4D97E9758161DB0627 /* DeathClockEngineMortalityMathTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeathClockEngineMortalityMathTests.swift; sourceTree = "<group>"; };
 		4FCF31AF121B47E7C7DF22B1 /* HealthProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthProfile.swift; sourceTree = "<group>"; };
 		50C5058BFC45EAA680969317 /* SideMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideMenuView.swift; sourceTree = "<group>"; };
@@ -399,6 +408,7 @@
 		7550FA85EC464896DD44671A /* StoreManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreManager.swift; sourceTree = "<group>"; };
 		765271B94F125643F18F3646 /* AppearanceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceManager.swift; sourceTree = "<group>"; };
 		76AFC65F04DD19B1C921A47F /* AppData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppData.swift; sourceTree = "<group>"; };
+		7701F72D617ADC8861659651 /* ICloudMonitorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ICloudMonitorTests.swift; sourceTree = "<group>"; };
 		77844CCBF33EB11E4DA82C96 /* EpigeneticAgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpigeneticAgeView.swift; sourceTree = "<group>"; };
 		7AF84C540C7407CE0252EB08 /* SleepEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepEngineTests.swift; sourceTree = "<group>"; };
 		7B81EE02F7137DDBE81E8675 /* ReportsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportsView.swift; sourceTree = "<group>"; };
@@ -411,6 +421,7 @@
 		87EC582DBE00A4BCED918921 /* CitationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CitationsView.swift; sourceTree = "<group>"; };
 		8A430A6D6F069A9C484A8BB2 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		8B7AF9F6502500320E7D9D44 /* MortalLoom.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MortalLoom.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8C1BB76B4A4CA2EADD781347 /* DataStoreCRUDTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataStoreCRUDTests.swift; sourceTree = "<group>"; };
 		8CA94632A9BE9FBBCFD7A7DD /* SleepView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepView.swift; sourceTree = "<group>"; };
 		8D73A7E2545FD3011BED42B1 /* AirQualityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AirQualityService.swift; sourceTree = "<group>"; };
 		8DFE4C5B3F84209835BAB96B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -433,6 +444,7 @@
 		AF14662C31A489DE85B5CABE /* CollectionMath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionMath.swift; sourceTree = "<group>"; };
 		B460A824B27B5049B354A64C /* StagnationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StagnationEngine.swift; sourceTree = "<group>"; };
 		B4C6F3F7D27B38D804FA5B61 /* DeathClockEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeathClockEngine.swift; sourceTree = "<group>"; };
+		B691C43C8CC4EB8A2419A180 /* FileManagerNewerOfTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileManagerNewerOfTests.swift; sourceTree = "<group>"; };
 		BC7FF09623E4F8E66F45E59F /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaywallView.swift; sourceTree = "<group>"; };
 		BEB68C77C3325AF758E23E9D /* MortalLoomTests_iOS.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MortalLoomTests_iOS.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		BEDEBF77B9539CDD83293A44 /* HealthKitSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitSync.swift; sourceTree = "<group>"; };
@@ -611,7 +623,9 @@
 				7DE70D58A4D6C99B9125E523 /* CollectionMathTests.swift */,
 				0BB37D64EF6CDD1D02E11D48 /* CorrelationEngineTests.swift */,
 				2498128807CA3134DE063CAD /* DataStoreConcurrencyTests.swift */,
+				8C1BB76B4A4CA2EADD781347 /* DataStoreCRUDTests.swift */,
 				4F60EF4D97E9758161DB0627 /* DeathClockEngineMortalityMathTests.swift */,
+				B691C43C8CC4EB8A2419A180 /* FileManagerNewerOfTests.swift */,
 				A958F184A59416E6D2C6C478 /* FunctionalAgeEngineTests.swift */,
 				4448BD0AADA7579A940AF85E /* GaitEngineTests.swift */,
 				1571F78641946AA351A04D9D /* GenomeActionLibraryTests.swift */,
@@ -620,6 +634,8 @@
 				39BFC6792F29D715A30519C9 /* GenomeVisitFlowTests.swift */,
 				A5F956F2D094587B4EA40CB4 /* GoalEngineTests.swift */,
 				50CD8AAEAC2CD5E6011D3BDC /* HabitEngineTests.swift */,
+				4EAD39B61C857C0C1EE807FA /* HealthKitServiceTests.swift */,
+				7701F72D617ADC8861659651 /* ICloudMonitorTests.swift */,
 				E57DA8048A455E727B5CC4DB /* LocationEngineTests.swift */,
 				36EE02EED59E765612370BAC /* MonthlyReportEngineTests.swift */,
 				93CDAC363DF57A04037AECCA /* MortalLoomTests.swift */,
@@ -903,8 +919,10 @@
 				19289FFA2C96047B0983D646 /* CardioFitnessEngineTests.swift in Sources */,
 				D1A9296D6DA5F480C2CBBC87 /* CollectionMathTests.swift in Sources */,
 				D06B71BF35A556716608E6C3 /* CorrelationEngineTests.swift in Sources */,
+				A7033F9E54E373E95FE493C8 /* DataStoreCRUDTests.swift in Sources */,
 				14A98367FEFFEE3C76345C9B /* DataStoreConcurrencyTests.swift in Sources */,
 				4E57D0A7860B620750C69BBF /* DeathClockEngineMortalityMathTests.swift in Sources */,
+				EF9103BAE70E11216C06C458 /* FileManagerNewerOfTests.swift in Sources */,
 				85B967FBB6DEECE16613128C /* FunctionalAgeEngineTests.swift in Sources */,
 				B201567273E24C4E3B53E936 /* GaitEngineTests.swift in Sources */,
 				49EE9A5E25CBCC29751E479C /* GenomeActionLibraryTests.swift in Sources */,
@@ -913,6 +931,8 @@
 				E6D3A98EA3513802F4C59EEA /* GenomeVisitFlowTests.swift in Sources */,
 				BBE0C483FDA4056C043614E5 /* GoalEngineTests.swift in Sources */,
 				E3CF7266A68515B1E60E79E9 /* HabitEngineTests.swift in Sources */,
+				ADC3CE5F4A92A87C128CABB0 /* HealthKitServiceTests.swift in Sources */,
+				885F71AC8817A013472F5073 /* ICloudMonitorTests.swift in Sources */,
 				7E4E92253B912DCEDAAF3099 /* LocationEngineTests.swift in Sources */,
 				CE0DDC39A1947817A3289CA3 /* MonthlyReportEngineTests.swift in Sources */,
 				FB48FECF084FE4302BBFD024 /* MortalLoomTests.swift in Sources */,
@@ -930,8 +950,10 @@
 				5A5205FAA6BF6145DC427E3B /* CardioFitnessEngineTests.swift in Sources */,
 				26E2DD4DBC74EC2CFF1EBD55 /* CollectionMathTests.swift in Sources */,
 				1FDF8F252FC2167800AEA47E /* CorrelationEngineTests.swift in Sources */,
+				81A9C1D6E5985BC79D303C8A /* DataStoreCRUDTests.swift in Sources */,
 				AFEC98A04665866E1D63051F /* DataStoreConcurrencyTests.swift in Sources */,
 				0828A3F7576705197A9BE2B8 /* DeathClockEngineMortalityMathTests.swift in Sources */,
+				C54576638E375B95A20FA694 /* FileManagerNewerOfTests.swift in Sources */,
 				074F2310D31D7D43C8D8F2DA /* FunctionalAgeEngineTests.swift in Sources */,
 				340229B0A9040BC4457CE61F /* GaitEngineTests.swift in Sources */,
 				5EE8AFC383E5E43AF6002D17 /* GenomeActionLibraryTests.swift in Sources */,
@@ -940,6 +962,8 @@
 				24AFED534D415B86620AA234 /* GenomeVisitFlowTests.swift in Sources */,
 				7CE5EB3F19F402E5B46A93F5 /* GoalEngineTests.swift in Sources */,
 				627029C94C24078EFECB36BC /* HabitEngineTests.swift in Sources */,
+				ECAE574495A557F651B91A57 /* HealthKitServiceTests.swift in Sources */,
+				FE4439226152A22A3EF7CCA7 /* ICloudMonitorTests.swift in Sources */,
 				BC7C7D186F1EE75C2A4DFCC9 /* LocationEngineTests.swift in Sources */,
 				8401E8917A3996E71CDF7B45 /* MonthlyReportEngineTests.swift in Sources */,
 				3765ED39C36AEB475A71D25C /* MortalLoomTests.swift in Sources */,
