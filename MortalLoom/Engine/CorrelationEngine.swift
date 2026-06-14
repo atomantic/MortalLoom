@@ -365,8 +365,11 @@ enum CorrelationEngine {
             }
         }
 
+        // Keys exist in `recoveryCountByWeek` only via `+= 1`, so `count` is
+        // always ≥ 1 here and `recoverySumByWeek` has the same key — the bind is
+        // for the optional subscript, not a real emptiness check.
         return recoveryCountByWeek.compactMap { weekStart, count -> ExerciseCardioRecoveryDataPoint? in
-            guard count > 0, let recoverySum = recoverySumByWeek[weekStart] else { return nil }
+            guard let recoverySum = recoverySumByWeek[weekStart] else { return nil }
             return ExerciseCardioRecoveryDataPoint(
                 date: weekStart,
                 weekExerciseMinutes: exerciseByWeek[weekStart] ?? 0,
