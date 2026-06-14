@@ -417,6 +417,26 @@ final class GenomeViewModel {
         await load()
     }
 
+    // MARK: - Visit report export
+
+    /// PDF queued for export (pre-visit prep). Presented by the host via the
+    /// `.pdfExport` modifier; nil when nothing is being shared.
+    var pdfExport: PDFExport?
+
+    /// Build the pre-visit prep PDF (top priorities + drug-response variants +
+    /// talking points) and hand it to the export UI.
+    func exportPrevisitPDF(date: Date = Date()) {
+        let content = GenomeReport.previsit(
+            priorities: topPriorities,
+            clinvarHits: clinvarHits,
+            date: date
+        )
+        pdfExport = PDFExport(
+            data: GenomeReport.pdfData(for: content),
+            filename: GenomeReport.filename(prefix: "VisitPrep", date: date)
+        )
+    }
+
     // MARK: - File Import
 
     func handleFileImport(_ result: Result<[URL], Error>) {
