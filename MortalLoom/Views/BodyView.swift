@@ -684,7 +684,9 @@ struct BodyView: View {
     private func functionalAgeGapDescription(_ fa: FunctionalAgeEngine.FunctionalAgeSummary) -> String {
         let years = abs(fa.gapYears)
         let chrono = fa.chronologicalAge
-        if years < 1 {
+        // Key the wording off the same bucket the badge shows, so "On Par" never
+        // pairs with a "2 years older" sentence.
+        if fa.level == .onPar {
             return "On par with your chronological age (\(chrono))."
         }
         let direction = fa.gapYears < 0 ? "younger" : "older"
@@ -694,7 +696,7 @@ struct BodyView: View {
     private func functionalAgeAccessibilityLabel(_ fa: FunctionalAgeEngine.FunctionalAgeSummary) -> String {
         let years = abs(fa.gapYears)
         let base = String(format: "Functional age: %.0f years, %@", fa.functionalAge, fa.level.rawValue)
-        if years < 1 {
+        if fa.level == .onPar {
             return base + ", on par with your chronological age of \(fa.chronologicalAge)"
         }
         let direction = fa.gapYears < 0 ? "younger" : "older"
