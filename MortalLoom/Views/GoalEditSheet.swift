@@ -150,6 +150,14 @@ struct GoalEditSheet: View {
         }
     }
 
+    /// Show the starter-template picker only on the new-goal flow for
+    /// concrete (standard) goals. Editing an existing goal, a genome-prefilled
+    /// suggestion, or a lifetime purpose (apex / sub-apex — which have no
+    /// deadline or milestones) all suppress it.
+    private var showTemplatePicker: Bool {
+        goal == nil && prefillEvidence == nil && !isLifelong
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -157,6 +165,10 @@ struct GoalEditSheet: View {
                     Section {
                         GeneticEvidenceBanner(evidence: evidence, dismiss: dismiss)
                     }
+                }
+
+                if showTemplatePicker {
+                    templatePickerSection
                 }
 
                 Section {
@@ -478,6 +490,49 @@ struct GoalEditSheet: View {
         guard let goalId = goal?.id else { return [] }
         let all = StagnationEngine.signals(goals: allGoals, habits: allHabits)
         return all.filter { $0.goalId == goalId && $0.habitId == nil }
+    }
+
+    /// "Start from a template" — a menu of curated starter goals grouped by
+    /// pillar so non-health pillars (creative, financial, family, legacy,
+    /// mastery) get the same first-class on-ramp as health. Picking one
+    /// prefills the form; the user edits from there.
+    @ViewBuilder
+    private var templatePickerSection: some View {
+        Section {
+            Menu {
+                ForEach(GoalCategory.allCases, id: \.self) { cat in
+                    let templates = GoalStarterTemplates.templates(for: cat)
+                    if !templates.isEmpty {
+                        Section(cat.label) {
+                            ForEach(templates) { template in
+                                Button {
+                                    apply(template)
+                                } label: {
+                                    Label(template.title, systemImage: cat.icon)
+                                }
+                            }
+                        }
+                    }
+                }
+            } label: {
+                Label("Start from a template", systemImage: "square.grid.2x2")
+            }
+        } footer: {
+            Text("Pick a ready-made goal for any pillar — creative, financial, family, legacy, and more — then make it your own.")
+                .font(.caption2)
+        }
+    }
+
+    /// Prefill the form fields from a starter template. The user can still
+    /// edit everything before saving; nothing is persisted here.
+    private func apply(_ template: StarterGoalTemplate) {
+        title = template.title
+        notes = template.notes
+        category = template.category
+        horizon = template.horizon
+        milestoneTexts = template.milestones.map {
+            MilestoneRow(id: UUID(), text: $0, completed: false)
+        }
     }
 
     @ViewBuilder
