@@ -428,7 +428,10 @@ final class GenomeViewModel {
     func exportPrevisitPDF(date: Date = Date()) {
         let content = GenomeReport.previsit(
             priorities: topPriorities,
-            clinvarHits: clinvarHits,
+            // Use the same sex+star-filtered hits the on-screen ClinVar list
+            // shows, so the doctor-facing PDF never surfaces low-confidence
+            // variants the app itself hides.
+            clinvarHits: filteredClinvarHits,
             date: date
         )
         pdfExport = PDFExport(

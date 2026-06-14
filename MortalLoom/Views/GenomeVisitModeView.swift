@@ -226,7 +226,9 @@ struct GenomeVisitModeView: View {
         let notes = vm.visitNotes.filter { savedIds.contains($0.id) }
         let content = GenomeReport.postvisit(
             findings: sources,
-            clinvarHits: vm.clinvarHits,
+            // Match the on-screen ClinVar filter (sex + minimum stars) so the
+            // summary's drug-response variants are the ones the user reviewed.
+            clinvarHits: vm.filteredClinvarHits,
             notes: notes,
             date: visitDate,
             provider: providerLabel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : providerLabel

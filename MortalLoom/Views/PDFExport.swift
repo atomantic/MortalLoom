@@ -59,16 +59,21 @@ private struct PDFActivityView: UIViewControllerRepresentable {
     let export: PDFExport
 
     func makeUIViewController(context: Context) -> UIActivityViewController {
-        let items: [Any]
         let url = FileManager.default.temporaryDirectory.appendingPathComponent(export.filename)
-        if (try? export.data.write(to: url, options: .atomic)) != nil {
-            items = [url]
-        } else {
-            // Temp write failed (rare) — fall back to sharing the raw data so the
-            // user still gets a share sheet, just without a filename/print path.
-            items = [export.data]
+        let wroteTemp = (try? export.data.write(to: url, options: .atomic)) != nil
+        // Share the temp file URL (gives a filename + the Print/AirPrint path);
+        // on the rare write failure, fall back to sharing the raw data.
+        let controller = UIActivityViewController(
+            activityItems: [wroteTemp ? url : export.data],
+            applicationActivities: nil
+        )
+        if wroteTemp {
+            // Reclaim the temp file once the share/print sheet finishes.
+            controller.completionWithItemsHandler = { _, _, _, _ in
+                try? FileManager.default.removeItem(at: url)
+            }
         }
-        return UIActivityViewController(activityItems: items, applicationActivities: nil)
+        return controller
     }
 
     func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
