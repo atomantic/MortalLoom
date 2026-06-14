@@ -100,6 +100,14 @@ enum CitationLibrary {
         url: "https://doi.org/10.1053/apmr.2001.24893"
     )
 
+    static let bohannonGaitNorms2011 = Citation(
+        id: "bohannon-2011-gait-norms",
+        title: "Normal Walking Speed: A Descriptive Meta-Analysis",
+        authors: "Bohannon RW, Williams Andrews A",
+        detail: "Physiotherapy. 2011;97(3):182-189. Pooled comfortable gait speed plateaus near 1.4 m/s through midlife, then declines ~0.012 m/s per year. Provides the age-normative curve MortalLoom inverts to estimate functional age from gait and stair speed.",
+        url: "https://doi.org/10.1016/j.physio.2010.12.004"
+    )
+
     // MARK: - Alcohol
     static let niaaaLimits = Citation(
         id: "niaaa-limits",
