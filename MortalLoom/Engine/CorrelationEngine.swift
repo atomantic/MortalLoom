@@ -212,6 +212,41 @@ enum CorrelationEngine {
         }
     }
 
+    // MARK: - Nicotine → Cardio Recovery
+
+    /// A day's nicotine intake paired with next-day cardio recovery (the bpm
+    /// the heart rate drops in the minute after exercise — a higher number means
+    /// better cardiovascular fitness).
+    struct NicotineCardioRecoveryDataPoint: DatedCorrelationPoint {
+        let date: String                   // "YYYY-MM-DD" of the nicotine day
+        let nicotineMg: Double             // total nicotine mg that day
+        let nextDayCardioRecovery: Double? // HR recovery (bpm) the following day
+    }
+
+    /// Build per-day points correlating nicotine intake with next-day cardio
+    /// recovery. Nicotine on day N is compared to the cardio-recovery reading on
+    /// day N+1, analogous to `alcoholSleepCorrelation`.
+    static func nicotineCardioRecoveryCorrelation(
+        entries: [NicotineEntry],
+        healthMetrics: [HealthMetricEntry]
+    ) -> [NicotineCardioRecoveryDataPoint] {
+        nextDayPairing(
+            causes: entries,
+            causeDate: \.date,
+            value: { $0.totalMg },
+            healthMetrics: healthMetrics,
+            metricIsRelevant: { $0.cardioRecovery != nil }
+        ) { dateStr, mg, nextMetrics in
+            guard let recovery = nextMetrics?.cardioRecovery else { return nil }
+
+            return NicotineCardioRecoveryDataPoint(
+                date: dateStr,
+                nicotineMg: mg,
+                nextDayCardioRecovery: recovery
+            )
+        }
+    }
+
     // MARK: - Nicotine → Heart Rate
 
     /// Correlate the last 30 days of nicotine intake with same-day heart rate.
