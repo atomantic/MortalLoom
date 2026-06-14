@@ -98,6 +98,16 @@ final class NotificationService {
     /// single pending request for each ritual, so it's safe to run on every
     /// launch and after any settings change.
     func scheduleReflectionPlan() async {
+        // Only (re)schedule when notifications are ALREADY authorized. This is
+        // called at launch, where popping an unprompted system permission
+        // dialog is exactly what the app avoids (the same reason the HealthKit
+        // prompt is reserved for onboarding). An unauthorized user's reminders
+        // aren't deliverable anyway, and the `set*` toggles request permission
+        // when the user opts in — so without this guard the default-on weekly
+        // review would be scheduled-but-undeliverable while Settings shows it
+        // "on". Once the user grants permission, the next launch schedules it.
+        guard await isAuthorized() else { return }
+
         // The three rituals are independent (distinct identifiers, no shared
         // state). This type is @MainActor, so the children don't run in true
         // parallel — but `async let` lets their notification-center `add`
