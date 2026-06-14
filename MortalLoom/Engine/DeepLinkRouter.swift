@@ -6,9 +6,9 @@ import Foundation
 /// and `mortalloom://` URLs. Pure value type — parsing is handled by
 /// `DeepLinkRouter.parse(_:)`.
 ///
-/// Sheet-presenting routes (goal edit, goal reflect, weekly review)
-/// currently only navigate to the owning page; the destination view still
-/// needs to pick up the target. Wiring pending-sheet state is TODO.
+/// Sheet-presenting routes (goal edit, goal reflect, weekly review, monthly
+/// rethink) navigate to the owning page AND post a request the destination
+/// view observes to open the target sheet — see `applySideEffects()`.
 enum DeepLinkRoute: Equatable, Sendable {
     /// Navigate to the given page without opening any sheet.
     case page(AppPage)
@@ -20,6 +20,8 @@ enum DeepLinkRoute: Equatable, Sendable {
     case goalReflect(UUID)
     /// Trigger the weekly review sheet.
     case weeklyReview
+    /// Trigger the monthly rethink sheet.
+    case monthlyRethink
     /// Legacy `mortalloom://substances` alias — navigate to Habits with the
     /// alcohol tab pre-selected. Kept as a distinct case (rather than a plain
     /// `.page(.habits)`) so `parse(_:)` stays pure: the tab-selection side
@@ -31,25 +33,33 @@ enum DeepLinkRoute: Equatable, Sendable {
         switch self {
         case .page(let page): page
         case .goalEdit, .goalReflect: .goals
-        case .weeklyReview: .overview
+        case .weeklyReview, .monthlyRethink: .overview
         case .substancesAlias: .habits
         }
     }
 
-    /// Apply the non-navigation side effects a route implies (posting the
-    /// reflect-sheet request, pre-selecting the Habits alcohol tab). Keeps the
-    /// dispatch in one place so the iOS and macOS `onOpenURL` handlers stay
-    /// identical — they navigate via `targetPage`, then call this. `parse(_:)`
-    /// itself stays pure; the effects live here, at the call site.
+    /// Apply the non-navigation side effects a route implies — posting the
+    /// sheet-open requests the destination views observe (goal edit, goal
+    /// reflect, weekly review, monthly rethink) and pre-selecting the Habits
+    /// alcohol tab. Keeps the dispatch in one place so the iOS and macOS
+    /// `onOpenURL` handlers and the notification-tap handler stay identical:
+    /// they navigate via `targetPage`, then call this. `parse(_:)` itself stays
+    /// pure; the effects live here, at the call site.
     @MainActor
     func applySideEffects() {
         switch self {
+        case .goalEdit(let id):
+            NotificationCenter.default.post(name: .openGoalEdit, object: id)
         case .goalReflect(let id):
             NotificationCenter.default.post(name: .openGoalReflect, object: id)
+        case .weeklyReview:
+            NotificationCenter.default.post(name: .openWeeklyReview, object: nil)
+        case .monthlyRethink:
+            NotificationCenter.default.post(name: .openMonthlyRethink, object: nil)
         case .substancesAlias:
             // Legacy mortalloom://substances alias — land on the alcohol tab.
             UserDefaults.standard.set(HabitTab.alcohol.rawValue, forKey: HabitTab.selectedKey)
-        case .page, .goalEdit, .weeklyReview:
+        case .page:
             break
         }
     }
@@ -69,6 +79,7 @@ enum DeepLinkRoute: Equatable, Sendable {
 /// - `mortalloom://goal/<uuid>` — open goal edit sheet
 /// - `mortalloom://goal/<uuid>/reflect` — open reflection / check-in sheet
 /// - `mortalloom://review/weekly` — open weekly review flow
+/// - `mortalloom://review/monthly` — open monthly rethink flow
 enum DeepLinkRouter {
     static func parse(_ url: URL) -> DeepLinkRoute? {
         guard url.scheme?.lowercased() == "mortalloom" else { return nil }
@@ -84,8 +95,9 @@ enum DeepLinkRouter {
 
         switch head {
         case "review":
-            if segments.count > 1, segments[1] == "weekly" {
-                return .weeklyReview
+            if segments.count > 1 {
+                if segments[1] == "weekly" { return .weeklyReview }
+                if segments[1] == "monthly" { return .monthlyRethink }
             }
             return nil
 
@@ -117,10 +129,23 @@ enum DeepLinkRouter {
 
 extension Notification.Name {
     static let navigateToPage = Notification.Name("navigateToPage")
+    /// Posted with a `UUID` object to request the edit sheet (or pillar
+    /// dashboard, for a life-pillar sub-apex) for a specific goal. GoalsView
+    /// observes this and opens the target once data has loaded. Used by the
+    /// `mortalloom://goal/<uuid>` deep link from notifications and widgets.
+    static let openGoalEdit = Notification.Name("openGoalEdit")
     /// Posted with a `UUID` object to request the check-in / reflect sheet
     /// for a specific goal. GoalsView observes this and opens the sheet once
     /// data has loaded. Used by the widget tap-through flow.
     static let openGoalReflect = Notification.Name("openGoalReflect")
+    /// Posted (no object) to request the weekly review sheet. OverviewView
+    /// observes this and opens the sheet. Used by the weekly-review reminder
+    /// notification (`mortalloom://review/weekly`).
+    static let openWeeklyReview = Notification.Name("openWeeklyReview")
+    /// Posted (no object) to request the monthly rethink sheet. OverviewView
+    /// observes this and opens the sheet. Used by the monthly-rethink reminder
+    /// notification (`mortalloom://review/monthly`).
+    static let openMonthlyRethink = Notification.Name("openMonthlyRethink")
     /// Posted with a `String` object (rsid / findingKey) to request the
     /// `GenomeDetailSheet` for a specific finding. GenomeView observes this
     /// and opens the matching marker / ClinVar hit / APOE result once its

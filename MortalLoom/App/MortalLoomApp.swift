@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 import os
 
 private let appLogger = Logger(subsystem: "net.shadowpuppet.MeatSpaceTracker", category: "App")
@@ -70,6 +71,12 @@ struct MortalLoomApp: App {
     #if os(macOS)
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     #endif
+
+    init() {
+        // Set the notification delegate before any scene mounts so a tap that
+        // cold-launches the app still routes through its embedded deep link.
+        UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
+    }
 
     var body: some Scene {
         // Stable `id` so macOS can restore the single main window across launches
