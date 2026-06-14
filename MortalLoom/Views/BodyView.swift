@@ -70,6 +70,7 @@ struct BodyView: View {
 
     // Gait & activity
     @State private var gaitSummary: GaitEngine.GaitSummary?
+    @State private var functionalAge: FunctionalAgeEngine.FunctionalAgeSummary?
     @State private var latestDaylightMinutes: Double?
     @State private var latestStandMinutes: Double?
     @State private var latestBasalEnergy: Double?
@@ -99,6 +100,7 @@ struct BodyView: View {
                 bmiBreathingSection
                 bloodPressureSection
                 gaitSection
+                functionalAgeSection
                 activitySection
                 eyePrescriptionSection.proGated()
             }
@@ -707,6 +709,88 @@ struct BodyView: View {
         }
     }
 
+    // MARK: - Functional Age Section
+
+    @ViewBuilder
+    private var functionalAgeSection: some View {
+        if let fa = functionalAge {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 6) {
+                    Text("Functional Age")
+                        .font(.headline)
+                        .foregroundColor(.textPrimary)
+                    CitationBadge(
+                        ids: [
+                            CitationLibrary.bohannonGaitNorms2011.id,
+                            CitationLibrary.studenskiGait2011.id,
+                        ],
+                        claim: "Age-normative gait and stair speed inverted to estimate functional age"
+                    )
+                    Spacer()
+                }
+
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(String(format: "%.0f", fa.functionalAge))
+                        .font(.system(size: 40, weight: .bold, design: .rounded))
+                        .foregroundColor(fa.level.color.semanticColor)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("functional years")
+                            .font(.caption)
+                            .foregroundColor(.textSecondary)
+                        HStack(spacing: 4) {
+                            Image(systemName: fa.level.systemImage)
+                                .font(.caption)
+                            Text(fa.level.rawValue)
+                                .font(.caption.weight(.semibold))
+                        }
+                        .foregroundColor(fa.level.color.semanticColor)
+                    }
+                    Spacer()
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(functionalAgeAccessibilityLabel(fa))
+
+                Text(functionalAgeGapDescription(fa))
+                    .font(.subheadline)
+                    .foregroundColor(.textSecondary)
+
+                if fa.componentCount < 2 {
+                    Text("Estimate based on a single mobility signal — add stair or walking-speed data for a more reliable read.")
+                        .font(.caption2)
+                        .foregroundColor(.textMuted)
+                }
+
+                Text("Estimated from age-normative walking and stair speed (Bohannon 2011; Studenski 2011), adjusted for gait asymmetry. Indicative, not a clinical measure.")
+                    .font(.caption2)
+                    .foregroundColor(.textMuted)
+            }
+            .padding()
+            .cardStyle()
+        }
+    }
+
+    private func functionalAgeGapDescription(_ fa: FunctionalAgeEngine.FunctionalAgeSummary) -> String {
+        let years = abs(fa.gapYears)
+        let chrono = fa.chronologicalAge
+        // Key the wording off the same bucket the badge shows, so "On Par" never
+        // pairs with a "2 years older" sentence.
+        if fa.level == .onPar {
+            return "On par with your chronological age (\(chrono))."
+        }
+        let direction = fa.gapYears < 0 ? "younger" : "older"
+        return String(format: "About %.0f years %@ than your chronological age (%d).", years, direction, chrono)
+    }
+
+    private func functionalAgeAccessibilityLabel(_ fa: FunctionalAgeEngine.FunctionalAgeSummary) -> String {
+        let years = abs(fa.gapYears)
+        let base = String(format: "Functional age: %.0f years, %@", fa.functionalAge, fa.level.rawValue)
+        if fa.level == .onPar {
+            return base + ", on par with your chronological age of \(fa.chronologicalAge)"
+        }
+        let direction = fa.gapYears < 0 ? "younger" : "older"
+        return base + String(format: ", about %.0f years %@ than your chronological age of %d", years, direction, fa.chronologicalAge)
+    }
+
     // MARK: - Activity Metrics Section
 
     @ViewBuilder
@@ -1015,6 +1099,7 @@ struct BodyView: View {
 
         let recentMetrics = metricsByDateDesc.prefix(30)
         gaitSummary = GaitEngine.summarize(metrics: Array(recentMetrics), age: userAge)
+        functionalAge = FunctionalAgeEngine.summarize(metrics: Array(recentMetrics), age: userAge)
 
         // Latest averages for activity section
         latestStandMinutes = recentMetrics.compactAverage(\.standMinutes)
