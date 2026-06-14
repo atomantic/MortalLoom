@@ -212,6 +212,73 @@ enum CorrelationEngine {
         }
     }
 
+    // MARK: - BMI → Breathing Disturbances
+
+    /// A night's body-mass index paired with that night's breathing disturbances
+    /// (apnea/hypopnea events per hour during sleep). Surfaces the obesity↔apnea
+    /// link on `BodyView`.
+    struct BMIBreathingDataPoint: DatedCorrelationPoint {
+        let date: String                  // "YYYY-MM-DD" of the night
+        let bmi: Double                   // BMI implied by the carried-forward weigh-in
+        let breathingDisturbances: Double // apnea/hypopnea events per hour that night
+    }
+
+    /// Height (inches) implied by a known `bmi` at a known `weightLbs`, via the
+    /// imperial formula `BMI = 703 × lbs / in²`. The app stores a single static
+    /// BMI rather than a height, so we back the height out of the user's
+    /// reference weigh-in to reconstruct BMI for their other weigh-ins. Returns
+    /// `nil` when either input is non-positive.
+    static func impliedHeightInches(weightLbs: Double, bmi: Double) -> Double? {
+        guard weightLbs > 0, bmi > 0 else { return nil }
+        return (703 * weightLbs / bmi).squareRoot()
+    }
+
+    /// BMI for a weight at a fixed height, via `BMI = 703 × lbs / in²`. Returns
+    /// `nil` for a non-positive height.
+    static func bmi(weightLbs: Double, heightInches: Double) -> Double? {
+        guard heightInches > 0 else { return nil }
+        return 703 * weightLbs / (heightInches * heightInches)
+    }
+
+    /// Pair derived BMI with same-night breathing disturbances. The stored
+    /// `referenceBMI` is assumed to describe `referenceWeightLbs` (the user's
+    /// latest weigh-in); that anchors a constant height which converts every
+    /// historical `BodyEntry.weightLbs` into a BMI. Each breathing-disturbance
+    /// night is matched to the most recent weigh-in on or before it (weight is a
+    /// slow-moving baseline), so nights before the first weigh-in are dropped.
+    static func bmiBreathingCorrelation(
+        bodyEntries: [BodyEntry],
+        healthMetrics: [HealthMetricEntry],
+        referenceBMI: Double?,
+        referenceWeightLbs: Double?
+    ) -> [BMIBreathingDataPoint] {
+        guard let referenceBMI, let referenceWeightLbs,
+              let heightInches = impliedHeightInches(weightLbs: referenceWeightLbs, bmi: referenceBMI)
+        else { return [] }
+
+        let weighIns = bodyEntries
+            .compactMap { entry in entry.weightLbs.map { (date: entry.date, weight: $0) } }
+            .sorted { $0.date < $1.date }
+        guard !weighIns.isEmpty else { return [] }
+
+        let nights = healthMetrics
+            .compactMap { metric in metric.breathingDisturbances.map { (date: metric.date, disturbances: $0) } }
+            .sorted { $0.date < $1.date }
+
+        return nights.compactMap { night -> BMIBreathingDataPoint? in
+            // "YYYY-MM-DD" sorts lexically == chronologically, so the last
+            // weigh-in not after the night is the carried-forward weight.
+            guard let weight = weighIns.last(where: { $0.date <= night.date })?.weight,
+                  let value = bmi(weightLbs: weight, heightInches: heightInches)
+            else { return nil }
+            return BMIBreathingDataPoint(
+                date: night.date,
+                bmi: value,
+                breathingDisturbances: night.disturbances
+            )
+        }
+    }
+
     // MARK: - Nicotine → Cardio Recovery
 
     /// A day's nicotine intake paired with next-day cardio recovery (the bpm

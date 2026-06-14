@@ -296,4 +296,112 @@ final class CorrelationEngineNextDayPairingTests: XCTestCase {
         XCTAssertEqual(result.map(\.date), [day(0), day(2), day(4)])
         XCTAssertEqual(result.map(\.nicotineMg), [3, 9, 6])   // values survive the sort
     }
+
+    // MARK: - bmiBreathingCorrelation
+
+    private func bodyEntry(_ date: String, weightLbs: Double) -> BodyEntry {
+        BodyEntry(date: date, weightLbs: weightLbs)
+    }
+
+    func testBMIBreathing_emptyOrMissingReferenceReturnsEmpty() {
+        // No body entries.
+        XCTAssertTrue(
+            CorrelationEngine.bmiBreathingCorrelation(
+                bodyEntries: [], healthMetrics: [metric(day(0), breathingDisturbances: 10)],
+                referenceBMI: 30, referenceWeightLbs: 200
+            ).isEmpty
+        )
+        // No breathing-disturbance nights.
+        XCTAssertTrue(
+            CorrelationEngine.bmiBreathingCorrelation(
+                bodyEntries: [bodyEntry(day(0), weightLbs: 200)], healthMetrics: [metric(day(0), sleepHours: 7)],
+                referenceBMI: 30, referenceWeightLbs: 200
+            ).isEmpty
+        )
+        // Missing reference BMI / weight (height can't be anchored).
+        XCTAssertTrue(
+            CorrelationEngine.bmiBreathingCorrelation(
+                bodyEntries: [bodyEntry(day(0), weightLbs: 200)], healthMetrics: [metric(day(0), breathingDisturbances: 10)],
+                referenceBMI: nil, referenceWeightLbs: 200
+            ).isEmpty
+        )
+        XCTAssertTrue(
+            CorrelationEngine.bmiBreathingCorrelation(
+                bodyEntries: [bodyEntry(day(0), weightLbs: 200)], healthMetrics: [metric(day(0), breathingDisturbances: 10)],
+                referenceBMI: 30, referenceWeightLbs: nil
+            ).isEmpty
+        )
+    }
+
+    func testBMIBreathing_referenceWeighInReproducesStoredBMI() {
+        // A weigh-in equal to the reference weight reconstructs the stored BMI exactly.
+        let result = CorrelationEngine.bmiBreathingCorrelation(
+            bodyEntries: [bodyEntry(day(0), weightLbs: 200)],
+            healthMetrics: [metric(day(0), breathingDisturbances: 14)],
+            referenceBMI: 30, referenceWeightLbs: 200
+        )
+        XCTAssertEqual(result.count, 1)
+        XCTAssertEqual(result[0].date, day(0))
+        XCTAssertEqual(result[0].bmi, 30, accuracy: 0.0001)
+        XCTAssertEqual(result[0].breathingDisturbances, 14, accuracy: 0.0001)
+    }
+
+    func testBMIBreathing_scalesBMILinearlyWithWeight() {
+        // Height is anchored on (200 lbs, BMI 30); a 180 lb weigh-in scales BMI
+        // to 30 × 180/200 = 27.
+        let result = CorrelationEngine.bmiBreathingCorrelation(
+            bodyEntries: [bodyEntry(day(0), weightLbs: 180), bodyEntry(day(10), weightLbs: 200)],
+            healthMetrics: [metric(day(0), breathingDisturbances: 8), metric(day(10), breathingDisturbances: 20)],
+            referenceBMI: 30, referenceWeightLbs: 200
+        )
+        XCTAssertEqual(result.map(\.date), [day(0), day(10)])
+        XCTAssertEqual(result[0].bmi, 27, accuracy: 0.0001)
+        XCTAssertEqual(result[1].bmi, 30, accuracy: 0.0001)
+    }
+
+    func testBMIBreathing_carriesForwardMostRecentWeighIn() {
+        // A night with no same-day weigh-in uses the latest weigh-in on or before
+        // it: day(5) carries day(0)'s 180 lbs (BMI 27); day(15) carries day(10)'s
+        // 200 lbs (BMI 30).
+        let result = CorrelationEngine.bmiBreathingCorrelation(
+            bodyEntries: [bodyEntry(day(0), weightLbs: 180), bodyEntry(day(10), weightLbs: 200)],
+            healthMetrics: [metric(day(5), breathingDisturbances: 9), metric(day(15), breathingDisturbances: 19)],
+            referenceBMI: 30, referenceWeightLbs: 200
+        )
+        XCTAssertEqual(result.map(\.date), [day(5), day(15)])
+        XCTAssertEqual(result[0].bmi, 27, accuracy: 0.0001)
+        XCTAssertEqual(result[1].bmi, 30, accuracy: 0.0001)
+    }
+
+    func testBMIBreathing_dropsNightsBeforeFirstWeighIn() {
+        // day(0) precedes the only weigh-in (day(5)) so no weight is known yet.
+        let result = CorrelationEngine.bmiBreathingCorrelation(
+            bodyEntries: [bodyEntry(day(5), weightLbs: 200)],
+            healthMetrics: [metric(day(0), breathingDisturbances: 10), metric(day(5), breathingDisturbances: 12)],
+            referenceBMI: 30, referenceWeightLbs: 200
+        )
+        XCTAssertEqual(result.map(\.date), [day(5)])
+        XCTAssertEqual(result[0].bmi, 30, accuracy: 0.0001)
+    }
+
+    func testBMIBreathing_resultIsSortedByDate() {
+        let result = CorrelationEngine.bmiBreathingCorrelation(
+            bodyEntries: [bodyEntry(day(0), weightLbs: 200)],
+            healthMetrics: [
+                metric(day(4), breathingDisturbances: 5),
+                metric(day(1), breathingDisturbances: 6),
+                metric(day(2), breathingDisturbances: 7),
+            ],
+            referenceBMI: 30, referenceWeightLbs: 200
+        )
+        XCTAssertEqual(result.map(\.date), [day(1), day(2), day(4)])
+    }
+
+    func testImpliedHeightInches_invertsBMIFormula() {
+        // BMI = 703 × lbs / in², so height = sqrt(703 × lbs / BMI).
+        let height = CorrelationEngine.impliedHeightInches(weightLbs: 200, bmi: 30)
+        XCTAssertEqual(height ?? .nan, (703.0 * 200 / 30).squareRoot(), accuracy: 0.0001)
+        XCTAssertNil(CorrelationEngine.impliedHeightInches(weightLbs: 0, bmi: 30))
+        XCTAssertNil(CorrelationEngine.impliedHeightInches(weightLbs: 200, bmi: 0))
+    }
 }

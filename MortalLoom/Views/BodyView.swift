@@ -59,6 +59,9 @@ struct BodyView: View {
     @State private var latestCardioRecovery: Double?
     @State private var cardioRecoveryDate: Date?
 
+    // BMI ↔ breathing disturbances
+    @State private var bmiBreathingPoints: [CorrelationEngine.BMIBreathingDataPoint] = []
+
     // Blood pressure
     @State private var bpHistory: [BPPoint] = []
     @State private var showingBPEntry = false
@@ -93,6 +96,7 @@ struct BodyView: View {
                     bodyCompositionSection
                     cardioFitnessSection
                 }
+                bmiBreathingSection
                 bloodPressureSection
                 gaitSection
                 activitySection
@@ -408,6 +412,90 @@ struct BodyView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel ?? "\(label): \(value)\(unit.map { " \($0)" } ?? "")\(classification.map { ", \($0)" } ?? "")")
+    }
+
+    // MARK: - BMI ↔ Breathing Disturbances Section
+
+    /// Overlays weight-derived BMI against nightly breathing disturbances
+    /// (apnea/hypopnea events per hour) to surface the obesity↔apnea link. BMI is
+    /// reconstructed from the user's weigh-in history anchored on their stored
+    /// BMI, since the app records a single BMI rather than a height.
+    @ViewBuilder
+    private var bmiBreathingSection: some View {
+        // Need at least two paired nights for the overlay to read as a trend.
+        if bmiBreathingPoints.count >= 2 {
+            let chartData = bmiBreathingPoints.suffix(90)
+            let avgBMI = chartData.map(\.bmi).reduce(0, +) / Double(chartData.count)
+            let avgDisturbances = chartData.map(\.breathingDisturbances).reduce(0, +) / Double(chartData.count)
+
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 6) {
+                    Text("BMI + Breathing Disturbances")
+                        .font(.headline)
+                        .foregroundColor(.textPrimary)
+                    CitationBadge(
+                        ids: [
+                            CitationLibrary.youngApnea2008.id,
+                            CitationLibrary.whoBmi.id,
+                        ],
+                        claim: "Obesity as a risk factor for sleep-disordered breathing and its mortality impact"
+                    )
+                    Spacer()
+                }
+
+                Chart {
+                    ForEach(Array(chartData), id: \.date) { item in
+                        if let d = DateFormatting.dateFromString(item.date) {
+                            LineMark(
+                                x: .value("Date", d),
+                                y: .value("BMI", item.bmi),
+                                series: .value("Metric", "BMI")
+                            )
+                            .foregroundStyle(Color.accentColor)
+                            .interpolationMethod(.catmullRom)
+                            LineMark(
+                                x: .value("Date", d),
+                                y: .value("Events/hr", item.breathingDisturbances),
+                                series: .value("Metric", "Breathing Disturbances")
+                            )
+                            .foregroundStyle(Color.warning)
+                            .interpolationMethod(.catmullRom)
+                        }
+                    }
+                }
+                .chartForegroundStyleScale([
+                    "BMI": Color.accentColor,
+                    "Breathing Disturbances": Color.warning,
+                ])
+                .chartLegend(position: .top, alignment: .leading)
+                .frame(height: Layout.chartFrameHeight)
+                .padding(.vertical, 4)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("BMI and breathing disturbances chart over \(chartData.count) nights. Average BMI \(String(format: "%.1f", avgBMI)), average \(String(format: "%.1f", avgDisturbances)) breathing events per hour.")
+
+                HStack(spacing: 12) {
+                    cardioMetricCard(
+                        label: "Avg BMI",
+                        value: String(format: "%.1f", avgBMI),
+                        classificationColor: .accentColor,
+                        icon: "scalemass.fill"
+                    )
+                    cardioMetricCard(
+                        label: "Avg Disturbances",
+                        value: String(format: "%.1f", avgDisturbances),
+                        unit: "events/hr",
+                        classificationColor: .warning,
+                        icon: "lungs.fill"
+                    )
+                }
+
+                Text("Higher body-mass index is a leading risk factor for obstructive sleep apnea. BMI here is estimated from your weigh-in history anchored on your recorded BMI; overlaying it against nightly breathing disturbances can reveal whether body-composition changes track with disordered breathing.")
+                    .font(.caption2)
+                    .foregroundColor(.textMuted)
+            }
+            .padding()
+            .cardStyle()
+        }
     }
 
     // MARK: - Blood Pressure Section
@@ -915,6 +1003,15 @@ struct BodyView: View {
                   let d = DateFormatting.dateFromString(m.date) else { return nil }
             return BPPoint(date: d, systolic: sys, diastolic: dia)
         }
+
+        // BMI ↔ breathing disturbances: reconstruct BMI from weigh-in history,
+        // anchored on the stored BMI + latest weight, and pair with each night.
+        bmiBreathingPoints = CorrelationEngine.bmiBreathingCorrelation(
+            bodyEntries: data.bodyEntries,
+            healthMetrics: data.healthMetrics,
+            referenceBMI: data.profile.lifestyle.bmi,
+            referenceWeightLbs: latestWeight
+        )
 
         let recentMetrics = metricsByDateDesc.prefix(30)
         gaitSummary = GaitEngine.summarize(metrics: Array(recentMetrics), age: userAge)
