@@ -21,6 +21,23 @@ enum GenomeTab: String, CaseIterable {
     }
 }
 
+// MARK: - Shared layout gating
+
+/// Whether the Genome screens should use the iPad two-column split layout at a
+/// given container width. Gated on the device idiom in addition to width (#50):
+/// a wide iPhone in landscape crosses `Layout.wideThreshold` but keeps the
+/// single column. Shared by `GenomeView` (the tab host) and `GenomeVisitModeView`
+/// (Visit Mode) so the split decision lives in one place.
+@MainActor
+func genomeUsesSplitLayout(containerWidth: CGFloat) -> Bool {
+    guard containerWidth >= Layout.wideThreshold else { return false }
+    #if os(iOS)
+    return UIDevice.current.userInterfaceIdiom == .pad
+    #else
+    return true
+    #endif
+}
+
 // MARK: - Shared genome content builders
 
 /// The body of the currently-selected Genome tab. Shared by the iPhone

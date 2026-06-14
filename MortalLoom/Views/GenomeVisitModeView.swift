@@ -24,11 +24,6 @@ struct GenomeVisitModeView: View {
 
     private struct VisitDraft { var note = ""; var followUp = "" }
 
-    #if os(iOS)
-    private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
-    #endif
-    private var isWide: Bool { containerWidth >= Layout.wideThreshold }
-
     private var keys: [String] { sources.map(\.findingKey) }
     private var currentSource: PriorityFindingSource? {
         sources.first { $0.findingKey == selectedKey }
@@ -73,15 +68,11 @@ struct GenomeVisitModeView: View {
 
     @ViewBuilder
     private var columns: some View {
-        #if os(iOS)
-        if isPad && isWide {
+        if genomeUsesSplitLayout(containerWidth: containerWidth) {
             twoColumn
         } else {
             paneOrEmpty
         }
-        #else
-        twoColumn
-        #endif
     }
 
     private var twoColumn: some View {
@@ -186,8 +177,8 @@ struct GenomeVisitModeView: View {
                 position: position,
                 total: sources.count,
                 isLast: GenomeVisitFlow.isLast(selectedKey, in: keys),
-                noteText: noteBinding(for: source.findingKey),
-                followUp: followUpBinding(for: source.findingKey),
+                noteText: draftBinding(source.findingKey, \.note),
+                followUp: draftBinding(source.findingKey, \.followUp),
                 onToggleAction: { toggle($0, for: source) },
                 onSaveAndNext: { saveAndAdvance() },
                 onSkip: { advance() }
@@ -219,17 +210,13 @@ struct GenomeVisitModeView: View {
             .sorted { $0.date > $1.date }
     }
 
-    private func noteBinding(for key: String) -> Binding<String> {
+    /// One binding factory for both draft fields — `\.note` and `\.followUp`
+    /// differ only by key path, so they share this rather than duplicating the
+    /// get/set boilerplate.
+    private func draftBinding(_ key: String, _ field: WritableKeyPath<VisitDraft, String>) -> Binding<String> {
         Binding(
-            get: { drafts[key]?.note ?? "" },
-            set: { drafts[key, default: VisitDraft()].note = $0 }
-        )
-    }
-
-    private func followUpBinding(for key: String) -> Binding<String> {
-        Binding(
-            get: { drafts[key]?.followUp ?? "" },
-            set: { drafts[key, default: VisitDraft()].followUp = $0 }
+            get: { drafts[key]?[keyPath: field] ?? "" },
+            set: { drafts[key, default: VisitDraft()][keyPath: field] = $0 }
         )
     }
 

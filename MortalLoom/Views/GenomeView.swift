@@ -15,14 +15,6 @@ struct GenomeView: View {
     @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
     private var isWide: Bool { containerWidth >= Layout.wideThreshold }
 
-    #if os(iOS)
-    /// `GenomeSplitView` is an iPad-only layout. A wide iPhone in landscape
-    /// (Plus / Pro Max) also crosses `Layout.wideThreshold`, but per #50 the
-    /// phone keeps the segmented single column + modal sheet — so the split is
-    /// gated on the device idiom in addition to width.
-    private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
-    #endif
-
     var body: some View {
         layoutContent
             .readContainerWidth { containerWidth = $0 }
@@ -85,7 +77,7 @@ struct GenomeView: View {
     @ViewBuilder
     private var layoutContent: some View {
         #if os(iOS)
-        if isPad && isWide {
+        if genomeUsesSplitLayout(containerWidth: containerWidth) {
             GenomeSplitView(
                 vm: vm,
                 activeTab: $activeTab,

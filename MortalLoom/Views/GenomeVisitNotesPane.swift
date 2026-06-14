@@ -24,7 +24,7 @@ struct GenomeVisitNotesPane: View {
     /// Advance without saving the current note.
     let onSkip: () -> Void
 
-    @State private var showCopyToast = false
+    @State private var toastMessage: String?
 
     var body: some View {
         ScrollView {
@@ -44,17 +44,7 @@ struct GenomeVisitNotesPane: View {
             .frame(maxWidth: .infinity)
         }
         .background(Color.bg)
-        .overlay(alignment: .top) {
-            if showCopyToast {
-                Text("Copied to clipboard")
-                    .font(.caption)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(.thinMaterial, in: Capsule())
-                    .padding(.top, 12)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-            }
-        }
+        .toast($toastMessage)
         .safeAreaInset(edge: .bottom) { actionBar }
     }
 
@@ -68,7 +58,7 @@ struct GenomeVisitNotesPane: View {
                 .textCase(.uppercase)
                 .foregroundColor(.textMuted)
             HStack(spacing: 10) {
-                Image(systemName: headerIcon)
+                Image(systemName: finding.iconName)
                     .font(.title2)
                     .foregroundColor(statusColor)
                     .frame(width: 30, height: 30)
@@ -78,7 +68,7 @@ struct GenomeVisitNotesPane: View {
                         .fontWeight(.semibold)
                         .foregroundColor(.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)
-                    if let genotype = displayGenotype {
+                    if let genotype = finding.displayGenotype {
                         Text(genotype)
                             .font(.caption)
                             .fontWeight(.bold)
@@ -107,7 +97,10 @@ struct GenomeVisitNotesPane: View {
                 .background(Color.bgInput)
                 .cornerRadius(8)
                 .fixedSize(horizontal: false, vertical: true)
-            Button(action: { copyToClipboard(talkingPoint) }) {
+            Button {
+                Clipboard.copy(talkingPoint)
+                showToast($toastMessage, message: "Copied to clipboard")
+            } label: {
                 Label("Copy", systemImage: "doc.on.doc")
                     .font(.caption)
             }
@@ -212,6 +205,16 @@ struct GenomeVisitNotesPane: View {
                             .font(.caption)
                             .foregroundColor(.textPrimary)
                             .fixedSize(horizontal: false, vertical: true)
+                        if let followUp = note.followUp, !followUp.isEmpty {
+                            HStack(spacing: 4) {
+                                Image(systemName: "arrow.uturn.right.circle")
+                                    .font(.caption2)
+                                    .foregroundColor(.accentColor)
+                                Text("Follow-up: \(followUp)")
+                                    .font(.caption2)
+                                    .foregroundColor(.accentColor)
+                            }
+                        }
                     }
                     .padding(8)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -291,33 +294,4 @@ struct GenomeVisitNotesPane: View {
             .cornerRadius(6)
     }
 
-    private var headerIcon: String {
-        switch finding {
-        case .marker(let r): r.marker.category.icon
-        case .clinvar: "building.columns.fill"
-        case .apoe: "brain.head.profile"
-        }
-    }
-
-    private var displayGenotype: String? {
-        switch finding {
-        case .marker(let r): r.genotype
-        case .clinvar(let h): h.genotype
-        case .apoe(let a): a.haplotype
-        }
-    }
-
-    private func copyToClipboard(_ text: String) {
-        #if os(iOS)
-        UIPasteboard.general.string = text
-        #elseif os(macOS)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
-        #endif
-        withAnimation { showCopyToast = true }
-        Task {
-            try? await Task.sleep(nanoseconds: 1_500_000_000)
-            await MainActor.run { withAnimation { showCopyToast = false } }
-        }
-    }
 }
