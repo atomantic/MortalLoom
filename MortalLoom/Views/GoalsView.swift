@@ -15,6 +15,13 @@ struct GoalsView: View {
     @State private var checkInGoal: Goal?
     @State private var pillarDashboardGoal: Goal?
 
+    /// Pillar whose dashboard requested a new supporting goal / habit. When
+    /// set, the matching edit sheet opens prefilled with the pillar as parent.
+    @State private var addGoalPillar: Goal?
+    @State private var addHabitPillar: Goal?
+    /// Habit tapped on a pillar dashboard, opened for editing.
+    @State private var editingHabit: Habit?
+
     @State private var hierarchyItems: [GoalEngine.HierarchyItem] = []
     @State private var collapsedIds: Set<UUID> = []
 
@@ -125,9 +132,17 @@ struct GoalsView: View {
                         pillarDashboardGoal = nil
                         DispatchQueue.main.async { checkInGoal = g }
                     },
-                    onEditHabit: { _ in
-                        // Habit edit from the pillar dashboard not yet wired —
-                        // user can still manage habits from the Habits page.
+                    onEditHabit: { h in
+                        pillarDashboardGoal = nil
+                        DispatchQueue.main.async { editingHabit = h }
+                    },
+                    onAddGoal: {
+                        pillarDashboardGoal = nil
+                        DispatchQueue.main.async { addGoalPillar = pillar }
+                    },
+                    onAddHabit: {
+                        pillarDashboardGoal = nil
+                        DispatchQueue.main.async { addHabitPillar = pillar }
                     }
                 )
                 .toolbar {
@@ -137,6 +152,42 @@ struct GoalsView: View {
                 }
             }
             .macSheetFrame()
+        }
+        .sheet(item: $addGoalPillar) { pillar in
+            GoalEditSheet(
+                goal: nil,
+                allGoals: vm.goals,
+                allHabits: vm.habits,
+                defaultParentId: pillar.id,
+                defaultCategory: pillar.category,
+                onSave: { newGoal in
+                    saveAndReload { await DataStore.shared.addGoal(newGoal) }
+                },
+                onAddChild: { newChild in
+                    saveAndReload { await DataStore.shared.addGoal(newChild) }
+                }
+            )
+        }
+        .sheet(item: $addHabitPillar) { pillar in
+            HabitEditSheet(
+                habit: nil,
+                goals: vm.goals,
+                defaultParentGoalId: pillar.id
+            ) { newHabit in
+                saveAndReload { await DataStore.shared.addHabit(newHabit) }
+            }
+        }
+        .sheet(item: $editingHabit) { habit in
+            HabitEditSheet(
+                habit: habit,
+                goals: vm.goals,
+                onSave: { updated in
+                    saveAndReload { await DataStore.shared.updateHabit(updated) }
+                },
+                onDelete: {
+                    saveAndReload { await DataStore.shared.removeHabit(id: habit.id) }
+                }
+            )
         }
         .task { await loadData() }
         .onReceive(NotificationCenter.default.publisher(for: .dataDidSync)) { _ in
