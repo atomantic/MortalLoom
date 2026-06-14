@@ -80,7 +80,7 @@ struct GoalEditSheet: View {
         // Existing goals keep their saved cadence; new goals inherit the
         // global check-in default (Settings → Reflection Cadence).
         _checkInInterval = State(initialValue: g?.checkInIntervalDays
-            ?? (UserDefaults.standard.object(forKey: NotificationService.defaultCheckInIntervalKey) as? Int ?? 7))
+            ?? NotificationService.defaultCheckInInterval)
         _milestoneTexts = State(initialValue: g?.milestones.map {
             MilestoneRow(id: $0.id, text: $0.title, completed: $0.completed)
         } ?? [])
@@ -278,8 +278,7 @@ struct GoalEditSheet: View {
                             // Clear the per-goal override: snap back to the
                             // global check-in cadence set in Settings →
                             // Reflection Cadence.
-                            checkInInterval = UserDefaults.standard
-                                .object(forKey: NotificationService.defaultCheckInIntervalKey) as? Int ?? 7
+                            checkInInterval = NotificationService.defaultCheckInInterval
                         } label: {
                             Label("Follow my global cadence",
                                   systemImage: "globe")

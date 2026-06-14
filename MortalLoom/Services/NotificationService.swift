@@ -49,7 +49,15 @@ final class NotificationService {
     /// Global default goal check-in interval (days). The "Follow my global
     /// cadence" button on GoalEditSheet snaps a goal's per-goal override back
     /// to this value, and new goals inherit it as their reminder cadence.
-    static let defaultCheckInIntervalKey = "reflection.defaultCheckInIntervalDays"
+    nonisolated static let defaultCheckInIntervalKey = "reflection.defaultCheckInIntervalDays"
+
+    /// The current global goal check-in default (days), falling back to 7 when
+    /// unset. Single source of truth for reading `defaultCheckInIntervalKey`
+    /// so the fallback lives in one place. `nonisolated` so non-async call
+    /// sites (e.g. `GoalEditSheet.init`) can read it directly.
+    nonisolated static var defaultCheckInInterval: Int {
+        UserDefaults.standard.object(forKey: defaultCheckInIntervalKey) as? Int ?? 7
+    }
 
     static let dailyNudgeIdentifier = "mortalloom.daily-nudge"
     static let weeklyReviewIdentifier = "mortalloom.weekly-review"
@@ -88,9 +96,13 @@ final class NotificationService {
     /// single pending request for each ritual, so it's safe to run on every
     /// launch and after any settings change.
     func scheduleReflectionPlan() async {
-        await scheduleDailyNudge()
-        await scheduleWeeklyReviewReminder()
-        await scheduleMonthlyRethinkReminder()
+        // The three rituals are independent (distinct identifiers, no shared
+        // state) — schedule them concurrently so launch isn't blocked on three
+        // serial notification-center round-trips.
+        async let daily: Void = scheduleDailyNudge()
+        async let weekly: Void = scheduleWeeklyReviewReminder()
+        async let monthly: Void = scheduleMonthlyRethinkReminder()
+        _ = await (daily, weekly, monthly)
     }
 
     /// Daily nudge — fires every day at the configured hour (default 9am).
