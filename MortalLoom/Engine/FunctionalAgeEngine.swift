@@ -155,7 +155,9 @@ enum FunctionalAgeEngine {
 
     /// Build a functional-age estimate from individual biomarker averages.
     /// Returns `nil` when no absolute-age domain (walking or stair speed) is
-    /// available — asymmetry alone is only a modifier and can't anchor an age.
+    /// available — asymmetry alone is only a modifier and can't anchor an age —
+    /// or when `chronologicalAge` is unknown (≤ 0, e.g. birth date not yet set):
+    /// an *age-adjusted* estimate is meaningless without a real reference age.
     static func estimate(
         walkingSpeed: Double?,
         stairSpeedUp: Double?,
@@ -163,6 +165,8 @@ enum FunctionalAgeEngine {
         asymmetry: Double?,
         chronologicalAge: Int
     ) -> FunctionalAgeSummary? {
+        guard chronologicalAge > 0 else { return nil }
+
         var componentAges: [Double] = []
 
         if let speed = walkingSpeed {

@@ -120,6 +120,14 @@ final class FunctionalAgeEngineTests: XCTestCase {
             asymmetry: 8, chronologicalAge: 50))
     }
 
+    func testEstimateReturnsNilForUnknownAge() {
+        // Birth date not set → userAge defaults to 0; an age-adjusted estimate is
+        // meaningless without a reference age, so the card stays hidden.
+        XCTAssertNil(FunctionalAgeEngine.estimate(
+            walkingSpeed: 1.40, stairSpeedUp: 0.50, stairSpeedDown: 0.50,
+            asymmetry: nil, chronologicalAge: 0))
+    }
+
     func testEstimateFromWalkingSpeedOnly() {
         let summary = FunctionalAgeEngine.estimate(
             walkingSpeed: 1.28, stairSpeedUp: nil, stairSpeedDown: nil,
