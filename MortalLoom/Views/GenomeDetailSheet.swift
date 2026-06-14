@@ -425,13 +425,7 @@ struct GenomeDetailSheet: View {
         }
     }
 
-    private var headerIcon: String {
-        switch finding {
-        case .marker(let r): r.marker.category.icon
-        case .clinvar: "building.columns.fill"
-        case .apoe: "brain.head.profile"
-        }
-    }
+    private var headerIcon: String { finding.iconName }
 
     private var statusPill: some View {
         Text(statusLabel)
@@ -447,13 +441,7 @@ struct GenomeDetailSheet: View {
     private var statusLabel: String { finding.statusLabel }
     private var statusColor: Color { severityColor(for: finding) }
 
-    private var displayGenotype: String? {
-        switch finding {
-        case .marker(let r): r.genotype
-        case .clinvar(let h): h.genotype
-        case .apoe(let a): a.haplotype
-        }
-    }
+    private var displayGenotype: String? { finding.displayGenotype }
 
     private var clinvarStars: Int? {
         if case .clinvar(let h) = finding { return h.entry.reviewStars }
@@ -550,12 +538,7 @@ struct GenomeDetailSheet: View {
     }
 
     private func copyToClipboard(_ text: String) {
-        #if os(iOS)
-        UIPasteboard.general.string = text
-        #elseif os(macOS)
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
-        #endif
+        Clipboard.copy(text)
         withAnimation { showCopyToast = true }
         Task {
             try? await Task.sleep(nanoseconds: 1_500_000_000)

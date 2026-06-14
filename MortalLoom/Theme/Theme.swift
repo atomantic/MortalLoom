@@ -427,6 +427,22 @@ extension LinearGradient {
     )
 }
 
+// MARK: - Clipboard
+
+/// Cross-platform clipboard write. Wraps the UIKit/AppKit pasteboard so views
+/// (e.g. the genome "Copy talking point" buttons) don't each repeat the
+/// `#if os` branch.
+enum Clipboard {
+    static func copy(_ string: String) {
+        #if os(iOS)
+        UIPasteboard.general.string = string
+        #elseif os(macOS)
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(string, forType: .string)
+        #endif
+    }
+}
+
 // MARK: - Toast Notification
 
 struct ToastModifier: ViewModifier {

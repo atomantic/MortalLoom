@@ -84,6 +84,24 @@ enum PriorityFindingSource: Sendable, Hashable, Identifiable {
             }
         }
     }
+
+    /// SF Symbol shown beside the finding in the detail sheet and Visit Mode pane.
+    var iconName: String {
+        switch self {
+        case .marker(let r): r.marker.category.icon
+        case .clinvar: "building.columns.fill"
+        case .apoe: "brain.head.profile"
+        }
+    }
+
+    /// The user's genotype (marker/ClinVar) or haplotype (APOE), if known.
+    var displayGenotype: String? {
+        switch self {
+        case .marker(let r): r.genotype
+        case .clinvar(let h): h.genotype
+        case .apoe(let a): a.haplotype
+        }
+    }
 }
 
 struct ActionStateCounts: Sendable {

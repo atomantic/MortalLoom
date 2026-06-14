@@ -67,6 +67,12 @@ final class GenomeViewModel {
     /// cold-launch `.openGenomeFinding` tap-back can open the right finding
     /// once data lands.
     var selectedFinding: PriorityFindingSource?
+    /// Whether the full-screen Genome Visit Mode (`GenomeVisitModeView`) is
+    /// presented. Lives here — like `selectedFinding` — so the deep-in-the-tree
+    /// "Start Doctor Visit" button (`GenomeScanView`) can raise it and the host
+    /// (`GenomeView`) can present it without threading another binding through
+    /// `genomeTabBody` and both layouts.
+    var showingVisitMode = false
     private(set) var actionStates: [String: GenomeActionState] = [:]
     private(set) var visitNotes: [VisitNote] = []
     private(set) var allGoals: [Goal] = []
@@ -401,8 +407,13 @@ final class GenomeViewModel {
         await load()
     }
 
-    func addVisitNote(_ note: VisitNote) async {
-        await DataStore.shared.addVisitNote(note)
+    func addVisitNote(_ note: VisitNote, autoDiscussPending: Bool = true) async {
+        await DataStore.shared.addVisitNote(note, autoDiscussPending: autoDiscussPending)
+        await load()
+    }
+
+    func updateVisitNote(_ note: VisitNote) async {
+        await DataStore.shared.updateVisitNote(note)
         await load()
     }
 

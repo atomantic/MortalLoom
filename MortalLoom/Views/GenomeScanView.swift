@@ -18,7 +18,7 @@ struct GenomeScanView: View {
                         priorities: vm.topPriorities,
                         totalCandidateCount: vm.totalPriorityCandidates,
                         onSelectFinding: { finding in vm.selectedFinding = finding },
-                        onStartVisit: { /* Visit Mode in next phase */ },
+                        onStartVisit: { vm.showingVisitMode = true },
                         onExportPDF: { /* PDF export in next phase */ }
                     )
                 }

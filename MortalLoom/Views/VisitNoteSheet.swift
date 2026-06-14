@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// Lightweight inline form for adding a single doctor visit note from the
-/// genome detail sheet. Visit Mode (the bigger live-capture flow) lives in
-/// `GenomeVisitModeView` and is added in a later phase.
+/// genome detail sheet. The bigger live-capture flow that walks every priority
+/// finding lives in `GenomeVisitModeView` (Visit Mode).
 struct VisitNoteSheet: View {
     let finding: PriorityFindingSource
     let onSave: (VisitNote) -> Void

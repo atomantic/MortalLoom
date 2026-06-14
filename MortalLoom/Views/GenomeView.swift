@@ -15,14 +15,6 @@ struct GenomeView: View {
     @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
     private var isWide: Bool { containerWidth >= Layout.wideThreshold }
 
-    #if os(iOS)
-    /// `GenomeSplitView` is an iPad-only layout. A wide iPhone in landscape
-    /// (Plus / Pro Max) also crosses `Layout.wideThreshold`, but per #50 the
-    /// phone keeps the segmented single column + modal sheet — so the split is
-    /// gated on the device idiom in addition to width.
-    private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
-    #endif
-
     var body: some View {
         layoutContent
             .readContainerWidth { containerWidth = $0 }
@@ -60,6 +52,7 @@ struct GenomeView: View {
                 }
             )
         }
+        .modifier(GenomeVisitModePresenter(isPresented: $vm.showingVisitMode, vm: vm))
         .task { await vm.load() }
         .onDisappear { vm.cancelScans() }
         .onReceive(NotificationCenter.default.publisher(for: .dataDidSync)) { _ in
@@ -84,7 +77,7 @@ struct GenomeView: View {
     @ViewBuilder
     private var layoutContent: some View {
         #if os(iOS)
-        if isPad && isWide {
+        if genomeUsesSplitLayout(containerWidth: containerWidth) {
             GenomeSplitView(
                 vm: vm,
                 activeTab: $activeTab,
@@ -136,6 +129,30 @@ struct GenomeView: View {
                 .frame(maxWidth: .infinity)
             }
         }
+    }
+}
+
+// MARK: - Visit Mode presenter (full-screen cover on iOS, sheet on macOS)
+
+/// Presents `GenomeVisitModeView` adaptively: a `.fullScreenCover` on iOS so the
+/// focused appointment flow takes over the screen, and a sized `.sheet` on macOS
+/// (which has no full-screen cover). Raised by the "Start Doctor Visit" button in
+/// `GenomePrioritiesCard` via `vm.showingVisitMode`.
+private struct GenomeVisitModePresenter: ViewModifier {
+    @Binding var isPresented: Bool
+    let vm: GenomeViewModel
+
+    func body(content: Content) -> some View {
+        #if os(iOS)
+        content.fullScreenCover(isPresented: $isPresented) {
+            GenomeVisitModeView(vm: vm)
+        }
+        #else
+        content.sheet(isPresented: $isPresented) {
+            GenomeVisitModeView(vm: vm)
+                .frame(minWidth: 840, minHeight: 600)
+        }
+        #endif
     }
 }
 
