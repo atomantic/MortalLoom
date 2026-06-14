@@ -153,4 +153,14 @@ final class FunctionalAgeEngineTests: XCTestCase {
         XCTAssertEqual(summary?.componentCount, 2)
         XCTAssertEqual(summary?.level, .onPar)
     }
+
+    // MARK: - Citation registration
+
+    func testBohannonCitationIsRegistered() {
+        // The Functional Age card's CitationBadge resolves this id through
+        // CitationLibrary.resolve, which silently drops ids missing from `all`.
+        XCTAssertNotNil(CitationLibrary.all[CitationLibrary.bohannonGaitNorms2011.id])
+        XCTAssertEqual(
+            CitationLibrary.resolve([CitationLibrary.bohannonGaitNorms2011.id]).count, 1)
+    }
 }

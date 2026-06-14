@@ -159,7 +159,10 @@ enum FunctionalAgeEngine {
         // then clamp to the plausible adult range.
         let chrono = Double(chronologicalAge)
         let withinChronoBounds = min(chrono + 25, max(chrono - 25, estimated))
-        let functionalAge = clampAge(withinChronoBounds)
+        // Round to a whole year: sub-year precision is false given the heuristic,
+        // and rounding here keeps the displayed age and the displayed gap consistent
+        // (gap is derived from this same rounded value).
+        let functionalAge = clampAge(withinChronoBounds).rounded()
         let gap = functionalAge - chrono
 
         return FunctionalAgeSummary(

@@ -331,6 +331,7 @@ enum CitationLibrary {
         kodamaFitness2009.id: kodamaFitness2009,
         studenskiGait2011.id: studenskiGait2011,
         hausdorffFalls2001.id: hausdorffFalls2001,
+        bohannonGaitNorms2011.id: bohannonGaitNorms2011,
         niaaaLimits.id: niaaaLimits,
         gbdAlcohol2018.id: gbdAlcohol2018,
         dollSmoking2004.id: dollSmoking2004,
