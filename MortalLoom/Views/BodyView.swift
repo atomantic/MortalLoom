@@ -61,6 +61,7 @@ struct BodyView: View {
 
     // BMI ↔ breathing disturbances
     @State private var bmiBreathingPoints: [CorrelationEngine.BMIBreathingDataPoint] = []
+    @State private var exerciseCardioRecoveryPoints: [CorrelationEngine.ExerciseCardioRecoveryDataPoint] = []
 
     // Blood pressure
     @State private var bpHistory: [BPPoint] = []
@@ -98,6 +99,7 @@ struct BodyView: View {
                     cardioFitnessSection
                 }
                 bmiBreathingSection
+                exerciseCardioRecoverySection
                 bloodPressureSection
                 gaitSection
                 functionalAgeSection
@@ -492,6 +494,77 @@ struct BodyView: View {
                 }
 
                 Text("Higher body-mass index is a leading risk factor for obstructive sleep apnea. BMI here is estimated from your weigh-in history anchored on your recorded BMI; overlaying it against nightly breathing disturbances can reveal whether body-composition changes track with disordered breathing.")
+                    .font(.caption2)
+                    .foregroundColor(.textMuted)
+            }
+            .padding()
+            .cardStyle()
+        }
+    }
+
+    // MARK: - Exercise → Cardio Recovery Section
+
+    /// Weekly training load (total exercise minutes) plotted against that week's
+    /// average heart-rate recovery — a fitness-improvement feedback loop. Each
+    /// point is one ISO week; weeks trending up and to the right mean more
+    /// training is tracking with a faster (fitter) post-exercise heart-rate drop.
+    @ViewBuilder
+    private var exerciseCardioRecoverySection: some View {
+        // Need at least three weeks for a scatter to read as a relationship
+        // rather than a couple of incidental dots.
+        if exerciseCardioRecoveryPoints.count >= 3 {
+            let points = exerciseCardioRecoveryPoints.suffix(52) // ~one year of weeks
+            let avgExercise = points.map(\.weekExerciseMinutes).reduce(0, +) / Double(points.count)
+            let avgRecovery = points.map(\.avgCardioRecovery).reduce(0, +) / Double(points.count)
+
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 6) {
+                    Text("Exercise + Cardio Recovery")
+                        .font(.headline)
+                        .foregroundColor(.textPrimary)
+                    CitationBadge(
+                        ids: [
+                            CitationLibrary.coleHrr1999.id,
+                            CitationLibrary.acsmGuidelines.id,
+                        ],
+                        claim: "Heart-rate recovery after exercise as a marker of cardiorespiratory fitness and mortality risk"
+                    )
+                    Spacer()
+                }
+
+                Chart(Array(points), id: \.date) { item in
+                    PointMark(
+                        x: .value("Weekly Exercise (min)", item.weekExerciseMinutes),
+                        y: .value("Avg Recovery (bpm)", item.avgCardioRecovery)
+                    )
+                    .foregroundStyle(Color.accentColor)
+                    .symbolSize(60)
+                }
+                .chartXAxisLabel("Weekly exercise (min)")
+                .chartYAxisLabel("Avg HR recovery (bpm)")
+                .frame(height: Layout.chartFrameHeight)
+                .padding(.vertical, 4)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Exercise and cardio recovery scatter over \(points.count) weeks. Average \(String(format: "%.0f", avgExercise)) exercise minutes per week and \(String(format: "%.0f", avgRecovery)) bpm average heart-rate recovery.")
+
+                HStack(spacing: 12) {
+                    cardioMetricCard(
+                        label: "Avg Weekly Exercise",
+                        value: String(format: "%.0f", avgExercise),
+                        unit: "min/wk",
+                        classificationColor: .accentColor,
+                        icon: "figure.run"
+                    )
+                    cardioMetricCard(
+                        label: "Avg HR Recovery",
+                        value: String(format: "%.0f", avgRecovery),
+                        unit: "bpm drop/1min",
+                        classificationColor: .success,
+                        icon: "heart.fill"
+                    )
+                }
+
+                Text("A faster 1-minute heart-rate drop after exercise signals better cardiovascular fitness. Plotting each week's training load against its average recovery shows whether building exercise volume is tracking with fitness gains.")
                     .font(.caption2)
                     .foregroundColor(.textMuted)
             }
@@ -1095,6 +1168,12 @@ struct BodyView: View {
             healthMetrics: data.healthMetrics,
             referenceBMI: data.profile.lifestyle.bmi,
             referenceWeightLbs: latestWeight
+        )
+
+        // Exercise ↔ cardio recovery: weekly training load vs that week's average
+        // heart-rate recovery, a fitness-improvement feedback loop.
+        exerciseCardioRecoveryPoints = CorrelationEngine.exerciseCardioRecoveryCorrelation(
+            healthMetrics: data.healthMetrics
         )
 
         let recentMetrics = metricsByDateDesc.prefix(30)

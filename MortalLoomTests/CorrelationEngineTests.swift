@@ -405,3 +405,95 @@ final class CorrelationEngineNextDayPairingTests: XCTestCase {
         XCTAssertNil(CorrelationEngine.impliedHeightInches(weightLbs: 200, bmi: 0))
     }
 }
+
+// MARK: - Exercise → Cardio Recovery (weekly aggregation)
+//
+// Unlike the next-day-pairing surface above, this correlation buckets health
+// metrics by ISO week (Monday-anchored, via `HabitEngine.startOfWeek`) and
+// pairs each week's total exercise minutes with that week's average cardio
+// recovery. Fixtures build dates relative to a known Monday so same-week vs
+// different-week membership is explicit and calendar-independent.
+final class CorrelationEngineExerciseCardioRecoveryTests: XCTestCase {
+
+    /// Monday of the week containing a fixed anchor — the engine's own week
+    /// bucketing key, so expected week-start strings round-trip through it.
+    private let weekZeroMonday = HabitEngine.startOfWeek(DateFormatting.dateFromString("2026-06-01")!)
+
+    /// "YYYY-MM-DD" for `day` (0 = Monday … 6 = Sunday) of week `week` relative
+    /// to `weekZeroMonday`. Keeps test dates inside their intended ISO week.
+    private func weekDay(week: Int, day: Int) -> String {
+        DateFormatting.dateString(
+            Calendar.current.date(byAdding: .day, value: week * 7 + day, to: weekZeroMonday)!
+        )
+    }
+
+    /// Expected week-start string for relative week `week`.
+    private func weekStart(_ week: Int) -> String {
+        DateFormatting.dateString(
+            Calendar.current.date(byAdding: .day, value: week * 7, to: weekZeroMonday)!
+        )
+    }
+
+    private func metric(_ date: String, exercise: Double? = nil, recovery: Double? = nil) -> HealthMetricEntry {
+        HealthMetricEntry(date: date, exerciseMinutes: exercise, cardioRecovery: recovery)
+    }
+
+    func testExerciseCardioRecovery_emptyInputReturnsEmpty() {
+        XCTAssertTrue(CorrelationEngine.exerciseCardioRecoveryCorrelation(healthMetrics: []).isEmpty)
+    }
+
+    func testExerciseCardioRecovery_sumsExerciseAndAveragesRecoveryWithinWeek() {
+        let result = CorrelationEngine.exerciseCardioRecoveryCorrelation(healthMetrics: [
+            metric(weekDay(week: 0, day: 0), exercise: 30, recovery: 20),
+            metric(weekDay(week: 0, day: 2), exercise: 20, recovery: 30),
+        ])
+        XCTAssertEqual(result.count, 1)
+        XCTAssertEqual(result[0].date, weekStart(0))
+        XCTAssertEqual(result[0].weekExerciseMinutes, 50, accuracy: 0.0001)   // 30 + 20
+        XCTAssertEqual(result[0].avgCardioRecovery, 25, accuracy: 0.0001)     // (20 + 30) / 2
+    }
+
+    func testExerciseCardioRecovery_excludesWeekWithoutRecoveryReading() {
+        // Exercise logged but no cardio-recovery reading → the week has no
+        // defined average, so it is dropped.
+        let result = CorrelationEngine.exerciseCardioRecoveryCorrelation(healthMetrics: [
+            metric(weekDay(week: 0, day: 0), exercise: 45),
+        ])
+        XCTAssertTrue(result.isEmpty)
+    }
+
+    func testExerciseCardioRecovery_includesZeroExerciseContrastWeek() {
+        // A recovery reading with no exercise that week is a low-load contrast
+        // point, not a dropped week: exercise minutes default to 0.
+        let result = CorrelationEngine.exerciseCardioRecoveryCorrelation(healthMetrics: [
+            metric(weekDay(week: 0, day: 3), recovery: 22),
+        ])
+        XCTAssertEqual(result.count, 1)
+        XCTAssertEqual(result[0].weekExerciseMinutes, 0, accuracy: 0.0001)
+        XCTAssertEqual(result[0].avgCardioRecovery, 22, accuracy: 0.0001)
+    }
+
+    func testExerciseCardioRecovery_mergesSameDateSnapshots() {
+        // A day split across two snapshots — exercise in one, recovery in the
+        // other — must merge into a single week point, not drop a field based
+        // on input order (relies on HealthMetricEntry.deduplicatedByDate).
+        let result = CorrelationEngine.exerciseCardioRecoveryCorrelation(healthMetrics: [
+            metric(weekDay(week: 0, day: 1), exercise: 40),
+            metric(weekDay(week: 0, day: 1), recovery: 25),
+        ])
+        XCTAssertEqual(result.count, 1)
+        XCTAssertEqual(result[0].weekExerciseMinutes, 40, accuracy: 0.0001)
+        XCTAssertEqual(result[0].avgCardioRecovery, 25, accuracy: 0.0001)
+    }
+
+    func testExerciseCardioRecovery_bucketsDistinctWeeksAndSortsByDate() {
+        let result = CorrelationEngine.exerciseCardioRecoveryCorrelation(healthMetrics: [
+            metric(weekDay(week: 2, day: 1), exercise: 60, recovery: 40),
+            metric(weekDay(week: 0, day: 1), exercise: 30, recovery: 20),
+            metric(weekDay(week: 1, day: 5), exercise: 90, recovery: 30),
+        ])
+        XCTAssertEqual(result.map(\.date), [weekStart(0), weekStart(1), weekStart(2)])
+        XCTAssertEqual(result.map(\.weekExerciseMinutes), [30, 90, 60])
+        XCTAssertEqual(result.map(\.avgCardioRecovery), [20, 30, 40])
+    }
+}

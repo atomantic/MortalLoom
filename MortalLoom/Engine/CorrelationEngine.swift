@@ -322,6 +322,69 @@ enum CorrelationEngine {
         }
     }
 
+    // MARK: - Exercise → Cardio Recovery
+
+    /// One ISO week's training load paired with that week's average cardio
+    /// recovery — the fitness-improvement feedback loop. `date` is the
+    /// "YYYY-MM-DD" of the week's Monday so the point sorts chronologically and
+    /// conforms to `DatedCorrelationPoint`.
+    struct ExerciseCardioRecoveryDataPoint: DatedCorrelationPoint {
+        let date: String                // "YYYY-MM-DD" of the week start (Monday)
+        let weekExerciseMinutes: Double // total exercise minutes logged that week
+        let avgCardioRecovery: Double   // mean cardio-recovery (bpm) that week
+    }
+
+    /// Bucket health metrics by ISO week (Monday-anchored, via
+    /// `HabitEngine.startOfWeek`) and pair each week's total exercise minutes
+    /// with that week's average cardio recovery. Weekly aggregation smooths the
+    /// day-to-day noise in both signals so a training-load → fitness trend can
+    /// emerge; a single recovery reading on a rest day shouldn't anchor a week.
+    ///
+    /// A week is included only when it has at least one cardio-recovery reading
+    /// (so the average is defined). Its exercise load is the sum of that week's
+    /// logged exercise minutes — `0` when none were logged, which keeps low-/no-
+    /// training weeks as honest low-load contrast points rather than dropping them.
+    static func exerciseCardioRecoveryCorrelation(
+        healthMetrics: [HealthMetricEntry]
+    ) -> [ExerciseCardioRecoveryDataPoint] {
+        guard !healthMetrics.isEmpty else { return [] }
+
+        // Collapse to one entry per date first — the rest of the engine treats
+        // health metrics as one-per-day. `deduplicatedByDate` *merges* non-nil
+        // fields across same-date snapshots (rather than keeping only the first),
+        // so a day whose exercise and recovery arrived in separate syncs isn't
+        // undercounted or dropped depending on input order.
+        let dedupedMetrics = HealthMetricEntry.deduplicatedByDate(healthMetrics)
+
+        var exerciseByWeek: [String: Double] = [:]
+        var recoverySumByWeek: [String: Double] = [:]
+        var recoveryCountByWeek: [String: Int] = [:]
+
+        for metric in dedupedMetrics {
+            guard let day = DateFormatting.dateFromString(metric.date) else { continue }
+            let weekStart = DateFormatting.dateString(HabitEngine.startOfWeek(day))
+            if let mins = metric.exerciseMinutes {
+                exerciseByWeek[weekStart, default: 0] += mins
+            }
+            if let recovery = metric.cardioRecovery {
+                recoverySumByWeek[weekStart, default: 0] += recovery
+                recoveryCountByWeek[weekStart, default: 0] += 1
+            }
+        }
+
+        // Keys exist in `recoveryCountByWeek` only via `+= 1`, so `count` is
+        // always ≥ 1 here and `recoverySumByWeek` has the same key — the bind is
+        // for the optional subscript, not a real emptiness check.
+        return recoveryCountByWeek.compactMap { weekStart, count -> ExerciseCardioRecoveryDataPoint? in
+            guard let recoverySum = recoverySumByWeek[weekStart] else { return nil }
+            return ExerciseCardioRecoveryDataPoint(
+                date: weekStart,
+                weekExerciseMinutes: exerciseByWeek[weekStart] ?? 0,
+                avgCardioRecovery: recoverySum / Double(count)
+            )
+        }.sorted { $0.date < $1.date }
+    }
+
     // MARK: - Nicotine → Heart Rate
 
     /// Correlate the last 30 days of nicotine intake with same-day heart rate.
