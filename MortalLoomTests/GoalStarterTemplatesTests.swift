@@ -22,7 +22,7 @@ final class GoalStarterTemplatesTests: XCTestCase {
     /// The non-health pillars are the reason the feature exists; assert they
     /// each carry real depth (more than a single token entry).
     func testNonHealthPillarsHaveDepth() {
-        for category: GoalCategory in [.creative, .financial, .family, .legacy] {
+        for category: GoalCategory in [.creative, .financial, .family, .legacy, .mastery] {
             XCTAssertGreaterThanOrEqual(
                 GoalStarterTemplates.templates(for: category).count, 2,
                 "\(category) should offer multiple starting points"
