@@ -67,6 +67,12 @@ final class GenomeViewModel {
     /// cold-launch `.openGenomeFinding` tap-back can open the right finding
     /// once data lands.
     var selectedFinding: PriorityFindingSource?
+    /// Whether the full-screen Genome Visit Mode (`GenomeVisitModeView`) is
+    /// presented. Lives here — like `selectedFinding` — so the deep-in-the-tree
+    /// "Start Doctor Visit" button (`GenomeScanView`) can raise it and the host
+    /// (`GenomeView`) can present it without threading another binding through
+    /// `genomeTabBody` and both layouts.
+    var showingVisitMode = false
     private(set) var actionStates: [String: GenomeActionState] = [:]
     private(set) var visitNotes: [VisitNote] = []
     private(set) var allGoals: [Goal] = []
