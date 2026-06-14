@@ -3,7 +3,15 @@ import Foundation
 struct CorrelationDataPoint: Sendable {
     let testDate: Date
     let avgDailySteps: Double
-    let avgDailyDistance: Double?
+    let avgDailyDistance: Double?         // walking + running, km, averaged over days with a walking reading
+    let avgDailyCyclingDistance: Double?  // cycling, km, averaged over days with a cycling reading
+    // Combined walking/running + cycling distance, averaged per day over the days
+    // that had ANY distance reading. This is NOT `avgDailyDistance + avgDailyCyclingDistance`:
+    // those two are averaged over different denominators (walking is near-daily,
+    // cycling is sparse), so summing them overstates active distance on days a
+    // person didn't cycle. Averaging the per-day total over one shared denominator
+    // keeps a single 30 km ride from reading as +30 km/day across the window.
+    let avgDailyActiveDistance: Double?
     let avgExerciseMinutes: Double?
     let avgHRV: Double?
     let avgSleepHours: Double?
@@ -212,6 +220,73 @@ enum CorrelationEngine {
         }
     }
 
+    // MARK: - BMI → Breathing Disturbances
+
+    /// A night's body-mass index paired with that night's breathing disturbances
+    /// (apnea/hypopnea events per hour during sleep). Surfaces the obesity↔apnea
+    /// link on `BodyView`.
+    struct BMIBreathingDataPoint: DatedCorrelationPoint {
+        let date: String                  // "YYYY-MM-DD" of the night
+        let bmi: Double                   // BMI implied by the carried-forward weigh-in
+        let breathingDisturbances: Double // apnea/hypopnea events per hour that night
+    }
+
+    /// Height (inches) implied by a known `bmi` at a known `weightLbs`, via the
+    /// imperial formula `BMI = 703 × lbs / in²`. The app stores a single static
+    /// BMI rather than a height, so we back the height out of the user's
+    /// reference weigh-in to reconstruct BMI for their other weigh-ins. Returns
+    /// `nil` when either input is non-positive.
+    static func impliedHeightInches(weightLbs: Double, bmi: Double) -> Double? {
+        guard weightLbs > 0, bmi > 0 else { return nil }
+        return (703 * weightLbs / bmi).squareRoot()
+    }
+
+    /// BMI for a weight at a fixed height, via `BMI = 703 × lbs / in²`. Returns
+    /// `nil` for a non-positive height.
+    static func bmi(weightLbs: Double, heightInches: Double) -> Double? {
+        guard heightInches > 0 else { return nil }
+        return 703 * weightLbs / (heightInches * heightInches)
+    }
+
+    /// Pair derived BMI with same-night breathing disturbances. The stored
+    /// `referenceBMI` is assumed to describe `referenceWeightLbs` (the user's
+    /// latest weigh-in); that anchors a constant height which converts every
+    /// historical `BodyEntry.weightLbs` into a BMI. Each breathing-disturbance
+    /// night is matched to the most recent weigh-in on or before it (weight is a
+    /// slow-moving baseline), so nights before the first weigh-in are dropped.
+    static func bmiBreathingCorrelation(
+        bodyEntries: [BodyEntry],
+        healthMetrics: [HealthMetricEntry],
+        referenceBMI: Double?,
+        referenceWeightLbs: Double?
+    ) -> [BMIBreathingDataPoint] {
+        guard let referenceBMI, let referenceWeightLbs,
+              let heightInches = impliedHeightInches(weightLbs: referenceWeightLbs, bmi: referenceBMI)
+        else { return [] }
+
+        let weighIns = bodyEntries
+            .compactMap { entry in entry.weightLbs.map { (date: entry.date, weight: $0) } }
+            .sorted { $0.date < $1.date }
+        guard !weighIns.isEmpty else { return [] }
+
+        let nights = healthMetrics
+            .compactMap { metric in metric.breathingDisturbances.map { (date: metric.date, disturbances: $0) } }
+            .sorted { $0.date < $1.date }
+
+        return nights.compactMap { night -> BMIBreathingDataPoint? in
+            // "YYYY-MM-DD" sorts lexically == chronologically, so the last
+            // weigh-in not after the night is the carried-forward weight.
+            guard let weight = weighIns.last(where: { $0.date <= night.date })?.weight,
+                  let value = bmi(weightLbs: weight, heightInches: heightInches)
+            else { return nil }
+            return BMIBreathingDataPoint(
+                date: night.date,
+                bmi: value,
+                breathingDisturbances: night.disturbances
+            )
+        }
+    }
+
     // MARK: - Nicotine → Cardio Recovery
 
     /// A day's nicotine intake paired with next-day cardio recovery (the bpm
@@ -338,10 +413,11 @@ enum CorrelationEngine {
         return tests.compactMap { test -> CorrelationDataPoint? in
             guard let testDate = DateFormatting.dateFromString(test.date) else { return nil }
 
-            var totalSteps = 0.0, totalDist = 0.0, totalExercise = 0.0
+            var totalSteps = 0.0, totalDist = 0.0, totalCycling = 0.0, totalExercise = 0.0
+            var totalActiveDist = 0.0
             var totalHRV = 0.0, totalSleep = 0.0, totalDeepPct = 0.0, totalStand = 0.0
             var count = 0.0
-            var distCount = 0.0, exerciseCount = 0.0, hrvCount = 0.0
+            var distCount = 0.0, cyclingCount = 0.0, activeDistCount = 0.0, exerciseCount = 0.0, hrvCount = 0.0
             var sleepCount = 0.0, deepCount = 0.0, standCount = 0.0
 
             for dayOffset in 1...windowDays {
@@ -353,6 +429,13 @@ enum CorrelationEngine {
                 count += 1
 
                 if let d = metrics.walkingDistance { totalDist += d; distCount += 1 }
+                if let c = metrics.distanceCycling { totalCycling += c; cyclingCount += 1 }
+                // Active distance: per-day total of whatever distance was recorded,
+                // counted once per day that had any reading (see field doc above).
+                if metrics.walkingDistance != nil || metrics.distanceCycling != nil {
+                    totalActiveDist += (metrics.walkingDistance ?? 0) + (metrics.distanceCycling ?? 0)
+                    activeDistCount += 1
+                }
                 if let e = metrics.exerciseMinutes { totalExercise += e; exerciseCount += 1 }
                 if let h = metrics.hrv { totalHRV += h; hrvCount += 1 }
                 if let s = metrics.sleepHours { totalSleep += s; sleepCount += 1 }
@@ -369,6 +452,8 @@ enum CorrelationEngine {
                 testDate: testDate,
                 avgDailySteps: totalSteps / count,
                 avgDailyDistance: distCount > 0 ? totalDist / distCount : nil,
+                avgDailyCyclingDistance: cyclingCount > 0 ? totalCycling / cyclingCount : nil,
+                avgDailyActiveDistance: activeDistCount > 0 ? totalActiveDist / activeDistCount : nil,
                 avgExerciseMinutes: exerciseCount > 0 ? totalExercise / exerciseCount : nil,
                 avgHRV: hrvCount > 0 ? totalHRV / hrvCount : nil,
                 avgSleepHours: sleepCount > 0 ? totalSleep / sleepCount : nil,

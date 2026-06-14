@@ -2447,6 +2447,85 @@ final class CorrelationEngineEdgeCaseTests: XCTestCase {
         let result = CorrelationEngine.buildCorrelationData(tests: tests, healthMetrics: metrics)
         XCTAssertGreaterThanOrEqual(result.count, 1)
     }
+
+    // MARK: - Distance (walking + cycling) aggregation
+
+    private func distanceMetrics(testDate: String, walking: Double?, cycling: Double?) -> [HealthMetricEntry] {
+        (1...3).map { dayOffset in
+            let day = Calendar.current.date(byAdding: .day, value: -dayOffset,
+                                            to: DateFormatting.dateFromString(testDate)!)!
+            return HealthMetricEntry(
+                date: DateFormatting.dateString(day),
+                steps: 5000,
+                walkingDistance: walking,
+                distanceCycling: cycling
+            )
+        }
+    }
+
+    func testBuildCorrelationDataAveragesWalkingDistance() {
+        let testDate = "2026-03-15"
+        let test = BloodTest(date: testDate, markers: ["ldl": 100])
+        let result = CorrelationEngine.buildCorrelationData(
+            tests: [test], healthMetrics: distanceMetrics(testDate: testDate, walking: 4.0, cycling: nil)
+        )
+        XCTAssertEqual(result.first?.avgDailyDistance ?? 0, 4.0, accuracy: 0.0001)
+        XCTAssertNil(result.first?.avgDailyCyclingDistance)
+        XCTAssertEqual(result.first?.avgDailyActiveDistance ?? 0, 4.0, accuracy: 0.0001)
+    }
+
+    func testBuildCorrelationDataAveragesCyclingDistance() {
+        let testDate = "2026-03-15"
+        let test = BloodTest(date: testDate, markers: ["ldl": 100])
+        let result = CorrelationEngine.buildCorrelationData(
+            tests: [test], healthMetrics: distanceMetrics(testDate: testDate, walking: nil, cycling: 6.0)
+        )
+        XCTAssertNil(result.first?.avgDailyDistance)
+        XCTAssertEqual(result.first?.avgDailyCyclingDistance ?? 0, 6.0, accuracy: 0.0001)
+        XCTAssertEqual(result.first?.avgDailyActiveDistance ?? 0, 6.0, accuracy: 0.0001)
+    }
+
+    func testActiveDistanceCombinesWalkingAndCycling() {
+        let testDate = "2026-03-15"
+        let test = BloodTest(date: testDate, markers: ["ldl": 100])
+        let result = CorrelationEngine.buildCorrelationData(
+            tests: [test], healthMetrics: distanceMetrics(testDate: testDate, walking: 4.0, cycling: 6.0)
+        )
+        XCTAssertEqual(result.first?.avgDailyActiveDistance ?? 0, 10.0, accuracy: 0.0001)
+    }
+
+    func testActiveDistanceAveragesSparseCyclingOverAllDistanceDays() {
+        // Walking every day (4 km), a single cycling ride (30 km) on one day.
+        // Active distance must average the per-day total over all days that had a
+        // distance reading — NOT sum the two independently-averaged series, which
+        // would report 4 + 30 = 34 km/day for the sparse ride.
+        let testDate = "2026-03-15"
+        let test = BloodTest(date: testDate, markers: ["ldl": 100])
+        let metrics = (1...3).map { dayOffset -> HealthMetricEntry in
+            let day = Calendar.current.date(byAdding: .day, value: -dayOffset,
+                                            to: DateFormatting.dateFromString(testDate)!)!
+            return HealthMetricEntry(
+                date: DateFormatting.dateString(day),
+                steps: 5000,
+                walkingDistance: 4.0,
+                distanceCycling: dayOffset == 1 ? 30.0 : nil
+            )
+        }
+        let result = CorrelationEngine.buildCorrelationData(tests: [test], healthMetrics: metrics)
+        // (4 + 4 + 4 + 30) / 3 days = 14, not 4 + 30 = 34.
+        XCTAssertEqual(result.first?.avgDailyActiveDistance ?? 0, 14.0, accuracy: 0.0001)
+    }
+
+    func testActiveDistanceNilWhenNoDistanceData() {
+        let testDate = "2026-03-15"
+        let test = BloodTest(date: testDate, markers: ["ldl": 100])
+        let result = CorrelationEngine.buildCorrelationData(
+            tests: [test], healthMetrics: distanceMetrics(testDate: testDate, walking: nil, cycling: nil)
+        )
+        XCTAssertNil(result.first?.avgDailyDistance)
+        XCTAssertNil(result.first?.avgDailyCyclingDistance)
+        XCTAssertNil(result.first?.avgDailyActiveDistance)
+    }
 }
 
 // MARK: - GenomeParser Additional Edge Cases
