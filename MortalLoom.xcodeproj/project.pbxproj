@@ -132,6 +132,7 @@
 		85F2BC8B825D9C8422B28F0E /* GenomeScanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A953CF0633A4E3BA09593D5E /* GenomeScanView.swift */; };
 		86524C5AD7E83B48901489AE /* ClinVarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEB9A10C3E2202B80634C242 /* ClinVarView.swift */; };
 		86952B52C6B4C342109BDD00 /* GoalEditSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4BD03C87EEC89C8F3E1D531 /* GoalEditSheet.swift */; };
+		869611D2CCF44F18689B994B /* GenomeSplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FFD70EACFB652B2CD985DEB /* GenomeSplitView.swift */; };
 		87D1240D778BA3F731A71EE4 /* GenomeAction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E18963CDE5F8FF6970AC611 /* GenomeAction.swift */; };
 		884893922D3689B12DC1E4C6 /* CuratedMarkers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69B73CEA0F3655CDD11A007C /* CuratedMarkers.swift */; };
 		89C3332067D295F52E472691 /* EyeExam.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6800ABC07A07655F56FA658 /* EyeExam.swift */; };
@@ -203,6 +204,7 @@
 		D1BEDA20FE95BA52C519F854 /* ClinVarService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2671DDDF5D531F12C32F4297 /* ClinVarService.swift */; };
 		D210A96BFFE78D876DBC76DA /* TimeAllocationEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D497C5E341E3C4AD2BC442C /* TimeAllocationEngineTests.swift */; };
 		D2893D19CE3A685EBE4DAB83 /* MailComposer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FE5A0323F1414BAACE600D5 /* MailComposer.swift */; };
+		D3783DA0AA3E7D42870C8256 /* GenomeSplitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FFD70EACFB652B2CD985DEB /* GenomeSplitView.swift */; };
 		D4231700BA2C2B4F01C915A1 /* CitationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87EC582DBE00A4BCED918921 /* CitationsView.swift */; };
 		D4AA8376DA1D751F20004641 /* OverviewViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92F32690DCE74A759D233DFE /* OverviewViewModel.swift */; };
 		D5E3574C924FD3E0B15177A4 /* GenomeScanRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8BFDBF027486BC4AC7BF9D1 /* GenomeScanRecord.swift */; };
@@ -366,6 +368,7 @@
 		69B73CEA0F3655CDD11A007C /* CuratedMarkers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CuratedMarkers.swift; sourceTree = "<group>"; };
 		6BB3FF2B8EF635AAE437983D /* BloodView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BloodView.swift; sourceTree = "<group>"; };
 		6DE7B02859718A26B4B9906E /* EpigeneticTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EpigeneticTest.swift; sourceTree = "<group>"; };
+		6FFD70EACFB652B2CD985DEB /* GenomeSplitView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenomeSplitView.swift; sourceTree = "<group>"; };
 		71A0187A10BAA3CC7819A176 /* GenomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenomeView.swift; sourceTree = "<group>"; };
 		71F3FCA56AD265801EE97643 /* CardioFitnessEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardioFitnessEngineTests.swift; sourceTree = "<group>"; };
 		723C631FD440620914CDCDDD /* CalendarService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarService.swift; sourceTree = "<group>"; };
@@ -469,6 +472,7 @@
 				63BB6118E21B2D2C6A415DBB /* GenomeDetailSheet.swift */,
 				1AFF6071DE927F5D3A5A8244 /* GenomePrioritiesCard.swift */,
 				A953CF0633A4E3BA09593D5E /* GenomeScanView.swift */,
+				6FFD70EACFB652B2CD985DEB /* GenomeSplitView.swift */,
 				71A0187A10BAA3CC7819A176 /* GenomeView.swift */,
 				C625B2850BACDA66FC085B87 /* GenomeViewHelpers.swift */,
 				28AC3F656EB8AC40C7965F28 /* GenomeViewModel.swift */,
@@ -953,6 +957,7 @@
 				BEE388BE5DE93624D6A2303B /* GenomeScanRecord.swift in Sources */,
 				6A67D5676C3084DDC09ED308 /* GenomeScanView.swift in Sources */,
 				0AE06067E0CA1F3B14B3AD30 /* GenomeSeverityColors.swift in Sources */,
+				869611D2CCF44F18689B994B /* GenomeSplitView.swift in Sources */,
 				5856806DFBD48F39BDC89F9B /* GenomeVariant.swift in Sources */,
 				6EF9106333950CF8212C2EA0 /* GenomeView.swift in Sources */,
 				2B2BA86256AC43A4DD348D56 /* GenomeViewHelpers.swift in Sources */,
@@ -1061,6 +1066,7 @@
 				D5E3574C924FD3E0B15177A4 /* GenomeScanRecord.swift in Sources */,
 				85F2BC8B825D9C8422B28F0E /* GenomeScanView.swift in Sources */,
 				0EF9B83A68AB89DDAC89CAA9 /* GenomeSeverityColors.swift in Sources */,
+				D3783DA0AA3E7D42870C8256 /* GenomeSplitView.swift in Sources */,
 				59FA49AE381843566B3539B2 /* GenomeVariant.swift in Sources */,
 				259AA046172B3216F2A26D31 /* GenomeView.swift in Sources */,
 				CB1C6721BDC103D7EAF2E7A4 /* GenomeViewHelpers.swift in Sources */,

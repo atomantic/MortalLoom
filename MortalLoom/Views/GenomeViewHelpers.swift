@@ -8,6 +8,69 @@ enum GenomeTab: String, CaseIterable {
     case bioAge = "Bio Age"
     case genome = "Genome"
     case clinvar = "ClinVar"
+
+    /// SF Symbol shown beside the tab in the `GenomeSplitView` sidebar (iPad
+    /// regular width). The segmented picker on iPhone is text-only, so this is
+    /// only consumed by the split layout.
+    var icon: String {
+        switch self {
+        case .bioAge: "hourglass"
+        case .genome: "atom"
+        case .clinvar: "building.columns.fill"
+        }
+    }
+}
+
+// MARK: - Shared genome content builders
+
+/// The body of the currently-selected Genome tab. Shared by the iPhone
+/// single-column layout and the `GenomeSplitView` content column so the three
+/// tab views stay wired identically in both.
+@MainActor
+@ViewBuilder
+func genomeTabBody(
+    vm: GenomeViewModel,
+    activeTab: GenomeTab,
+    showingAddTest: Binding<Bool>,
+    showingFileImporter: Binding<Bool>
+) -> some View {
+    switch activeTab {
+    case .bioAge:
+        EpigeneticAgeView(vm: vm, showingAddTest: showingAddTest)
+    case .genome:
+        GenomeScanView(vm: vm, showingFileImporter: showingFileImporter)
+    case .clinvar:
+        ClinVarView(vm: vm)
+    }
+}
+
+/// Builds the single detail surface for a finding, wired to the view model.
+/// Used both as the iPhone modal sheet (`embedded: false`) and the
+/// `GenomeSplitView` right pane on iPad (`embedded: true`) so the two
+/// presentations never drift.
+@MainActor
+func genomeDetailSheet(
+    vm: GenomeViewModel,
+    finding: PriorityFindingSource,
+    embedded: Bool
+) -> GenomeDetailSheet {
+    GenomeDetailSheet(
+        finding: finding,
+        actionStates: vm.actionStates,
+        visitNotes: vm.visitNotes,
+        linkedHabits: vm.linkedHabits(for: finding),
+        linkedGoals: vm.linkedGoals(for: finding),
+        embedded: embedded,
+        onBridge: { action, bridge in vm.handleBridge(finding: finding, action: action, bridge: bridge) },
+        onMarkDiscussed: { action in vm.markActionStatus(finding: finding, action: action, status: .discussed) },
+        onMarkDone: { action in vm.markActionStatus(finding: finding, action: action, status: .done) },
+        onSnooze: { vm.snoozeAllActions(for: finding) },
+        onDismiss: { vm.dismissAllActions(for: finding) },
+        onSaveVisitNote: { note in
+            Task { await vm.addVisitNote(note) }
+        },
+        onCloseSheet: { vm.selectedFinding = nil }
+    )
 }
 
 /// Sex-based filtering for marker categories and ClinVar themes. Owned by

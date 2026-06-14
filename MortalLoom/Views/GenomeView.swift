@@ -2,10 +2,11 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 /// Host for the three Genome tabs (`EpigeneticAgeView`, `GenomeScanView`,
-/// `ClinVarView`). Owns the segmented tab control, the file importer + sheet
-/// presentations, and the `.openGenomeFinding`/`.dataDidSync` wiring; all data
-/// loading, scan orchestration, and action state live in `GenomeViewModel`
-/// (extracted in issue #24).
+/// `ClinVarView`). Owns the tab control (segmented + modal detail on iPhone, a
+/// three-column `GenomeSplitView` on iPad regular width — #50), the file
+/// importer + sheet presentations, and the `.openGenomeFinding`/`.dataDidSync`
+/// wiring; all data loading, scan orchestration, and action state live in
+/// `GenomeViewModel` (extracted in issue #24).
 struct GenomeView: View {
     @State private var vm = GenomeViewModel()
     @State private var activeTab: GenomeTab = .bioAge
@@ -14,42 +15,20 @@ struct GenomeView: View {
     @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
     private var isWide: Bool { containerWidth >= Layout.wideThreshold }
 
-    var body: some View {
-        VStack(spacing: 0) {
-            Picker("", selection: $activeTab) {
-                ForEach(GenomeTab.allCases, id: \.self) { tab in
-                    Text(tab.rawValue).tag(tab)
-                }
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(Color.bgCard)
+    #if os(iOS)
+    /// `GenomeSplitView` is an iPad-only layout. A wide iPhone in landscape
+    /// (Plus / Pro Max) also crosses `Layout.wideThreshold`, but per #50 the
+    /// phone keeps the segmented single column + modal sheet — so the split is
+    /// gated on the device idiom in addition to width.
+    private var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
+    #endif
 
-            ScrollView {
-                VStack(spacing: 16) {
-                    switch activeTab {
-                    case .bioAge:
-                        EpigeneticAgeView(vm: vm, showingAddTest: $showingAddTest)
-                    case .genome:
-                        GenomeScanView(vm: vm, showingFileImporter: $showingFileImporter)
-                    case .clinvar:
-                        ClinVarView(vm: vm)
-                    }
-                }
-                .padding()
-                // Cap the single-column genome content to a readable width and
-                // center it on wide windows so charts/lists don't stretch across
-                // a full Mac/iPad window. A full two-pane layout (GenomeSplitView)
-                // is tracked separately in #50.
-                .frame(maxWidth: isWide ? Layout.wideThreshold : .infinity)
-                .frame(maxWidth: .infinity)
-                .readContainerWidth { containerWidth = $0 }
-            }
-        }
-        .background(Color.bg)
-        .proGated()
-        .sheet(isPresented: $showingAddTest) {
+    var body: some View {
+        layoutContent
+            .readContainerWidth { containerWidth = $0 }
+            .background(Color.bg)
+            .proGated()
+            .sheet(isPresented: $showingAddTest) {
             EpigeneticTestFormView(onSave: { test in
                 Task { await vm.addEpigeneticTest(test) }
             })
@@ -61,28 +40,6 @@ struct GenomeView: View {
         ) { result in
             vm.handleFileImport(result)
         }
-        .modifier(GenomeDetailPresenter(
-            selectedFinding: $vm.selectedFinding,
-            buildSheet: { finding in
-                GenomeDetailSheet(
-                    finding: finding,
-                    actionStates: vm.actionStates,
-                    visitNotes: vm.visitNotes,
-                    linkedHabits: vm.linkedHabits(for: finding),
-                    linkedGoals: vm.linkedGoals(for: finding),
-                    embedded: false,
-                    onBridge: { action, bridge in vm.handleBridge(finding: finding, action: action, bridge: bridge) },
-                    onMarkDiscussed: { action in vm.markActionStatus(finding: finding, action: action, status: .discussed) },
-                    onMarkDone: { action in vm.markActionStatus(finding: finding, action: action, status: .done) },
-                    onSnooze: { vm.snoozeAllActions(for: finding) },
-                    onDismiss: { vm.dismissAllActions(for: finding) },
-                    onSaveVisitNote: { note in
-                        Task { await vm.addVisitNote(note) }
-                    },
-                    onCloseSheet: { vm.selectedFinding = nil }
-                )
-            }
-        ))
         .sheet(item: $vm.pendingHabitTemplate) { template in
             HabitEditSheet(
                 habit: vm.prefilledHabit(from: template),
@@ -110,9 +67,74 @@ struct GenomeView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .openGenomeFinding)) { notif in
             guard let key = notif.object as? String else { return }
-            // Switch to the Genome tab so the sheet has a host.
+            // Switch to the Genome tab so the sheet/pane has a host.
             activeTab = .genome
             vm.requestFinding(forKey: key)
+        }
+    }
+
+    // MARK: - Layout
+
+    /// On iPad regular width the screen becomes a three-column
+    /// `NavigationSplitView` (`GenomeSplitView`) with the finding detail as the
+    /// right pane (#50). iPhone — and iPad Slide Over / narrow widths — keep the
+    /// segmented single column with the detail as a modal sheet; macOS keeps the
+    /// single column + `.inspector` (it already has a side pane and its own
+    /// `NavigationSplitView` host, so it doesn't nest a second one here).
+    @ViewBuilder
+    private var layoutContent: some View {
+        #if os(iOS)
+        if isPad && isWide {
+            GenomeSplitView(
+                vm: vm,
+                activeTab: $activeTab,
+                showingAddTest: $showingAddTest,
+                showingFileImporter: $showingFileImporter
+            )
+        } else {
+            singleColumn.modifier(detailPresenter)
+        }
+        #else
+        singleColumn.modifier(detailPresenter)
+        #endif
+    }
+
+    private var detailPresenter: GenomeDetailPresenter<GenomeDetailSheet> {
+        GenomeDetailPresenter(
+            selectedFinding: $vm.selectedFinding,
+            buildSheet: { finding in genomeDetailSheet(vm: vm, finding: finding, embedded: false) }
+        )
+    }
+
+    private var singleColumn: some View {
+        VStack(spacing: 0) {
+            Picker("", selection: $activeTab) {
+                ForEach(GenomeTab.allCases, id: \.self) { tab in
+                    Text(tab.rawValue).tag(tab)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(Color.bgCard)
+
+            ScrollView {
+                VStack(spacing: 16) {
+                    genomeTabBody(
+                        vm: vm,
+                        activeTab: activeTab,
+                        showingAddTest: $showingAddTest,
+                        showingFileImporter: $showingFileImporter
+                    )
+                }
+                .padding()
+                // Cap the single-column content to a readable width and center
+                // it on wide canvases (macOS windows, wide iPhone landscape) so
+                // charts/lists don't stretch edge-to-edge. iPad regular width
+                // uses GenomeSplitView instead of this single column.
+                .frame(maxWidth: isWide ? Layout.wideThreshold : .infinity)
+                .frame(maxWidth: .infinity)
+            }
         }
     }
 }
