@@ -310,9 +310,32 @@ struct CheckInSheet: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, 2)
                 }
+                // Acknowledge without checking in (goal-level signals only —
+                // see StagnationSignal.isGoalLevel).
+                if signal.isGoalLevel {
+                    Button {
+                        resolveSignal(signal)
+                    } label: {
+                        Label("Mark resolved", systemImage: "checkmark.circle")
+                            .font(.caption).fontWeight(.semibold)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundColor(signal.severity.tintColor)
+                    .padding(.top, 4)
+                }
             }
             .listRowBackground(signal.severity.tintColor.opacity(0.08))
         }
+    }
+
+    /// Acknowledge a stagnation signal without logging a check-in: record it as
+    /// resolved at its current severity and dismiss. StagnationEngine keeps it
+    /// hidden until it escalates further (see `Goal.markSignalResolved`).
+    private func resolveSignal(_ signal: StagnationSignal) {
+        var updated = goal
+        updated.markSignalResolved(signal)
+        onSave(updated)
+        dismiss()
     }
 
     // MARK: Standard-goal form
@@ -477,6 +500,11 @@ struct CheckInSheet: View {
 
     private func save() {
         var updated = goal
+        // A check-in is the canonical "I've re-engaged with this goal" action,
+        // so clear any previously acknowledged ("resolved") stagnation signals.
+        // A future stagnation cycle should surface normally rather than stay
+        // suppressed by a stale resolution.
+        updated.resolvedSignals = []
 
         if isLifelong {
             let blockersList = blockersText

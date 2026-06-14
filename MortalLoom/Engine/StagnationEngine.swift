@@ -39,6 +39,13 @@ struct StagnationSignal: Identifiable, Sendable, Equatable {
         self.suggestedPrompt = suggestedPrompt
         self.daysOverdue = daysOverdue
     }
+
+    /// True for signals that target a specific goal but not an individual habit.
+    /// Muting and "mark resolved" are title-keyed per goal, and every per-habit
+    /// "Habit is slipping" shares one title — so those affordances are offered
+    /// for goal-level signals only, otherwise resolving one habit alert would
+    /// silence every habit alert on the goal.
+    var isGoalLevel: Bool { goalId != nil && habitId == nil }
 }
 
 /// Scale a missed-cadence severity based on how many cadence intervals the
@@ -243,8 +250,29 @@ enum StagnationEngine {
             return !muted.contains(signal.title)
         }
 
+        // Filter out signals the user has explicitly *resolved* per-goal, UNLESS
+        // the signal has since escalated above the severity it was resolved at —
+        // so acknowledging a `.warn` still lets a later `.alert` break through,
+        // while a steady or improving signal stays quiet. Resolutions are cleared
+        // the next time the user checks in (see CheckInSheet.save), so a fresh
+        // stagnation cycle is never silently suppressed.
+        let resolvedByGoal: [UUID: [String: StagnationSeverity]] = Dictionary(
+            uniqueKeysWithValues: goals.compactMap { g in
+                g.resolvedSignals.isEmpty
+                    ? nil
+                    : (g.id, Dictionary(
+                        g.resolvedSignals.map { ($0.title, $0.severity) },
+                        uniquingKeysWith: max))
+            }
+        )
+        let unresolved = visible.filter { signal in
+            guard let goalId = signal.goalId,
+                  let resolvedSeverity = resolvedByGoal[goalId]?[signal.title] else { return true }
+            return signal.severity > resolvedSeverity
+        }
+
         // Sort most severe first, then alphabetically by title for stable order.
-        return visible.sorted { lhs, rhs in
+        return unresolved.sorted { lhs, rhs in
             if lhs.severity != rhs.severity { return lhs.severity > rhs.severity }
             return lhs.title < rhs.title
         }
