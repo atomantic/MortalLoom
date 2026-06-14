@@ -8,38 +8,63 @@ import XCTest
 
 final class FunctionalAgeEngineTests: XCTestCase {
 
-    // MARK: - Walking-speed inversion
+    // MARK: - Age-normative expected speeds
 
-    func testWalkingSpeedAtAnchorMapsToAnchorAge() {
-        // Anchor speed (1.40 m/s) should invert to the anchor age (50).
-        XCTAssertEqual(FunctionalAgeEngine.functionalAgeFromWalkingSpeed(1.40), 50, accuracy: 0.0001)
+    func testExpectedWalkingSpeedPlateausThroughMidlife() {
+        // Flat at the plateau (1.40 m/s) at and below the anchor age.
+        XCTAssertEqual(FunctionalAgeEngine.expectedWalkingSpeed(age: 30), 1.40, accuracy: 0.0001)
+        XCTAssertEqual(FunctionalAgeEngine.expectedWalkingSpeed(age: 50), 1.40, accuracy: 0.0001)
     }
 
-    func testFasterWalkingReadsYounger() {
-        // +0.12 m/s above anchor = 10 years younger (0.012 m/s per year).
-        XCTAssertEqual(FunctionalAgeEngine.functionalAgeFromWalkingSpeed(1.52), 40, accuracy: 0.0001)
+    func testExpectedWalkingSpeedDeclinesAfterAnchor() {
+        // 0.012 m/s per year past 50: at 70 → 1.40 − 20·0.012 = 1.16.
+        XCTAssertEqual(FunctionalAgeEngine.expectedWalkingSpeed(age: 70), 1.16, accuracy: 0.0001)
     }
 
-    func testSlowerWalkingReadsOlder() {
-        // -0.12 m/s below anchor = 10 years older.
-        XCTAssertEqual(FunctionalAgeEngine.functionalAgeFromWalkingSpeed(1.28), 60, accuracy: 0.0001)
+    func testExpectedStairSpeedPlateauAndDecline() {
+        XCTAssertEqual(FunctionalAgeEngine.expectedStairSpeed(age: 30), 0.50, accuracy: 0.0001)
+        XCTAssertEqual(FunctionalAgeEngine.expectedStairSpeed(age: 70), 0.40, accuracy: 0.0001)
+    }
+
+    // MARK: - Walking-speed inversion (age-relative)
+
+    func testWalkingAtAgeNormalReadsOwnAge() {
+        // Walking the speed expected at one's age reads as that age, not the anchor.
+        XCTAssertEqual(FunctionalAgeEngine.functionalAgeFromWalkingSpeed(1.40, chronologicalAge: 50), 50, accuracy: 0.0001)
+        XCTAssertEqual(FunctionalAgeEngine.functionalAgeFromWalkingSpeed(1.16, chronologicalAge: 70), 70, accuracy: 0.0001)
+    }
+
+    func testWalkingUnder50PlateauNotPenalized() {
+        // Regression: a healthy 30-year-old at the plateau speed must read ~30,
+        // NOT be mapped to the anchor age (50) as if the plateau were a decline.
+        XCTAssertEqual(FunctionalAgeEngine.functionalAgeFromWalkingSpeed(1.40, chronologicalAge: 30), 30, accuracy: 0.0001)
+    }
+
+    func testFasterThanAgeNormalReadsYounger() {
+        // +0.12 m/s above the age-50 norm = 10 years younger (0.012 m/s per year).
+        XCTAssertEqual(FunctionalAgeEngine.functionalAgeFromWalkingSpeed(1.52, chronologicalAge: 50), 40, accuracy: 0.0001)
+    }
+
+    func testSlowerThanAgeNormalReadsOlder() {
+        XCTAssertEqual(FunctionalAgeEngine.functionalAgeFromWalkingSpeed(1.28, chronologicalAge: 50), 60, accuracy: 0.0001)
     }
 
     func testWalkingSpeedEstimateClampsToAdultRange() {
-        XCTAssertEqual(FunctionalAgeEngine.functionalAgeFromWalkingSpeed(5.0), 18, accuracy: 0.0001)
-        XCTAssertEqual(FunctionalAgeEngine.functionalAgeFromWalkingSpeed(0.0), 110, accuracy: 0.0001)
+        XCTAssertEqual(FunctionalAgeEngine.functionalAgeFromWalkingSpeed(5.0, chronologicalAge: 50), 18, accuracy: 0.0001)
+        XCTAssertEqual(FunctionalAgeEngine.functionalAgeFromWalkingSpeed(0.0, chronologicalAge: 50), 110, accuracy: 0.0001)
     }
 
-    // MARK: - Stair-speed inversion
+    // MARK: - Stair-speed inversion (age-relative)
 
-    func testStairSpeedAtAnchorMapsToAnchorAge() {
-        XCTAssertEqual(FunctionalAgeEngine.functionalAgeFromStairSpeed(0.50), 50, accuracy: 0.0001)
+    func testStairAtAgeNormalReadsOwnAge() {
+        XCTAssertEqual(FunctionalAgeEngine.functionalAgeFromStairSpeed(0.50, chronologicalAge: 50), 50, accuracy: 0.0001)
+        XCTAssertEqual(FunctionalAgeEngine.functionalAgeFromStairSpeed(0.50, chronologicalAge: 30), 30, accuracy: 0.0001)
     }
 
     func testStairSpeedSteeperSlope() {
-        // 0.005 m/s per year: +0.05 m/s = 10 years younger.
-        XCTAssertEqual(FunctionalAgeEngine.functionalAgeFromStairSpeed(0.55), 40, accuracy: 0.0001)
-        XCTAssertEqual(FunctionalAgeEngine.functionalAgeFromStairSpeed(0.45), 60, accuracy: 0.0001)
+        // 0.005 m/s per year: ±0.05 m/s = ±10 years vs the age-50 norm.
+        XCTAssertEqual(FunctionalAgeEngine.functionalAgeFromStairSpeed(0.55, chronologicalAge: 50), 40, accuracy: 0.0001)
+        XCTAssertEqual(FunctionalAgeEngine.functionalAgeFromStairSpeed(0.45, chronologicalAge: 50), 60, accuracy: 0.0001)
     }
 
     // MARK: - Asymmetry modifier
@@ -104,6 +129,17 @@ final class FunctionalAgeEngineTests: XCTestCase {
         XCTAssertEqual(summary?.gapYears ?? .nan, 10, accuracy: 0.0001)
         XCTAssertEqual(summary?.componentCount, 1)
         XCTAssertEqual(summary?.level, .accelerated)
+    }
+
+    func testEstimateUnder50AtPlateauReadsOnPar() {
+        // Regression for the under-50 plateau: a healthy 30-year-old at age-normal
+        // mobility must read ~30 / On Par, not be penalized toward the anchor age.
+        let summary = FunctionalAgeEngine.estimate(
+            walkingSpeed: 1.40, stairSpeedUp: 0.50, stairSpeedDown: 0.50,
+            asymmetry: nil, chronologicalAge: 30)
+        XCTAssertEqual(summary?.functionalAge ?? .nan, 30, accuracy: 0.0001)
+        XCTAssertEqual(summary?.gapYears ?? .nan, 0, accuracy: 0.0001)
+        XCTAssertEqual(summary?.level, .onPar)
     }
 
     func testEstimateAveragesStairUpAndDown() {

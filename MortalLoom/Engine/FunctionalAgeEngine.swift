@@ -7,13 +7,18 @@ import Foundation
 // roughly, the chronological age at which the user's measured mobility would be
 // considered typical.
 //
-// The core idea: gait speed is a validated functional biomarker that declines
-// predictably with age (Bohannon & Williams Andrews, Physiotherapy 2011; Studenski
-// et al., JAMA 2011). Inverting that age→expected-speed curve maps a measured speed
-// back onto an age. Stair speed is treated the same way (it declines faster than
-// level-ground gait because it loads lower-limb power, which falls off more steeply
-// with age). Asymmetry is a modifier, not an absolute-age source: higher gait
-// asymmetry ages the estimate, lower asymmetry rejuvenates it slightly.
+// The core idea: gait speed is a validated functional biomarker whose age-normative
+// value plateaus through midlife then declines predictably (Bohannon & Williams
+// Andrews, Physiotherapy 2011; Studenski et al., JAMA 2011). We compare the measured
+// speed to the speed *expected at the user's own age* and convert the surplus/deficit
+// into years: walking exactly the age-normal speed reads as on par (functional age ≈
+// chronological age), faster reads younger, slower reads older. This age-relative
+// framing matters because the curve is flat below the anchor age — a healthy
+// 30-year-old at the plateau speed must read as ~30, not penalized to the anchor age.
+// Stair speed is treated the same way (it declines faster than level-ground gait
+// because it loads lower-limb power, which falls off more steeply with age).
+// Asymmetry is a modifier, not an absolute-age source: higher gait asymmetry ages the
+// estimate, lower asymmetry rejuvenates it slightly.
 //
 // All thresholds are heuristic estimates derived from the cited normative data, not
 // a clinical instrument — the value is the *relative* delta (younger vs. older than
@@ -44,20 +49,41 @@ enum FunctionalAgeEngine {
     static let neutralAsymmetry: Double = 4.0
     static let asymmetryYearsPerPercent: Double = 1.0
 
-    // MARK: - Component estimates
+    // MARK: - Age-normative expected speeds
 
-    /// Estimate functional age from comfortable walking speed (m/s).
-    /// Inverts the anchored linear decline: faster than the anchor reads younger,
-    /// slower reads older. Result is clamped to a plausible adult range.
-    static func functionalAgeFromWalkingSpeed(_ metersPerSec: Double) -> Double {
-        let age = anchorAge + (anchorWalkingSpeed - metersPerSec) / walkingSpeedDeclinePerYear
-        return clampAge(age)
+    /// Age-normative comfortable walking speed (m/s): flat at the plateau through the
+    /// anchor age, then declining linearly. Bohannon 2011 finds gait speed roughly
+    /// constant through midlife, so below `anchorAge` the expectation is the plateau —
+    /// not an extrapolated "faster than plateau" value that would penalize the young.
+    static func expectedWalkingSpeed(age: Int) -> Double {
+        let years = Double(age)
+        guard years > anchorAge else { return anchorWalkingSpeed }
+        return anchorWalkingSpeed - (years - anchorAge) * walkingSpeedDeclinePerYear
     }
 
-    /// Estimate functional age from average stair speed (m/s).
-    static func functionalAgeFromStairSpeed(_ metersPerSec: Double) -> Double {
-        let age = anchorAge + (anchorStairSpeed - metersPerSec) / stairSpeedDeclinePerYear
-        return clampAge(age)
+    /// Age-normative stair speed (m/s), same plateau-then-decline shape as walking.
+    static func expectedStairSpeed(age: Int) -> Double {
+        let years = Double(age)
+        guard years > anchorAge else { return anchorStairSpeed }
+        return anchorStairSpeed - (years - anchorAge) * stairSpeedDeclinePerYear
+    }
+
+    // MARK: - Component estimates
+
+    /// Functional age implied by a comfortable walking speed (m/s), relative to the
+    /// speed expected at `chronologicalAge`: walking the age-normal speed reads as the
+    /// user's own age, each `walkingSpeedDeclinePerYear` of surplus reads one year
+    /// younger (deficit one year older). Clamped to a plausible adult range.
+    static func functionalAgeFromWalkingSpeed(_ metersPerSec: Double, chronologicalAge: Int) -> Double {
+        let deficit = expectedWalkingSpeed(age: chronologicalAge) - metersPerSec
+        return clampAge(Double(chronologicalAge) + deficit / walkingSpeedDeclinePerYear)
+    }
+
+    /// Functional age implied by an average stair speed (m/s), relative to the speed
+    /// expected at `chronologicalAge`.
+    static func functionalAgeFromStairSpeed(_ metersPerSec: Double, chronologicalAge: Int) -> Double {
+        let deficit = expectedStairSpeed(age: chronologicalAge) - metersPerSec
+        return clampAge(Double(chronologicalAge) + deficit / stairSpeedDeclinePerYear)
     }
 
     /// Years to add (positive) or subtract (negative) from the speed-derived
@@ -140,12 +166,12 @@ enum FunctionalAgeEngine {
         var componentAges: [Double] = []
 
         if let speed = walkingSpeed {
-            componentAges.append(functionalAgeFromWalkingSpeed(speed))
+            componentAges.append(functionalAgeFromWalkingSpeed(speed, chronologicalAge: chronologicalAge))
         }
 
         let avgStair = [stairSpeedUp, stairSpeedDown].compactAverage(\.self)
         if let stair = avgStair {
-            componentAges.append(functionalAgeFromStairSpeed(stair))
+            componentAges.append(functionalAgeFromStairSpeed(stair, chronologicalAge: chronologicalAge))
         }
 
         guard !componentAges.isEmpty else { return nil }
