@@ -19,7 +19,7 @@ struct GenomeScanView: View {
                         totalCandidateCount: vm.totalPriorityCandidates,
                         onSelectFinding: { finding in vm.selectedFinding = finding },
                         onStartVisit: { vm.showingVisitMode = true },
-                        onExportPDF: { /* PDF export in next phase */ }
+                        onExportPDF: { vm.exportPrevisitPDF() }
                     )
                 }
                 apoeSection(summary.apoeResult)

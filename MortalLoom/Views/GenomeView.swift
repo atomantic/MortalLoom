@@ -19,6 +19,7 @@ struct GenomeView: View {
         layoutContent
             .readContainerWidth { containerWidth = $0 }
             .background(Color.bg)
+            .pdfExport($vm.pdfExport)
             .proGated()
             .sheet(isPresented: $showingAddTest) {
             EpigeneticTestFormView(onSave: { test in

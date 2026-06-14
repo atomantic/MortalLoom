@@ -24,6 +24,7 @@ struct GenomeVisitModeView: View {
     /// finding and saving again updates that note instead of appending a copy.
     @State private var savedNoteIds: [String: UUID] = [:]
     @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
+    @State private var pdfExport: PDFExport?
 
     private struct VisitDraft { var note = ""; var followUp = "" }
 
@@ -41,10 +42,18 @@ struct GenomeVisitModeView: View {
                 .navigationTitle("Doctor Visit")
                 .inlineNavigationTitle()
                 .toolbar {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button { exportSummary() } label: {
+                            Label("Export Summary", systemImage: "square.and.arrow.up")
+                        }
+                        .disabled(sources.isEmpty)
+                        .accessibilityLabel("Export visit summary PDF")
+                    }
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Done") { dismiss() }
                     }
                 }
+                .pdfExport($pdfExport)
         }
         .onAppear(perform: start)
     }
@@ -207,6 +216,42 @@ struct GenomeVisitModeView: View {
         guard sources.isEmpty else { return }
         sources = vm.topPriorities.map(\.source)
         selectedKey = sources.first?.findingKey
+    }
+
+    /// Build the post-visit summary PDF — the findings walked through, the notes
+    /// captured this visit (with follow-ups), and drug-response variants — and
+    /// hand it to the export UI (share sheet on iOS, file exporter on macOS).
+    private func exportSummary() {
+        let provider = providerLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Build notes from the live in-editor drafts (via the same trimming
+        // helper used to save), not the async-persisted store — so the summary
+        // reflects exactly what the user has typed, including a note still being
+        // edited or saved a moment ago before its reload lands. `makeNote`
+        // returns nil for a blank body, so empty findings are skipped.
+        let notes = sources.compactMap { source -> VisitNote? in
+            let draft = drafts[source.findingKey] ?? VisitDraft()
+            return GenomeVisitFlow.makeNote(
+                id: savedNoteIds[source.findingKey] ?? UUID(),
+                date: visitDate,
+                providerLabel: providerLabel,
+                findingKey: source.findingKey,
+                body: draft.note,
+                followUp: draft.followUp
+            )
+        }
+        let content = GenomeReport.postvisit(
+            findings: sources,
+            // Match the on-screen ClinVar filter (sex + minimum stars) so the
+            // summary's drug-response variants are the ones the user reviewed.
+            clinvarHits: vm.filteredClinvarHits,
+            notes: notes,
+            date: visitDate,
+            provider: provider.isEmpty ? nil : provider
+        )
+        pdfExport = PDFExport(
+            data: GenomeReport.pdfData(for: content),
+            filename: GenomeReport.filename(prefix: "VisitSummary", date: visitDate)
+        )
     }
 
     private func priorNotes(for source: PriorityFindingSource) -> [VisitNote] {
