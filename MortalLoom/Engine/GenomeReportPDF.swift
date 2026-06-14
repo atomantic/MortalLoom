@@ -54,22 +54,14 @@ enum GenomeReport {
     static func previsit(priorities: [PriorityFinding],
                          clinvarHits: [ClinVarHit],
                          date: Date) -> GenomeReportContent {
-        var sections: [GenomeReportContent.Section] = []
-
-        let priorityBlocks = priorities.flatMap(priorityBlocks(for:))
-        if !priorityBlocks.isEmpty {
-            sections.append(.init(title: "Top Priorities", blocks: priorityBlocks))
-        }
-
-        let drugBlocks = drugResponseBlocks(clinvarHits)
-        if !drugBlocks.isEmpty {
-            sections.append(.init(title: "Drug-Response Variants", blocks: drugBlocks))
-        }
-
-        let talking = talkingPointBlocks(priorities)
-        if !talking.isEmpty {
-            sections.append(.init(title: "Questions for Your Doctor", blocks: talking))
-        }
+        // Bucket the action library once and thread it through, rather than
+        // re-bucketing the whole library on every per-finding lookup.
+        let buckets = GenomePriorityEngine.bucketActions()
+        let sections = [
+            section("Top Priorities", priorities.flatMap { priorityBlocks(for: $0, buckets: buckets) }),
+            section("Drug-Response Variants", drugResponseBlocks(clinvarHits)),
+            section("Questions for Your Doctor", talkingPointBlocks(priorities, buckets: buckets)),
+        ].compactMap { $0 }
 
         return GenomeReportContent(
             title: "Doctor Visit Prep",
@@ -89,13 +81,8 @@ enum GenomeReport {
                           notes: [VisitNote],
                           date: Date,
                           provider: String?) -> GenomeReportContent {
-        var sections: [GenomeReportContent.Section] = []
-
         let reviewed: [ReportBlock] = findings.map {
             .findingHeader(title: $0.title, status: $0.statusLabel, genotype: $0.displayGenotype)
-        }
-        if !reviewed.isEmpty {
-            sections.append(.init(title: "Findings Reviewed", blocks: reviewed))
         }
 
         // Map a note's findingKey back to a human title where the finding is in
@@ -113,14 +100,12 @@ enum GenomeReport {
                     followUp: note.followUp
                 )
             }
-        if !noteBlocks.isEmpty {
-            sections.append(.init(title: "Visit Notes", blocks: noteBlocks))
-        }
 
-        let drugBlocks = drugResponseBlocks(clinvarHits)
-        if !drugBlocks.isEmpty {
-            sections.append(.init(title: "Drug-Response Variants", blocks: drugBlocks))
-        }
+        let sections = [
+            section("Findings Reviewed", reviewed),
+            section("Visit Notes", noteBlocks),
+            section("Drug-Response Variants", drugResponseBlocks(clinvarHits)),
+        ].compactMap { $0 }
 
         var meta = ["Visit \(DateFormatting.displayDate(DateFormatting.dateString(date)))"]
         if let provider = provider?.trimmingCharacters(in: .whitespacesAndNewlines), !provider.isEmpty {
@@ -133,16 +118,24 @@ enum GenomeReport {
 
     // MARK: Block builders
 
+    /// Wrap blocks into a section, or `nil` when there's nothing to show — lets
+    /// callers assemble a section list with `.compactMap` instead of repeating
+    /// the empty-check + append boilerplate.
+    private static func section(_ title: String, _ blocks: [ReportBlock]) -> GenomeReportContent.Section? {
+        blocks.isEmpty ? nil : .init(title: title, blocks: blocks)
+    }
+
     /// Header for one priority finding plus up to four of its curated actions as
     /// bullets. Caps the action list so a finding with many actions doesn't bury
     /// the rest of the report.
-    private static func priorityBlocks(for finding: PriorityFinding) -> [ReportBlock] {
+    private static func priorityBlocks(for finding: PriorityFinding,
+                                       buckets: GenomePriorityEngine.ActionBuckets) -> [ReportBlock] {
         var blocks: [ReportBlock] = [
             .findingHeader(title: finding.title,
                            status: finding.statusLabel,
                            genotype: finding.source.displayGenotype)
         ]
-        for action in GenomePriorityEngine.actions(for: finding.source).prefix(4) {
+        for action in GenomePriorityEngine.actions(for: finding.source, bucketed: buckets).prefix(4) {
             blocks.append(.bullet("\(action.kind.label): \(action.title)"))
         }
         return blocks
@@ -170,11 +163,12 @@ enum GenomeReport {
 
     /// Deduped doctor talking points drawn from every priority's curated actions,
     /// preserving priority order.
-    private static func talkingPointBlocks(_ priorities: [PriorityFinding]) -> [ReportBlock] {
+    private static func talkingPointBlocks(_ priorities: [PriorityFinding],
+                                           buckets: GenomePriorityEngine.ActionBuckets) -> [ReportBlock] {
         var seen: Set<String> = []
         var blocks: [ReportBlock] = []
         for finding in priorities {
-            for action in GenomePriorityEngine.actions(for: finding.source) {
+            for action in GenomePriorityEngine.actions(for: finding.source, bucketed: buckets) {
                 guard let point = action.doctorTalkingPoint?
                     .trimmingCharacters(in: .whitespacesAndNewlines),
                       !point.isEmpty, !seen.contains(point) else { continue }
@@ -253,13 +247,12 @@ extension GenomeReport {
                 let visible = CTFrameGetVisibleStringRange(frame)
                 guard visible.length > 0 else { endPage(); beginPage(); continue }
 
-                var fitRange = CFRange()
                 let consumed = CTFramesetterSuggestFrameSizeWithConstraints(
                     framesetter,
                     CFRange(location: start, length: visible.length),
                     nil,
                     CGSize(width: width, height: .greatestFiniteMagnitude),
-                    &fitRange
+                    nil
                 )
                 yFromTop += consumed.height
                 start += visible.length
