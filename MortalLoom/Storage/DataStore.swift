@@ -348,6 +348,12 @@ actor DataStore {
     ///
     /// Returns true if the merge produced any change.
     func reloadIfNeeded() -> Bool {
+        // Sample-data (screenshot) mode is in-memory only and must never read
+        // from or write to iCloud/local — see enableSampleDataMode(). The merge
+        // below writes straight to localURL (bypassing save()'s sample-mode
+        // guard), so without this an iCloud-provisioned device would pull the
+        // real container file into the fake sample state and persist it.
+        if sampleDataMode { return false }
         guard let cloudURL = iCloudURL else { return false }
 
         let fm = FileManager.default
