@@ -74,10 +74,10 @@ final class GenomeVisitFlowTests: XCTestCase {
     func testMakeNoteNilsEmptyOptionalFields() {
         let note = GenomeVisitFlow.makeNote(
             date: Date(),
-            providerLabel: "   ",
+            providerLabel: "  \n ",
             findingKey: "rs1",
             body: "Body text",
-            followUp: "   "
+            followUp: "  \n "
         )
         XCTAssertNotNil(note)
         XCTAssertNil(note?.providerLabel)

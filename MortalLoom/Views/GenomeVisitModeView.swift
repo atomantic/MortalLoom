@@ -20,6 +20,9 @@ struct GenomeVisitModeView: View {
     @State private var visitDate = Date()
     @State private var drafts: [String: VisitDraft] = [:]
     @State private var savedKeys: Set<String> = []
+    /// Note id persisted for each finding saved this visit, so returning to a
+    /// finding and saving again updates that note instead of appending a copy.
+    @State private var savedNoteIds: [String: UUID] = [:]
     @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
 
     private struct VisitDraft { var note = ""; var followUp = "" }
@@ -225,8 +228,11 @@ struct GenomeVisitModeView: View {
     private func toggle(_ action: GenomeAction, for source: PriorityFindingSource) {
         let key = GenomeActionState.key(rsid: source.findingKey, actionId: action.id)
         let status = vm.actionStates[key]?.status
-        let resolved = status == .discussed || status == .done
-        vm.markActionStatus(finding: source, action: action, status: resolved ? .pending : .discussed)
+        // `.done` is a stronger, deliberately-set completion state — leave it
+        // intact (the checkbox shows it as checked). The visit checkbox only
+        // flips the discussed/pending pair captured during the appointment.
+        guard status != .done else { return }
+        vm.markActionStatus(finding: source, action: action, status: status == .discussed ? .pending : .discussed)
     }
 
     private func saveAndAdvance() {
@@ -236,16 +242,26 @@ struct GenomeVisitModeView: View {
 
     private func saveCurrent() {
         guard let source = currentSource else { return }
-        let draft = drafts[source.findingKey] ?? VisitDraft()
+        let key = source.findingKey
+        let draft = drafts[key] ?? VisitDraft()
+        let existingId = savedNoteIds[key]
         guard let note = GenomeVisitFlow.makeNote(
+            id: existingId ?? UUID(),
             date: visitDate,
             providerLabel: providerLabel,
-            findingKey: source.findingKey,
+            findingKey: key,
             body: draft.note,
             followUp: draft.followUp
         ) else { return }
-        Task { await vm.addVisitNote(note) }
-        savedKeys.insert(source.findingKey)
+        if existingId == nil {
+            savedNoteIds[key] = note.id
+            Task { await vm.addVisitNote(note) }
+        } else {
+            // Already saved this visit — update the same note rather than
+            // appending a duplicate.
+            Task { await vm.updateVisitNote(note) }
+        }
+        savedKeys.insert(key)
     }
 
     private func advance() {

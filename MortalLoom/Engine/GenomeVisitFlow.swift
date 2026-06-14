@@ -43,7 +43,7 @@ enum GenomeVisitFlow {
     ) -> VisitNote? {
         let trimmedBody = body.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedBody.isEmpty else { return nil }
-        let provider = providerLabel.trimmingCharacters(in: .whitespaces)
+        let provider = providerLabel.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedFollowUp = followUp.trimmingCharacters(in: .whitespacesAndNewlines)
         return VisitNote(
             id: id,

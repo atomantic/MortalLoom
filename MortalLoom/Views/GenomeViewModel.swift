@@ -412,6 +412,11 @@ final class GenomeViewModel {
         await load()
     }
 
+    func updateVisitNote(_ note: VisitNote) async {
+        await DataStore.shared.updateVisitNote(note)
+        await load()
+    }
+
     // MARK: - File Import
 
     func handleFileImport(_ result: Result<[URL], Error>) {
