@@ -6,18 +6,20 @@ private let notificationLogger = Logger(subsystem: "net.shadowpuppet.MeatSpaceTr
 
 // MARK: - NotificationService
 
-/// Thin wrapper around UNUserNotificationCenter for MortalLoom's two
-/// notification types:
+/// Thin wrapper around UNUserNotificationCenter for MortalLoom's notification
+/// types:
 ///
-/// 1. **Weekly review reminder** — a single repeating local notification
-///    scheduled for the user's chosen weekday/time. Fires every 7 days.
+/// 1. **Reflection-cadence reminders** — a plan of up to three repeating
+///    local notifications (daily nudge, weekly review, monthly rethink), each
+///    scheduled for the user's chosen time via `scheduleReflectionPlan`. Only
+///    the weekly review is default-on; daily and monthly are opt-in.
 /// 2. **Stagnation alerts** — one-shot notifications scheduled when a
 ///    stagnation signal fires for the first time. Each alert is scoped to a
 ///    specific goal; rescheduling is idempotent via signal title.
 ///
 /// All notifications are local (no server). The service respects the user's
-/// opt-in state via UserDefaults keys so toggling Settings off stops both
-/// types immediately.
+/// opt-in state via UserDefaults keys so toggling Settings off stops the
+/// affected reminders immediately.
 @MainActor
 final class NotificationService {
     static let shared = NotificationService()
@@ -97,8 +99,10 @@ final class NotificationService {
     /// launch and after any settings change.
     func scheduleReflectionPlan() async {
         // The three rituals are independent (distinct identifiers, no shared
-        // state) — schedule them concurrently so launch isn't blocked on three
-        // serial notification-center round-trips.
+        // state). This type is @MainActor, so the children don't run in true
+        // parallel — but `async let` lets their notification-center `add`
+        // awaits overlap (each suspension frees the actor for the next), so
+        // launch isn't blocked on three fully-serial round-trips.
         async let daily: Void = scheduleDailyNudge()
         async let weekly: Void = scheduleWeeklyReviewReminder()
         async let monthly: Void = scheduleMonthlyRethinkReminder()
@@ -127,7 +131,12 @@ final class NotificationService {
         let weekday = defaults.object(forKey: Self.weeklyReviewWeekdayKey) as? Int ?? 1
         let hour = defaults.object(forKey: Self.weeklyReviewHourKey) as? Int ?? 18
         await scheduleCalendarReminder(
-            enabled: defaults.bool(forKey: Self.weeklyReviewEnabledKey),
+            // Default-on (matches the Settings @AppStorage default) — read via
+            // `object … ?? true` rather than `bool(forKey:)` so a user who
+            // never persisted the key (e.g. skipped onboarding on a device that
+            // already had iCloud data) still gets the reminder scheduled at
+            // launch, instead of the silent false that `bool(forKey:)` returns.
+            enabled: defaults.object(forKey: Self.weeklyReviewEnabledKey) as? Bool ?? true,
             identifier: Self.weeklyReviewIdentifier,
             title: "Weekly Review",
             body: "5 minutes to reset alignment and plan the week.",
