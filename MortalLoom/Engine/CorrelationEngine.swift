@@ -3,13 +3,25 @@ import Foundation
 struct CorrelationDataPoint: Sendable {
     let testDate: Date
     let avgDailySteps: Double
-    let avgDailyDistance: Double?
+    let avgDailyDistance: Double?         // walking + running, km
+    let avgDailyCyclingDistance: Double?  // cycling, km
     let avgExerciseMinutes: Double?
     let avgHRV: Double?
     let avgSleepHours: Double?
     let avgDeepSleepPct: Double?
     let avgStandMinutes: Double?
     let markers: [String: Double]
+
+    /// Combined average daily active distance (walking/running + cycling) in km,
+    /// or `nil` when neither series has data over the window.
+    var avgDailyActiveDistance: Double? {
+        switch (avgDailyDistance, avgDailyCyclingDistance) {
+        case let (walk?, cycle?): return walk + cycle
+        case let (walk?, nil): return walk
+        case let (nil, cycle?): return cycle
+        case (nil, nil): return nil
+        }
+    }
 }
 
 /// A correlation point keyed by the `"YYYY-MM-DD"` day it represents. Lets the
@@ -338,10 +350,10 @@ enum CorrelationEngine {
         return tests.compactMap { test -> CorrelationDataPoint? in
             guard let testDate = DateFormatting.dateFromString(test.date) else { return nil }
 
-            var totalSteps = 0.0, totalDist = 0.0, totalExercise = 0.0
+            var totalSteps = 0.0, totalDist = 0.0, totalCycling = 0.0, totalExercise = 0.0
             var totalHRV = 0.0, totalSleep = 0.0, totalDeepPct = 0.0, totalStand = 0.0
             var count = 0.0
-            var distCount = 0.0, exerciseCount = 0.0, hrvCount = 0.0
+            var distCount = 0.0, cyclingCount = 0.0, exerciseCount = 0.0, hrvCount = 0.0
             var sleepCount = 0.0, deepCount = 0.0, standCount = 0.0
 
             for dayOffset in 1...windowDays {
@@ -353,6 +365,7 @@ enum CorrelationEngine {
                 count += 1
 
                 if let d = metrics.walkingDistance { totalDist += d; distCount += 1 }
+                if let c = metrics.distanceCycling { totalCycling += c; cyclingCount += 1 }
                 if let e = metrics.exerciseMinutes { totalExercise += e; exerciseCount += 1 }
                 if let h = metrics.hrv { totalHRV += h; hrvCount += 1 }
                 if let s = metrics.sleepHours { totalSleep += s; sleepCount += 1 }
@@ -369,6 +382,7 @@ enum CorrelationEngine {
                 testDate: testDate,
                 avgDailySteps: totalSteps / count,
                 avgDailyDistance: distCount > 0 ? totalDist / distCount : nil,
+                avgDailyCyclingDistance: cyclingCount > 0 ? totalCycling / cyclingCount : nil,
                 avgExerciseMinutes: exerciseCount > 0 ? totalExercise / exerciseCount : nil,
                 avgHRV: hrvCount > 0 ? totalHRV / hrvCount : nil,
                 avgSleepHours: sleepCount > 0 ? totalSleep / sleepCount : nil,

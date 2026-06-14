@@ -264,6 +264,10 @@ struct BloodView: View {
         }
     }
 
+    private func formatDistance(_ km: Double) -> String {
+        String(format: "%.1f", km)
+    }
+
     private func formatStepAxisValue(_ value: Double) -> String {
         if value >= 1000 {
             let thousands = value / 1000
@@ -279,6 +283,15 @@ struct BloodView: View {
         if let first = data.first, let last = data.last {
             let stepsDelta = last.avgDailySteps - first.avgDailySteps
             let stepsDir = stepsDelta > 0 ? "higher" : "lower"
+            // Total active distance (walking + cycling) change across the test span,
+            // shown only when both endpoints carry distance data.
+            let distanceDelta: Double? = {
+                guard let f = first.avgDailyActiveDistance, let l = last.avgDailyActiveDistance else { return nil }
+                return l - f
+            }()
+            // Cap the marker stats so the row stays readable once a distance stat
+            // is added — keep the total at four side-by-side stats.
+            let markerLimit = distanceDelta == nil ? 3 : 2
 
             HStack(spacing: 16) {
                 VStack(spacing: 2) {
@@ -290,7 +303,18 @@ struct BloodView: View {
                         .foregroundColor(stepsDelta > 0 ? .success : .warning)
                 }
 
-                ForEach(markers.prefix(3), id: \.key) { marker in
+                if let distanceDelta {
+                    VStack(spacing: 2) {
+                        Text("Distance")
+                            .font(.caption2)
+                            .foregroundColor(.textMuted)
+                        Text("\(distanceDelta > 0 ? "+" : "")\(formatDistance(distanceDelta)) km")
+                            .font(.caption).fontWeight(.medium)
+                            .foregroundColor(distanceDelta >= 0 ? .success : .warning)
+                    }
+                }
+
+                ForEach(markers.prefix(markerLimit), id: \.key) { marker in
                     if let firstVal = first.markers[marker.key], let lastVal = last.markers[marker.key] {
                         let delta = lastVal - firstVal
                         let ref = BloodMarkers.byKey[marker.key]
