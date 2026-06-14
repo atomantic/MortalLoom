@@ -248,6 +248,12 @@ struct ContentView: View {
                 showOnboarding = true
             }
 
+            // Register the user's reflection-cadence reminders on every launch
+            // so a cadence configured in Settings (or enabled during onboarding)
+            // is always scheduled — even if the user never reopens Settings.
+            // Idempotent: each ritual clears and re-adds its single request.
+            await NotificationService.shared.scheduleReflectionPlan()
+
             #if os(iOS)
             // Skip the app-level HealthKit request/sync while onboarding is presenting:
             // onboarding step 5 primes and makes this exact request with context (see
