@@ -3515,6 +3515,78 @@ final class StagnationEngineTests: XCTestCase {
         XCTAssertFalse(signals.contains { $0.title == "Check-in overdue" })
     }
 
+    // MARK: - Resolved-signal acknowledgement
+
+    /// Helper: a standard goal that fires "Check-in overdue" at a chosen tier.
+    /// `daysAgo` 25 ⇒ 18 overdue ⇒ .warn; 60 ⇒ 53 overdue ⇒ .alert.
+    private func overdueGoal(daysAgo: Int) -> Goal {
+        Goal(
+            title: "Practice scales",
+            createdDate: DateFormatting.dateString(daysAgo: 200),
+            checkIns: [GoalCheckIn(date: DateFormatting.dateString(daysAgo: daysAgo), progressPct: 20)],
+            checkInIntervalDays: 7,
+            status: .active,
+            goalType: .standard
+        )
+    }
+
+    func testResolvedSignalIsFilteredOut() {
+        var goal = overdueGoal(daysAgo: 25) // .warn tier
+        goal.resolvedSignals = [ResolvedSignal(title: "Check-in overdue", severity: .warn)]
+
+        let signals = StagnationEngine.signals(goals: [goal], habits: [])
+        XCTAssertFalse(signals.contains { $0.title == "Check-in overdue" },
+                       "A signal resolved at its current severity should be hidden.")
+    }
+
+    func testResolvedSignalStaysHiddenWhenSeverityUnchanged() {
+        // Resolved at .warn while the signal is still .warn ⇒ stays hidden.
+        var goal = overdueGoal(daysAgo: 25)
+        goal.resolvedSignals = [ResolvedSignal(title: "Check-in overdue", severity: .warn)]
+        XCTAssertFalse(StagnationEngine.signals(goals: [goal], habits: [])
+            .contains { $0.title == "Check-in overdue" })
+    }
+
+    func testResolvedSignalReappearsWhenEscalated() {
+        // Resolved at .warn, but the goal has since drifted to .alert ⇒ re-raise.
+        var goal = overdueGoal(daysAgo: 60) // .alert tier
+        goal.resolvedSignals = [ResolvedSignal(title: "Check-in overdue", severity: .warn)]
+
+        let signal = StagnationEngine.signals(goals: [goal], habits: [])
+            .first { $0.title == "Check-in overdue" }
+        XCTAssertEqual(signal?.severity, .alert,
+                       "An escalation above the resolved severity should break through.")
+    }
+
+    func testResolvedSignalScopedToTitle() {
+        // Resolving a different title must not silence "Check-in overdue".
+        var goal = overdueGoal(daysAgo: 60)
+        goal.resolvedSignals = [ResolvedSignal(title: "Some other signal", severity: .alert)]
+        XCTAssertTrue(StagnationEngine.signals(goals: [goal], habits: [])
+            .contains { $0.title == "Check-in overdue" })
+    }
+
+    func testMarkSignalResolvedRecordsCurrentSeverity() {
+        var goal = overdueGoal(daysAgo: 60)
+        let signal = StagnationEngine.signals(goals: [goal], habits: [])
+            .first { $0.title == "Check-in overdue" }!
+        goal.markSignalResolved(signal)
+        XCTAssertEqual(goal.resolvedSignals, [ResolvedSignal(title: "Check-in overdue", severity: .alert)])
+        // And the engine now hides it for this goal.
+        XCTAssertFalse(StagnationEngine.signals(goals: [goal], habits: [])
+            .contains { $0.title == "Check-in overdue" })
+    }
+
+    func testMarkSignalResolvedReplacesPriorResolutionForSameTitle() {
+        var goal = overdueGoal(daysAgo: 25)
+        goal.markSignalResolved(StagnationSignal(severity: .info, goalId: goal.id,
+                                                 title: "Check-in overdue", detail: "", suggestedPrompt: ""))
+        goal.markSignalResolved(StagnationSignal(severity: .alert, goalId: goal.id,
+                                                 title: "Check-in overdue", detail: "", suggestedPrompt: ""))
+        XCTAssertEqual(goal.resolvedSignals.count, 1, "Re-resolving a title must not duplicate the record.")
+        XCTAssertEqual(goal.resolvedSignals.first?.severity, .alert)
+    }
+
     // MARK: - Parent goals inherit check-in credit from descendants
 
     func testParentGoalInheritsCheckInFromRecentChildCheckIn() {

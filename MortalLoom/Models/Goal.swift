@@ -23,6 +23,12 @@ struct Goal: Codable, Identifiable, Sendable, Equatable {
     /// StagnationEngine filters out any signal whose title is in this set so
     /// the user can silence a specific nag without disabling alerts entirely.
     var mutedSignals: [String]
+    /// Stagnation signals the user has explicitly *resolved* (acknowledged) for
+    /// this goal. Unlike `mutedSignals` (a permanent silence by title), a resolved
+    /// signal only stays hidden while it doesn't escalate above the severity it
+    /// was resolved at, and is cleared the next time the user checks in on the
+    /// goal — so a future stagnation cycle surfaces normally. See `ResolvedSignal`.
+    var resolvedSignals: [ResolvedSignal]
     /// Provenance when the goal was created from a genome finding.
     /// Drives the "🧬 Suggested by your DNA" banner on goal detail views.
     var geneticEvidence: GeneticEvidence?
@@ -49,6 +55,7 @@ struct Goal: Codable, Identifiable, Sendable, Equatable {
         category: GoalCategory? = nil,
         goalType: GoalType? = nil,
         mutedSignals: [String] = [],
+        resolvedSignals: [ResolvedSignal] = [],
         geneticEvidence: GeneticEvidence? = nil,
         deferredUntil: String? = nil
     ) {
@@ -68,6 +75,7 @@ struct Goal: Codable, Identifiable, Sendable, Equatable {
         self.category = category
         self.goalType = goalType
         self.mutedSignals = mutedSignals
+        self.resolvedSignals = resolvedSignals
         self.geneticEvidence = geneticEvidence
         self.deferredUntil = deferredUntil
     }
@@ -76,7 +84,7 @@ struct Goal: Codable, Identifiable, Sendable, Equatable {
     private enum CodingKeys: String, CodingKey {
         case id, title, notes, createdDate, targetDate, completedDate, checkIns
         case milestones, checkInIntervalDays, status, priority, parentId
-        case horizon, category, goalType, mutedSignals, geneticEvidence, deferredUntil
+        case horizon, category, goalType, mutedSignals, resolvedSignals, geneticEvidence, deferredUntil
     }
 
     init(from decoder: Decoder) throws {
@@ -97,6 +105,7 @@ struct Goal: Codable, Identifiable, Sendable, Equatable {
         category = try c.decodeIfPresent(GoalCategory.self, forKey: .category)
         goalType = try c.decodeIfPresent(GoalType.self, forKey: .goalType)
         mutedSignals = try c.decodeIfPresent([String].self, forKey: .mutedSignals) ?? []
+        resolvedSignals = try c.decodeIfPresent([ResolvedSignal].self, forKey: .resolvedSignals) ?? []
         geneticEvidence = try c.decodeIfPresent(GeneticEvidence.self, forKey: .geneticEvidence)
         deferredUntil = try c.decodeIfPresent(String.self, forKey: .deferredUntil)
     }
@@ -128,6 +137,28 @@ struct Goal: Codable, Identifiable, Sendable, Equatable {
               let untilDate = DateFormatting.dateFromString(until) else { return false }
         return Calendar.current.startOfDay(for: now) < untilDate
     }
+
+    /// Record `signal` as resolved (acknowledged) at its current severity,
+    /// replacing any prior resolution for the same signal title. StagnationEngine
+    /// keeps the signal hidden until it escalates above this severity. Shared by
+    /// CheckInSheet's banner action and the Reports row "Mark resolved" menu so
+    /// the two surfaces stay in lockstep.
+    mutating func markSignalResolved(_ signal: StagnationSignal) {
+        resolvedSignals.removeAll { $0.title == signal.title }
+        resolvedSignals.append(ResolvedSignal(title: signal.title, severity: signal.severity))
+    }
+}
+
+// MARK: - Resolved Signal
+
+/// A stagnation signal the user has explicitly resolved for a goal, recording
+/// the severity at which it was dismissed. StagnationEngine re-raises a resolved
+/// signal only if it later climbs *above* this severity, so acknowledging a
+/// `.warn` still lets an `.alert` escalation break through. Persisted on
+/// `Goal.resolvedSignals`.
+struct ResolvedSignal: Codable, Sendable, Equatable, Hashable {
+    var title: String
+    var severity: StagnationSeverity
 }
 
 // MARK: - Check-In

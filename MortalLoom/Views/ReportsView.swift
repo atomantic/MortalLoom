@@ -346,6 +346,29 @@ struct ReportsView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            // Goal-level signals only — see StagnationSignal.isGoalLevel.
+            if signal.isGoalLevel {
+                Button {
+                    resolveSignal(signal)
+                } label: {
+                    Label("Mark resolved", systemImage: "checkmark.circle")
+                }
+            }
+        }
+    }
+
+    /// Acknowledge a stagnation signal in place (without opening the check-in
+    /// sheet): record it resolved at its current severity and reload. The engine
+    /// re-raises it only if it escalates further. See `Goal.markSignalResolved`.
+    private func resolveSignal(_ signal: StagnationSignal) {
+        guard let goalId = signal.goalId,
+              var goal = data.goals.first(where: { $0.id == goalId }) else { return }
+        goal.markSignalResolved(signal)
+        Task {
+            await DataStore.shared.updateGoal(goal)
+            await loadData()
+        }
     }
 
     private func openSignalTarget(_ signal: StagnationSignal) {
