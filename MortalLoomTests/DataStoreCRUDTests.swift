@@ -21,6 +21,14 @@ final class DataStoreCRUDTests: XCTestCase {
         await DataStore.shared.setInMemory(.empty)
     }
 
+    override func tearDown() async throws {
+        // `DataStore.shared` is a process-wide singleton; reset it so leftover
+        // rows from a failed assertion here can't leak into another suite that
+        // forgets to re-seed in its own setUp.
+        await DataStore.shared.setInMemory(.empty)
+        try await super.tearDown()
+    }
+
     // MARK: - Alcohol
 
     func testAlcoholAddRemoveUpdate() async {

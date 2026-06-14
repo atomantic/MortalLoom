@@ -23,6 +23,11 @@ final class ICloudMonitor {
     private(set) var isSyncing = false
     private(set) var isICloud = false
 
+    /// True while the iCloud metadata query is running (between `start()` and
+    /// `stop()`). Lets callers — and tests — observe the monitor's lifecycle
+    /// state without reaching into the private query handle.
+    var isMonitoring: Bool { query != nil }
+
     private init() {}
 
     func start() {

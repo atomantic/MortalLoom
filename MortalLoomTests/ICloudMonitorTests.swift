@@ -8,8 +8,10 @@ import XCTest
 /// (which resolves to a no-op merge when there's no cloud file), the
 /// idempotent start/stop lifecycle, and that `markLocalWrite()` is safe.
 ///
-/// DataStore is held in sample-data mode so `reloadIfNeeded()` (reached via
-/// `syncNow()`) short-circuits without touching disk or the iCloud container.
+/// DataStore is held in sample-data mode, which `reloadIfNeeded()` (reached via
+/// `syncNow()`, and via the metadata query's gather callback in the lifecycle
+/// test) short-circuits on — so nothing here reads from or writes to disk or the
+/// iCloud container even on an iCloud-provisioned machine.
 @MainActor
 final class ICloudMonitorTests: XCTestCase {
 
@@ -21,8 +23,10 @@ final class ICloudMonitorTests: XCTestCase {
 
     override func tearDown() async throws {
         // Tear down any live query a lifecycle test left running so it can't
-        // post callbacks into a later, unrelated test.
+        // post callbacks into a later, unrelated test, and reset the shared
+        // store so no merge could leak into another suite.
         ICloudMonitor.shared.stop()
+        await DataStore.shared.setInMemory(.empty)
         try await super.tearDown()
     }
 
@@ -45,12 +49,20 @@ final class ICloudMonitorTests: XCTestCase {
 
     func testStartIsIdempotentAndStopResets() {
         ICloudMonitor.shared.start()
-        // A second start() must be a no-op (guarded on the existing query) and
-        // must not throw or spin up a duplicate query.
+        XCTAssertTrue(ICloudMonitor.shared.isMonitoring, "start() must arm the monitor")
+
+        // A second start() must be a guarded no-op — still monitoring, no crash.
         ICloudMonitor.shared.start()
+        XCTAssertTrue(ICloudMonitor.shared.isMonitoring, "a redundant start() must leave the monitor armed")
+
         ICloudMonitor.shared.stop()
-        // After stop, start() can succeed again — proves stop() cleared state.
+        XCTAssertFalse(ICloudMonitor.shared.isMonitoring, "stop() must disarm the monitor")
+
+        // After stop, start() re-arms — proves stop() cleared the query handle.
         ICloudMonitor.shared.start()
+        XCTAssertTrue(ICloudMonitor.shared.isMonitoring, "start() after stop() must re-arm the monitor")
+
         ICloudMonitor.shared.stop()
+        XCTAssertFalse(ICloudMonitor.shared.isMonitoring)
     }
 }
