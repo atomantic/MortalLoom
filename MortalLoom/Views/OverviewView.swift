@@ -1088,7 +1088,7 @@ struct OverviewView: View {
         let birthYear = currentYear - dc.ageYears
         let deathYear = birthYear + Int(dc.lifeExpectancy.total)
         let levYear = DeathClockEngine.Constants.levTargetYear
-        let levDeathYear = birthYear + Int(DeathClockEngine.Constants.levTargetAge)
+        let levDeathYear = birthYear + Int(vm.data.profile.levTargetAge)
 
         let chartEndYear = levDeathYear + 1
 

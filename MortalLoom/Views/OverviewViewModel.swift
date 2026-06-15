@@ -165,7 +165,7 @@ final class OverviewViewModel {
         let birthYear = currentYear - dc.ageYears
         let deathYear = birthYear + Int(dc.lifeExpectancy.total)
         let levYear = DeathClockEngine.Constants.levTargetYear
-        let levDeathYear = birthYear + Int(DeathClockEngine.Constants.levTargetAge)
+        let levDeathYear = birthYear + Int(data.profile.levTargetAge)
 
         cachedHealthScore = DeathClockEngine.healthScore(
             lifestyle: data.profile.lifestyle,
