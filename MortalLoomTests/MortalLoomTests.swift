@@ -1,3 +1,4 @@
+import SwiftUI
 import XCTest
 @testable import MortalLoom
 
@@ -3449,6 +3450,15 @@ final class StagnationEngineTests: XCTestCase {
     func testSeverityScaleFallbackForZeroCadence() {
         // Guard against divide-by-zero — engine should still return something sensible.
         XCTAssertEqual(stagnationSeverity(daysOverdue: 5, cadenceIntervalDays: 0), .warn)
+    }
+
+    func testTintColorMapping() {
+        // tintColor lives in the Theme layer (StagnationSeverityColors.swift), not
+        // the pure engine. Assert each severity maps to its semantic color so the
+        // move out of StagnationEngine preserved the mapping (#73).
+        XCTAssertEqual(StagnationSeverity.info.tintColor, .accentColor)
+        XCTAssertEqual(StagnationSeverity.warn.tintColor, .warning)
+        XCTAssertEqual(StagnationSeverity.alert.tintColor, .danger)
     }
 
     func testMissedCheckInSignalCarriesDaysOverdue() {
