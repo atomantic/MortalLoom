@@ -321,7 +321,7 @@ struct ReportsView: View {
         } label: {
             HStack(alignment: .top, spacing: 10) {
                 Image(systemName: severityIcon(signal.severity))
-                    .foregroundColor(severityColor(signal.severity))
+                    .foregroundColor(signal.severity.tintColor)
                     .font(.body)
                     .frame(width: 24)
                 VStack(alignment: .leading, spacing: 2) {
@@ -388,14 +388,6 @@ struct ReportsView: View {
         case .info: "info.circle"
         case .warn: "exclamationmark.triangle"
         case .alert: "exclamationmark.octagon.fill"
-        }
-    }
-
-    private func severityColor(_ s: StagnationSeverity) -> Color {
-        switch s {
-        case .info: .accentColor
-        case .warn: .warning
-        case .alert: .danger
         }
     }
 

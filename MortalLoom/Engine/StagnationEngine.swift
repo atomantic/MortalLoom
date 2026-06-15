@@ -1,5 +1,4 @@
 import Foundation
-import SwiftUI
 
 // MARK: - StagnationSignal
 
@@ -86,15 +85,6 @@ enum StagnationSeverity: String, Codable, Sendable, Comparable {
         case .info: "info.circle"
         case .warn: "exclamationmark.triangle"
         case .alert: "exclamationmark.octagon.fill"
-        }
-    }
-
-    /// Semantic tint color for this severity.
-    var tintColor: Color {
-        switch self {
-        case .info: .accentColor
-        case .warn: .warning
-        case .alert: .danger
         }
     }
 }

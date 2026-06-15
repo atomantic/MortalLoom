@@ -1,3 +1,4 @@
+import SwiftUI
 import XCTest
 @testable import MortalLoom
 
@@ -3798,6 +3799,22 @@ final class StagnationEngineTests: XCTestCase {
             completions: [HabitCompletion(date: DateFormatting.dateString(daysAgo: 1))]
         )
         XCTAssertTrue([parent].effectiveNeedsCheckIn(for: parent, habits: [archivedHabit]))
+    }
+}
+
+// MARK: - StagnationSeverity Theme Colors
+
+/// Theme-layer coverage for the `StagnationSeverity.tintColor` mapping
+/// (Theme/StagnationSeverityColors.swift). Kept separate from the pure
+/// StagnationEngine suite so the SwiftUI/presentation assertion lives with the
+/// presentation layer, mirroring the engine/Theme split the move (#73) enforces.
+final class StagnationSeverityColorsTests: XCTestCase {
+    func testTintColorMapping() {
+        // Assert each severity maps to its semantic color so the move out of
+        // StagnationEngine preserved the mapping.
+        XCTAssertEqual(StagnationSeverity.info.tintColor, .accentColor)
+        XCTAssertEqual(StagnationSeverity.warn.tintColor, .warning)
+        XCTAssertEqual(StagnationSeverity.alert.tintColor, .danger)
     }
 }
 

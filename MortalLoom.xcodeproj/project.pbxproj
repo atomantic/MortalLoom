@@ -121,6 +121,7 @@
 		6A67D5676C3084DDC09ED308 /* GenomeScanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A953CF0633A4E3BA09593D5E /* GenomeScanView.swift */; };
 		6B4C00F0E0B21BEDAE6656D2 /* GenomeVisit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 867DC664E8C2F244D4AF5195 /* GenomeVisit.swift */; };
 		6B55E49F18136F5F6D016FAC /* AppearanceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 765271B94F125643F18F3646 /* AppearanceManager.swift */; };
+		6B8B783AAD61B073B9042045 /* StagnationSeverityColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F71ACAAACD81AA160F874BC /* StagnationSeverityColors.swift */; };
 		6BF9BE408C71949F1E582340 /* HealthProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FCF31AF121B47E7C7DF22B1 /* HealthProfile.swift */; };
 		6DDDBC6D1AF751CD73AB2917 /* GaitEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93B5E80AB18D2FA91974ECB6 /* GaitEngine.swift */; };
 		6E9F84A23A6E864D78163091 /* LifeCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ABFE2DBE2C3A4FAFEE5EE6E /* LifeCalendarView.swift */; };
@@ -160,6 +161,7 @@
 		9746518260ED291AE34F4F89 /* MonthlyRethinkSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53AC2B20CDA2DF4556301207 /* MonthlyRethinkSheet.swift */; };
 		99A081BD3681AC75216C1C84 /* GenomeActionLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B3EFC3FC269FB7ACFE515BA /* GenomeActionLibrary.swift */; };
 		9D54A8470E4B66EA28F7DBE9 /* BodyEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DE6F91C7E33B0F86F79570E /* BodyEntry.swift */; };
+		9D73A31DB676C8781098E47F /* StagnationSeverityColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F71ACAAACD81AA160F874BC /* StagnationSeverityColors.swift */; };
 		A1FBD8F4C173AA81799B2489 /* AppDataMergeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 859D4E25FD093A28421D8FC3 /* AppDataMergeTests.swift */; };
 		A219E92A26CEA7CAB05EF161 /* GenomeVisit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 867DC664E8C2F244D4AF5195 /* GenomeVisit.swift */; };
 		A6EB0C62E00D3ED8F86906DE /* VisitNoteSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3475291D6C3512857F14B23 /* VisitNoteSheet.swift */; };
@@ -389,6 +391,7 @@
 		4E3C038E534F934207BB8F73 /* GenomeVisitNotesPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenomeVisitNotesPane.swift; sourceTree = "<group>"; };
 		4EAD39B61C857C0C1EE807FA /* HealthKitServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitServiceTests.swift; sourceTree = "<group>"; };
 		4F60EF4D97E9758161DB0627 /* DeathClockEngineMortalityMathTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeathClockEngineMortalityMathTests.swift; sourceTree = "<group>"; };
+		4F71ACAAACD81AA160F874BC /* StagnationSeverityColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StagnationSeverityColors.swift; sourceTree = "<group>"; };
 		4FCF31AF121B47E7C7DF22B1 /* HealthProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthProfile.swift; sourceTree = "<group>"; };
 		50C5058BFC45EAA680969317 /* SideMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideMenuView.swift; sourceTree = "<group>"; };
 		50CD8AAEAC2CD5E6011D3BDC /* HabitEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitEngineTests.swift; sourceTree = "<group>"; };
@@ -719,6 +722,7 @@
 			children = (
 				765271B94F125643F18F3646 /* AppearanceManager.swift */,
 				10E42AF1A7595E94B79859A0 /* GenomeSeverityColors.swift */,
+				4F71ACAAACD81AA160F874BC /* StagnationSeverityColors.swift */,
 				8A430A6D6F069A9C484A8BB2 /* Theme.swift */,
 			);
 			path = Theme;
@@ -1086,6 +1090,7 @@
 				082BE98CD23921F4AE51F134 /* SleepEngine.swift in Sources */,
 				B46128ADB3D0C5B1F130CCC9 /* SleepView.swift in Sources */,
 				420F9A53897EA75BC769EA26 /* StagnationEngine.swift in Sources */,
+				9D73A31DB676C8781098E47F /* StagnationSeverityColors.swift in Sources */,
 				145F0400BD461D20A4796C85 /* StoreManager.swift in Sources */,
 				ECB7A4227A693D793AA5C0FE /* SubstanceEngine.swift in Sources */,
 				BB734E45988022F6F6C80BF3 /* SubstanceEntry.swift in Sources */,
@@ -1202,6 +1207,7 @@
 				1B2B2671E1C0C2AA0CD99025 /* SleepEngine.swift in Sources */,
 				BF7F05D82A45630BCC732BDD /* SleepView.swift in Sources */,
 				568A38CA2CF472B1359D955C /* StagnationEngine.swift in Sources */,
+				6B8B783AAD61B073B9042045 /* StagnationSeverityColors.swift in Sources */,
 				742AC22241343785F3C2CA54 /* StoreManager.swift in Sources */,
 				A73CD34088229F306FF7618D /* SubstanceEngine.swift in Sources */,
 				B9CD04929700DA3CFF13A92E /* SubstanceEntry.swift in Sources */,
