@@ -122,8 +122,13 @@ actor DataStore {
     }
 
     /// The iCloud ubiquity container's Documents directory, or nil when iCloud
-    /// is not configured. Resolves the container on every call — services should
-    /// cache the result for the duration of a single operation if needed.
+    /// is not configured.
+    ///
+    /// Calls `url(forUbiquityContainerIdentifier:)` on every access (the
+    /// session-level `cachedUbiquityURL` is actor-isolated and unreachable from
+    /// a `nonisolated static`). Callers that perform multiple accesses in a
+    /// single operation should snapshot the value once:
+    /// `let cloud = DataStore.iCloudDocumentsDirectory` and reuse `cloud`.
     nonisolated static var iCloudDocumentsDirectory: URL? {
         FileManager.default.url(forUbiquityContainerIdentifier: CloudConfig.containerID)?
             .appendingPathComponent("Documents")
