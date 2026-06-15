@@ -3452,15 +3452,6 @@ final class StagnationEngineTests: XCTestCase {
         XCTAssertEqual(stagnationSeverity(daysOverdue: 5, cadenceIntervalDays: 0), .warn)
     }
 
-    func testTintColorMapping() {
-        // tintColor lives in the Theme layer (StagnationSeverityColors.swift), not
-        // the pure engine. Assert each severity maps to its semantic color so the
-        // move out of StagnationEngine preserved the mapping (#73).
-        XCTAssertEqual(StagnationSeverity.info.tintColor, .accentColor)
-        XCTAssertEqual(StagnationSeverity.warn.tintColor, .warning)
-        XCTAssertEqual(StagnationSeverity.alert.tintColor, .danger)
-    }
-
     func testMissedCheckInSignalCarriesDaysOverdue() {
         // Goal with a 7-day cadence, last check-in 25 days ago ⇒ 18 days overdue.
         let lastCheckInDate = DateFormatting.dateString(daysAgo: 25)
@@ -3808,6 +3799,22 @@ final class StagnationEngineTests: XCTestCase {
             completions: [HabitCompletion(date: DateFormatting.dateString(daysAgo: 1))]
         )
         XCTAssertTrue([parent].effectiveNeedsCheckIn(for: parent, habits: [archivedHabit]))
+    }
+}
+
+// MARK: - StagnationSeverity Theme Colors
+
+/// Theme-layer coverage for the `StagnationSeverity.tintColor` mapping
+/// (Theme/StagnationSeverityColors.swift). Kept separate from the pure
+/// StagnationEngine suite so the SwiftUI/presentation assertion lives with the
+/// presentation layer, mirroring the engine/Theme split the move (#73) enforces.
+final class StagnationSeverityColorsTests: XCTestCase {
+    func testTintColorMapping() {
+        // Assert each severity maps to its semantic color so the move out of
+        // StagnationEngine preserved the mapping.
+        XCTAssertEqual(StagnationSeverity.info.tintColor, .accentColor)
+        XCTAssertEqual(StagnationSeverity.warn.tintColor, .warning)
+        XCTAssertEqual(StagnationSeverity.alert.tintColor, .danger)
     }
 }
 
