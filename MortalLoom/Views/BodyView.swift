@@ -827,13 +827,33 @@ struct BodyView: View {
                     .font(.subheadline)
                     .foregroundColor(.textSecondary)
 
+                // What's driving the number — per-signal breakdown vs. age norms.
+                Divider()
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("What's driving this")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(.textSecondary)
+                    ForEach(fa.components, id: \.kind) { component in
+                        functionalAgeComponentRow(component, age: fa.chronologicalAge)
+                    }
+                    if fa.asymmetryAdjustment != 0 {
+                        functionalAgeAsymmetryRow(fa.asymmetryAdjustment)
+                    }
+                }
+
+                if let guidance = functionalAgeGuidance(fa) {
+                    Text(guidance)
+                        .font(.caption)
+                        .foregroundColor(.textSecondary)
+                }
+
                 if fa.componentCount < 2 {
                     Text("Estimate based on a single mobility signal — add stair or walking-speed data for a more reliable read.")
                         .font(.caption2)
                         .foregroundColor(.textMuted)
                 }
 
-                Text("Estimated from age-normative walking and stair speed (Bohannon 2011; Studenski 2011), adjusted for gait asymmetry. Indicative, not a clinical measure.")
+                Text("Estimated from your everyday (free-living) walking and stair speed from Apple Health, compared against age norms (Bohannon 2011; Studenski 2011) and adjusted for gait asymmetry. This is a mobility estimate — not the same as a biological or epigenetic (DNA-methylation) age test, and not a clinical measure.")
                     .font(.caption2)
                     .foregroundColor(.textMuted)
             }
@@ -852,6 +872,68 @@ struct BodyView: View {
         }
         let direction = fa.gapYears < 0 ? "younger" : "older"
         return String(format: "About %.0f years %@ than your chronological age (%d).", years, direction, chrono)
+    }
+
+    /// One breakdown row: a mobility signal, its measured-vs-expected speed, and the
+    /// years it contributes (older/younger/on par).
+    @ViewBuilder
+    private func functionalAgeComponentRow(
+        _ component: FunctionalAgeEngine.Component,
+        age: Int
+    ) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(component.kind.rawValue)
+                    .font(.caption.weight(.medium))
+                    .foregroundColor(.textPrimary)
+                Text(String(format: "%.2f m/s · ~%.2f expected at %d", component.measured, component.expected, age))
+                    .font(.caption2)
+                    .foregroundColor(.textMuted)
+            }
+            Spacer()
+            functionalAgeGapChip(component.gapYears)
+        }
+    }
+
+    @ViewBuilder
+    private func functionalAgeAsymmetryRow(_ adjustment: Double) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Gait asymmetry")
+                    .font(.caption.weight(.medium))
+                    .foregroundColor(.textPrimary)
+                Text(adjustment > 0 ? "Uneven gait adds years" : "Even gait trims years")
+                    .font(.caption2)
+                    .foregroundColor(.textMuted)
+            }
+            Spacer()
+            functionalAgeGapChip(adjustment)
+        }
+    }
+
+    /// Color-coded "+N yr / on par / −N yr" chip shared by the breakdown rows.
+    @ViewBuilder
+    private func functionalAgeGapChip(_ gapYears: Double) -> some View {
+        let rounded = gapYears.rounded()
+        let (label, colorName): (String, String) = {
+            if rounded >= 1 { return (String(format: "+%.0f yr", rounded), "orange") }
+            if rounded <= -1 { return (String(format: "%.0f yr", rounded), "blue") }
+            return ("on par", "gray")
+        }()
+        Text(label)
+            .font(.caption2.weight(.semibold))
+            .foregroundColor(colorName == "gray" ? .textSecondary : colorName.semanticColor)
+    }
+
+    /// Actionable hint keyed off the signal driving the estimate older, if any.
+    private func functionalAgeGuidance(_ fa: FunctionalAgeEngine.FunctionalAgeSummary) -> String? {
+        guard let driver = fa.primaryDriver, driver.gapYears >= 3 else { return nil }
+        switch driver.kind {
+        case .walkingSpeed:
+            return "Walking speed is the biggest factor here. Regular brisk walking and lower-body strength work (squats, sit-to-stands) tend to raise it over time."
+        case .stairSpeed:
+            return "Stair speed is the biggest factor here. Stair climbing and leg-power exercises tend to improve it over time."
+        }
     }
 
     private func functionalAgeAccessibilityLabel(_ fa: FunctionalAgeEngine.FunctionalAgeSummary) -> String {
