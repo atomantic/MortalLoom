@@ -113,6 +113,22 @@ actor DataStore {
         }
     }
 
+    // MARK: - Shared path helpers (used by services to avoid duplicating path logic)
+
+    /// The app's local Documents directory. Services that store their own files
+    /// (e.g. ClinVarService) use this instead of resolving the path themselves.
+    nonisolated static var localDocumentsDirectory: URL {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    }
+
+    /// The iCloud ubiquity container's Documents directory, or nil when iCloud
+    /// is not configured. Resolves the container on every call — services should
+    /// cache the result for the duration of a single operation if needed.
+    nonisolated static var iCloudDocumentsDirectory: URL? {
+        FileManager.default.url(forUbiquityContainerIdentifier: CloudConfig.containerID)?
+            .appendingPathComponent("Documents")
+    }
+
     // File locations
     private var localURL: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]

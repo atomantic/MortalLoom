@@ -37,26 +37,17 @@ enum ClinVarService {
     private static let indexFileName = "clinvar-index.json"
     private static let metaFileName = "clinvar-meta.json"
 
-    private static var localDocumentsDir: URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-    }
-
-    private static var iCloudDocumentsDir: URL? {
-        FileManager.default.url(forUbiquityContainerIdentifier: CloudConfig.containerID)?
-            .appendingPathComponent("Documents")
-    }
-
     static var indexFileURL: URL {
         FileManager.default.newerOf(
-            cloud: iCloudDocumentsDir?.appendingPathComponent(indexFileName),
-            local: localDocumentsDir.appendingPathComponent(indexFileName)
+            cloud: DataStore.iCloudDocumentsDirectory?.appendingPathComponent(indexFileName),
+            local: DataStore.localDocumentsDirectory.appendingPathComponent(indexFileName)
         )
     }
 
     static var metaFileURL: URL {
         FileManager.default.newerOf(
-            cloud: iCloudDocumentsDir?.appendingPathComponent(metaFileName),
-            local: localDocumentsDir.appendingPathComponent(metaFileName)
+            cloud: DataStore.iCloudDocumentsDirectory?.appendingPathComponent(metaFileName),
+            local: DataStore.localDocumentsDirectory.appendingPathComponent(metaFileName)
         )
     }
 
@@ -123,11 +114,11 @@ enum ClinVarService {
         )
         let metaData = try JSONEncoder().encode(meta)
 
-        let local = localDocumentsDir
+        let local = DataStore.localDocumentsDirectory
         try indexData.write(to: local.appendingPathComponent(indexFileName), options: [.atomic, .completeFileProtection])
         try metaData.write(to: local.appendingPathComponent(metaFileName), options: [.atomic, .completeFileProtection])
 
-        if let cloud = iCloudDocumentsDir {
+        if let cloud = DataStore.iCloudDocumentsDirectory {
             try? FileManager.default.createDirectory(at: cloud, withIntermediateDirectories: true)
             // Cloud writes use `.completeFileProtectionUnlessOpen` so the iCloud sync daemon can
             // upload while the device is locked, matching DataStore's cloud-write convention.
@@ -338,10 +329,10 @@ enum ClinVarService {
     // MARK: - Delete
 
     static func deleteClinVar() {
-        let local = localDocumentsDir
+        let local = DataStore.localDocumentsDirectory
         try? FileManager.default.removeItem(at: local.appendingPathComponent(indexFileName))
         try? FileManager.default.removeItem(at: local.appendingPathComponent(metaFileName))
-        if let cloud = iCloudDocumentsDir {
+        if let cloud = DataStore.iCloudDocumentsDirectory {
             try? FileManager.default.removeItem(at: cloud.appendingPathComponent(indexFileName))
             try? FileManager.default.removeItem(at: cloud.appendingPathComponent(metaFileName))
         }
