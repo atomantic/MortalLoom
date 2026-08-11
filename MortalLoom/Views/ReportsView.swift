@@ -4,12 +4,14 @@ import UniformTypeIdentifiers
 
 // MARK: - ReportsView (MVP)
 
-/// Goal-system analytics. The MVP answers three questions:
+/// Goal-system analytics. Answers four questions:
 ///
 /// 1. How has my alignment trended? — derived from reflection ratings +
 ///    active standard-goal progress, sampled weekly.
 /// 2. What's stalling? — StagnationEngine signals, grouped by severity.
 /// 3. Which pillar is strongest/weakest? — per-pillar alignment breakdown.
+/// 4. Where does my scheduled time go? — MortalLoom-tagged calendar
+///    work-block minutes per pillar (iOS with Calendar access only).
 ///
 /// Everything is computed on-demand from current state. Future phases may
 /// snapshot alignment daily for faster historical queries.
@@ -26,6 +28,21 @@ struct ReportsView: View {
     @State private var pillarAlignments: [UUID: Double] = [:]
     /// Pre-computed per-habit stats for the Habit Streaks card.
     @State private var habitStats: [UUID: HabitStats] = [:]
+    /// Cross-pillar calendar time allocation for the last 30 days.
+    /// nil when Calendar access is unavailable (macOS or unauthorized),
+    /// which hides the card entirely.
+    @State private var timeAllocation: TimeAllocationEngine.Allocation?
+    /// Display-ready rows for the Time Allocation card, resolved once in
+    /// loadData so the render path does no goal-tree lookups.
+    @State private var timeSliceRows: [TimeSliceRow] = []
+
+    private struct TimeSliceRow: Identifiable {
+        /// Pillar id, or nil for the "Other goals" remainder slice.
+        let id: UUID?
+        let title: String
+        let minutes: Int
+        let fraction: Double
+    }
     /// Goal being checked in from a tapped stagnation row or pillar.
     @State private var checkInGoal: Goal?
     /// Sheet trigger for the new-goal flow from empty-state CTAs.
@@ -51,6 +68,7 @@ struct ReportsView: View {
                         VStack(spacing: 16) {
                             alignmentTrendCard
                             pillarBreakdownCard
+                            timeAllocationCard
                         }
                         .frame(maxWidth: .infinity, alignment: .top)
                         VStack(spacing: 16) {
@@ -63,6 +81,7 @@ struct ReportsView: View {
                     alignmentTrendCard
                     stagnationCard
                     pillarBreakdownCard
+                    timeAllocationCard
                     habitHealthCard
                 }
             }
@@ -160,6 +179,23 @@ struct ReportsView: View {
             )
         }
         habitStats = stats
+        timeAllocation = TimeAllocationLoader.recentAllocation(goals: loaded.goals, now: now)
+        timeSliceRows = buildTimeSliceRows()
+    }
+
+    /// Resolve the pillar breakdown to display-ready rows (title + share of
+    /// total). Runs once per loadData, after `data`/`timeAllocation` are set.
+    private func buildTimeSliceRows() -> [TimeSliceRow] {
+        guard let allocation = timeAllocation, allocation.totalMinutes > 0 else { return [] }
+        let slices = TimeAllocationEngine.pillarBreakdown(allocation: allocation, pillars: pillars)
+        return slices.map { slice in
+            TimeSliceRow(
+                id: slice.pillarId,
+                title: pillars.first { $0.id == slice.pillarId }?.title ?? "Other goals",
+                minutes: slice.minutes,
+                fraction: Double(slice.minutes) / Double(allocation.totalMinutes)
+            )
+        }
     }
 
     private var apexGoal: Goal? { data.goals.activeApex }
@@ -422,15 +458,30 @@ struct ReportsView: View {
 
     private func pillarBar(_ pillar: Goal) -> some View {
         let score = pillarAlignments[pillar.id]
+        return labeledBar(
+            title: pillar.title,
+            valueText: score.map { "\(Int($0))%" },
+            fraction: score.map { $0 / 100 }
+        )
+    }
 
-        return VStack(alignment: .leading, spacing: 4) {
+    /// Shared labeled track+fill bar used by the pillar-alignment and
+    /// time-allocation rows. nil valueText renders a muted dash; nil
+    /// fraction renders an empty track.
+    private func labeledBar(
+        title: String,
+        titleColor: Color = .textPrimary,
+        valueText: String?,
+        fraction: Double?
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text(pillar.title)
+                Text(title)
                     .font(.caption).fontWeight(.semibold)
-                    .foregroundColor(.textPrimary)
+                    .foregroundColor(titleColor)
                 Spacer()
-                if let score {
-                    Text("\(Int(score))%")
+                if let valueText {
+                    Text(valueText)
                         .font(.caption).monospacedDigit()
                         .foregroundColor(.accentColor)
                 } else {
@@ -444,14 +495,58 @@ struct ReportsView: View {
                     RoundedRectangle(cornerRadius: 4)
                         .fill(Color.bgInput)
                         .frame(height: 6)
-                    if let score {
+                    if let fraction {
                         RoundedRectangle(cornerRadius: 4)
                             .fill(LinearGradient.proBrand)
-                            .frame(width: geo.size.width * min(1, score / 100), height: 6)
+                            .frame(width: geo.size.width * min(1, fraction), height: 6)
                     }
                 }
             }
             .frame(height: 6)
+        }
+    }
+
+    // MARK: Time allocation
+
+    /// Where scheduled work blocks actually went, per pillar, over the last
+    /// 30 days. Complements PILLAR ALIGNMENT (reported progress) with real
+    /// calendar time — the "does my calendar reflect my stated priorities?"
+    /// check from GOALS.md. Hidden when Calendar access is unavailable.
+    @ViewBuilder
+    private var timeAllocationCard: some View {
+        if let allocation = timeAllocation {
+            VStack(alignment: .leading, spacing: 10) {
+                SectionLabel(text: "TIME ALLOCATED (30 DAYS)")
+                if allocation.totalMinutes == 0 {
+                    emptyInline(
+                        icon: "calendar.badge.clock",
+                        text: "No scheduled work blocks in the last 30 days. Schedule one from a goal's edit sheet to see where your calendar time actually goes."
+                    )
+                } else {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(TimeAllocationEngine.formatMinutes(allocation.totalMinutes))
+                            .font(.title2).fontWeight(.bold)
+                            .monospacedDigit()
+                            .foregroundColor(.accentColor)
+                        Text("scheduled toward goals")
+                            .font(.caption)
+                            .foregroundColor(.textSecondary)
+                    }
+                    VStack(spacing: 8) {
+                        ForEach(timeSliceRows) { row in
+                            labeledBar(
+                                title: row.title,
+                                titleColor: row.id == nil ? .textSecondary : .textPrimary,
+                                valueText: TimeAllocationEngine.formatMinutes(row.minutes),
+                                fraction: row.fraction
+                            )
+                        }
+                    }
+                }
+            }
+            .padding()
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .cardStyle()
         }
     }
 

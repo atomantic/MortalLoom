@@ -20,7 +20,6 @@ struct PillarDashboardView: View {
 
     @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
     @State private var timeAllocation: TimeAllocationEngine.Allocation?
-    @State private var calendarAvailable = false
     @State private var habitStats: [UUID: HabitStats] = [:]
 
     private var isWide: Bool { containerWidth >= Layout.wideThreshold }
@@ -41,17 +40,12 @@ struct PillarDashboardView: View {
         .background(Color.bg)
         .task {
             computeHabitStats()
-            await loadTimeAllocation()
+            timeAllocation = TimeAllocationLoader.recentAllocation(goals: allGoals)
         }
         .navigationTitle(pillar.title)
         .inlineNavigationTitle()
     }
 
-    // MARK: Time allocation loader
-
-    /// Pulls MortalLoom-tagged calendar events from the last 30 days and
-    /// rolls them up through the goal hierarchy. Runs on the main actor
-    /// because CalendarService is @MainActor.
     /// Precompute streak/hit-rate for all linked habits in one pass so the
     /// habit-row renderer can look them up instead of recomputing per frame.
     private func computeHabitStats() {
@@ -65,26 +59,6 @@ struct PillarDashboardView: View {
             )
         }
         habitStats = stats
-    }
-
-    @MainActor
-    private func loadTimeAllocation() async {
-        #if os(iOS)
-        let service = CalendarService.shared
-        guard service.isAuthorized else {
-            calendarAvailable = false
-            timeAllocation = nil
-            return
-        }
-        calendarAvailable = true
-        let now = Date()
-        let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: now) ?? now
-        let events = service.tagged(from: thirtyDaysAgo, to: now)
-        timeAllocation = TimeAllocationEngine.allocate(goals: allGoals, events: events)
-        #else
-        calendarAvailable = false
-        timeAllocation = nil
-        #endif
     }
 
     // MARK: Computed

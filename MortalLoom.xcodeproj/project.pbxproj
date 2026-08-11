@@ -133,9 +133,11 @@
 		74F52B8E4188D8A5E462C4B3 /* PDFExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AA354604B54CFFC844F6674 /* PDFExport.swift */; };
 		75359CA085894781A55437A6 /* WeeklyReviewSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BB08E31839DCECA66643126 /* WeeklyReviewSheet.swift */; };
 		7CE5EB3F19F402E5B46A93F5 /* GoalEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5F956F2D094587B4EA40CB4 /* GoalEngineTests.swift */; };
+		7D230B4D8C5ECD7D2716FCCA /* TimeAllocationLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 161A55484824547875031AB5 /* TimeAllocationLoader.swift */; };
 		7D38505891F5B07AC8858FDD /* MortalLoomWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30EE7BA4A05136BEC466F9B5 /* MortalLoomWidget.swift */; };
 		7E4E92253B912DCEDAAF3099 /* LocationEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E57DA8048A455E727B5CC4DB /* LocationEngineTests.swift */; };
 		7F7F4630EB6FC3520EF29934 /* CheckInSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B0F90005664C275BC30D701 /* CheckInSheet.swift */; };
+		80E26324ED6C731EAEBE215D /* TimeAllocationLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 161A55484824547875031AB5 /* TimeAllocationLoader.swift */; };
 		8188C74010141640C74E16A5 /* GoalEngine+ViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F5050189FF755E67D823D83 /* GoalEngine+ViewModel.swift */; };
 		81A9C1D6E5985BC79D303C8A /* DataStoreCRUDTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C1BB76B4A4CA2EADD781347 /* DataStoreCRUDTests.swift */; };
 		82CC4290606C361863AABCDA /* BloodTrendEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1EEC8E756E144273D6BC24A /* BloodTrendEngine.swift */; };
@@ -353,6 +355,7 @@
 		13547F14B9304DE2AE925ED2 /* Goal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Goal.swift; sourceTree = "<group>"; };
 		14643E58DFCB5BCF7D13DC86 /* SubstanceEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubstanceEntry.swift; sourceTree = "<group>"; };
 		1571F78641946AA351A04D9D /* GenomeActionLibraryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenomeActionLibraryTests.swift; sourceTree = "<group>"; };
+		161A55484824547875031AB5 /* TimeAllocationLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeAllocationLoader.swift; sourceTree = "<group>"; };
 		174D733132F943A870DA79E7 /* Citation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Citation.swift; sourceTree = "<group>"; };
 		17554F4F50A7084DE0587FE8 /* ProBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProBadge.swift; sourceTree = "<group>"; };
 		1AFF6071DE927F5D3A5A8244 /* GenomePrioritiesCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenomePrioritiesCard.swift; sourceTree = "<group>"; };
@@ -668,6 +671,7 @@
 				122239D01E7F6BBD60C37DE8 /* LocationService.swift */,
 				811CC2035836AB23A2308593 /* NotificationService.swift */,
 				7550FA85EC464896DD44671A /* StoreManager.swift */,
+				161A55484824547875031AB5 /* TimeAllocationLoader.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -1098,6 +1102,7 @@
 				F94DC225DE842B1FBDB919DC /* SubstancesView.swift in Sources */,
 				102EC106BBDF1BC27CB3AC74 /* Theme.swift in Sources */,
 				BA5F2BC308CC3D66B5A00342 /* TimeAllocationEngine.swift in Sources */,
+				7D230B4D8C5ECD7D2716FCCA /* TimeAllocationLoader.swift in Sources */,
 				A6EB0C62E00D3ED8F86906DE /* VisitNoteSheet.swift in Sources */,
 				472FBA98C7AE733D34A7EE46 /* WeeklyReviewSheet.swift in Sources */,
 				5852551AD2EEBFDFE712CD43 /* WidgetBridge.swift in Sources */,
@@ -1215,6 +1220,7 @@
 				E7899B9BBD38F6820A45779D /* SubstancesView.swift in Sources */,
 				DD7B9C9787A28BAD1712D040 /* Theme.swift in Sources */,
 				EB21DC7DD79B1721F735B262 /* TimeAllocationEngine.swift in Sources */,
+				80E26324ED6C731EAEBE215D /* TimeAllocationLoader.swift in Sources */,
 				15A261E4D605DF9B412F6A13 /* VisitNoteSheet.swift in Sources */,
 				75359CA085894781A55437A6 /* WeeklyReviewSheet.swift in Sources */,
 				1AE9A257527D4CA585A0F209 /* WidgetBridge.swift in Sources */,
