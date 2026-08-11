@@ -66,6 +66,34 @@ enum TimeAllocationEngine {
         )
     }
 
+    // MARK: Pillar breakdown
+
+    struct PillarSlice: Sendable, Equatable {
+        /// The pillar's goal id, or nil for time tagged to goals outside
+        /// every pillar's subtree (e.g. standard goals parented straight
+        /// to the North Star).
+        let pillarId: UUID?
+        let minutes: Int
+    }
+
+    /// Split an allocation's total minutes across life pillars for
+    /// side-by-side comparison ("is my calendar aligned with my stated
+    /// priorities?"). Pillars with zero minutes are dropped; whatever
+    /// isn't inside any pillar's subtree lands in a trailing nil-id slice.
+    static func pillarBreakdown(allocation: Allocation, pillars: [Goal]) -> [PillarSlice] {
+        var slices = pillars.compactMap { pillar -> PillarSlice? in
+            guard let minutes = allocation.minutesByAncestor[pillar.id], minutes > 0 else { return nil }
+            return PillarSlice(pillarId: pillar.id, minutes: minutes)
+        }
+        slices.sort { $0.minutes > $1.minutes }
+        let pillarTotal = slices.reduce(0) { $0 + $1.minutes }
+        let remainder = allocation.totalMinutes - pillarTotal
+        if remainder > 0 {
+            slices.append(PillarSlice(pillarId: nil, minutes: remainder))
+        }
+        return slices
+    }
+
     /// Format minutes as "2h 30m" / "45m". Used in UI rendering.
     static func formatMinutes(_ minutes: Int) -> String {
         if minutes < 60 { return "\(minutes)m" }

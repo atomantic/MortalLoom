@@ -117,6 +117,54 @@ final class TimeAllocationEngineTests: XCTestCase {
         XCTAssertGreaterThan(result.minutesByAncestor[b.id] ?? 0, 0)
     }
 
+    // MARK: - pillarBreakdown
+
+    func testPillarBreakdownEmptyAllocation() {
+        let pillar = goal("Pillar")
+        let allocation = TimeAllocationEngine.allocate(goals: [pillar], events: [])
+        let slices = TimeAllocationEngine.pillarBreakdown(allocation: allocation, pillars: [pillar])
+        XCTAssertEqual(slices, [])
+    }
+
+    func testPillarBreakdownSortsByMinutesDescendingAndDropsZeroPillars() {
+        let north = goal("North Star")
+        let health = goal("Health", parent: north.id)
+        let craft = goal("Craft", parent: north.id)
+        let idle = goal("Idle", parent: north.id)
+        let run = goal("Run", parent: health.id)
+        let write = goal("Write", parent: craft.id)
+        let events = [
+            event(goal: run.id, minutes: 30),
+            event(goal: write.id, minutes: 90)
+        ]
+        let allocation = TimeAllocationEngine.allocate(goals: [north, health, craft, idle, run, write], events: events)
+        let slices = TimeAllocationEngine.pillarBreakdown(allocation: allocation, pillars: [health, craft, idle])
+        // Exact equality also proves no nil "other" slice appears when all
+        // minutes fall inside pillar subtrees.
+        XCTAssertEqual(slices, [
+            TimeAllocationEngine.PillarSlice(pillarId: craft.id, minutes: 90),
+            TimeAllocationEngine.PillarSlice(pillarId: health.id, minutes: 30)
+        ])
+    }
+
+    func testPillarBreakdownRemainderOutsidePillarsLandsInNilSlice() {
+        let north = goal("North Star")
+        let health = goal("Health", parent: north.id)
+        let run = goal("Run", parent: health.id)
+        // Parented straight to the North Star — inside no pillar's subtree.
+        let direct = goal("Direct", parent: north.id)
+        let events = [
+            event(goal: run.id, minutes: 60),
+            event(goal: direct.id, minutes: 45)
+        ]
+        let allocation = TimeAllocationEngine.allocate(goals: [north, health, run, direct], events: events)
+        let slices = TimeAllocationEngine.pillarBreakdown(allocation: allocation, pillars: [health])
+        XCTAssertEqual(slices, [
+            TimeAllocationEngine.PillarSlice(pillarId: health.id, minutes: 60),
+            TimeAllocationEngine.PillarSlice(pillarId: nil, minutes: 45)
+        ])
+    }
+
     // MARK: - formatMinutes
 
     func testFormatMinutesUnderHour() {

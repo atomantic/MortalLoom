@@ -2,6 +2,10 @@
 
 Completed items archived from PLAN.md. For release notes, see `.changelogs/`.
 
+## 2026-08-11
+
+- Reports Time Allocation card — cross-pillar breakdown of MortalLoom-tagged calendar work-block minutes over the last 30 days (`TimeAllocationEngine.pillarBreakdown` + share bars, "Other goals" remainder slice, zero-state hint; hidden when Calendar access is unavailable). Ships the time-allocation half of #65.
+
 ## 2026-04-28
 
 - Weekly Review 7-day alignment-rating sparkline (Charts inline, Y 1–10, weekday X-axis)
