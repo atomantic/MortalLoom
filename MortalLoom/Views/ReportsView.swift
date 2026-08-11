@@ -4,12 +4,14 @@ import UniformTypeIdentifiers
 
 // MARK: - ReportsView (MVP)
 
-/// Goal-system analytics. The MVP answers three questions:
+/// Goal-system analytics. Answers four questions:
 ///
 /// 1. How has my alignment trended? — derived from reflection ratings +
 ///    active standard-goal progress, sampled weekly.
 /// 2. What's stalling? — StagnationEngine signals, grouped by severity.
 /// 3. Which pillar is strongest/weakest? — per-pillar alignment breakdown.
+/// 4. Where does my scheduled time go? — MortalLoom-tagged calendar
+///    work-block minutes per pillar (iOS with Calendar access only).
 ///
 /// Everything is computed on-demand from current state. Future phases may
 /// snapshot alignment daily for faster historical queries.
