@@ -182,6 +182,33 @@ final class AppDataMergeTests: XCTestCase {
         XCTAssertEqual(merged.profile.biologicalSex, .male)
     }
 
+    // MARK: - Blood donations
+
+    func testMergeDisjointBloodDonationsUnions() {
+        var local = AppData.empty
+        local.bloodDonations = [BloodDonation(donationType: .wholeBlood, volumeML: 500, date: "2026-03-01")]
+        var remote = AppData.empty
+        remote.bloodDonations = [BloodDonation(donationType: .plasma, volumeML: 700, date: "2026-04-01")]
+
+        let merged = local.merged(with: remote)
+
+        XCTAssertEqual(merged.bloodDonations.count, 2)
+    }
+
+    func testMergeOverlappingBloodDonationIDRemoteWins() {
+        let id = UUID()
+        var local = AppData.empty
+        local.bloodDonations = [BloodDonation(id: id, donationType: .wholeBlood, volumeML: 500, date: "2026-03-01")]
+        var remote = AppData.empty
+        remote.bloodDonations = [BloodDonation(id: id, donationType: .wholeBlood, volumeML: 480, date: "2026-03-01", location: "Community Blood Drive")]
+
+        let merged = local.merged(with: remote)
+
+        XCTAssertEqual(merged.bloodDonations.count, 1)
+        XCTAssertEqual(merged.bloodDonations.first?.volumeML, 480)
+        XCTAssertEqual(merged.bloodDonations.first?.location, "Community Blood Drive")
+    }
+
     // MARK: - Deletion caveat (documented limitation)
 
     func testMergeResurrectsDeletedEntryBecauseNoTombstones() {

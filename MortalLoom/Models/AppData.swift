@@ -7,6 +7,7 @@ struct AppData: Codable, Sendable {
     var nicotineEntries: [NicotineEntry]
     var nicotinePresets: [NicotinePreset]
     var bloodTests: [BloodTest]
+    var bloodDonations: [BloodDonation]
     var eyeExams: [EyeExam]
     var epigeneticTests: [EpigeneticTest]
     var bodyEntries: [BodyEntry]
@@ -29,6 +30,7 @@ struct AppData: Codable, Sendable {
         nicotineEntries: [],
         nicotinePresets: NicotinePreset.defaults,
         bloodTests: [],
+        bloodDonations: [],
         eyeExams: [],
         epigeneticTests: [],
         bodyEntries: [],
@@ -44,7 +46,8 @@ struct AppData: Codable, Sendable {
 
     init(profile: HealthProfile, alcoholDrinks: [AlcoholDrink], alcoholPresets: [AlcoholPreset],
          nicotineEntries: [NicotineEntry], nicotinePresets: [NicotinePreset],
-         bloodTests: [BloodTest], eyeExams: [EyeExam], epigeneticTests: [EpigeneticTest],
+         bloodTests: [BloodTest], bloodDonations: [BloodDonation],
+         eyeExams: [EyeExam], epigeneticTests: [EpigeneticTest],
          bodyEntries: [BodyEntry] = [], healthMetrics: [HealthMetricEntry] = [],
          goals: [Goal] = [], habits: [Habit] = [],
          genomeScanRecord: GenomeScanRecord? = nil,
@@ -57,6 +60,7 @@ struct AppData: Codable, Sendable {
         self.nicotineEntries = nicotineEntries
         self.nicotinePresets = nicotinePresets
         self.bloodTests = bloodTests
+        self.bloodDonations = bloodDonations
         self.eyeExams = eyeExams
         self.epigeneticTests = epigeneticTests
         self.bodyEntries = bodyEntries
@@ -77,6 +81,7 @@ struct AppData: Codable, Sendable {
         || !nicotineEntries.isEmpty
         || !saunaSessions.isEmpty
         || !bloodTests.isEmpty
+        || !bloodDonations.isEmpty
         || !eyeExams.isEmpty
         || !epigeneticTests.isEmpty
         || !bodyEntries.isEmpty
@@ -89,7 +94,7 @@ struct AppData: Codable, Sendable {
     // Support decoding files saved before newer fields were added
     enum CodingKeys: String, CodingKey {
         case profile, alcoholDrinks, alcoholPresets, nicotineEntries, nicotinePresets
-        case bloodTests, eyeExams, epigeneticTests, bodyEntries, healthMetrics, goals, habits
+        case bloodTests, bloodDonations, eyeExams, epigeneticTests, bodyEntries, healthMetrics, goals, habits
         case genomeScanRecord, saunaSessions, saunaPresets
         case genomeActionStates, genomeVisitNotes
     }
@@ -102,6 +107,7 @@ struct AppData: Codable, Sendable {
         nicotineEntries = try c.decode([NicotineEntry].self, forKey: .nicotineEntries)
         nicotinePresets = try c.decode([NicotinePreset].self, forKey: .nicotinePresets)
         bloodTests = try c.decode([BloodTest].self, forKey: .bloodTests)
+        bloodDonations = try c.decodeIfPresent([BloodDonation].self, forKey: .bloodDonations) ?? []
         eyeExams = try c.decode([EyeExam].self, forKey: .eyeExams)
         epigeneticTests = try c.decode([EpigeneticTest].self, forKey: .epigeneticTests)
         bodyEntries = try c.decodeIfPresent([BodyEntry].self, forKey: .bodyEntries) ?? []
@@ -123,8 +129,9 @@ struct AppData: Codable, Sendable {
 extension AppData {
     /// Return a new AppData that unions `self` with `remote`.
     ///
-    /// For UUID-keyed arrays (drinks, nicotine, sauna, blood, body, eye,
-    /// epigenetic, goals), entries are keyed by `id` and the REMOTE entry
+    /// For UUID-keyed arrays (drinks, nicotine, sauna, blood tests, blood
+    /// donations, body, eye, epigenetic, goals), entries are keyed by `id`
+    /// and the REMOTE entry
     /// wins on any id collision (remote is treated as the "source of truth
     /// that just arrived"). This preserves both sides' additions — the core
     /// reason to merge instead of wholesale-replace.
@@ -153,6 +160,7 @@ extension AppData {
         result.nicotineEntries  = mergeByID(self.nicotineEntries,  remote.nicotineEntries)
         result.saunaSessions    = mergeByID(self.saunaSessions,    remote.saunaSessions)
         result.bloodTests       = mergeByID(self.bloodTests,       remote.bloodTests)
+        result.bloodDonations   = mergeByID(self.bloodDonations,   remote.bloodDonations)
         result.eyeExams         = mergeByID(self.eyeExams,         remote.eyeExams)
         result.epigeneticTests  = mergeByID(self.epigeneticTests,  remote.epigeneticTests)
         result.bodyEntries      = mergeByID(self.bodyEntries,      remote.bodyEntries)

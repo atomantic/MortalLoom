@@ -401,6 +401,7 @@ actor DataStore {
         let beforeSauna = data.saunaSessions.count
         let beforeMetrics = data.healthMetrics.count
         let beforeBlood = data.bloodTests.count
+        let beforeDonations = data.bloodDonations.count
         let beforeEye = data.eyeExams.count
         let beforeBody = data.bodyEntries.count
         let beforeEpi = data.epigeneticTests.count
@@ -417,7 +418,8 @@ actor DataStore {
         logger.info("☁️ merged iCloud update (+ \(addedDrinks, privacy: .private) drinks, \(addedNic, privacy: .private) nic, \(addedSauna, privacy: .private) sauna, \(addedMetrics, privacy: .private) metrics)")
 
         let didChange = addedDrinks != 0 || addedNic != 0 || addedSauna != 0 || addedMetrics != 0
-            || merged.bloodTests.count != beforeBlood || merged.eyeExams.count != beforeEye
+            || merged.bloodTests.count != beforeBlood || merged.bloodDonations.count != beforeDonations
+            || merged.eyeExams.count != beforeEye
             || merged.bodyEntries.count != beforeBody || merged.epigeneticTests.count != beforeEpi
             || merged.goals.count != beforeGoals
 
@@ -620,6 +622,26 @@ actor DataStore {
         var d = load()
         if let idx = d.bloodTests.firstIndex(where: { $0.id == test.id }) {
             d.bloodTests[idx] = test
+            save(d)
+        }
+    }
+
+    func addBloodDonation(_ donation: BloodDonation) {
+        var d = load()
+        d.bloodDonations.append(donation)
+        save(d)
+    }
+
+    func removeBloodDonation(id: UUID) {
+        var d = load()
+        d.bloodDonations.removeAll { $0.id == id }
+        save(d)
+    }
+
+    func updateBloodDonation(_ donation: BloodDonation) {
+        var d = load()
+        if let idx = d.bloodDonations.firstIndex(where: { $0.id == donation.id }) {
+            d.bloodDonations[idx] = donation
             save(d)
         }
     }

@@ -335,7 +335,7 @@ struct ContentView: View {
         case .body:
             BodyView()
         case .blood:
-            BloodView()
+            BloodPage()
         case .habits:
             HabitsPage()
         case .lifestyle:
@@ -441,7 +441,7 @@ struct MacContentView: View {
                 case .habits:
                     HabitsPage()
                 case .blood:
-                    BloodView()
+                    BloodPage()
                 case .calendar:
                     LifeCalendarView()
                 case .genome:

@@ -318,6 +318,16 @@ enum SampleData {
         ]),
     ]
 
+    // MARK: - Blood Donations (mixed products across the past year)
+
+    static let bloodDonations: [BloodDonation] = [
+        BloodDonation(donationType: .wholeBlood, volumeML: 500, date: dateStr(daysAgo: 300), location: "Community Blood Drive"),
+        BloodDonation(donationType: .plasma, volumeML: 690, date: dateStr(daysAgo: 220), location: "Downtown Donor Center"),
+        BloodDonation(donationType: .wholeBlood, volumeML: 500, date: dateStr(daysAgo: 160), location: "Downtown Donor Center"),
+        BloodDonation(donationType: .platelets, volumeML: 300, date: dateStr(daysAgo: 95), location: "Downtown Donor Center"),
+        BloodDonation(donationType: .wholeBlood, volumeML: 480, date: dateStr(daysAgo: 40), location: "Community Blood Drive"),
+    ]
+
     // MARK: - Eye Exams (2 exams, 1 year apart)
 
     static let eyeExams: [EyeExam] = [
@@ -756,6 +766,7 @@ enum SampleData {
         nicotineEntries: nicotineEntries,
         nicotinePresets: nicotinePresets,
         bloodTests: bloodTests,
+        bloodDonations: bloodDonations,
         eyeExams: eyeExams,
         epigeneticTests: epigeneticTests,
         bodyEntries: bodyEntries,

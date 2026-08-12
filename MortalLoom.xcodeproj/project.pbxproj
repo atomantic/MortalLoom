@@ -19,6 +19,7 @@
 		0A491EA766254514F8C2D373 /* CuratedMarkers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69B73CEA0F3655CDD11A007C /* CuratedMarkers.swift */; };
 		0A4B66907EB40284D5CBECD4 /* Products.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 223CD2E2AB78B4665CCC4255 /* Products.storekit */; };
 		0AE06067E0CA1F3B14B3AD30 /* GenomeSeverityColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10E42AF1A7595E94B79859A0 /* GenomeSeverityColors.swift */; };
+		0B64220E2CFF69974329CD44 /* BloodDonation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A2AB6C5180FFA3EF161FEA5 /* BloodDonation.swift */; };
 		0C79D35D1C1B65C542D61330 /* Goal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13547F14B9304DE2AE925ED2 /* Goal.swift */; };
 		0D87387D9625A5E0D6645E02 /* ICloudMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29D32D124C715340FD2DC350 /* ICloudMonitor.swift */; };
 		0EF9B83A68AB89DDAC89CAA9 /* GenomeSeverityColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10E42AF1A7595E94B79859A0 /* GenomeSeverityColors.swift */; };
@@ -51,6 +52,7 @@
 		2B8E0187D145C2CCA2BF2E10 /* CollectionMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF14662C31A489DE85B5CABE /* CollectionMath.swift */; };
 		2C7FA0711255BD0A9EE6CA7E /* GenomeReportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 339EACFBBB9A0EB910A6BEBB /* GenomeReportTests.swift */; };
 		2CB9A37BB736198316B44405 /* GoalEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 118A5A1BB8FDFBEDDACD2E0C /* GoalEngine.swift */; };
+		2DBF7209DB7F7D5AD11563B6 /* DonationEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90F5F5FB0FF10A28497B852B /* DonationEngineTests.swift */; };
 		2E1D5E1CCBA2285ED8D913BD /* ScreenshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B2CB5E984C7556ED4DE0610 /* ScreenshotTests.swift */; };
 		2EB412FB4F7A9CB04F8FEA67 /* SubstancesShared.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF5185384006A3DC1455D845 /* SubstancesShared.swift */; };
 		30B68822C19248773D62696A /* LifeCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5ABFE2DBE2C3A4FAFEE5EE6E /* LifeCalendarView.swift */; };
@@ -96,6 +98,7 @@
 		53B90A52CDA6CC6EAEF56C54 /* AppData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76AFC65F04DD19B1C921A47F /* AppData.swift */; };
 		568A38CA2CF472B1359D955C /* StagnationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B460A824B27B5049B354A64C /* StagnationEngine.swift */; };
 		576B5647EBFAD63011F04625 /* BodyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4711239695D8FA36364CFC90 /* BodyView.swift */; };
+		58468088DCC0433AB1BA4BD5 /* BloodDonation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A2AB6C5180FFA3EF161FEA5 /* BloodDonation.swift */; };
 		5852551AD2EEBFDFE712CD43 /* WidgetBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = F01753DF921942BEA30C5DD4 /* WidgetBridge.swift */; };
 		5856806DFBD48F39BDC89F9B /* GenomeVariant.swift in Sources */ = {isa = PBXBuildFile; fileRef = E07FD891E4CD098ECED55779 /* GenomeVariant.swift */; };
 		59E2123B5F1AEE23FDD9ED46 /* SleepEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AF84C540C7407CE0252EB08 /* SleepEngineTests.swift */; };
@@ -128,6 +131,7 @@
 		6ED34B7054D4D37FDEBA1354 /* GenomeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28AC3F656EB8AC40C7965F28 /* GenomeViewModel.swift */; };
 		6EF9106333950CF8212C2EA0 /* GenomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71A0187A10BAA3CC7819A176 /* GenomeView.swift */; };
 		706C426B98DE5CF39A715C7E /* EpigeneticTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DE7B02859718A26B4B9906E /* EpigeneticTest.swift */; };
+		70D5E493FC8AC850E0C37B5D /* DonationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF9F975E23AF596B9882BF88 /* DonationEngine.swift */; };
 		742AC22241343785F3C2CA54 /* StoreManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7550FA85EC464896DD44671A /* StoreManager.swift */; };
 		74DDF95780AC8638A23077D4 /* CorrelationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98CE91B429B04C112C38D411 /* CorrelationEngine.swift */; };
 		74F52B8E4188D8A5E462C4B3 /* PDFExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AA354604B54CFFC844F6674 /* PDFExport.swift */; };
@@ -140,6 +144,7 @@
 		80E26324ED6C731EAEBE215D /* TimeAllocationLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 161A55484824547875031AB5 /* TimeAllocationLoader.swift */; };
 		8188C74010141640C74E16A5 /* GoalEngine+ViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F5050189FF755E67D823D83 /* GoalEngine+ViewModel.swift */; };
 		81A9C1D6E5985BC79D303C8A /* DataStoreCRUDTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C1BB76B4A4CA2EADD781347 /* DataStoreCRUDTests.swift */; };
+		81AA2CB9B7A28CA4B8242B9A /* DonationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF9F975E23AF596B9882BF88 /* DonationEngine.swift */; };
 		82CC4290606C361863AABCDA /* BloodTrendEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1EEC8E756E144273D6BC24A /* BloodTrendEngine.swift */; };
 		8401E8917A3996E71CDF7B45 /* MonthlyReportEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36EE02EED59E765612370BAC /* MonthlyReportEngineTests.swift */; };
 		8511F3B807C1BD9B498818D4 /* HealthMetricEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44962B353191269E702D9756 /* HealthMetricEntry.swift */; };
@@ -166,6 +171,8 @@
 		9D73A31DB676C8781098E47F /* StagnationSeverityColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F71ACAAACD81AA160F874BC /* StagnationSeverityColors.swift */; };
 		A1FBD8F4C173AA81799B2489 /* AppDataMergeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 859D4E25FD093A28421D8FC3 /* AppDataMergeTests.swift */; };
 		A219E92A26CEA7CAB05EF161 /* GenomeVisit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 867DC664E8C2F244D4AF5195 /* GenomeVisit.swift */; };
+		A25DC50014F9BF4AD4086906 /* BloodDonationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16EBAF484FDC5A382BC99664 /* BloodDonationsView.swift */; };
+		A6D06AD230963C6524E702F4 /* BloodDonationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16EBAF484FDC5A382BC99664 /* BloodDonationsView.swift */; };
 		A6EB0C62E00D3ED8F86906DE /* VisitNoteSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3475291D6C3512857F14B23 /* VisitNoteSheet.swift */; };
 		A7033F9E54E373E95FE493C8 /* DataStoreCRUDTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C1BB76B4A4CA2EADD781347 /* DataStoreCRUDTests.swift */; };
 		A73CD34088229F306FF7618D /* SubstanceEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = C204F5FE0B519C1DEDB7AF47 /* SubstanceEngine.swift */; };
@@ -212,6 +219,7 @@
 		C6F5E6886D7CABB0D1096EBD /* LocationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 122239D01E7F6BBD60C37DE8 /* LocationService.swift */; };
 		C7369D6EA99910CEA2C27194 /* GoalsViewHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAB2C9C845CDE8F2A4335C20 /* GoalsViewHelpers.swift */; };
 		C75FCF5F6EC35EB0080C2DAF /* OverviewViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92F32690DCE74A759D233DFE /* OverviewViewModel.swift */; };
+		C79DBAED69070C53440A5D3D /* DonationEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90F5F5FB0FF10A28497B852B /* DonationEngineTests.swift */; };
 		C7A81B14FF7FBF1AC44A8087 /* Goal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13547F14B9304DE2AE925ED2 /* Goal.swift */; };
 		C880829A818791EC492E79A8 /* CorrelationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98CE91B429B04C112C38D411 /* CorrelationEngine.swift */; };
 		C8E45F7C2D1A70E22B917D8C /* CheckInSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B0F90005664C275BC30D701 /* CheckInSheet.swift */; };
@@ -356,6 +364,7 @@
 		14643E58DFCB5BCF7D13DC86 /* SubstanceEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubstanceEntry.swift; sourceTree = "<group>"; };
 		1571F78641946AA351A04D9D /* GenomeActionLibraryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenomeActionLibraryTests.swift; sourceTree = "<group>"; };
 		161A55484824547875031AB5 /* TimeAllocationLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeAllocationLoader.swift; sourceTree = "<group>"; };
+		16EBAF484FDC5A382BC99664 /* BloodDonationsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BloodDonationsView.swift; sourceTree = "<group>"; };
 		174D733132F943A870DA79E7 /* Citation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Citation.swift; sourceTree = "<group>"; };
 		17554F4F50A7084DE0587FE8 /* ProBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProBadge.swift; sourceTree = "<group>"; };
 		1AFF6071DE927F5D3A5A8244 /* GenomePrioritiesCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenomePrioritiesCard.swift; sourceTree = "<group>"; };
@@ -382,6 +391,7 @@
 		36EE02EED59E765612370BAC /* MonthlyReportEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonthlyReportEngineTests.swift; sourceTree = "<group>"; };
 		37A71E4A0A8F1CD94F8E00BB /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		39BFC6792F29D715A30519C9 /* GenomeVisitFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenomeVisitFlowTests.swift; sourceTree = "<group>"; };
+		3A2AB6C5180FFA3EF161FEA5 /* BloodDonation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BloodDonation.swift; sourceTree = "<group>"; };
 		3B3EFC3FC269FB7ACFE515BA /* GenomeActionLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenomeActionLibrary.swift; sourceTree = "<group>"; };
 		3D7711FFF525E3315AB74655 /* AlcoholView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlcoholView.swift; sourceTree = "<group>"; };
 		3DE6F91C7E33B0F86F79570E /* BodyEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyEntry.swift; sourceTree = "<group>"; };
@@ -436,6 +446,7 @@
 		8CA94632A9BE9FBBCFD7A7DD /* SleepView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepView.swift; sourceTree = "<group>"; };
 		8D73A7E2545FD3011BED42B1 /* AirQualityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AirQualityService.swift; sourceTree = "<group>"; };
 		8DFE4C5B3F84209835BAB96B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		90F5F5FB0FF10A28497B852B /* DonationEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DonationEngineTests.swift; sourceTree = "<group>"; };
 		92F32690DCE74A759D233DFE /* OverviewViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverviewViewModel.swift; sourceTree = "<group>"; };
 		92F50631566FFE40D88FAD5C /* BloodTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BloodTest.swift; sourceTree = "<group>"; };
 		93B5E80AB18D2FA91974ECB6 /* GaitEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GaitEngine.swift; sourceTree = "<group>"; };
@@ -471,6 +482,7 @@
 		D5C2474BC3DD2C321255F1AB /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		D845D6FD1E5533A87B2972D0 /* GenomeVisitFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenomeVisitFlow.swift; sourceTree = "<group>"; };
 		DEB9A10C3E2202B80634C242 /* ClinVarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClinVarView.swift; sourceTree = "<group>"; };
+		DF9F975E23AF596B9882BF88 /* DonationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DonationEngine.swift; sourceTree = "<group>"; };
 		DFAFEF1D1D8E89AA3E949F4F /* LifestyleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifestyleView.swift; sourceTree = "<group>"; };
 		E07FD891E4CD098ECED55779 /* GenomeVariant.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenomeVariant.swift; sourceTree = "<group>"; };
 		E111F446BEE46519945A5B55 /* HabitsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HabitsSection.swift; sourceTree = "<group>"; };
@@ -490,6 +502,7 @@
 			isa = PBXGroup;
 			children = (
 				76AFC65F04DD19B1C921A47F /* AppData.swift */,
+				3A2AB6C5180FFA3EF161FEA5 /* BloodDonation.swift */,
 				92F50631566FFE40D88FAD5C /* BloodTest.swift */,
 				3DE6F91C7E33B0F86F79570E /* BodyEntry.swift */,
 				6DE7B02859718A26B4B9906E /* EpigeneticTest.swift */,
@@ -511,6 +524,7 @@
 			isa = PBXGroup;
 			children = (
 				3D7711FFF525E3315AB74655 /* AlcoholView.swift */,
+				16EBAF484FDC5A382BC99664 /* BloodDonationsView.swift */,
 				6BB3FF2B8EF635AAE437983D /* BloodView.swift */,
 				4711239695D8FA36364CFC90 /* BodyView.swift */,
 				A6A08FFA461E1F414C7EA92E /* CalendarSchedulerSheet.swift */,
@@ -584,6 +598,7 @@
 				69B73CEA0F3655CDD11A007C /* CuratedMarkers.swift */,
 				B4C6F3F7D27B38D804FA5B61 /* DeathClockEngine.swift */,
 				FA5A7CE3AEC1DE3E57F0FF1B /* DeepLinkRouter.swift */,
+				DF9F975E23AF596B9882BF88 /* DonationEngine.swift */,
 				6F82CA4A3ACADBD3666593F5 /* FunctionalAgeEngine.swift */,
 				93B5E80AB18D2FA91974ECB6 /* GaitEngine.swift */,
 				3B3EFC3FC269FB7ACFE515BA /* GenomeActionLibrary.swift */,
@@ -638,6 +653,7 @@
 				2498128807CA3134DE063CAD /* DataStoreConcurrencyTests.swift */,
 				8C1BB76B4A4CA2EADD781347 /* DataStoreCRUDTests.swift */,
 				4F60EF4D97E9758161DB0627 /* DeathClockEngineMortalityMathTests.swift */,
+				90F5F5FB0FF10A28497B852B /* DonationEngineTests.swift */,
 				B691C43C8CC4EB8A2419A180 /* FileManagerNewerOfTests.swift */,
 				A958F184A59416E6D2C6C478 /* FunctionalAgeEngineTests.swift */,
 				4448BD0AADA7579A940AF85E /* GaitEngineTests.swift */,
@@ -938,6 +954,7 @@
 				A7033F9E54E373E95FE493C8 /* DataStoreCRUDTests.swift in Sources */,
 				14A98367FEFFEE3C76345C9B /* DataStoreConcurrencyTests.swift in Sources */,
 				4E57D0A7860B620750C69BBF /* DeathClockEngineMortalityMathTests.swift in Sources */,
+				2DBF7209DB7F7D5AD11563B6 /* DonationEngineTests.swift in Sources */,
 				EF9103BAE70E11216C06C458 /* FileManagerNewerOfTests.swift in Sources */,
 				85B967FBB6DEECE16613128C /* FunctionalAgeEngineTests.swift in Sources */,
 				B201567273E24C4E3B53E936 /* GaitEngineTests.swift in Sources */,
@@ -970,6 +987,7 @@
 				81A9C1D6E5985BC79D303C8A /* DataStoreCRUDTests.swift in Sources */,
 				AFEC98A04665866E1D63051F /* DataStoreConcurrencyTests.swift in Sources */,
 				0828A3F7576705197A9BE2B8 /* DeathClockEngineMortalityMathTests.swift in Sources */,
+				C79DBAED69070C53440A5D3D /* DonationEngineTests.swift in Sources */,
 				C54576638E375B95A20FA694 /* FileManagerNewerOfTests.swift in Sources */,
 				074F2310D31D7D43C8D8F2DA /* FunctionalAgeEngineTests.swift in Sources */,
 				340229B0A9040BC4457CE61F /* GaitEngineTests.swift in Sources */,
@@ -1007,6 +1025,8 @@
 				355C94B797C488C550800B6E /* AlcoholView.swift in Sources */,
 				3842F700657CFF9D845E179E /* AppData.swift in Sources */,
 				050980359F1180012E9D3CBC /* AppearanceManager.swift in Sources */,
+				0B64220E2CFF69974329CD44 /* BloodDonation.swift in Sources */,
+				A25DC50014F9BF4AD4086906 /* BloodDonationsView.swift in Sources */,
 				3784D4A41C14139EA74E88B0 /* BloodTest.swift in Sources */,
 				5B8D85CE47286826BA6E6AC7 /* BloodTrendEngine.swift in Sources */,
 				C27099DAB0C46C3647878607 /* BloodView.swift in Sources */,
@@ -1027,6 +1047,7 @@
 				4C31E78A1FDAC239E647CB2D /* DataStore.swift in Sources */,
 				47E4013FF9139533AA44FC4D /* DeathClockEngine.swift in Sources */,
 				045B4592F1B6474D46F77405 /* DeepLinkRouter.swift in Sources */,
+				81AA2CB9B7A28CA4B8242B9A /* DonationEngine.swift in Sources */,
 				EBC172AE4864D745FD07D7AE /* EpigeneticAgeView.swift in Sources */,
 				285C3B38D82FDF5C57FDAA1E /* EpigeneticTest.swift in Sources */,
 				DE453F18D91452A344184BB6 /* EyeExam.swift in Sources */,
@@ -1125,6 +1146,8 @@
 				68AE641B1EDE50B914D094B5 /* AlcoholView.swift in Sources */,
 				53B90A52CDA6CC6EAEF56C54 /* AppData.swift in Sources */,
 				6B55E49F18136F5F6D016FAC /* AppearanceManager.swift in Sources */,
+				58468088DCC0433AB1BA4BD5 /* BloodDonation.swift in Sources */,
+				A6D06AD230963C6524E702F4 /* BloodDonationsView.swift in Sources */,
 				C505D8C48C08E5ECEAE8215B /* BloodTest.swift in Sources */,
 				82CC4290606C361863AABCDA /* BloodTrendEngine.swift in Sources */,
 				3F2F2D1B90AB3A95141A9988 /* BloodView.swift in Sources */,
@@ -1145,6 +1168,7 @@
 				4E21F7279130B3025E25A8EA /* DataStore.swift in Sources */,
 				64B0B5357DF80CDAEB3370A1 /* DeathClockEngine.swift in Sources */,
 				967F36EB418C363A98C18B85 /* DeepLinkRouter.swift in Sources */,
+				70D5E493FC8AC850E0C37B5D /* DonationEngine.swift in Sources */,
 				51497BE9D004ECD85C178A9C /* EpigeneticAgeView.swift in Sources */,
 				706C426B98DE5CF39A715C7E /* EpigeneticTest.swift in Sources */,
 				89C3332067D295F52E472691 /* EyeExam.swift in Sources */,
