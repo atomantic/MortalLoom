@@ -131,8 +131,8 @@ extension AppData {
     ///
     /// For UUID-keyed arrays (drinks, nicotine, sauna, blood tests, blood
     /// donations, body, eye, epigenetic, goals), entries are keyed by `id`
-    /// and the REMOTE entry
-    /// wins on any id collision (remote is treated as the "source of truth
+    /// and the REMOTE entry wins on any id collision (remote is treated as
+    /// the "source of truth
     /// that just arrived"). This preserves both sides' additions — the core
     /// reason to merge instead of wholesale-replace.
     ///

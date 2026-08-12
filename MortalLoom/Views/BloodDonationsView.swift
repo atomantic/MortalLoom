@@ -67,6 +67,14 @@ struct BloodDonationsView: View {
         donations = await DataStore.shared.getData().bloodDonations
     }
 
+    /// A volume is only usable if it parses AND is positive. iOS's number pad
+    /// blocks a leading "-", but macOS's plain TextField doesn't — without the
+    /// sign check a "-500" would sail through and subtract from every total.
+    private func parsedVolume(_ text: String) -> Int? {
+        guard let value = Int(text), value > 0 else { return nil }
+        return value
+    }
+
     // MARK: - Eligibility
 
     private var eligibilityCard: some View {
@@ -230,7 +238,7 @@ struct BloodDonationsView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.accentColor)
-                .disabled(Int(formVolume) == nil)
+                .disabled(parsedVolume(formVolume) == nil)
             }
             .padding()
             .cardStyle()
@@ -350,7 +358,7 @@ struct BloodDonationsView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        guard let volume = Int(editVolume) else { return }
+                        guard let volume = parsedVolume(editVolume) else { return }
                         let updated = BloodDonation(
                             id: donation.id,
                             donationType: editType,
@@ -364,7 +372,7 @@ struct BloodDonationsView: View {
                         }
                         editingDonation = nil
                     }
-                    .disabled(Int(editVolume) == nil)
+                    .disabled(parsedVolume(editVolume) == nil)
                 }
             }
             .alert("Delete Donation", isPresented: $showDeleteConfirm) {
@@ -385,7 +393,7 @@ struct BloodDonationsView: View {
     // MARK: - Actions
 
     private func addDonation() async {
-        guard let volume = Int(formVolume) else { return }
+        guard let volume = parsedVolume(formVolume) else { return }
         let donation = BloodDonation(
             donationType: formType,
             volumeML: volume,
