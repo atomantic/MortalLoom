@@ -2,6 +2,10 @@
 
 Completed items archived from PLAN.md. For release notes, see `.changelogs/`.
 
+## 2026-08-12
+
+- Blood donation tracking — Blood page is now tabbed (Tests / Donations) with a `BloodDonation` record (product, volume in mL, date, optional location) and `DonationEngine` for same-product eligibility countdowns, rolling-365-day counts against annual caps, and lifetime/year volume totals. Syncs by UUID like every other collection.
+
 ## 2026-08-11
 
 - Reports Time Allocation card — cross-pillar breakdown of MortalLoom-tagged calendar work-block minutes over the last 30 days (`TimeAllocationEngine.pillarBreakdown` + share bars, "Other goals" remainder slice, zero-state hint; hidden when Calendar access is unavailable). Ships the time-allocation half of #65.

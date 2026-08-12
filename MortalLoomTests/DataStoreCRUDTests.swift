@@ -134,6 +134,39 @@ final class DataStoreCRUDTests: XCTestCase {
         XCTAssertTrue(data.bloodTests.isEmpty)
     }
 
+    func testBloodDonationAddRemoveUpdate() async {
+        let donation = BloodDonation(donationType: .wholeBlood, volumeML: 500, date: "2026-01-01")
+        await DataStore.shared.addBloodDonation(donation)
+        var data = await DataStore.shared.getData()
+        XCTAssertEqual(data.bloodDonations.count, 1)
+
+        var edited = donation
+        edited.donationType = .plasma
+        edited.volumeML = 690
+        edited.location = "Downtown Donor Center"
+        await DataStore.shared.updateBloodDonation(edited)
+        data = await DataStore.shared.getData()
+        XCTAssertEqual(data.bloodDonations.first?.donationType, .plasma)
+        XCTAssertEqual(data.bloodDonations.first?.volumeML, 690)
+        XCTAssertEqual(data.bloodDonations.first?.location, "Downtown Donor Center")
+
+        await DataStore.shared.removeBloodDonation(id: donation.id)
+        data = await DataStore.shared.getData()
+        XCTAssertTrue(data.bloodDonations.isEmpty)
+    }
+
+    func testUpdateUnknownBloodDonationIsNoOp() async {
+        await DataStore.shared.addBloodDonation(
+            BloodDonation(donationType: .platelets, volumeML: 300, date: "2026-01-01")
+        )
+        await DataStore.shared.updateBloodDonation(
+            BloodDonation(donationType: .plasma, volumeML: 700, date: "2026-02-01")
+        )
+        let data = await DataStore.shared.getData()
+        XCTAssertEqual(data.bloodDonations.count, 1)
+        XCTAssertEqual(data.bloodDonations.first?.donationType, .platelets)
+    }
+
     func testEyeExamAddRemoveUpdate() async {
         let exam = EyeExam(date: "2026-01-01", leftSphere: -1.0, rightSphere: -1.25)
         await DataStore.shared.addEyeExam(exam)

@@ -385,6 +385,18 @@ final class ModelCodableTests: XCTestCase {
         XCTAssertTrue(decoded.bodyEntries.isEmpty)
         XCTAssertTrue(decoded.healthMetrics.isEmpty)
         XCTAssertTrue(decoded.goals.isEmpty)
+        XCTAssertTrue(decoded.bloodDonations.isEmpty)
+    }
+
+    func testDonationTypeRawValuesAreStableCodes() {
+        // Raw values are persisted and synced, so they must stay decoupled
+        // from the display labels — renaming a label must not orphan data.
+        let encoded = try! JSONEncoder().encode(
+            BloodDonation(donationType: .wholeBlood, volumeML: 500, date: "2026-05-01")
+        )
+        let json = String(data: encoded, encoding: .utf8)!
+        XCTAssertTrue(json.contains("\"wholeBlood\""), "expected the stable code, got: \(json)")
+        XCTAssertEqual(DonationType.wholeBlood.label, "Whole Blood")
     }
 
     func testAppDataBackwardsCompatibilityWithBodyNoMetrics() {

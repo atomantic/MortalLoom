@@ -1,6 +1,48 @@
 import SwiftUI
 import Charts
 
+// MARK: - BloodTab
+
+/// Tabs on the Blood page: lab results and donation history. Both are "blood"
+/// to the user, but they answer different questions, so they get their own
+/// tabs rather than one merged feed.
+enum BloodTab: String, CaseIterable, Hashable {
+    case tests = "Tests"
+    case donations = "Donations"
+
+    static let selectedKey = "blood.selectedTab"
+}
+
+// MARK: - BloodPage
+
+/// Top-level Blood page. Tabbed so the user lands back on whichever view they
+/// used last, mirroring `HabitsPage`. Each tab owns its own scrolling.
+struct BloodPage: View {
+    @AppStorage(BloodTab.selectedKey) private var selectedTab: BloodTab = .tests
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Picker("Blood Tab", selection: $selectedTab) {
+                ForEach(BloodTab.allCases, id: \.self) { tab in
+                    Text(tab.rawValue).tag(tab)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+            .padding(.top, 12)
+            .padding(.bottom, 4)
+
+            switch selectedTab {
+            case .tests:
+                BloodView()
+            case .donations:
+                BloodDonationsView()
+            }
+        }
+        .background(Color.bg)
+    }
+}
+
 // MARK: - BloodView
 
 struct BloodView: View {
