@@ -51,6 +51,7 @@ struct BloodView: View {
     @State private var correlationData: [CorrelationDataPoint] = []
     @State private var trendAlerts: [BloodTrendEngine.MarkerTrend] = []
     @State private var showingAddForm = false
+    @State private var pdfExport: PDFExport?
     @State private var isLoading = true
     @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
     private var isWide: Bool { containerWidth >= Layout.wideThreshold }
@@ -146,6 +147,7 @@ struct BloodView: View {
         .onReceive(NotificationCenter.default.publisher(for: .dataDidSync)) { _ in
             Task { await loadData() }
         }
+        .pdfExport($pdfExport)
     }
 
     private var headerSection: some View {
@@ -154,6 +156,10 @@ struct BloodView: View {
                 .font(.headline)
                 .foregroundColor(.textPrimary)
             Spacer()
+            Button(action: exportPDF) {
+                Label("Export PDF", systemImage: "square.and.arrow.up")
+            }
+            .accessibilityLabel("Export blood panel PDF")
             Button(action: { showingAddForm = true }) {
                 Image(systemName: "plus.circle.fill")
                     .font(.title2)
@@ -489,6 +495,16 @@ struct BloodView: View {
         correlationData = CorrelationEngine.buildCorrelationData(tests: sorted, healthMetrics: data.healthMetrics)
         trendAlerts = BloodTrendEngine.alerts(tests: sorted)
         isLoading = false
+    }
+
+    private func exportPDF() {
+        let now = Date()
+        let data = BloodReportPDF.pdfData(for: BloodReport(generatedAt: now, tests: sortedTests))
+        guard !data.isEmpty else {
+            print("⚠️ Blood PDF export failed: renderer returned no data")
+            return
+        }
+        pdfExport = PDFExport(data: data, filename: BloodReportPDF.filename(date: now))
     }
 }
 
