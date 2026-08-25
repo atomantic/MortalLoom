@@ -159,6 +159,7 @@ struct BloodView: View {
             Button(action: exportPDF) {
                 Label("Export PDF", systemImage: "square.and.arrow.up")
             }
+            .disabled(isLoading)
             .accessibilityLabel("Export blood panel PDF")
             Button(action: { showingAddForm = true }) {
                 Image(systemName: "plus.circle.fill")
