@@ -5,18 +5,20 @@ struct AlcoholDrink: Codable, Sendable, Equatable, Identifiable {
     var name: String
     var oz: Double
     var abv: Double
-    var count: Int
+    /// The number of servings consumed. A `Double` permits partial drinks,
+    /// such as half a beer or a shared cocktail.
+    var count: Double
     var date: String // "YYYY-MM-DD"
 
     var standardDrinks: Double {
-        (oz * Double(count) * (abv / 100)) / 0.6
+        (oz * count * (abv / 100)) / 0.6
     }
 
     var gramsAlcohol: Double {
-        oz * Double(count) * (abv / 100) * 29.5735 * 0.789
+        oz * count * (abv / 100) * 29.5735 * 0.789
     }
 
-    init(id: UUID = UUID(), name: String, oz: Double, abv: Double, count: Int = 1, date: String) {
+    init(id: UUID = UUID(), name: String, oz: Double, abv: Double, count: Double = 1, date: String) {
         self.id = id; self.name = name; self.oz = oz; self.abv = abv; self.count = count; self.date = date
     }
 }

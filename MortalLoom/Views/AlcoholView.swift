@@ -586,7 +586,7 @@ struct AlcoholView: View {
             TextField("1", text: $alcoCount)
                 .textFieldStyle(.roundedBorder)
                 #if os(iOS)
-                .keyboardType(.numberPad)
+                .keyboardType(.decimalPad)
                 #endif
                 .accessibilityLabel("Number of drinks")
         }
@@ -682,7 +682,7 @@ struct AlcoholView: View {
         editAlcoName = drink.name
         editAlcoOz = String(format: "%.1f", drink.oz)
         editAlcoABV = String(format: "%.1f", drink.abv)
-        editAlcoCount = "\(drink.count)"
+        editAlcoCount = String(format: "%g", drink.count)
         editAlcoDate = drink.date
         editingDrink = drink
     }
@@ -699,7 +699,7 @@ struct AlcoholView: View {
                 .frame(width: 44, alignment: .trailing)
             Text(String(format: "%.1f%%", drink.abv))
                 .frame(width: 48, alignment: .trailing)
-            Text("\(drink.count)")
+            Text(String(format: "%g", drink.count))
                 .frame(width: 32, alignment: .trailing)
             Text(String(format: "%.1f", drink.gramsAlcohol))
                 .frame(width: 52, alignment: .trailing)
@@ -737,7 +737,7 @@ struct AlcoholView: View {
                         #endif
                     TextField("Count", text: $editAlcoCount)
                         #if os(iOS)
-                        .keyboardType(.numberPad)
+                        .keyboardType(.decimalPad)
                         #endif
                     TextField("Date (YYYY-MM-DD)", text: $editAlcoDate)
                 }
@@ -767,7 +767,7 @@ struct AlcoholView: View {
                     Button("Save") {
                         guard let oz = Double(editAlcoOz),
                               let abv = Double(editAlcoABV),
-                              let count = Int(editAlcoCount) else { return }
+                              let count = Double(editAlcoCount) else { return }
                         let updated = AlcoholDrink(
                             id: drink.id,
                             name: editAlcoName,
@@ -817,7 +817,7 @@ struct AlcoholView: View {
     private func addCustomAlcohol() async {
         guard let volume = Double(alcoVolume),
               let abv = Double(alcoABV),
-              let count = Int(alcoCount) else { return }
+              let count = Double(alcoCount) else { return }
         let oz = volume * alcoVolumeUnit.toOz
         let drink = AlcoholDrink(
             name: alcoName,

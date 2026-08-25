@@ -1910,6 +1910,13 @@ final class EdgeCaseTests: XCTestCase {
         XCTAssertEqual(drink.gramsAlcohol, 0)
     }
 
+    func testAlcoholDrinkFractionalCount() {
+        let drink = AlcoholDrink(name: "Beer", oz: 12, abv: 5, count: 0.5, date: "2026-01-01")
+
+        XCTAssertEqual(drink.standardDrinks, 0.5, accuracy: 0.001)
+        XCTAssertEqual(drink.gramsAlcohol, 7.0, accuracy: 0.01)
+    }
+
     func testAlcoholDrinkHighABV() {
         // Everclear: 1.5oz at 95% ABV
         let drink = AlcoholDrink(name: "Everclear", oz: 1.5, abv: 95, count: 1, date: "2026-01-01")

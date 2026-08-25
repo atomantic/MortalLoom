@@ -60,7 +60,7 @@ enum SampleData {
                 let drinkType = seededRandom(day * 13, min: 0, max: 1)
                 if drinkType < 0.4 {
                     // Beer
-                    let count = isWeekend ? (seededRandom(day * 17, min: 0, max: 1) < 0.5 ? 2 : 1) : 1
+                    let count: Double = isWeekend ? (seededRandom(day * 17, min: 0, max: 1) < 0.5 ? 2 : 1) : 1
                     drinks.append(AlcoholDrink(name: "Modelo Especial", oz: 12, abv: 4.4, count: count, date: date))
                 } else if drinkType < 0.65 {
                     // Guinness
