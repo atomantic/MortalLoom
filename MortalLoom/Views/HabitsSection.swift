@@ -704,6 +704,7 @@ struct HabitEditSheet: View {
                 }
             }
             .macGroupedFormStyle()
+            .sheetScrollProgress()
             .navigationTitle(prefillEvidence != nil ? "Suggested Habit" : (habit == nil ? "New Habit" : "Edit Habit"))
             .inlineNavigationTitle()
             .macSheetFrame()

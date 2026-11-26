@@ -370,6 +370,7 @@ struct GoalEditSheet: View {
                 }
             }
             .macGroupedFormStyle()
+            .sheetScrollProgress()
             .navigationTitle(prefillEvidence != nil ? "Suggested Goal" : (goal == nil ? "New Goal" : "Edit Goal"))
             .inlineNavigationTitle()
             .toolbar {
