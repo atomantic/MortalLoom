@@ -1341,7 +1341,7 @@ struct SettingsView: View {
                 importSuccess = success
                 importMessage = success
                     ? "Data imported successfully."
-                    : "Invalid MortalLoom data file."
+                    : "MortalLoom couldn’t import this file. Check the file and your storage or iCloud status."
                 exportDocument = nil
             }
 
@@ -1355,7 +1355,11 @@ struct SettingsView: View {
         // Snapshot the current file before wiping so the user can undo via
         // the rolling backup in ~/Library/Containers/.../Data/Documents/backups/
         await DataStore.shared.backupCurrentFile(reason: "reset")
-        await DataStore.shared.save(.empty)
+        guard await DataStore.shared.save(.empty) else {
+            importSuccess = false
+            importMessage = "Reset paused. MortalLoom couldn’t safely save its data."
+            return
+        }
         exportDocument = nil
         importMessage = nil
         UserDefaults.standard.set(false, forKey: AppConstants.hasCompletedOnboardingKey)
