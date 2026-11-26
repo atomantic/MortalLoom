@@ -239,7 +239,12 @@ struct GoalsView: View {
 
     private func loadData() async {
         let data = await DataStore.shared.getData()
-        let model = GoalEngine.buildGoalsViewModel(from: data)
+        let now = Date()
+        let model = GoalEngine.buildGoalsViewModel(
+            from: data,
+            scheduledGoalIds: TimeAllocationLoader.upcomingScheduledGoalIds(goals: data.goals, now: now),
+            now: now
+        )
         vm = model
         hierarchyItems = GoalEngine.buildHierarchy(
             roots: model.roots,
