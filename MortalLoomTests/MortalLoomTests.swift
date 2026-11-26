@@ -3448,6 +3448,109 @@ final class BloodTrendEngineTests: XCTestCase {
 /// Verifies the new daysOverdue-based escalation so a 3-day miss and a
 /// 45-day miss don't raise identical alerts.
 final class StagnationEngineTests: XCTestCase {
+    private let schedulingDate = DateFormatting.dateFromString("2026-06-10")!
+
+    private func dateForSchedulingTest(daysFromNow: Int) -> String {
+        DateFormatting.dateString(daysAgo: -daysFromNow, from: schedulingDate)
+    }
+
+    private func datedSchedulingGoal(daysFromNow: Int) -> Goal {
+        Goal(title: "Finish the demo",
+             createdDate: dateForSchedulingTest(daysFromNow: 0),
+             targetDate: dateForSchedulingTest(daysFromNow: daysFromNow),
+             goalType: .standard)
+    }
+
+    private func unscheduledSignal(
+        _ goal: Goal, scheduledGoalIds: Set<UUID>? = [], now: Date? = nil
+    ) -> StagnationSignal? {
+        StagnationEngine.signals(
+            goals: [goal], habits: [], scheduledGoalIds: scheduledGoalIds, now: now ?? schedulingDate
+        ).first { $0.title == "No time scheduled" }
+    }
+
+    func testNoTimeScheduledSeverityAtDateBoundaries() {
+        let afternoon = schedulingDate.addingTimeInterval(15 * 3600)
+        for (days, severity): (Int, StagnationSeverity?) in [
+            (-1, nil), (0, .warn), (14, .warn), (15, .info), (60, .info), (61, nil)
+        ] {
+            let goal = datedSchedulingGoal(daysFromNow: days)
+            XCTAssertEqual(unscheduledSignal(goal, now: afternoon)?.severity, severity, "day \(days)")
+        }
+
+        let goal = datedSchedulingGoal(daysFromNow: 30)
+        let signal = unscheduledSignal(goal)
+        XCTAssertEqual(signal?.goalId, goal.id)
+        XCTAssertTrue(signal?.isGoalLevel == true)
+        XCTAssertTrue(signal?.detail.contains("Add Work Block to Calendar") == true)
+        XCTAssertEqual(signal?.suggestedPrompt,
+                       "What could you clear from your calendar this week to make room for 'Finish the demo'?")
+    }
+
+    func testNoTimeScheduledRequiresReadableCalendarAndExactGoalId() {
+        let goal = datedSchedulingGoal(daysFromNow: 30)
+        XCTAssertNil(unscheduledSignal(goal, scheduledGoalIds: nil))
+        XCTAssertNil(unscheduledSignal(goal, scheduledGoalIds: [goal.id]))
+        XCTAssertNotNil(unscheduledSignal(goal, scheduledGoalIds: [UUID()]))
+    }
+
+    @MainActor
+    func testCalendarLoaderDoesNotRequestUnavailableAccess() throws {
+        let goal = datedSchedulingGoal(daysFromNow: 30)
+        #if os(iOS)
+        let service = CalendarService.shared
+        guard !service.isAuthorized else { throw XCTSkip("Requires a simulator without calendar access") }
+        let status = service.authorizationStatus
+        XCTAssertNil(TimeAllocationLoader.upcomingScheduledGoalIds(goals: [goal], now: schedulingDate))
+        XCTAssertEqual(service.authorizationStatus, status)
+        #else
+        XCTAssertNil(TimeAllocationLoader.upcomingScheduledGoalIds(goals: [goal], now: schedulingDate))
+        #endif
+    }
+
+    func testNoTimeScheduledSkipsDeferredLifelongAndUndatedGoals() {
+        var goal = datedSchedulingGoal(daysFromNow: 30)
+        goal.deferredUntil = dateForSchedulingTest(daysFromNow: 5)
+        XCTAssertNil(unscheduledSignal(goal))
+        goal.deferredUntil = nil
+        goal.goalType = .apex
+        XCTAssertNil(unscheduledSignal(goal))
+        goal.goalType = .subApex
+        XCTAssertNil(unscheduledSignal(goal))
+        goal.goalType = .standard
+        goal.horizon = .lifetime
+        XCTAssertNil(unscheduledSignal(goal))
+        goal.horizon = nil
+        goal.status = .completed
+        XCTAssertNil(unscheduledSignal(goal))
+        goal.status = .active
+        goal.targetDate = nil
+        XCTAssertNil(unscheduledSignal(goal))
+    }
+
+    func testNoTimeScheduledResolvesUntilEscalationAndSupportsMuting() throws {
+        var goal = datedSchedulingGoal(daysFromNow: 30)
+        goal.markSignalResolved(try XCTUnwrap(unscheduledSignal(goal)))
+        XCTAssertNil(unscheduledSignal(goal))
+
+        let closer = try XCTUnwrap(Calendar.current.date(byAdding: .day, value: 16, to: schedulingDate))
+        XCTAssertEqual(unscheduledSignal(goal, now: closer)?.severity, .warn)
+        goal.mutedSignals = ["No time scheduled"]
+        XCTAssertNil(unscheduledSignal(goal, now: closer))
+    }
+
+    func testNoTimeScheduledFlowsThroughGoalBadgeAndNotificationRoute() throws {
+        let goal = datedSchedulingGoal(daysFromNow: 10)
+        var data = AppData.empty
+        data.goals = [goal]
+        let model = GoalEngine.buildGoalsViewModel(from: data, scheduledGoalIds: [], now: schedulingDate)
+        let signal = try XCTUnwrap(model.signalByGoalId[goal.id])
+        XCTAssertEqual(signal.title, "No time scheduled")
+        let targetId = try XCTUnwrap(signal.goalId)
+        let url = try XCTUnwrap(URL(string: NotificationService.stagnationDeepLink(goalId: targetId)))
+        XCTAssertEqual(DeepLinkRouter.parse(url), .goalReflect(goal.id))
+    }
+
     func testSeverityScaleInfoTier() {
         // 1.0–1.5x cadence ⇒ .info
         XCTAssertEqual(stagnationSeverity(daysOverdue: 0, cadenceIntervalDays: 7), .info)

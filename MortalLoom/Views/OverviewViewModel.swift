@@ -134,11 +134,14 @@ final class OverviewViewModel {
             genomePriorities: cachedGenomePriorities
         )
         Task { await loadGenomePrioritiesIfNeeded() }
+        let now = Date()
         cachedStagnationSignals = StagnationEngine.signals(
             goals: data.goals,
             habits: data.habits,
             deathDate: deathClock?.deathDate,
-            healthyCognitiveDate: GoalEngine.cognitiveDeadline(from: deathClock)
+            healthyCognitiveDate: GoalEngine.cognitiveDeadline(from: deathClock),
+            scheduledGoalIds: TimeAllocationLoader.upcomingScheduledGoalIds(goals: data.goals, now: now),
+            now: now
         )
         cachedReflectionStreak = apexGoal.map { GoalEngine.dailyReflectionStreak(for: $0) } ?? 0
         cachedApexAlignment = apexGoal.flatMap {

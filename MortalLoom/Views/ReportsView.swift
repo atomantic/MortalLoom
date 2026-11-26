@@ -155,9 +155,12 @@ struct ReportsView: View {
     private func loadData() async {
         let loaded = await DataStore.shared.getData()
         data = loaded
+        let now = Date()
         stagnationSignals = StagnationEngine.signals(
             goals: loaded.goals,
-            habits: loaded.habits
+            habits: loaded.habits,
+            scheduledGoalIds: TimeAllocationLoader.upcomingScheduledGoalIds(goals: loaded.goals, now: now),
+            now: now
         )
         // Precompute trend points + pillar alignments + habit stats once so
         // the render path doesn't re-walk the goal tree per row.
@@ -169,7 +172,6 @@ struct ReportsView: View {
             }
         }
         pillarAlignments = alignments
-        let now = Date()
         var stats: [UUID: HabitStats] = [:]
         for h in loaded.habits where h.isActive {
             stats[h.id] = HabitStats(
