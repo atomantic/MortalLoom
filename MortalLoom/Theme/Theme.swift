@@ -412,6 +412,64 @@ extension View {
     }
 }
 
+// MARK: - Sheet Scroll Progress
+
+enum SheetScrollProgress {
+    /// A whole percentage of the content reached, or nil when there is nothing
+    /// to scroll. Insets participate in both the length and the offset so the
+    /// first and last positions stay correct as the viewport changes.
+    static func percent(contentHeight: CGFloat, viewportHeight: CGFloat,
+                        offset: CGFloat, topInset: CGFloat, bottomInset: CGFloat) -> Int? {
+        let totalHeight = contentHeight + topInset + bottomInset
+        guard totalHeight.isFinite, viewportHeight.isFinite, offset.isFinite,
+              viewportHeight > 0, totalHeight - viewportHeight > 1 else { return nil }
+        let traveled = min(max(offset + topInset, 0), totalHeight - viewportHeight)
+        return Int(((traveled + viewportHeight) / totalHeight * 100).rounded(.down))
+    }
+}
+
+@available(iOS 18.0, macOS 15.0, *)
+private struct SheetScrollProgressHeader: ViewModifier {
+    @State private var percent: Int?
+
+    func body(content: Content) -> some View {
+        content
+            .onScrollGeometryChange(for: Int?.self) { geometry in
+                SheetScrollProgress.percent(
+                    contentHeight: geometry.contentSize.height,
+                    viewportHeight: geometry.containerSize.height,
+                    offset: geometry.contentOffset.y,
+                    topInset: geometry.contentInsets.top,
+                    bottomInset: geometry.contentInsets.bottom
+                )
+            } action: { _, value in
+                percent = value
+            }
+            .overlay(alignment: .top) {
+                if let percent {
+                    ProgressView(value: Double(percent), total: 100)
+                        .progressViewStyle(.linear)
+                        .accessibilityLabel("Form scroll progress")
+                        .accessibilityValue("\(percent) percent")
+                        .allowsHitTesting(false)
+                }
+            }
+    }
+}
+
+extension View {
+    /// Adds a fixed progress line only when the editing form actually scrolls.
+    /// Older systems retain their native vertical scroll indicator.
+    @ViewBuilder
+    func sheetScrollProgress() -> some View {
+        if #available(iOS 18.0, macOS 15.0, *) {
+            modifier(SheetScrollProgressHeader())
+        } else {
+            scrollIndicators(.visible, axes: .vertical)
+        }
+    }
+}
+
 // MARK: - Pro Brand Gradient
 
 extension LinearGradient {

@@ -4206,3 +4206,27 @@ final class CorrelationEngineNicotineHRTests: XCTestCase {
         XCTAssertEqual(model.avgLow, 65, accuracy: 0.001)
     }
 }
+
+// MARK: - Sheet scroll progress
+
+final class SheetScrollProgressTests: XCTestCase {
+    func testShortFormHasNoProgressHeader() {
+        XCTAssertNil(SheetScrollProgress.percent(contentHeight: 450, viewportHeight: 500,
+                                                 offset: 0, topInset: 20, bottomInset: 30))
+        XCTAssertNil(SheetScrollProgress.percent(contentHeight: 500.5, viewportHeight: 500,
+                                                 offset: 0, topInset: 0, bottomInset: 0))
+    }
+
+    func testProgressTracksVisibleContentIncludingInsets() {
+        func percent(at offset: CGFloat) -> Int? {
+            SheetScrollProgress.percent(contentHeight: 950, viewportHeight: 500,
+                                        offset: offset, topInset: 20, bottomInset: 30)
+        }
+
+        XCTAssertEqual(percent(at: -40), 50) // top rubber-banding
+        XCTAssertEqual(percent(at: -20), 50) // first visible screen
+        XCTAssertEqual(percent(at: 230), 75)
+        XCTAssertEqual(percent(at: 480), 100)
+        XCTAssertEqual(percent(at: 520), 100) // bottom rubber-banding
+    }
+}
