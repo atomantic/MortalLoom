@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 
 // MARK: - ReportsView (MVP)
 
-/// Goal-system analytics. Answers four questions:
+/// Goal-system analytics. Answers five questions:
 ///
 /// 1. How has my alignment trended? — derived from reflection ratings +
 ///    active standard-goal progress, sampled weekly.
@@ -12,6 +12,7 @@ import UniformTypeIdentifiers
 /// 3. Which pillar is strongest/weakest? — per-pillar alignment breakdown.
 /// 4. Where does my scheduled time go? — MortalLoom-tagged calendar
 ///    work-block minutes per pillar (iOS with Calendar access only).
+/// 5. How fast are my goals moving? — reported progress change per week.
 ///
 /// Everything is computed on-demand from current state. Future phases may
 /// snapshot alignment daily for faster historical queries.
@@ -23,6 +24,7 @@ struct ReportsView: View {
     /// Pre-computed 12-week alignment trend — cached in loadData so the
     /// chart + week-over-week delta don't recompute per render.
     @State private var trendPoints: [AlignmentPoint] = []
+    @State private var velocitySeries: [GoalVelocityEngine.Series] = []
     /// Pre-computed per-pillar alignment so the pillar ForEach doesn't
     /// walk the tree on each render.
     @State private var pillarAlignments: [UUID: Double] = [:]
@@ -67,6 +69,7 @@ struct ReportsView: View {
                     HStack(alignment: .top, spacing: 16) {
                         VStack(spacing: 16) {
                             alignmentTrendCard
+                            GoalVelocityCard(series: velocitySeries)
                             pillarBreakdownCard
                             timeAllocationCard
                         }
@@ -79,6 +82,7 @@ struct ReportsView: View {
                     }
                 } else {
                     alignmentTrendCard
+                    GoalVelocityCard(series: velocitySeries)
                     stagnationCard
                     pillarBreakdownCard
                     timeAllocationCard
@@ -162,6 +166,7 @@ struct ReportsView: View {
         // Precompute trend points + pillar alignments + habit stats once so
         // the render path doesn't re-walk the goal tree per row.
         trendPoints = buildTrendPoints(from: loaded)
+        velocitySeries = GoalVelocityEngine.series(goals: loaded.goals)
         var alignments: [UUID: Double] = [:]
         for pillar in loaded.goals where pillar.goalType == .subApex && pillar.status == .active {
             if let score = GoalEngine.alignmentScore(for: pillar, in: loaded.goals, habits: loaded.habits) {
