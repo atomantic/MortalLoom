@@ -66,11 +66,48 @@ final class ScreenshotTests: XCTestCase {
         captureAppStoreScreenshots()
     }
 
+    func testCustomizeBottomTabBarAndKeepOtherPagesInMore() throws {
+        let more = app.buttons["bottom-tab-more"]
+        let customize = app.buttons["customize-bottom-tab-bar"]
+        let reset = app.buttons["reset-bottom-tab-shortcuts"]
+        let calendarTab = app.buttons["bottom-tab-5"]
+        XCTAssertTrue(more.waitForExistence(timeout: 5))
+        more.tap()
+        XCTAssertTrue(customize.waitForExistence(timeout: 5))
+        customize.tap()
+        XCTAssertTrue(reset.waitForExistence(timeout: 5))
+        reset.tap()
+
+        let first = app.descendants(matching: .any)["first-bottom-tab-shortcut"].firstMatch
+        XCTAssertTrue(first.waitForExistence(timeout: 5))
+        first.tap()
+        let chooseCalendar = app.buttons["Calendar"].firstMatch
+        XCTAssertTrue(chooseCalendar.waitForExistence(timeout: 5))
+        chooseCalendar.tap()
+        app.buttons["Done"].tap()
+        app.buttons["Close menu"].firstMatch.tap()
+        XCTAssertTrue(calendarTab.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["bottom-tab-11"].exists)
+
+        app.terminate()
+        app.launch()
+        XCTAssertTrue(calendarTab.waitForExistence(timeout: 5))
+        more.tap()
+        XCTAssertTrue(app.buttons["Habits"].waitForExistence(timeout: 5))
+        customize.tap()
+        XCTAssertTrue(reset.waitForExistence(timeout: 5))
+        reset.tap()
+        app.buttons["Done"].tap()
+        app.buttons["Close menu"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["bottom-tab-3"].waitForExistence(timeout: 5))
+        XCTAssertFalse(calendarTab.exists)
+    }
+
     // MARK: - Shared Capture Flow
 
     /// Shared capture sequence used by both iPhone and iPad tests. The nav flow
     /// is identical on both idioms: 4 pages live in the bottom tab bar
-    /// (Overview, Goals, Calendar, Habits) and the rest are reached through the
+    /// (Overview, Goals, Habits, Reports by default) and the rest are reached through the
     /// "More" button which opens the side menu.
     private func captureAppStoreScreenshots() {
         saveScreenshot("01_overview")
@@ -85,7 +122,8 @@ final class ScreenshotTests: XCTestCase {
         tapCustomTab("Goals")
         saveScreenshot("03_goals")
 
-        tapCustomTab("Calendar")
+        openSideMenu()
+        tapSideMenuItem("Calendar")
         saveScreenshot("04_calendar")
 
         tapCustomTab("Habits")

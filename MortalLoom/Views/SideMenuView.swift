@@ -54,12 +54,51 @@ enum AppPage: Int, CaseIterable, Hashable {
         AppPage(rawValue: tabIndex) ?? .overview
     }
 
-    // Pages shown in the bottom tab bar; the "More" button is rendered separately.
-    // Habits is the daily engagement hook — alcohol/nicotine/sauna trackers
-    // are tabs inside Habits, alongside user-authored goal habits. Reports
-    // stays in the tab bar for weekly alignment review. Reflections,
-    // Calendar, and the Health pages live in the More drawer.
-    static let tabBarPages: [AppPage] = [.overview, .goals, .habits, .reports]
+}
+
+// MARK: - Bottom tab shortcuts
+
+/// Keep the two main destinations predictable. The remaining slots reflect
+/// how someone uses MortalLoom, while every page remains available in More.
+struct BottomTabShortcuts: Equatable {
+    static let firstKey = "bottomTab.firstShortcut"
+    static let secondKey = "bottomTab.secondShortcut"
+    static let options: [AppPage] = [.habits, .reports, .calendar, .reflections]
+    static let defaults = BottomTabShortcuts(first: .habits, second: .reports)
+
+    enum Slot { case first, second }
+
+    private(set) var first: AppPage
+    private(set) var second: AppPage
+
+    private init(first: AppPage, second: AppPage) {
+        self.first = first
+        self.second = second
+    }
+
+    init(firstRawValue: Int, secondRawValue: Int) {
+        let savedFirst = AppPage(rawValue: firstRawValue)
+        let savedSecond = AppPage(rawValue: secondRawValue)
+        first = savedFirst.flatMap { Self.options.contains($0) ? $0 : nil } ?? Self.defaults.first
+        second = savedSecond.flatMap { Self.options.contains($0) ? $0 : nil } ?? Self.defaults.second
+        if second == first {
+            second = Self.options.first(where: { $0 != first }) ?? Self.defaults.second
+        }
+    }
+
+    var pages: [AppPage] { [.overview, .goals, first, second] }
+
+    mutating func select(_ page: AppPage, for slot: Slot) {
+        guard Self.options.contains(page) else { return }
+        switch slot {
+        case .first:
+            if page == second { second = first }
+            first = page
+        case .second:
+            if page == first { first = second }
+            second = page
+        }
+    }
 }
 
 // MARK: - Side Menu Sections
@@ -88,6 +127,8 @@ struct SideMenuView: View {
     /// Drives the slide-in/out. The panel is offset by its own width when
     /// hidden, so we never need the screen width — only `isShown`.
     @State private var isShown = false
+    @State private var showShortcuts = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         // Read the window (not screen) width via GeometryReader. `UIScreen.main`
@@ -117,10 +158,12 @@ struct SideMenuView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .onAppear {
-            withAnimation(.easeOut(duration: 0.25)) {
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.25)) {
                 isShown = true
             }
         }
+        .sheet(isPresented: $showShortcuts) { BottomTabShortcutSettings() }
+        .accessibilityAction(.escape) { dismiss() }
     }
 
     private var menuHeader: some View {
@@ -152,6 +195,16 @@ struct SideMenuView: View {
     private var menuContent: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
+                Button { showShortcuts = true } label: {
+                    Label("Customize Tab Bar", systemImage: "rectangle.bottomthird.inset.filled")
+                        .font(.body)
+                        .padding(.horizontal, 20)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("customize-bottom-tab-bar")
+
                 ForEach(menuSections, id: \.title) { section in
                     VStack(alignment: .leading, spacing: 4) {
                         Text(section.title.uppercased())
@@ -202,6 +255,10 @@ struct SideMenuView: View {
     }
 
     private func dismiss() {
+        if reduceMotion {
+            isPresented = false
+            return
+        }
         withAnimation(.easeIn(duration: 0.2)) {
             isShown = false
         }
@@ -215,21 +272,83 @@ struct SideMenuView: View {
 // MARK: - Custom Tab Bar
 
 #if os(iOS)
+private struct BottomTabShortcutSettings: View {
+    @Environment(\.dismiss) private var dismiss
+    @AppStorage(BottomTabShortcuts.firstKey) private var first = BottomTabShortcuts.defaults.first.rawValue
+    @AppStorage(BottomTabShortcuts.secondKey) private var second = BottomTabShortcuts.defaults.second.rawValue
+
+    private var shortcuts: BottomTabShortcuts {
+        BottomTabShortcuts(firstRawValue: first, secondRawValue: second)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    picker("First shortcut", slot: .first)
+                    picker("Second shortcut", slot: .second)
+                } footer: {
+                    Text("Overview and Goals stay in place. You can still find every page in More.")
+                }
+                Section {
+                    Button("Reset to Default") { save(.defaults) }
+                        .accessibilityIdentifier("reset-bottom-tab-shortcuts")
+                }
+            }
+            .navigationTitle("Tab Bar")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private func picker(_ title: String, slot: BottomTabShortcuts.Slot) -> some View {
+        Picker(title, selection: Binding(
+            get: { slot == .first ? shortcuts.first : shortcuts.second },
+            set: { page in
+                var updated = shortcuts
+                updated.select(page, for: slot)
+                save(updated)
+            }
+        )) {
+            ForEach(BottomTabShortcuts.options, id: \.self) { page in
+                Label(page.title, systemImage: page.icon).tag(page)
+            }
+        }
+        .pickerStyle(.menu)
+        .accessibilityIdentifier(slot == .first ? "first-bottom-tab-shortcut" : "second-bottom-tab-shortcut")
+    }
+
+    private func save(_ shortcuts: BottomTabShortcuts) {
+        first = shortcuts.first.rawValue
+        second = shortcuts.second.rawValue
+    }
+}
+
 struct CustomTabBar: View {
     @Binding var selectedPage: AppPage
     @Binding var showSideMenu: Bool
+    @AppStorage(BottomTabShortcuts.firstKey) private var first = BottomTabShortcuts.defaults.first.rawValue
+    @AppStorage(BottomTabShortcuts.secondKey) private var second = BottomTabShortcuts.defaults.second.rawValue
+
+    private var pages: [AppPage] {
+        BottomTabShortcuts(firstRawValue: first, secondRawValue: second).pages
+    }
 
     // "More" represents selection only when the current page isn't a primary
     // tab (e.g. Calendar/Blood opened via the side menu). When the side menu
     // is open we leave the underlying primary tab selected so VoiceOver and
     // visual state never report two simultaneously selected tabs.
     private var isMoreSelected: Bool {
-        !AppPage.tabBarPages.contains(selectedPage)
+        !pages.contains(selectedPage)
     }
 
     var body: some View {
         HStack {
-            ForEach(AppPage.tabBarPages, id: \.self) { page in
+            ForEach(pages, id: \.self) { page in
                 let isSelected = selectedPage == page && !isMoreSelected
                 Button {
                     selectedPage = page
@@ -241,8 +360,10 @@ struct CustomTabBar: View {
                             .font(.caption2)
                     }
                     .foregroundColor(isSelected ? .accentColor : .textMuted)
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .contentShape(Rectangle())
                 }
+                .accessibilityIdentifier("bottom-tab-\(page.rawValue)")
                 .accessibilityLabel(page.title)
                 .accessibilityAddTraits(isSelected ? .isSelected : [])
             }
@@ -257,8 +378,10 @@ struct CustomTabBar: View {
                         .font(.caption2)
                 }
                 .foregroundColor(isMoreSelected ? .accentColor : .textMuted)
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .contentShape(Rectangle())
             }
+            .accessibilityIdentifier("bottom-tab-more")
             .accessibilityLabel("More")
             .accessibilityHint("Opens side menu with additional pages")
             .accessibilityAddTraits(isMoreSelected ? .isSelected : [])
