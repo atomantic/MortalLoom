@@ -11,6 +11,7 @@ enum TimeAllocationLoader {
 
     /// Days of calendar history each TIME ALLOCATED surface analyzes.
     static let lookbackDays = 30
+    private static let schedulingLookaheadDays = 14
 
     /// Allocation over the last `lookbackDays`, or nil when Calendar access
     /// is unavailable (macOS, or iOS without authorization) — consumers hide
@@ -21,6 +22,23 @@ enum TimeAllocationLoader {
         let from = Calendar.current.date(byAdding: .day, value: -lookbackDays, to: now) ?? now
         let events = CalendarService.shared.tagged(from: from, to: now)
         return TimeAllocationEngine.allocate(goals: goals, events: events)
+        #else
+        return nil
+        #endif
+    }
+
+    /// IDs with an actual tagged block in the next two weeks. An empty set
+    /// means the calendar was read and no goals have time blocked.
+    static func upcomingScheduledGoalIds(goals: [Goal], now: Date = Date()) -> Set<UUID>? {
+        #if os(iOS)
+        guard CalendarService.shared.isAuthorized,
+              let end = Calendar.current.date(byAdding: .day, value: schedulingLookaheadDays, to: now)
+        else { return nil }
+        let goalIds = Set(goals.map(\.id))
+        guard !goalIds.isEmpty else { return [] }
+        return Set(CalendarService.shared.tagged(from: now, to: end).compactMap { block in
+            block.durationMinutes > 0 && goalIds.contains(block.goalId) ? block.goalId : nil
+        })
         #else
         return nil
         #endif

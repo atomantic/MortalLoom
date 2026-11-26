@@ -57,7 +57,9 @@ extension GoalEngine {
 
     /// Compute the full `GoalsView` view-model from app data. Pure: no side
     /// effects, no main-actor dependency. `now` is injectable for tests.
-    static func buildGoalsViewModel(from data: AppData, now: Date = Date()) -> GoalsViewModel {
+    static func buildGoalsViewModel(
+        from data: AppData, scheduledGoalIds: Set<UUID>? = nil, now: Date = Date()
+    ) -> GoalsViewModel {
         var vm = GoalsViewModel()
         vm.goals = data.goals
         vm.habits = data.habits
@@ -140,6 +142,7 @@ extension GoalEngine {
             habits: data.habits,
             deathDate: dc?.deathDate,
             healthyCognitiveDate: cogDate,
+            scheduledGoalIds: scheduledGoalIds,
             now: now
         )
         var byGoal: [UUID: StagnationSignal] = [:]

@@ -40,6 +40,7 @@ struct GoalEditSheet: View {
     @State private var showGoalHint = false
     @State private var showingAddChild = false
     @State private var mutedSignals: Set<String> = []
+    @State private var scheduledGoalIds: Set<UUID>?
 
     private struct MilestoneRow: Identifiable {
         let id: UUID
@@ -369,6 +370,7 @@ struct GoalEditSheet: View {
                 }
             }
             .macGroupedFormStyle()
+            .sheetScrollProgress()
             .navigationTitle(prefillEvidence != nil ? "Suggested Goal" : (goal == nil ? "New Goal" : "Edit Goal"))
             .inlineNavigationTitle()
             .toolbar {
@@ -390,7 +392,7 @@ struct GoalEditSheet: View {
                 Text("Are you sure you want to delete this goal?")
             }
             #if os(iOS)
-            .sheet(isPresented: $showCalendarScheduler) {
+            .sheet(isPresented: $showCalendarScheduler, onDismiss: refreshScheduleSnapshot) {
                 CalendarSchedulerSheet(
                     goalId: goal?.id,
                     goalTitle: title,
@@ -418,6 +420,12 @@ struct GoalEditSheet: View {
             }
         }
         .macSheetFrame()
+        .task { refreshScheduleSnapshot() }
+    }
+
+    private func refreshScheduleSnapshot() {
+        guard goal != nil else { return }
+        scheduledGoalIds = TimeAllocationLoader.upcomingScheduledGoalIds(goals: allGoals)
     }
 
     /// Show the list of stagnation signal titles currently firing for this
@@ -488,7 +496,9 @@ struct GoalEditSheet: View {
     /// persistence, which is out of scope for this view.
     private var currentSignalsForGoal: [StagnationSignal] {
         guard let goalId = goal?.id else { return [] }
-        let all = StagnationEngine.signals(goals: allGoals, habits: allHabits)
+        let all = StagnationEngine.signals(
+            goals: allGoals, habits: allHabits, scheduledGoalIds: scheduledGoalIds
+        )
         return all.filter { $0.goalId == goalId && $0.habitId == nil }
     }
 

@@ -102,6 +102,7 @@ enum StagnationSeverity: String, Codable, Sendable, Comparable {
 /// - A sub-apex (life pillar) with zero active standard descendants.
 /// - A positive habit that has missed its cadence 3+ periods in a row.
 /// - A standard goal projected to slip past its deadline.
+/// - A dated standard goal with no upcoming work blocks (when the calendar is readable).
 enum StagnationEngine {
 
     static func signals(
@@ -109,6 +110,7 @@ enum StagnationEngine {
         habits: [Habit],
         deathDate: Date? = nil,
         healthyCognitiveDate: Date? = nil,
+        scheduledGoalIds: Set<UUID>? = nil,
         now: Date = Date()
     ) -> [StagnationSignal] {
         var signals: [StagnationSignal] = []
@@ -221,6 +223,28 @@ enum StagnationEngine {
                     title: "Habit is slipping",
                     detail: "'\(habit.name)' has missed its \(habit.cadence.label.lowercased()) cadence for the last few periods.",
                     suggestedPrompt: "What got in the way of '\(habit.name)' this week?"
+                ))
+            }
+        }
+
+        // 6. No forthcoming time blocks for goals with a near-term target.
+        // nil means the calendar couldn't be read, not an empty calendar.
+        if let scheduledGoalIds {
+            let calendar = Calendar.current
+            let today = calendar.startOfDay(for: now)
+            for goal in goals where goal.status == .active && !goal.isDeferred(now: now)
+                && (goal.goalType ?? .standard) == .standard && goal.horizon != .lifetime
+                && !scheduledGoalIds.contains(goal.id) {
+                guard let target = goal.targetDate,
+                      let date = DateFormatting.dateFromString(target),
+                      let days = calendar.dateComponents([.day], from: today, to: date).day,
+                      (0...60).contains(days) else { continue }
+                signals.append(StagnationSignal(
+                    severity: days <= 14 ? .warn : .info,
+                    goalId: goal.id,
+                    title: "No time scheduled",
+                    detail: "'\(goal.title)' is due \(DateFormatting.displayDate(target)) and has no time blocked in the next 14 days. Choose Add Work Block to Calendar in Edit Goal to schedule work.",
+                    suggestedPrompt: "What could you clear from your calendar this week to make room for '\(goal.title)'?"
                 ))
             }
         }

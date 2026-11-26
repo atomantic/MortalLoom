@@ -358,6 +358,7 @@ struct ContentView: View {
                 pageContent
                 CustomTabBar(selectedPage: $selectedPage, showSideMenu: $showSideMenu)
             }
+            .accessibilityHidden(showSideMenu)
 
             if showSideMenu {
                 SideMenuView(selectedPage: $selectedPage, isPresented: $showSideMenu)
