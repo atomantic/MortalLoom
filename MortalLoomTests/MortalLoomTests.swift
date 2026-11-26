@@ -2,6 +2,32 @@ import SwiftUI
 import XCTest
 @testable import MortalLoom
 
+// MARK: - Bottom Tab Shortcut Tests
+
+final class BottomTabShortcutsTests: XCTestCase {
+    func testKeepsFamiliarDefaultsAndRejectsInvalidChoices() {
+        var shortcuts = BottomTabShortcuts(firstRawValue: -1, secondRawValue: AppPage.settings.rawValue)
+        XCTAssertEqual(shortcuts.pages, [.overview, .goals, .habits, .reports])
+        shortcuts.select(.blood, for: .first)
+        XCTAssertEqual(shortcuts, .defaults)
+    }
+
+    func testSelectingAnExistingShortcutSwapsTheSlots() {
+        var shortcuts = BottomTabShortcuts.defaults
+        shortcuts.select(.reports, for: .first)
+        XCTAssertEqual(shortcuts.pages, [.overview, .goals, .reports, .habits])
+        shortcuts.select(.reflections, for: .second)
+        XCTAssertEqual(shortcuts.pages, [.overview, .goals, .reports, .reflections])
+    }
+
+    func testDuplicateSavedShortcutsNeverRenderDuplicateTabs() {
+        let shortcuts = BottomTabShortcuts(firstRawValue: AppPage.calendar.rawValue,
+                                          secondRawValue: AppPage.calendar.rawValue)
+        XCTAssertEqual(shortcuts.first, .calendar)
+        XCTAssertEqual(Set(shortcuts.pages).count, 4)
+    }
+}
+
 // MARK: - DeathClockEngine Tests
 
 final class DeathClockEngineTests: XCTestCase {
