@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 import UserNotifications
 import os
 
@@ -151,6 +152,11 @@ struct ContentView: View {
     // unreachable — data is still saved locally, but the user has no iCloud
     // copy, so we tell them rather than failing silently.
     @State private var iCloudWarning: String?
+    private enum StartupScreen { case checking, ready, recovery }
+    @State private var startupScreen: StartupScreen = .checking
+    @State private var showRecoveryConfirmation = false
+    @State private var showRecoveryPicker = false
+    @State private var recoveryMessage: String?
 
     // Bridge for OverviewView's Int-based selectedTab binding
     private var selectedTabBinding: Binding<Int> {
@@ -162,14 +168,62 @@ struct ContentView: View {
 
     var body: some View {
         Group {
-            #if os(macOS)
-            MacContentView()
-            #else
-            iOSContent
-            #endif
+            switch startupScreen {
+            case .checking:
+                ProgressView("Opening MortalLoom…")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            case .recovery:
+                ContentUnavailableView {
+                    Label("Can’t open your data", systemImage: "externaldrive.badge.exclamationmark")
+                } description: {
+                    Text("MortalLoom couldn’t read your saved data. Editing and automatic imports are paused to protect your files. Check that iCloud has finished syncing, or restore a known-good backup.")
+                    if let recoveryMessage { Text(recoveryMessage) }
+                } actions: {
+                    Button("Try Again") {
+                        startupScreen = .checking
+                        Task { await openDataStore(retry: true) }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    Button("Restore from File…") { showRecoveryConfirmation = true }
+                }
+            case .ready:
+                #if os(macOS)
+                MacContentView()
+                #else
+                iOSContent
+                #endif
+            }
         }
         .preferredColorScheme(appearance.mode.colorScheme)
         .environment(store)
+        .confirmationDialog("Restore from a backup?", isPresented: $showRecoveryConfirmation, titleVisibility: .visible) {
+            Button("Choose Backup…") { showRecoveryPicker = true }
+        } message: {
+            Text("This replaces your data with the selected backup. MortalLoom saves a separate copy of the current files before replacing them.")
+        }
+        .fileImporter(isPresented: $showRecoveryPicker, allowedContentTypes: [.json]) { result in
+            guard let url = try? result.get() else { return }
+            startupScreen = .checking
+            Task {
+                let bytes = await Task.detached(priority: .userInitiated) {
+                    let access = url.startAccessingSecurityScopedResource()
+                    defer { if access { url.stopAccessingSecurityScopedResource() } }
+                    return try? Data(contentsOf: url)
+                }.value
+                guard let bytes else {
+                    recoveryMessage = "Couldn’t read the selected backup."
+                    startupScreen = .recovery
+                    return
+                }
+                guard await DataStore.shared.recoverFromBackup(bytes) else {
+                    recoveryMessage = "Couldn’t restore this backup. Check the file and make sure iCloud is available."
+                    startupScreen = .recovery
+                    return
+                }
+                recoveryMessage = nil
+                await openDataStore()
+            }
+        }
         .toast($iCloudWarning, icon: "icloud.slash", tint: .warning)
         .onReceive(NotificationCenter.default.publisher(for: .iCloudWriteUnavailable)) { _ in
             showToast($iCloudWarning,
@@ -181,7 +235,7 @@ struct ContentView: View {
             // Onboarding made its own HealthKit request (step 5); now that the
             // cover has dismissed, run the import the root .task skipped while it
             // was presenting — so first-launch metrics land without a relaunch.
-            Task { await requestHealthKitAndSync() }
+            if startupScreen == .ready { Task { await requestHealthKitAndSync() } }
         }) {
             OnboardingView(isPresented: $showOnboarding)
         }
@@ -191,8 +245,12 @@ struct ContentView: View {
                 .frame(minWidth: 600, minHeight: 700)
         }
         #endif
+        .onReceive(NotificationCenter.default.publisher(for: .dataStoreNeedsRecovery)) { _ in
+            startupScreen = .recovery
+            showOnboarding = false
+        }
         .onReceive(NotificationCenter.default.publisher(for: .showOnboarding)) { _ in
-            showOnboarding = true
+            if startupScreen == .ready { showOnboarding = true }
         }
         #if os(iOS)
         // macOS routes through MacContentView's own selectedPage state —
@@ -221,6 +279,7 @@ struct ContentView: View {
                 await DataStore.shared.enableSampleDataMode()
                 await DataStore.shared.setInMemory(SampleData.fullAppData)
                 UserDefaults.standard.set(true, forKey: AppConstants.hasCompletedOnboardingKey)
+                startupScreen = .ready
                 return
             }
 
@@ -234,45 +293,36 @@ struct ContentView: View {
                 await DataStore.shared.enableSampleDataMode()
                 await DataStore.shared.setInMemory(AppData.empty)
                 UserDefaults.standard.set(false, forKey: AppConstants.hasCompletedOnboardingKey)
+                startupScreen = .ready
                 showOnboarding = true
                 return
             }
 
-            // Start iCloud file monitoring for cross-device sync
-            ICloudMonitor.shared.start()
-            // Ensure data is loaded from iCloud before any sync writes.
-            // This prevents the race where HealthKit sync saves empty data
-            // because the iCloud file hasn't been downloaded yet.
-            let loaded = await DataStore.shared.ensureLoaded()
-
-            // Decide onboarding AFTER iCloud data has loaded. If the user
-            // already has data in iCloud (e.g. installing on a new device),
-            // skip onboarding and mark it complete so it never shows.
-            if loaded.hasUserData {
-                appLogger.info("📦 existing user data found — skipping onboarding")
-                UserDefaults.standard.set(true, forKey: AppConstants.hasCompletedOnboardingKey)
-            } else if !UserDefaults.standard.bool(forKey: AppConstants.hasCompletedOnboardingKey) {
-                showOnboarding = true
-            }
-
-            // Register the user's reflection-cadence reminders on every launch
-            // so a cadence configured in Settings (or enabled during onboarding)
-            // is always scheduled — even if the user never reopens Settings.
-            // Idempotent: each ritual clears and re-adds its single request.
-            await NotificationService.shared.scheduleReflectionPlan()
-
-            #if os(iOS)
-            // Skip the app-level HealthKit request/sync while onboarding is presenting:
-            // onboarding step 5 primes and makes this exact request with context (see
-            // OnboardingView). Firing it here too would throw the system permission sheet
-            // over the onboarding cover on first launch, before the user sees why. The
-            // first-launch import instead runs from the cover's onDismiss, once onboarding
-            // has made its own request — so metrics still land on the first run.
-            if !showOnboarding {
-                await requestHealthKitAndSync()
-            }
-            #endif
+            await openDataStore()
         }
+    }
+
+    private func openDataStore(retry: Bool = false) async {
+        guard case .ready(let loaded) = await DataStore.shared.ensureLoaded(retry: retry) else {
+            startupScreen = .recovery
+            return
+        }
+        startupScreen = .ready
+        // Start only after validation: a monitor callback must not race the
+        // initial read and bypass the startup recovery screen.
+        ICloudMonitor.shared.start()
+        if loaded.hasUserData {
+            UserDefaults.standard.set(true, forKey: AppConstants.hasCompletedOnboardingKey)
+        } else if !UserDefaults.standard.bool(forKey: AppConstants.hasCompletedOnboardingKey) {
+            showOnboarding = true
+        }
+
+        await NotificationService.shared.scheduleReflectionPlan()
+        #if os(iOS)
+        if !showOnboarding && startupScreen == .ready {
+            await requestHealthKitAndSync()
+        }
+        #endif
     }
 
     #if os(iOS)
