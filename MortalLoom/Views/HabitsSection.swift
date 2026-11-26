@@ -114,6 +114,7 @@ struct HabitsSection: View {
     @State private var goals: [Goal] = []
     @State private var habitStats: [UUID: HabitStats] = [:]
     @State private var editingHabit: Habit?
+    @State private var expandedCalendarIDs: Set<UUID> = []
     @State private var showingAdd = false
     @State private var toastMessage: String?
     @State private var confirmDelete: Habit?
@@ -133,7 +134,19 @@ struct HabitsSection: View {
                 emptyState
             } else {
                 ForEach(activeHabits) { habit in
-                    habitCard(habit)
+                    VStack(alignment: .leading, spacing: 0) {
+                        habitCard(habit)
+                        DisclosureGroup("Streak calendar", isExpanded: calendarBinding(habit.id)) {
+                            if expandedCalendarIDs.contains(habit.id) {
+                                HabitStreakCalendarView(periods: HabitStreakCalendar.periods(for: habit),
+                                                        cadence: habit.cadence.period)
+                                    .padding(.top, 6)
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .accessibilityHint("Shows recent activity and which periods met the target")
+                    }
                 }
 
                 if !archivedHabits.isEmpty {
@@ -314,6 +327,8 @@ struct HabitsSection: View {
         let todayCount = stats.todayCount
         let target = habit.cadence.target
         let hitToday = todayCount >= target
+        let weekly = habit.cadence.period == .weekly
+        let streakUnit = weekly ? (streak == 1 ? "week" : "weeks") : (streak == 1 ? "day" : "days")
 
         return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: 12) {
@@ -352,10 +367,10 @@ struct HabitsSection: View {
             }
 
             HStack(spacing: 14) {
-                statChip(icon: "flame.fill", value: "\(streak)", label: streak == 1 ? "day" : "days", color: streak > 0 ? .orange : .textMuted)
+                statChip(icon: "flame.fill", value: "\(streak)", label: streakUnit, color: streak > 0 ? .orange : .textMuted)
                 statChip(icon: "chart.line.uptrend.xyaxis", value: "\(Int(hitRate))%", label: "30d", color: .accentColor)
                 if target > 1 {
-                    statChip(icon: "target", value: "\(todayCount)/\(target)", label: "today", color: hitToday ? .success : .textMuted)
+                    statChip(icon: "target", value: "\(todayCount)/\(target)", label: weekly ? "this week" : "today", color: hitToday ? .success : .textMuted)
                 }
                 Spacer()
             }
@@ -377,6 +392,16 @@ struct HabitsSection: View {
         .onTapGesture { editingHabit = habit }
         .accessibilityAddTraits(.isButton)
         .accessibilityHint("Opens the habit editor")
+    }
+
+    private func calendarBinding(_ habitID: UUID) -> Binding<Bool> {
+        Binding(
+            get: { expandedCalendarIDs.contains(habitID) },
+            set: { isExpanded in
+                if isExpanded { expandedCalendarIDs.insert(habitID) }
+                else { expandedCalendarIDs.remove(habitID) }
+            }
+        )
     }
 
     private func habitIcon(_ habit: Habit) -> some View {
@@ -404,7 +429,9 @@ struct HabitsSection: View {
             }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(hitToday ? "\(habit.name) complete for today" : "Complete \(habit.name)")
+        .accessibilityLabel(hitToday
+                            ? "\(habit.name) complete for \(habit.cadence.period == .weekly ? "this week" : "today")"
+                            : "Complete \(habit.name)")
     }
 
     private func statChip(icon: String, value: String, label: String, color: Color) -> some View {

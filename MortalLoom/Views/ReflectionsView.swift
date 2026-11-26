@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 // MARK: - ReflectionEntry
 
@@ -53,6 +54,11 @@ struct ReflectionsView: View {
     /// in loadData so the header doesn't re-bucket ISO-weeks per render.
     @State private var streakText: String?
     @State private var filter: ReflectionFilter = .all
+    @State private var reviewYears: [Int] = []
+    @State private var reviewYear = ReviewHistory.calendar().component(.year, from: Date())
+    @State private var showYearlyExporter = false
+    @State private var yearlyDocument: MortalLoomMarkdownDocument?
+    @State private var yearlyMessage: String?
     @State private var containerWidth: CGFloat = Layout.defaultContainerWidth
     private var isWide: Bool { containerWidth >= Layout.wideThreshold }
 
@@ -60,6 +66,7 @@ struct ReflectionsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 headerCard
+                yearlyReviewCard
                 filterPicker
                 entries
             }
@@ -70,6 +77,18 @@ struct ReflectionsView: View {
         .task { await loadData() }
         .onReceive(NotificationCenter.default.publisher(for: .dataDidSync)) { _ in
             Task { await loadData() }
+        }
+        .fileExporter(isPresented: $showYearlyExporter,
+                      document: yearlyDocument,
+                      contentType: .markdownReport,
+                      defaultFilename: "MortalLoom-Yearly-Review-\(reviewYear).md") { result in
+            switch result {
+            case .success:
+                yearlyMessage = "Yearly review saved."
+            case .failure(let error):
+                yearlyMessage = "Couldn’t save the yearly review: \(error.localizedDescription)"
+            }
+            yearlyDocument = nil
         }
     }
 
@@ -85,6 +104,8 @@ struct ReflectionsView: View {
         }
         entries.sort { $0.checkIn.date > $1.checkIn.date }
         data = loaded
+        reviewYears = YearlyReviewEngine.availableYears(from: loaded)
+        if !reviewYears.contains(reviewYear), let latest = reviewYears.first { reviewYear = latest }
         allReflections = entries
         streakText = Self.buildStreakText(from: entries)
     }
@@ -138,6 +159,42 @@ struct ReflectionsView: View {
                 .font(.caption)
                 .foregroundColor(.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle()
+    }
+
+    private var yearlyReviewCard: some View {
+        DisclosureGroup {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Save a Markdown file with goal activity, habit totals, and reflection notes for the selected year. Review it before sharing.")
+                    .font(.caption)
+                    .foregroundStyle(Color.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                if !reviewYears.isEmpty {
+                    Picker("Year", selection: $reviewYear) {
+                        ForEach(reviewYears, id: \.self) { year in
+                            Text(year, format: .number.grouping(.never)).tag(year)
+                        }
+                    }
+                }
+                Button {
+                    yearlyMessage = nil
+                    yearlyDocument = MortalLoomMarkdownDocument(text: YearlyReviewEngine.markdown(from: data, year: reviewYear))
+                    showYearlyExporter = true
+                } label: {
+                    Label("Export yearly review", systemImage: "square.and.arrow.up")
+                }
+                .disabled(reviewYears.isEmpty)
+                if let yearlyMessage {
+                    Text(yearlyMessage).font(.caption).foregroundStyle(Color.textSecondary)
+                }
+            }
+            .padding(.top, 8)
+        } label: {
+            Label("Yearly review", systemImage: "calendar")
+                .font(.subheadline.weight(.semibold))
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
