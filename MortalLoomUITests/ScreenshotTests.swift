@@ -81,11 +81,14 @@ final class ScreenshotTests: XCTestCase {
         let first = app.descendants(matching: .any)["first-bottom-tab-shortcut"].firstMatch
         XCTAssertTrue(first.waitForExistence(timeout: 5))
         first.tap()
-        let chooseCalendar = app.buttons["Calendar"].firstMatch
-        XCTAssertTrue(chooseCalendar.waitForExistence(timeout: 5))
-        chooseCalendar.tap()
+        let choices = app.buttons.matching(identifier: "Calendar")
+        let visibleChoice = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            choices.allElementsBoundByIndex.contains { $0.isHittable }
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [visibleChoice], timeout: 5), .completed)
+        try XCTUnwrap(choices.allElementsBoundByIndex.first { $0.isHittable }).tap()
         app.buttons["Done"].tap()
-        app.buttons["Close menu"].firstMatch.tap()
+        app.buttons["dismiss-side-menu"].tap()
         XCTAssertTrue(calendarTab.waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["bottom-tab-11"].exists)
 
@@ -98,7 +101,7 @@ final class ScreenshotTests: XCTestCase {
         XCTAssertTrue(reset.waitForExistence(timeout: 5))
         reset.tap()
         app.buttons["Done"].tap()
-        app.buttons["Close menu"].firstMatch.tap()
+        app.buttons["dismiss-side-menu"].tap()
         XCTAssertTrue(app.buttons["bottom-tab-3"].waitForExistence(timeout: 5))
         XCTAssertFalse(calendarTab.exists)
     }

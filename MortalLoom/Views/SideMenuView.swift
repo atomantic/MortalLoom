@@ -162,6 +162,7 @@ struct SideMenuView: View {
                 isShown = true
             }
         }
+        .accessibilityHidden(showShortcuts)
         .sheet(isPresented: $showShortcuts) { BottomTabShortcutSettings() }
         .accessibilityAction(.escape) { dismiss() }
     }
@@ -187,6 +188,7 @@ struct SideMenuView: View {
                     .foregroundColor(.textSecondary)
             }
             .accessibilityLabel("Close menu")
+            .accessibilityIdentifier("dismiss-side-menu")
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 20)
