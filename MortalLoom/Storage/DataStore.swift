@@ -73,6 +73,7 @@ actor DataStore {
     /// re-resolves for the current iCloud identity.
     private func invalidateICloudCaches() {
         cachedUbiquityURL = nil
+        loaded = false
         cloudBaseline = nil
         lastPublishedCloudBytes = nil
         isICloudReachable = nil
@@ -1063,6 +1064,7 @@ actor DataStore {
 
         let cloudURL = iCloudURL
         let fm = FileManager.default
+        guard cloudURL != nil || fixtureURLs != nil || fm.ubiquityIdentityToken == nil else { return false }
         let folder = localURL.deletingLastPathComponent()
             .appendingPathComponent("Recovery Backups", isDirectory: true)
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -1106,6 +1108,8 @@ actor DataStore {
         needsRecovery = false
         loaded = false
         cloudBaseline = nil
+        // Only this exact recovery upload may be read while still in flight.
+        lastPublishedCloudBytes = cloudURL == nil ? nil : backup
         return true
     }
 

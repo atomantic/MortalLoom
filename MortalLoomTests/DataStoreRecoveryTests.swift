@@ -81,6 +81,29 @@ final class DataStoreRecoveryTests: XCTestCase {
         XCTAssertEqual(data.goals.first?.title, "Keep my history")
     }
 
+    func testExplicitRecoveryCanOpenWhileItsOwnVerifiedUploadIsInFlight() async throws {
+        let dir = try makeDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let local = dir.appendingPathComponent("local.json")
+        let cloud = dir.appendingPathComponent("cloud.json")
+        let uploading = dir.appendingPathComponent("uploading")
+        let full = existingData()
+        try malformedGoalFile(full).write(to: cloud)
+        let store = DataStore(fixtureURLs: (local, cloud), fixtureCloudStatus: {
+            FileManager.default.fileExists(atPath: uploading.path) ? .uploading : .current
+        })
+        guard case .needsRecovery = await store.ensureLoaded() else { return XCTFail("Expected recovery screen") }
+
+        let didRestore = await store.recoverFromBackup(try JSONEncoder().encode(full))
+        XCTAssertTrue(didRestore)
+        try Data().write(to: uploading)
+
+        guard case .ready(let result) = await store.ensureLoaded() else {
+            return XCTFail("Do not return to the recovery screen while our exact recovered bytes are uploading")
+        }
+        XCTAssertEqual(result.goals.map(\.id), full.goals.map(\.id))
+    }
+
     func testFreshStoreCanStartWithoutExistingFiles() async throws {
         let dir = try makeDirectory()
         defer { try? FileManager.default.removeItem(at: dir) }
