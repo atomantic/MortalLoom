@@ -548,9 +548,7 @@ struct SettingsView: View {
             .pickerStyle(.segmented)
             .onChange(of: countdownMode) { _, newMode in
                 Task {
-                    var data = await DataStore.shared.getData()
-                    data.profile.countdownMode = newMode
-                    await DataStore.shared.save(data)
+                    await DataStore.shared.updateCountdownMode(newMode)
                     NotificationCenter.default.post(name: .profileDidChange, object: nil)
                 }
             }
@@ -586,9 +584,10 @@ struct SettingsView: View {
                         guard newAge != oldAge else { return }
                         levTargetAgeText = "\(Int(newAge))"
                         Task {
-                            var data = await DataStore.shared.getData()
-                            data.profile.levTargetAge = newAge
-                            await DataStore.shared.save(data)
+                            await DataStore.shared.mutate { data in
+                                data.profile.levTargetAge = newAge
+                                return (true, ())
+                            }
                             NotificationCenter.default.post(name: .profileDidChange, object: nil)
                         }
                     }
@@ -1016,6 +1015,9 @@ struct SettingsView: View {
         case "reset":       return ("before reset", .danger)
         case "import":      return ("before import", .warning)
         case "pre-restore": return ("before restore", .accentColor)
+        case "cloud-reset": return ("iCloud before reset", .danger)
+        case "cloud-import": return ("iCloud before import", .warning)
+        case "cloud-pre-restore": return ("iCloud before restore", .accentColor)
         default:            return (reason, .textMuted)
         }
     }
@@ -1352,10 +1354,7 @@ struct SettingsView: View {
     }
 
     private func resetAllData() async {
-        // Snapshot the current file before wiping so the user can undo via
-        // the rolling backup in ~/Library/Containers/.../Data/Documents/backups/
-        await DataStore.shared.backupCurrentFile(reason: "reset")
-        guard await DataStore.shared.save(.empty) else {
+        guard await DataStore.shared.resetAllData() else {
             importSuccess = false
             importMessage = "Reset paused. MortalLoom couldn’t safely save its data."
             return

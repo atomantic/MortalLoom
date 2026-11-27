@@ -81,6 +81,29 @@ final class DataStoreRecoveryTests: XCTestCase {
         XCTAssertEqual(data.goals.first?.title, "Keep my history")
     }
 
+    func testExplicitRecoveryCanOpenWhileItsOwnVerifiedUploadIsInFlight() async throws {
+        let dir = try makeDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let local = dir.appendingPathComponent("local.json")
+        let cloud = dir.appendingPathComponent("cloud.json")
+        let uploading = dir.appendingPathComponent("uploading")
+        let full = existingData()
+        try malformedGoalFile(full).write(to: cloud)
+        let store = DataStore(fixtureURLs: (local, cloud), fixtureCloudStatus: {
+            FileManager.default.fileExists(atPath: uploading.path) ? .uploading : .current
+        })
+        guard case .needsRecovery = await store.ensureLoaded() else { return XCTFail("Expected recovery screen") }
+
+        let didRestore = await store.recoverFromBackup(try JSONEncoder().encode(full))
+        XCTAssertTrue(didRestore)
+        try Data().write(to: uploading)
+
+        guard case .ready(let result) = await store.ensureLoaded() else {
+            return XCTFail("Do not return to the recovery screen while our exact recovered bytes are uploading")
+        }
+        XCTAssertEqual(result.goals.map(\.id), full.goals.map(\.id))
+    }
+
     func testFreshStoreCanStartWithoutExistingFiles() async throws {
         let dir = try makeDirectory()
         defer { try? FileManager.default.removeItem(at: dir) }
@@ -118,5 +141,142 @@ final class DataStoreRecoveryTests: XCTestCase {
         let inMemory = await store.getData()
         XCTAssertEqual(inMemory.goals.count, 1)
         XCTAssertTrue(inMemory.healthMetrics.isEmpty)
+    }
+
+    func testReadablePartialDownloadCannotBeSavedAndRetryUsesCurrentCloud() async throws {
+        let dir = try makeDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let local = dir.appendingPathComponent("local.json")
+        let cloud = dir.appendingPathComponent("cloud.json")
+        let isCurrent = dir.appendingPathComponent("current")
+        var partial = AppData.empty
+        partial.healthMetrics = [HealthMetricEntry(date: "2026-11-25", steps: 100)]
+        XCTAssertTrue(partial.hasUserData, "HealthKit alone made the broken snapshot look populated")
+        let old = try JSONEncoder().encode(partial)
+        try old.write(to: local)
+        try old.write(to: cloud)
+        let store = DataStore(fixtureURLs: (local, cloud), fixtureCloudStatus: {
+            FileManager.default.fileExists(atPath: isCurrent.path) ? .current : .downloaded
+        })
+
+        let saved: Bool? = await store.mutate { data in
+            data.healthMetrics.append(HealthMetricEntry(date: "2026-11-26", steps: 200))
+            return (true, true)
+        }
+        XCTAssertNil(saved, "The stale download must not report a successful HealthKit write")
+        XCTAssertEqual(try Data(contentsOf: local), old)
+        XCTAssertEqual(try Data(contentsOf: cloud), old)
+
+        var full = existingData()
+        full.healthMetrics = partial.healthMetrics
+        try JSONEncoder().encode(full).write(to: cloud, options: .atomic)
+        try Data().write(to: isCurrent)
+        guard case .ready(let restored) = await store.ensureLoaded(retry: true) else {
+            return XCTFail("Full data should load once the download is current")
+        }
+        XCTAssertEqual(restored.goals.map(\.id), full.goals.map(\.id))
+        await store.upsertHealthMetric(HealthMetricEntry(date: "2026-11-26", steps: 200))
+        let persisted = try JSONDecoder().decode(AppData.self, from: Data(contentsOf: cloud))
+        XCTAssertEqual(persisted.goals.map(\.id), full.goals.map(\.id))
+        XCTAssertEqual(persisted.healthMetrics.count, 2)
+    }
+
+    func testHealthKitReappliesOnFullerCloudRevisionWithIdenticalTimestamp() async throws {
+        let dir = try makeDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let local = dir.appendingPathComponent("local.json")
+        let cloud = dir.appendingPathComponent("cloud.json")
+        var partial = AppData.empty
+        partial.healthMetrics = [HealthMetricEntry(date: "2026-11-25", steps: 10)]
+        let old = try JSONEncoder().encode(partial)
+        try old.write(to: local)
+        try old.write(to: cloud)
+        let stamp = Date(timeIntervalSince1970: 200)
+        try FileManager.default.setAttributes([.modificationDate: stamp], ofItemAtPath: cloud.path)
+        let store = DataStore(fixtureURLs: (local, cloud))
+        guard case .ready(let current) = await store.ensureLoaded() else { return XCTFail("Expected readable store") }
+        XCTAssertTrue(current.goals.isEmpty)
+
+        var full = existingData()
+        full.healthMetrics = partial.healthMetrics
+        try JSONEncoder().encode(full).write(to: cloud, options: .atomic)
+        try FileManager.default.setAttributes([.modificationDate: stamp], ofItemAtPath: cloud.path)
+        let savedGoalCount: Int? = await store.mutate { data in
+            data.healthMetrics.append(HealthMetricEntry(date: "2026-11-26", steps: 99))
+            return (true, data.goals.count)
+        }
+        XCTAssertEqual(savedGoalCount, 1, "The mutation must run on the reconciled revision")
+        for url in [local, cloud] {
+            let result = try JSONDecoder().decode(AppData.self, from: Data(contentsOf: url))
+            XCTAssertEqual(result.goals.map(\.id), full.goals.map(\.id))
+            XCTAssertEqual(result.healthMetrics.map(\.date).sorted(), ["2026-11-25", "2026-11-26"])
+        }
+    }
+
+    func testConflictAppearingAfterLoadBlocksBothWrites() async throws {
+        let dir = try makeDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let local = dir.appendingPathComponent("local.json")
+        let cloud = dir.appendingPathComponent("cloud.json")
+        let conflict = dir.appendingPathComponent("conflict")
+        let old = try JSONEncoder().encode(existingData())
+        try old.write(to: local)
+        try old.write(to: cloud)
+        let store = DataStore(fixtureURLs: (local, cloud), fixtureCloudStatus: {
+            FileManager.default.fileExists(atPath: conflict.path) ? .conflicted : .current
+        })
+        guard case .ready = await store.ensureLoaded() else { return XCTFail("Expected readable store") }
+
+        try Data().write(to: conflict)
+        let saved: Bool? = await store.mutate { data in
+            data.goals.removeAll()
+            return (true, true)
+        }
+        XCTAssertNil(saved)
+        XCTAssertEqual(try Data(contentsOf: local), old)
+        XCTAssertEqual(try Data(contentsOf: cloud), old)
+        guard case .needsRecovery = await store.ensureLoaded() else { return XCTFail("Conflict must surface") }
+    }
+
+    func testFreshAndLocalOnlyStoresRemainWritable() async throws {
+        let dir = try makeDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let goal = Goal(title: "New store")
+        for hasCloud in [false, true] {
+            let local = dir.appendingPathComponent("local-\(hasCloud).json")
+            let cloud = hasCloud ? dir.appendingPathComponent("cloud.json") : nil
+            let store = DataStore(fixtureURLs: (local, cloud))
+            guard case .ready(let data) = await store.ensureLoaded() else { return XCTFail("Fresh store blocked") }
+            XCTAssertFalse(data.hasUserData)
+            await store.addGoal(goal)
+            let localData = try JSONDecoder().decode(AppData.self, from: Data(contentsOf: local))
+            XCTAssertEqual(localData.goals.map(\.id), [goal.id])
+            if let cloud { XCTAssertEqual(try Data(contentsOf: cloud), try Data(contentsOf: local)) }
+        }
+    }
+
+    func testImportAndResetAreIntentionalReplacementsWithCloudBackup() async throws {
+        let dir = try makeDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let local = dir.appendingPathComponent("local.json")
+        let cloud = dir.appendingPathComponent("cloud.json")
+        let old = try JSONEncoder().encode(existingData())
+        try old.write(to: cloud)
+        let store = DataStore(fixtureURLs: (local, cloud))
+        guard case .ready = await store.ensureLoaded() else { return XCTFail("Expected readable store") }
+
+        var imported = AppData.empty
+        imported.goals = [Goal(title: "Imported goal")]
+        let importedOK = await store.importData(from: try JSONEncoder().encode(imported))
+        XCTAssertTrue(importedOK)
+        let installed = try Data(contentsOf: cloud)
+        XCTAssertEqual(try JSONDecoder().decode(AppData.self, from: installed).goals.map(\.id), imported.goals.map(\.id))
+        let resetOK = await store.resetAllData()
+        XCTAssertTrue(resetOK)
+        XCTAssertFalse(try JSONDecoder().decode(AppData.self, from: Data(contentsOf: cloud)).hasUserData)
+        let backups = await store.listBackups()
+        let snapshots = try backups.map { try Data(contentsOf: $0) }
+        XCTAssertTrue(snapshots.contains(old), "Import must preserve the old cloud bytes even without a local mirror")
+        XCTAssertTrue(snapshots.contains(installed), "Reset must preserve the imported bytes")
     }
 }

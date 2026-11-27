@@ -5,15 +5,15 @@ extension Notification.Name {
     static let dataDidSync = Notification.Name("dataDidSync")
     static let dataStoreNeedsRecovery = Notification.Name("dataStoreNeedsRecovery")
     /// Posted (at most once per launch) when the ubiquity container *resolves to
-    /// a URL* but its directory operations then fail — i.e. the entitlement is
-    /// configured yet the container isn't actually reachable/writable (first
-    /// launch before the daemon provisions it, an unsigned build, a transient
-    /// daemon error). Data is still saved locally; the UI surfaces a one-time
-    /// toast so this otherwise-silent failure isn't invisible. Note this does
+    /// a URL* but it cannot safely accept writes. A previously loaded store
+    /// can preserve edits locally if the container is unreachable. If the
+    /// daemon instead reports stale data, leave both copies alone until it
+    /// catches up. Surface a one-time toast rather than failing silently. Note this does
     /// NOT fire when iCloud is simply not configured — a signed-out account
     /// usually yields a nil container URL, which is a supported local-only mode,
     /// not an error worth toasting on every launch.
     static let iCloudWriteUnavailable = Notification.Name("iCloudWriteUnavailable")
+    static let iCloudWriteDeferred = Notification.Name("iCloudWriteDeferred")
 }
 
 enum CloudConfig {
@@ -45,9 +45,16 @@ actor DataStore {
     // Isolated URLs let tests exercise the real load/save paths without using
     // the app sandbox or its iCloud account.
     private let fixtureURLs: (local: URL, cloud: URL?)?
+    private let fixtureCloudStatus: (@Sendable () -> CloudStatus)?
 
-    init(fixtureURLs: (local: URL, cloud: URL?)? = nil) {
+    enum CloudStatus: Sendable {
+        case current, downloaded, notDownloaded, conflicted, uploading
+    }
+
+    init(fixtureURLs: (local: URL, cloud: URL?)? = nil,
+         fixtureCloudStatus: (@Sendable () -> CloudStatus)? = nil) {
         self.fixtureURLs = fixtureURLs
+        self.fixtureCloudStatus = fixtureCloudStatus
         guard fixtureURLs == nil else { return }
         // The resolved ubiquity-container URL and the reachability probe are
         // cached for the session (see `cachedUbiquityURL` / `isICloudReachable`).
@@ -66,7 +73,9 @@ actor DataStore {
     /// re-resolves for the current iCloud identity.
     private func invalidateICloudCaches() {
         cachedUbiquityURL = nil
-        validatedCloudDate = nil
+        loaded = false
+        cloudBaseline = nil
+        lastPublishedCloudBytes = nil
         isICloudReachable = nil
         didWarnICloudUnavailable = false
     }
@@ -74,7 +83,15 @@ actor DataStore {
     private var data: AppData = .empty
     private var loaded = false
     private var needsRecovery = false
-    private var validatedCloudDate: Date?
+    // Exact bytes of the cloud snapshot incorporated into the current state.
+    // A timestamp can stay the same across different iCloud revisions.
+    private var cloudBaseline: CloudRevision?
+    private var lastPublishedCloudBytes: Data?
+    private var waitingForCloud = false
+
+    private enum CloudRevision: Equatable {
+        case missing, present(Data)
+    }
 
     enum Startup: Sendable {
         case ready(AppData)
@@ -83,10 +100,10 @@ actor DataStore {
 
     private enum FileRead {
         case missing
-        case readable(AppData)
+        case readable(AppData, Data)
+        case waiting
         case unavailable
     }
-    private var lastSaveDate: Date = .distantPast
     /// When true, save() keeps data in memory only and NEVER writes to local
     /// or iCloud. Used by -sample-data mode so fake screenshot data cannot
     /// overwrite a real user's iCloud container. Set once at app launch via
@@ -202,8 +219,7 @@ actor DataStore {
     /// operations (reset, import) so we always have an undo path. Lives in
     /// the sandbox so it survives reboots but never leaks outside the app.
     private var backupsDirectory: URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("backups", isDirectory: true)
+        localURL.deletingLastPathComponent().appendingPathComponent("backups", isDirectory: true)
     }
 
     /// Maximum number of rolling backups to keep. Older backups beyond this
@@ -229,7 +245,7 @@ actor DataStore {
         }
 
         let stamp = Self.backupStampFormatter.string(from: Date())
-        let dest = backupsDirectory.appendingPathComponent("MortalLoom-\(stamp)-\(reason).json")
+        let dest = backupsDirectory.appendingPathComponent("MortalLoom-\(stamp).\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))-\(reason).json")
 
         do {
             try fm.copyItem(at: localURL, to: dest)
@@ -296,23 +312,62 @@ actor DataStore {
         // Snapshot the current state before overwriting so the restore is
         // itself reversible. Uses a different "reason" so the user can see
         // which rolling backup was the pre-restore snapshot.
-        backupCurrentFile(reason: "pre-restore")
-        guard save(decoded) else { return false }
+        guard save(decoded, replacementBackupReason: "pre-restore") else { return false }
         logger.info("💾 restored from backup \(url.lastPathComponent, privacy: .public) (\(decoded.alcoholDrinks.count, privacy: .private) drinks, \(decoded.nicotineEntries.count, privacy: .private) nic)")
         return true
     }
 
-    private func readStoreFile(_ url: URL) -> FileRead {
+    private func cloudStatus(at resourceURL: URL) throws -> CloudStatus {
+        if let fixtureURLs {
+            // Plain fixture files have no ubiquitous resource attributes.
+            return fixtureURLs.cloud == nil ? .current : (fixtureCloudStatus?() ?? .current)
+        }
+        var url = resourceURL
+        url.removeAllCachedResourceValues()
+        let values: URLResourceValues
         do {
-            // Don't turn a known cloud placeholder into an empty store while
-            // the daemon is fetching it.
-            if fixtureURLs == nil,
-               let status = try? url.resourceValues(forKeys: [.ubiquitousItemDownloadingStatusKey]),
-               status.ubiquitousItemDownloadingStatus == .notDownloaded {
-                try? FileManager.default.startDownloadingUbiquitousItem(at: url)
-                return .unavailable
+            values = try url.resourceValues(forKeys: [
+                .isUbiquitousItemKey, .ubiquitousItemDownloadingStatusKey, .ubiquitousItemHasUnresolvedConflictsKey,
+                .ubiquitousItemIsUploadingKey
+            ])
+        } catch let error as CocoaError where error.code == .fileReadNoSuchFile || error.code == .fileNoSuchFile {
+            return .current
+        }
+        switch values.ubiquitousItemDownloadingStatus {
+        case .downloaded: return .downloaded
+        case .notDownloaded: return .notDownloaded
+        default: break
+        }
+        if values.ubiquitousItemHasUnresolvedConflicts == true
+            || !(NSFileVersion.unresolvedConflictVersionsOfItem(at: url) ?? []).isEmpty {
+            return .conflicted
+        }
+        if values.ubiquitousItemIsUploading == true { return .uploading }
+        // A real ubiquitous item with unknown freshness is not writable.
+        if values.ubiquitousItemDownloadingStatus == .current { return .current }
+        let exists = FileManager.default.fileExists(atPath: url.path)
+        return values.isUbiquitousItem == true || exists ? .notDownloaded : .current
+    }
+
+    private func readStoreFile(_ url: URL, cloud: Bool = false) -> FileRead {
+        do {
+            let status = cloud ? try cloudStatus(at: url) : .current
+            if cloud {
+                switch status {
+                case .current, .uploading: break
+                case .downloaded, .notDownloaded:
+                    if fixtureURLs == nil { try? FileManager.default.startDownloadingUbiquitousItem(at: url) }
+                    return .waiting
+                case .conflicted:
+                    return .unavailable
+                }
             }
-            return .readable(try JSONDecoder().decode(AppData.self, from: Data(contentsOf: url)))
+            let bytes = try Data(contentsOf: url)
+            // Rapid edits can build on exactly the revision this actor just
+            // published. An upload inherited from before launch (or another
+            // writer) must settle before this process edits the cloud file.
+            if status == .uploading && bytes != lastPublishedCloudBytes { return .waiting }
+            return .readable(try JSONDecoder().decode(AppData.self, from: bytes), bytes)
         } catch let error as NSError {
             if error.domain == NSCocoaErrorDomain,
                error.code == NSFileReadNoSuchFileError || error.code == NSFileNoSuchFileError {
@@ -333,235 +388,243 @@ actor DataStore {
         }
     }
 
-    // Only a confirmed missing store can start from defaults. If the selected
-    // copy exists but is unreadable, hold the write barrier until an explicit retry.
+    // Inspect the cloud copy even when a readable local file contains some data.
+    // HealthKit-only data is valid JSON and counts as user data; neither fact
+    // establishes that iCloud has downloaded the latest version of the file.
     func load() -> AppData {
         if loaded || needsRecovery { return data }
-        let url = bestURL()
-        switch readStoreFile(url) {
-        case .readable(let decoded):
-            data = decoded
-            lastSaveDate = FileManager.default.modificationDate(at: url) ?? .distantPast
-            if url == iCloudURL { validatedCloudDate = lastSaveDate }
+        waitingForCloud = false
+        let local = readStoreFile(localURL)
+        guard let cloudURL = iCloudURL else {
+            if fixtureURLs == nil && FileManager.default.ubiquityIdentityToken != nil {
+                waitingForCloud = true
+                return data
+            }
+            acceptLocal(local)
+            return data
+        }
+
+        switch readStoreFile(cloudURL, cloud: true) {
+        case .readable(let remote, let bytes):
+            if case .unavailable = local {
+                blockWritesForRecovery()
+                return data
+            }
+            // Preserve unsynced local-only edits on the newer local copy using
+            // the same reconciliation as the watcher (remote wins collisions).
+            if case .readable(let localData, let localBytes) = local, localBytes != bytes,
+               (FileManager.default.modificationDate(at: localURL) ?? .distantPast)
+                 > (FileManager.default.modificationDate(at: cloudURL) ?? .distantPast) {
+                data = localData.merged(with: remote)
+            } else {
+                data = remote
+            }
+            cloudBaseline = .present(bytes)
             loaded = true
         case .missing:
-            // fileExists() (used by bestURL) also returns false for some
-            // inaccessible cloud files; a direct probe distinguishes missing
-            // from unavailable before a new store may be written.
-            let secondaryURL = url == localURL ? iCloudURL : localURL
-            if let secondaryURL {
-                switch readStoreFile(secondaryURL) {
-                case .readable(let decoded):
-                    data = decoded
-                    lastSaveDate = FileManager.default.modificationDate(at: secondaryURL) ?? .distantPast
-                    if secondaryURL == iCloudURL { validatedCloudDate = lastSaveDate }
-                case .unavailable:
-                    blockWritesForRecovery()
-                    return data
-                case .missing: break
-                }
+            // For a resolved but not yet reachable container, absence is not
+            // proof that a fresh iCloud store may be created.
+            guard ensureICloudReachable(cloudURL) else {
+                waitingForCloud = true
+                return data
             }
-            loaded = true
+            cloudBaseline = .missing
+            acceptLocal(local)
+        case .waiting:
+            waitingForCloud = true
         case .unavailable:
             blockWritesForRecovery()
         }
         return data
     }
 
-    /// Wait briefly for a new-device iCloud download. Unreadable existing data
-    /// takes the recovery path, never onboarding or automatic HealthKit writes.
+    private func acceptLocal(_ local: FileRead) {
+        switch local {
+        case .readable(let decoded, _): data = decoded
+        case .missing: data = .empty
+        case .waiting, .unavailable:
+            blockWritesForRecovery()
+            return
+        }
+        loaded = true
+    }
+
     func ensureLoaded(retry: Bool = false) async -> Startup {
         if retry && needsRecovery {
             needsRecovery = false
             loaded = false
-            validatedCloudDate = nil
+            cloudBaseline = nil
         }
-        var result = load()
-        guard !needsRecovery else { return .needsRecovery }
-        if !result.hasUserData, !sampleDataMode, fixtureURLs == nil, let cloudURL = iCloudURL,
-           (try? FileManager.default.startDownloadingUbiquitousItem(at: cloudURL)) != nil {
+        _ = load()
+        if waitingForCloud && !needsRecovery {
             for _ in 0..<10 {
                 try? await Task.sleep(for: .seconds(0.5))
                 if Task.isCancelled { break }
-                switch readStoreFile(cloudURL) {
-                case .readable(let decoded):
-                    result = decoded
-                    data = decoded
-                    lastSaveDate = FileManager.default.modificationDate(at: cloudURL) ?? .distantPast
-                    validatedCloudDate = lastSaveDate
-                    return .ready(result)
-                case .unavailable, .missing: continue
-                }
+                _ = load()
+                if loaded || needsRecovery { break }
             }
-            blockWritesForRecovery()
-            return .needsRecovery
+            if !loaded { blockWritesForRecovery() }
         }
-        return .ready(result)
+        return needsRecovery ? .needsRecovery : .ready(data)
     }
 
-    /// Reload from iCloud when it has a newer file. Instead of wholesale
-    /// replacing our in-memory state with the remote file, this merges the
-    /// remote file INTO the current state using `AppData.merged(with:)` —
-    /// unioning UUID-keyed arrays, field-merging health metrics per date,
-    /// and preserving non-default profile fields. The result is written
-    /// back to the local file so subsequent launches start from the merged
-    /// state.
-    ///
-    /// We deliberately do NOT push the merged state back to iCloud from
-    /// this function to avoid a ping-pong feedback loop with other devices.
-    /// The merged state will propagate to iCloud on the next user edit via
-    /// `save(_:)`. Eventual convergence is fine for this use case.
-    ///
-    /// Returns true if the merge produced any change.
+    /// Pull changed iCloud bytes into the local snapshot without publishing the
+    /// merge back, even when the download kept an equal or older timestamp.
     func reloadIfNeeded() -> Bool {
-        // Sample-data (screenshot) mode is in-memory only and must never read
-        // from or write to iCloud/local — see enableSampleDataMode(). The merge
-        // below writes straight to localURL (bypassing save()'s sample-mode
-        // guard), so without this an iCloud-provisioned device would pull the
-        // real container file into the fake sample state and persist it.
         if sampleDataMode || needsRecovery { return false }
+        let wasLoaded = loaded
         _ = load()
         guard !needsRecovery, let cloudURL = iCloudURL else { return false }
-
-        let fm = FileManager.default
-        if !fm.fileExists(atPath: cloudURL.path) {
-            // File is evicted (iCloud placeholder not yet downloaded). Trigger
-            // download — NSMetadataQuery will fire again when it lands, giving
-            // us another chance to reload. This is the fix for fresh installs
-            // on new devices where the iCloud file hasn't been fetched yet.
-            logger.info("☁️ iCloud file not local — triggering download, will reload on completion")
-            try? fm.startDownloadingUbiquitousItem(at: cloudURL)
+        switch readStoreFile(cloudURL, cloud: true) {
+        case .readable(let remote, let bytes):
+            if cloudBaseline == .present(bytes) { return !wasLoaded && loaded }
+            reconcileRemote(remote, bytes: bytes)
+            return true
+        case .missing, .waiting:
             return false
-        }
-
-        let cloudDate = FileManager.default.modificationDate(at: cloudURL) ?? .distantPast
-        guard cloudDate > lastSaveDate else { return false }
-
-        let decoded: AppData
-        switch readStoreFile(cloudURL) {
-        case .readable(let value): decoded = value
-        case .missing: return false
         case .unavailable:
             blockWritesForRecovery()
             return false
         }
-        validatedCloudDate = cloudDate
-
-        let beforeDrinks = data.alcoholDrinks.count
-        let beforeNic = data.nicotineEntries.count
-        let beforeSauna = data.saunaSessions.count
-        let beforeMetrics = data.healthMetrics.count
-        let beforeBlood = data.bloodTests.count
-        let beforeDonations = data.bloodDonations.count
-        let beforeEye = data.eyeExams.count
-        let beforeBody = data.bodyEntries.count
-        let beforeEpi = data.epigeneticTests.count
-        let beforeGoals = data.goals.count
-
-        let merged = data.merged(with: decoded)
-        data = merged
-        lastSaveDate = cloudDate
-
-        let addedDrinks = merged.alcoholDrinks.count - beforeDrinks
-        let addedNic = merged.nicotineEntries.count - beforeNic
-        let addedSauna = merged.saunaSessions.count - beforeSauna
-        let addedMetrics = merged.healthMetrics.count - beforeMetrics
-        logger.info("☁️ merged iCloud update (+ \(addedDrinks, privacy: .private) drinks, \(addedNic, privacy: .private) nic, \(addedSauna, privacy: .private) sauna, \(addedMetrics, privacy: .private) metrics)")
-
-        let didChange = addedDrinks != 0 || addedNic != 0 || addedSauna != 0 || addedMetrics != 0
-            || merged.bloodTests.count != beforeBlood || merged.bloodDonations.count != beforeDonations
-            || merged.eyeExams.count != beforeEye
-            || merged.bodyEntries.count != beforeBody || merged.epigeneticTests.count != beforeEpi
-            || merged.goals.count != beforeGoals
-
-        // Mirror merged state to the local sandbox copy so the next launch
-        // doesn't need to re-run the merge. Use the same protection class
-        // as save(_:) so the file isn't silently downgraded.
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        if let encoded = try? encoder.encode(merged) {
-            do {
-                try encoded.write(to: localURL, options: [.atomic, .completeFileProtection])
-            } catch {
-                logger.error("💾 Failed to write local data in reloadIfNeeded: \(error.localizedDescription, privacy: .private)")
-            }
-        }
-
-        return didChange
     }
 
-    // Save to both local and iCloud
-    @discardableResult
-    func save(_ newData: AppData) -> Bool {
+    private func reconcileRemote(_ remote: AppData, bytes: Data) {
+        let merged = data.merged(with: remote)
+        do {
+            try encode(merged).write(to: localURL, options: [.atomic, .completeFileProtection])
+        } catch {
+            logger.error("💾 Failed to write local data in reload: \(error.localizedDescription, privacy: .private)")
+        }
+        data = merged
+        cloudBaseline = .present(bytes)
+    }
 
-        // Sample-data mode short-circuits persistence so screenshot runs
-        // can never mutate a real user's local file or iCloud container.
+    private func encode(_ value: AppData) throws -> Data {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return try encoder.encode(value)
+    }
+
+    @discardableResult
+    func save(_ newData: AppData) -> Bool { save(newData, replacementBackupReason: nil) }
+
+    private func save(_ newData: AppData, replacementBackupReason: String?,
+                      notifyIfReconciled: Bool = true) -> Bool {
         if sampleDataMode {
             data = newData
-            logger.info("💾 sample-data mode — skipping persistence (in-memory only)")
             return true
         }
 
         _ = load()
-        guard !needsRecovery else { return false }
-        // A bad cloud write can arrive before the debounced watcher runs.
-        // Validate changed cloud bytes before any local or cloud write.
-        if let cloudURL = iCloudURL {
-            let cloudDate = FileManager.default.modificationDate(at: cloudURL)
-            if cloudDate == nil || cloudDate != validatedCloudDate {
-                switch readStoreFile(cloudURL) {
-                case .readable: validatedCloudDate = cloudDate
-                case .missing: break
-                case .unavailable:
-                    blockWritesForRecovery()
-                    return false
-                }
-            }
-        }
-
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        guard loaded, !needsRecovery else { return false }
+        if let reason = replacementBackupReason,
+           FileManager.default.fileExists(atPath: localURL.path),
+           backupCurrentFile(reason: reason) == nil { return false }
         let encoded: Data
         do {
-            encoded = try encoder.encode(newData)
+            encoded = try encode(newData)
         } catch {
-            logger.error("💾 Failed to encode data — save aborted, no data written: \(error.localizedDescription, privacy: .private)")
+            logger.error("💾 Failed to encode data — save aborted: \(error.localizedDescription, privacy: .private)")
             return false
         }
 
-        // Health profile contains birth date, sex, and behavioral data — write
-        // with .complete file protection so the file is unreadable while the
-        // device is locked. The main app does not need background access to
-        // this file (the widget reads its own snapshot via WidgetBridge), so
-        // .complete is the strongest level we can use without breaking sync.
+        // Re-check and write under the same file coordination claim. A remote
+        // write between the mutator's read and this claim must not be replaced
+        // by a whole local snapshot, even if the new cloud file decodes cleanly.
+        var savedLocally = false
+        var savedToCloud = false
+        let cloudURL = iCloudURL
+        if let cloudURL {
+            if ensureICloudReachable(cloudURL) {
+                let coordinator = NSFileCoordinator()
+                var error: NSError?
+                coordinator.coordinate(writingItemAt: cloudURL, options: [], error: &error) { url in
+                    switch readStoreFile(url, cloud: true) {
+                    case .readable(let remote, let bytes):
+                        guard cloudBaseline == .present(bytes) else {
+                            reconcileRemote(remote, bytes: bytes)
+                            if notifyIfReconciled { noteICloudDeferred() }
+                            if fixtureURLs == nil {
+                                Task { @MainActor in
+                                    NotificationCenter.default.post(name: .dataDidSync, object: nil)
+                                    NotificationCenter.default.post(name: .profileDidChange, object: nil)
+                                }
+                            }
+                            return
+                        }
+                        // Preserve the actual cloud revision as well as the
+                        // local file before an explicit replacement.
+                        if let reason = replacementBackupReason,
+                           !backupCloudBytes(bytes, reason: reason) { return }
+                    case .missing:
+                        guard cloudBaseline == .missing else {
+                            blockWritesForRecovery()
+                            return
+                        }
+                    case .waiting:
+                        noteICloudDeferred()
+                        return
+                    case .unavailable:
+                        blockWritesForRecovery()
+                        return
+                    }
+                    guard writeLocal(encoded) else { return }
+                    savedLocally = true
+                    do {
+                        try encoded.write(to: url, options: [.atomic, .completeFileProtectionUnlessOpen])
+                        cloudBaseline = .present(encoded)
+                        lastPublishedCloudBytes = encoded
+                        savedToCloud = true
+                    } catch {
+                        isICloudReachable = nil
+                        noteICloudUnavailable()
+                    }
+                }
+                if error != nil { noteICloudUnavailable() }
+            } else if replacementBackupReason == nil && cloudBaseline != nil {
+                // Previously loaded store, now offline. Keep the edit on this
+                // device without changing the baseline or attempting a push.
+                savedLocally = writeLocal(encoded)
+            }
+        } else if fixtureURLs != nil || FileManager.default.ubiquityIdentityToken == nil {
+            savedLocally = writeLocal(encoded)
+        } else if replacementBackupReason == nil && cloudBaseline != nil {
+            noteICloudUnavailable()
+            savedLocally = writeLocal(encoded)
+        }
+        guard savedLocally else { return false }
+        data = newData
+
+        if replacementBackupReason != nil { pruneBackups() }
+        if fixtureURLs == nil {
+            Task { @MainActor in ICloudMonitor.shared.markLocalWrite() }
+            Task.detached { WidgetBridge.update(data: newData) }
+        }
+        // The UI cannot claim a destructive import/reset completed when
+        // only the local side of a configured cloud replacement was saved.
+        return replacementBackupReason == nil || cloudURL == nil || savedToCloud
+    }
+
+    private func writeLocal(_ bytes: Data) -> Bool {
         do {
-            try encoded.write(to: localURL, options: [.atomic, .completeFileProtection])
+            try bytes.write(to: localURL, options: [.atomic, .completeFileProtection])
+            return true
         } catch {
             logger.error("💾 Failed to write local data: \(error.localizedDescription, privacy: .private)")
             return false
         }
-        data = newData
-        lastSaveDate = Date()
+    }
 
-        if let cloudURL = iCloudURL, ensureICloudReachable(cloudURL) {
-            // iCloud Documents propagates protection class via the container's
-            // security policy; pass .completeUnlessOpen so the iCloud daemon
-            // can still read it for sync after first authentication.
-            do {
-                try encoded.write(to: cloudURL, options: [.atomic, .completeFileProtectionUnlessOpen])
-                validatedCloudDate = FileManager.default.modificationDate(at: cloudURL)
-            } catch {
-                logger.error("☁️ Failed to write iCloud data: \(error.localizedDescription, privacy: .private)")
-                noteICloudUnavailable()
-            }
+    private func backupCloudBytes(_ bytes: Data, reason: String) -> Bool {
+        do {
+            try FileManager.default.createDirectory(at: backupsDirectory, withIntermediateDirectories: true)
+            let path = backupsDirectory.appendingPathComponent("MortalLoom-\(Self.backupStampFormatter.string(from: Date())).\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))-cloud-\(reason).json")
+            try bytes.write(to: path, options: [.completeFileProtection, .withoutOverwriting])
+            return true
+        } catch {
+            logger.error("💾 Could not preserve the existing iCloud data before replacement")
+            return false
         }
-
-        // iCloud-monitor markLocalWrite runs on @MainActor (attached Task is fine).
-        Task { @MainActor in ICloudMonitor.shared.markLocalWrite() }
-        // WidgetBridge.update does synchronous work (engine calc, file write, WidgetCenter
-        // reload). Task.detached keeps it off the DataStore actor's serial executor.
-        Task.detached { WidgetBridge.update(data: newData) }
-        return true
     }
 
     // Convenience accessors
@@ -577,16 +640,21 @@ actor DataStore {
     /// should do that work FIRST, then apply every resulting change inside a
     /// single `mutate`.
     ///
-    /// The closure returns `(persist:, result:)`: `persist == false` skips the
-    /// write entirely so a sync that finds nothing new doesn't trigger a
-    /// redundant save + iCloud broadcast. `result` is handed back to the caller
-    /// (e.g. to decide which change notifications to post).
+    /// The closure is a pure change to the supplied copy. If a newer remote
+    /// revision arrived, retry once on the reconciled data, never on stale
+    /// bytes. A refused commit returns nil, so a caller cannot report success.
     @discardableResult
-    func mutate<R: Sendable>(_ body: @Sendable (inout AppData) -> (persist: Bool, result: R)) -> R {
-        var d = load()
-        let (persist, result) = body(&d)
-        if persist { save(d) }
-        return result
+    func mutate<R: Sendable>(_ body: @Sendable (inout AppData) -> (persist: Bool, result: R)) -> R? {
+        for _ in 0..<2 {
+            var draft = load()
+            guard (loaded || sampleDataMode), !needsRecovery else { return nil }
+            let baseline = cloudBaseline
+            let (persist, result) = body(&draft)
+            if !persist || save(draft, replacementBackupReason: nil, notifyIfReconciled: false) { return result }
+            if cloudBaseline == baseline { return nil }
+        }
+        noteICloudDeferred()
+        return nil
     }
 
     func updateProfile(_ profile: HealthProfile) {
@@ -979,8 +1047,11 @@ actor DataStore {
         guard let imported = try? JSONDecoder().decode(AppData.self, from: jsonData) else { return false }
         // Snapshot whatever is currently on disk BEFORE the import clobbers
         // it, so a bad import file can be undone.
-        backupCurrentFile(reason: "import")
-        return save(imported)
+        return save(imported, replacementBackupReason: "import")
+    }
+
+    func resetAllData() -> Bool {
+        return save(.empty, replacementBackupReason: "reset")
     }
 
     /// Explicit recovery only. Do not let an ordinary save, reset, or
@@ -992,8 +1063,8 @@ actor DataStore {
               restored.hasUserData else { return false }
 
         let cloudURL = iCloudURL
-        let conflicts = cloudURL.flatMap { NSFileVersion.unresolvedConflictVersionsOfItem(at: $0) } ?? []
         let fm = FileManager.default
+        guard cloudURL != nil || fixtureURLs != nil || fm.ubiquityIdentityToken == nil else { return false }
         let folder = localURL.deletingLastPathComponent()
             .appendingPathComponent("Recovery Backups", isDirectory: true)
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -1003,23 +1074,42 @@ actor DataStore {
                                    attributes: [.posixPermissions: 0o700])
             try preserveRecoveryCopy(at: localURL, in: folder, as: "Local.json")
             if let cloudURL {
-                try preserveRecoveryCopy(at: cloudURL, in: folder, as: "iCloud.json")
-                for (index, conflict) in conflicts.enumerated() {
-                    let original = try Data(contentsOf: conflict.url)
-                    try original.write(to: folder.appendingPathComponent("iCloud Conflict \(index + 1).json"),
-                                       options: [.completeFileProtection, .withoutOverwriting])
+                let coordinator = NSFileCoordinator()
+                var coordinationError: NSError?
+                var writeError: Error?
+                coordinator.coordinate(writingItemAt: cloudURL, options: [], error: &coordinationError) { url in
+                    do {
+                        switch try cloudStatus(at: url) {
+                        case .downloaded, .notDownloaded, .uploading:
+                            if fixtureURLs == nil { try? fm.startDownloadingUbiquitousItem(at: url) }
+                            throw CocoaError(.fileReadUnknown)
+                        case .current, .conflicted: break
+                        }
+                        try preserveRecoveryCopy(at: url, in: folder, as: "iCloud.json")
+                        let conflicts = NSFileVersion.unresolvedConflictVersionsOfItem(at: url) ?? []
+                        for (index, conflict) in conflicts.enumerated() {
+                            let original = try Data(contentsOf: conflict.url)
+                            try original.write(to: folder.appendingPathComponent("iCloud Conflict \(index + 1).json"),
+                                               options: [.completeFileProtection, .withoutOverwriting])
+                        }
+                        try backup.write(to: url, options: [.atomic, .completeFileProtectionUnlessOpen])
+                        try backup.write(to: localURL, options: [.atomic, .completeFileProtection])
+                        for conflict in conflicts { conflict.isResolved = true }
+                    } catch { writeError = error }
                 }
-                try backup.write(to: cloudURL, options: [.atomic, .completeFileProtectionUnlessOpen])
+                if let error = writeError ?? coordinationError { throw error }
+            } else {
+                try backup.write(to: localURL, options: [.atomic, .completeFileProtection])
             }
-            try backup.write(to: localURL, options: [.atomic, .completeFileProtection])
-            for conflict in conflicts { conflict.isResolved = true }
         } catch {
             logger.error("💾 Explicit recovery could not complete: \(error.localizedDescription, privacy: .private)")
             return false
         }
         needsRecovery = false
         loaded = false
-        validatedCloudDate = nil
+        cloudBaseline = nil
+        // Only this exact recovery upload may be read while still in flight.
+        lastPublishedCloudBytes = cloudURL == nil ? nil : backup
         return true
     }
 
@@ -1039,10 +1129,6 @@ actor DataStore {
     }
 
     // MARK: - Private
-
-    private func bestURL() -> URL {
-        FileManager.default.newerOf(cloud: iCloudURL, local: localURL)
-    }
 
     /// Confirm the iCloud ubiquity container is actually reachable before we
     /// trust the iCloud write path. `url(forUbiquityContainerIdentifier:)`
@@ -1080,7 +1166,7 @@ actor DataStore {
         } catch {
             // Leave isICloudReachable nil so a later save re-probes once the
             // daemon comes online — see the property doc above.
-            logger.error("☁️ iCloud container not reachable — saving locally only: \(error.localizedDescription, privacy: .private)")
+            logger.error("☁️ iCloud container not reachable: \(error.localizedDescription, privacy: .private)")
             noteICloudUnavailable()
             return false
         }
@@ -1088,8 +1174,15 @@ actor DataStore {
 
     /// Post the iCloud-unavailable notification at most once per launch. Hops to
     /// `@MainActor` like the other DataStore notifications since the UI observes it.
+    private func noteICloudDeferred() {
+        guard fixtureURLs == nil else { return }
+        Task { @MainActor in
+            NotificationCenter.default.post(name: .iCloudWriteDeferred, object: nil)
+        }
+    }
+
     private func noteICloudUnavailable() {
-        guard !didWarnICloudUnavailable else { return }
+        guard fixtureURLs == nil, !didWarnICloudUnavailable else { return }
         didWarnICloudUnavailable = true
         Task { @MainActor in
             NotificationCenter.default.post(name: .iCloudWriteUnavailable, object: nil)

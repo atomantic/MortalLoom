@@ -227,7 +227,12 @@ struct ContentView: View {
         .toast($iCloudWarning, icon: "icloud.slash", tint: .warning)
         .onReceive(NotificationCenter.default.publisher(for: .iCloudWriteUnavailable)) { _ in
             showToast($iCloudWarning,
-                      message: "iCloud unavailable — saving on this device only",
+                      message: "iCloud is unavailable. Changes may not sync.",
+                      duration: 5.0)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .iCloudWriteDeferred)) { _ in
+            showToast($iCloudWarning,
+                      message: "iCloud data is updating. Try your edit again after it syncs.",
                       duration: 5.0)
         }
         #if os(iOS)
