@@ -75,6 +75,8 @@ actor DataStore {
         cachedUbiquityURL = nil
         loaded = false
         cloudBaseline = nil
+        rawDocument = nil
+        needsRecovery = false
         lastPublishedCloudBytes = nil
         isICloudReachable = nil
         didWarnICloudUnavailable = false
@@ -86,6 +88,8 @@ actor DataStore {
     // Exact bytes of the cloud snapshot incorporated into the current state.
     // A timestamp can stay the same across different iCloud revisions.
     private var cloudBaseline: CloudRevision?
+    private var rawDocument: Data?
+    private var recoveryReason: RecoveryReason = .unreadable
     private var lastPublishedCloudBytes: Data?
     private var waitingForCloud = false
 
@@ -95,8 +99,15 @@ actor DataStore {
 
     enum Startup: Sendable {
         case ready(AppData)
+        case waitingForCloud
         case needsRecovery
     }
+
+    enum RecoveryReason: Sendable, Equatable {
+        case unreadable, unexpectedReduction, divergentEdits, accountChanged, historyUnavailable
+    }
+
+    func currentRecoveryReason() -> RecoveryReason { recoveryReason }
 
     private enum FileRead {
         case missing
@@ -196,6 +207,22 @@ actor DataStore {
     private var iCloudURL: URL? {
         if let fixtureURLs { return fixtureURLs.cloud }
         return ubiquityContainerURL?.appendingPathComponent("Documents/MortalLoom.json")
+    }
+
+    private func syncHistory() throws -> StoreSyncHistory? {
+        let scope: String
+        if let fixtureURLs {
+            guard let cloud = fixtureURLs.cloud else { return nil }
+            scope = SharedStoreDocument.signature(Data(cloud.standardizedFileURL.path.utf8))
+        } else {
+            guard let identity = FileManager.default.ubiquityIdentityToken else { return nil }
+            let token = try NSKeyedArchiver.archivedData(withRootObject: identity, requiringSecureCoding: false)
+            scope = SharedStoreDocument.signature(token)
+        }
+        return StoreSyncHistory(
+            directory: localURL.deletingLastPathComponent().appendingPathComponent("MortalLoomSyncHistory", isDirectory: true),
+            scope: scope
+        )
     }
 
     private var localGenomeURL: URL {
@@ -312,7 +339,7 @@ actor DataStore {
         // Snapshot the current state before overwriting so the restore is
         // itself reversible. Uses a different "reason" so the user can see
         // which rolling backup was the pre-restore snapshot.
-        guard save(decoded, replacementBackupReason: "pre-restore") else { return false }
+        guard save(decoded, replacementBackupReason: "pre-restore", replacementBytes: fileData) else { return false }
         logger.info("💾 restored from backup \(url.lastPathComponent, privacy: .public) (\(decoded.alcoholDrinks.count, privacy: .private) drinks, \(decoded.nicotineEntries.count, privacy: .private) nic)")
         return true
     }
@@ -378,8 +405,9 @@ actor DataStore {
         }
     }
 
-    private func blockWritesForRecovery() {
+    private func blockWritesForRecovery(_ reason: RecoveryReason = .unreadable) {
         guard !needsRecovery else { return }
+        recoveryReason = reason
         needsRecovery = true
         if fixtureURLs == nil {
             Task { @MainActor in
@@ -404,26 +432,64 @@ actor DataStore {
             return data
         }
 
+        let history: StoreSyncHistory?
+        do {
+            history = try syncHistory()
+            if let history, try !history.matchesLocalOwner() {
+                blockWritesForRecovery(.accountChanged)
+                return data
+            }
+        } catch {
+            blockWritesForRecovery(.historyUnavailable)
+            return data
+        }
+
         switch readStoreFile(cloudURL, cloud: true) {
         case .readable(let remote, let bytes):
             if case .unavailable = local {
                 blockWritesForRecovery()
                 return data
             }
-            // Preserve unsynced local-only edits on the newer local copy using
-            // the same reconciliation as the watcher (remote wins collisions).
-            if case .readable(let localData, let localBytes) = local, localBytes != bytes,
-               (FileManager.default.modificationDate(at: localURL) ?? .distantPast)
-                 > (FileManager.default.modificationDate(at: cloudURL) ?? .distantPast) {
-                data = localData.merged(with: remote)
-            } else {
-                data = remote
+            let previous = history?.lastVerified()
+            let localBytes: Data?
+            if case .readable(_, let bytes) = local { localBytes = bytes } else { localBytes = nil }
+            let reference = previous ?? localBytes
+            if let reference, !acceptsRemote(remote, bytes: bytes, against: reference) { return data }
+            do {
+                let candidate: Data
+                if let previous, let localBytes, localBytes != previous, localBytes != bytes,
+                   history?.isPendingLocal(localBytes) == true {
+                    candidate = try SharedStoreDocument.merge(base: previous, local: localBytes, cloud: bytes)
+                } else {
+                    candidate = bytes
+                    if let localBytes, localBytes != previous, localBytes != bytes,
+                       try SharedStoreDocument.parse(localBytes) != SharedStoreDocument.parse(bytes) {
+                        // A divergent unmarked copy is not proof of pending
+                        // intent (e.g. a crash after a confirmed cloud reset).
+                        // Keep it even when cloud has a newer timestamp.
+                        try history?.preserveCandidate(localBytes, as: "UnpublishedLocalCopy")
+                        if previous == nil,
+                           (FileManager.default.modificationDate(at: localURL) ?? .distantPast)
+                             > (FileManager.default.modificationDate(at: cloudURL) ?? .distantPast) {
+                            // We have no trustworthy common ancestor on the
+                            // first run. A likely pending local change needs
+                            // review, not a speculative automatic merge.
+                            throw SharedStoreDocument.Conflict()
+                        }
+                    }
+                }
+                try installRemote(candidate, baseline: bytes, history: history)
+                loaded = true
+            } catch {
+                blockWritesForRecovery(error is SharedStoreDocument.Conflict ? .divergentEdits : .historyUnavailable)
             }
-            cloudBaseline = .present(bytes)
-            loaded = true
         case .missing:
-            // For a resolved but not yet reachable container, absence is not
-            // proof that a fresh iCloud store may be created.
+            // Once known to exist, a vanished shared copy is never an automatic
+            // initialization. A rename/download may be in progress.
+            if history?.lastVerified() != nil {
+                waitingForCloud = true
+                return data
+            }
             guard ensureICloudReachable(cloudURL) else {
                 waitingForCloud = true
                 return data
@@ -440,8 +506,8 @@ actor DataStore {
 
     private func acceptLocal(_ local: FileRead) {
         switch local {
-        case .readable(let decoded, _): data = decoded
-        case .missing: data = .empty
+        case .readable(let decoded, let bytes): data = decoded; rawDocument = bytes
+        case .missing: data = .empty; rawDocument = nil
         case .waiting, .unavailable:
             blockWritesForRecovery()
             return
@@ -463,9 +529,9 @@ actor DataStore {
                 _ = load()
                 if loaded || needsRecovery { break }
             }
-            if !loaded { blockWritesForRecovery() }
         }
-        return needsRecovery ? .needsRecovery : .ready(data)
+        if needsRecovery { return .needsRecovery }
+        return loaded ? .ready(data) : .waitingForCloud
     }
 
     /// Pull changed iCloud bytes into the local snapshot without publishing the
@@ -474,11 +540,14 @@ actor DataStore {
         if sampleDataMode || needsRecovery { return false }
         let wasLoaded = loaded
         _ = load()
-        guard !needsRecovery, let cloudURL = iCloudURL else { return false }
+        guard !needsRecovery, loaded, let cloudURL = iCloudURL else { return false }
         switch readStoreFile(cloudURL, cloud: true) {
         case .readable(let remote, let bytes):
-            if cloudBaseline == .present(bytes) { return !wasLoaded && loaded }
-            reconcileRemote(remote, bytes: bytes)
+            if cloudBaseline == .present(bytes) {
+                return !wasLoaded || publishPendingEditIfNeeded(against: bytes)
+            }
+            guard reconcileRemote(remote, bytes: bytes) else { return false }
+            _ = publishPendingEditIfNeeded(against: bytes)
             return true
         case .missing, .waiting:
             return false
@@ -488,27 +557,72 @@ actor DataStore {
         }
     }
 
-    private func reconcileRemote(_ remote: AppData, bytes: Data) {
-        let merged = data.merged(with: remote)
-        do {
-            try encode(merged).write(to: localURL, options: [.atomic, .completeFileProtection])
-        } catch {
-            logger.error("💾 Failed to write local data in reload: \(error.localizedDescription, privacy: .private)")
+    /// A pending edit is a real raw local divergence from the persisted
+    /// common ancestor. Publish it once iCloud is current again under the
+    /// same coordinated exact-revision check as a direct edit.
+    private func publishPendingEditIfNeeded(against baseline: Data) -> Bool {
+        guard let rawDocument, rawDocument != baseline,
+              let history = try? syncHistory(), history.isPendingLocal(rawDocument),
+              let local = try? SharedStoreDocument.parse(rawDocument),
+              let cloud = try? SharedStoreDocument.parse(baseline), local != cloud else { return false }
+        return save(data)
+    }
+
+    private func acceptsRemote(_ remote: AppData, bytes: Data, against previous: Data) -> Bool {
+        guard let earlier = try? JSONDecoder().decode(AppData.self, from: previous),
+              SharedStoreDocument.suspiciousContraction(previous: earlier, incoming: remote),
+              !SharedStoreDocument.isExplicitReplacement(bytes, of: previous) else { return true }
+        blockWritesForRecovery(.unexpectedReduction)
+        return false
+    }
+
+    private func installRemote(_ candidate: Data, baseline: Data, history: StoreSyncHistory?) throws {
+        let decoded = try JSONDecoder().decode(AppData.self, from: candidate)
+        if candidate != baseline { try history?.markPendingLocal(candidate) }
+        if (try? Data(contentsOf: localURL)) != candidate {
+            try candidate.write(to: localURL, options: [.atomic, .completeFileProtection])
         }
-        data = merged
-        cloudBaseline = .present(bytes)
+        if history?.lastVerified() != baseline { try history?.rememberCloud(baseline) }
+        if candidate == baseline { try history?.clearPendingLocal() }
+        data = decoded
+        rawDocument = candidate
+        cloudBaseline = .present(baseline)
+    }
+
+    private func reconcileRemote(_ remote: AppData, bytes: Data) -> Bool {
+        do {
+            let history = try syncHistory()
+            if let history, try !history.matchesLocalOwner() {
+                blockWritesForRecovery(.accountChanged)
+                return false
+            }
+            let base: Data
+            switch cloudBaseline {
+            case .present(let previous): base = previous
+            case .missing: base = try encode(.empty)
+            case nil:
+                blockWritesForRecovery(.divergentEdits)
+                return false
+            }
+            guard acceptsRemote(remote, bytes: bytes, against: base) else { return false }
+            let local = rawDocument ?? base
+            let candidate = local == base ? bytes : try SharedStoreDocument.merge(base: base, local: local, cloud: bytes)
+            try installRemote(candidate, baseline: bytes, history: history)
+            return true
+        } catch {
+            blockWritesForRecovery(error is SharedStoreDocument.Conflict ? .divergentEdits : .historyUnavailable)
+            return false
+        }
     }
 
     private func encode(_ value: AppData) throws -> Data {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        return try encoder.encode(value)
+        try SharedStoreDocument.encoded(value)
     }
 
     @discardableResult
     func save(_ newData: AppData) -> Bool { save(newData, replacementBackupReason: nil) }
 
-    private func save(_ newData: AppData, replacementBackupReason: String?,
+    private func save(_ newData: AppData, replacementBackupReason: String?, replacementBytes: Data? = nil,
                       notifyIfReconciled: Bool = true) -> Bool {
         if sampleDataMode {
             data = newData
@@ -520,11 +634,27 @@ actor DataStore {
         if let reason = replacementBackupReason,
            FileManager.default.fileExists(atPath: localURL.path),
            backupCurrentFile(reason: reason) == nil { return false }
-        let encoded: Data
+        var encoded: Data
+        let history: StoreSyncHistory?
         do {
-            encoded = try encode(newData)
+            history = try syncHistory()
+            if let history, try !history.matchesLocalOwner() {
+                blockWritesForRecovery(.accountChanged)
+                return false
+            }
+            if replacementBackupReason != nil {
+                let bytes = try replacementBytes ?? encode(newData)
+                let parent: Data?
+                if case .present(let basis) = cloudBaseline { parent = basis } else { parent = nil }
+                encoded = try SharedStoreDocument.explicitReplacement(bytes, predecessor: parent)
+            } else if let rawDocument {
+                encoded = try SharedStoreDocument.applyingNativeChange(from: encode(data), to: encode(newData), over: rawDocument)
+            } else {
+                encoded = try encode(newData)
+            }
         } catch {
-            logger.error("💾 Failed to encode data — save aborted: \(error.localizedDescription, privacy: .private)")
+            logger.error("💾 Failed to encode or protect local data; save aborted")
+            if error is SharedStoreDocument.Conflict { blockWritesForRecovery(.divergentEdits) }
             return false
         }
 
@@ -541,21 +671,48 @@ actor DataStore {
                 coordinator.coordinate(writingItemAt: cloudURL, options: [], error: &error) { url in
                     switch readStoreFile(url, cloud: true) {
                     case .readable(let remote, let bytes):
-                        guard cloudBaseline == .present(bytes) else {
-                            reconcileRemote(remote, bytes: bytes)
-                            if notifyIfReconciled { noteICloudDeferred() }
-                            if fixtureURLs == nil {
-                                Task { @MainActor in
-                                    NotificationCenter.default.post(name: .dataDidSync, object: nil)
-                                    NotificationCenter.default.post(name: .profileDidChange, object: nil)
+                        if cloudBaseline != .present(bytes) {
+                            do {
+                                let basis: Data
+                                switch cloudBaseline {
+                                case .present(let prior): basis = prior
+                                case .missing: basis = try encode(.empty)
+                                case nil: throw SharedStoreDocument.Conflict()
                                 }
+                                guard acceptsRemote(remote, bytes: bytes, against: basis) else { return }
+                                if replacementBackupReason != nil {
+                                    _ = reconcileRemote(remote, bytes: bytes)
+                                    noteICloudDeferred()
+                                    return
+                                }
+                                let rebased = try SharedStoreDocument.merge(base: basis, local: encoded, cloud: bytes)
+                                if !notifyIfReconciled {
+                                    // HealthKit transformations are replayable,
+                                    // but only after proving their draft and the
+                                    // external revision do not conflict.
+                                    _ = reconcileRemote(remote, bytes: bytes)
+                                    return
+                                }
+                                encoded = try SharedStoreDocument.withoutReplacementMarker(rebased)
+                            } catch {
+                                do { try history?.preserveCandidate(encoded, as: "ConflictingEdit") }
+                                catch { blockWritesForRecovery(.historyUnavailable); return }
+                                blockWritesForRecovery(.divergentEdits)
+                                return
                             }
-                            return
                         }
                         // Preserve the actual cloud revision as well as the
                         // local file before an explicit replacement.
                         if let reason = replacementBackupReason,
                            !backupCloudBytes(bytes, reason: reason) { return }
+                        do {
+                            if history?.lastVerified() != bytes {
+                                try history?.rememberCloud(bytes)
+                            }
+                        } catch {
+                            blockWritesForRecovery(.historyUnavailable)
+                            return
+                        }
                     case .missing:
                         guard cloudBaseline == .missing else {
                             blockWritesForRecovery()
@@ -568,13 +725,35 @@ actor DataStore {
                         blockWritesForRecovery()
                         return
                     }
-                    guard writeLocal(encoded) else { return }
-                    savedLocally = true
+                    guard (try? JSONDecoder().decode(AppData.self, from: encoded)) != nil else {
+                        blockWritesForRecovery(.divergentEdits)
+                        return
+                    }
+                    if replacementBackupReason == nil {
+                        guard writePendingLocal(encoded, history: history) else { return }
+                        savedLocally = true
+                    }
                     do {
                         try encoded.write(to: url, options: [.atomic, .completeFileProtectionUnlessOpen])
+                        guard try Data(contentsOf: url) == encoded else { throw CocoaError(.fileWriteUnknown) }
                         cloudBaseline = .present(encoded)
                         lastPublishedCloudBytes = encoded
                         savedToCloud = true
+                        if replacementBackupReason != nil {
+                            // Don't apply a destructive replacement locally
+                            // if the cloud write was refused. If the device
+                            // copy then fails, the verified cloud is authoritative.
+                            if !writeLocal(encoded) { noteICloudUnavailable() }
+                            savedLocally = true
+                        }
+                        do {
+                            try history?.rememberCloud(encoded)
+                            try history?.clearPendingLocal()
+                        } catch {
+                            // The exact preimage was already retained, but
+                            // this install should not proceed without a fresh baseline.
+                            blockWritesForRecovery(.historyUnavailable)
+                        }
                     } catch {
                         isICloudReachable = nil
                         noteICloudUnavailable()
@@ -584,25 +763,39 @@ actor DataStore {
             } else if replacementBackupReason == nil && cloudBaseline != nil {
                 // Previously loaded store, now offline. Keep the edit on this
                 // device without changing the baseline or attempting a push.
-                savedLocally = writeLocal(encoded)
+                savedLocally = writePendingLocal(encoded, history: history)
             }
         } else if fixtureURLs != nil || FileManager.default.ubiquityIdentityToken == nil {
             savedLocally = writeLocal(encoded)
         } else if replacementBackupReason == nil && cloudBaseline != nil {
             noteICloudUnavailable()
-            savedLocally = writeLocal(encoded)
+            savedLocally = writePendingLocal(encoded, history: history)
         }
         guard savedLocally else { return false }
-        data = newData
+        guard let committed = try? JSONDecoder().decode(AppData.self, from: encoded) else {
+            blockWritesForRecovery()
+            return false
+        }
+        data = committed
+        rawDocument = encoded
 
         if replacementBackupReason != nil { pruneBackups() }
         if fixtureURLs == nil {
-            Task { @MainActor in ICloudMonitor.shared.markLocalWrite() }
-            Task.detached { WidgetBridge.update(data: newData) }
+            Task.detached { WidgetBridge.update(data: committed) }
         }
         // The UI cannot claim a destructive import/reset completed when
         // only the local side of a configured cloud replacement was saved.
         return replacementBackupReason == nil || cloudURL == nil || savedToCloud
+    }
+
+    private func writePendingLocal(_ bytes: Data, history: StoreSyncHistory?) -> Bool {
+        do {
+            try history?.markPendingLocal(bytes)
+            return writeLocal(bytes)
+        } catch {
+            blockWritesForRecovery(.historyUnavailable)
+            return false
+        }
     }
 
     private func writeLocal(_ bytes: Data) -> Bool {
@@ -869,12 +1062,35 @@ actor DataStore {
         save(d)
     }
 
-    func updateGoal(_ goal: Goal) {
+    /// Apply the draft to the snapshot the form actually showed, not the
+    /// actor's newest baseline. A watcher can have accepted an iCloud edit
+    /// while the form still has the old goal.
+    func updateGoal(_ goal: Goal, replacing original: Goal) {
         var d = load()
-        if let idx = d.goals.firstIndex(where: { $0.id == goal.id }) {
-            d.goals[idx] = goal
-            save(d)
+        guard original.id == goal.id,
+              let idx = d.goals.firstIndex(where: { $0.id == goal.id }) else {
+            noteICloudDeferred()
+            return
         }
+        if d.goals[idx] == original {
+            d.goals[idx] = goal
+        } else {
+            do {
+                let merged = try SharedStoreDocument.merge(
+                    base: SharedStoreDocument.encoded(["goal": original]),
+                    local: SharedStoreDocument.encoded(["goal": goal]),
+                    cloud: SharedStoreDocument.encoded(["goal": d.goals[idx]])
+                )
+                guard let result = try JSONDecoder().decode([String: Goal].self, from: merged)["goal"] else {
+                    throw SharedStoreDocument.Conflict()
+                }
+                d.goals[idx] = result
+            } catch {
+                noteICloudDeferred()
+                return
+            }
+        }
+        save(d)
     }
 
     func saveGenomeScanRecord(_ record: GenomeScanRecord) {
@@ -1037,17 +1253,15 @@ actor DataStore {
 
     func exportData() -> Data? {
         let snapshot = load()
-        guard !needsRecovery else { return nil }
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        return try? encoder.encode(snapshot)
+        guard loaded, !needsRecovery else { return nil }
+        return rawDocument ?? (try? encode(snapshot))
     }
 
     func importData(from jsonData: Data) -> Bool {
         guard let imported = try? JSONDecoder().decode(AppData.self, from: jsonData) else { return false }
         // Snapshot whatever is currently on disk BEFORE the import clobbers
         // it, so a bad import file can be undone.
-        return save(imported, replacementBackupReason: "import")
+        return save(imported, replacementBackupReason: "import", replacementBytes: jsonData)
     }
 
     func resetAllData() -> Bool {
@@ -1057,10 +1271,124 @@ actor DataStore {
     /// Explicit recovery only. Do not let an ordinary save, reset, or
     /// HealthKit sync use this path. Validate the selected backup, then save
     /// the original raw bytes (including malformed JSON) before replacing it.
+    struct SyncRecoveryCopy: Identifiable, Sendable {
+        let id: URL
+        let label: String
+        let date: Date?
+    }
+
+    /// Narrow allowlist of private recovery snapshots. Archiving unresolved
+    /// iCloud versions is a review-only operation and never resolves them.
+    func listSyncRecoveryCopies(archiveCloudConflicts: Bool = false) -> [SyncRecoveryCopy] {
+        guard !sampleDataMode else { return [] }
+        let fm = FileManager.default
+        let history = try? syncHistory()
+        if archiveCloudConflicts, needsRecovery, recoveryReason != .accountChanged,
+           let history, let cloudURL = iCloudURL {
+            var error: NSError?
+            NSFileCoordinator().coordinate(readingItemAt: cloudURL, options: .withoutChanges, error: &error) { url in
+                let status = try? self.cloudStatus(at: url)
+                if status == .current || status == .conflicted,
+                   let bytes = try? Data(contentsOf: url) {
+                    try? history.preserveCandidate(bytes, as: "ReviewedCloudCopy")
+                }
+                for conflict in NSFileVersion.unresolvedConflictVersionsOfItem(at: url) ?? [] {
+                    if let bytes = try? Data(contentsOf: conflict.url) {
+                        try? history.preserveCandidate(bytes, as: "ArchivedCloudConflict")
+                    }
+                }
+            }
+        }
+        let legacyDir = localURL.deletingLastPathComponent().appendingPathComponent("Recovery Backups", isDirectory: true)
+        let legacyFolders = (try? fm.contentsOfDirectory(at: legacyDir, includingPropertiesForKeys: nil)) ?? []
+        let copies = (history?.snapshotURLs() ?? []) + legacyFolders.flatMap {
+            (try? fm.contentsOfDirectory(at: $0, includingPropertiesForKeys: nil)) ?? []
+        }
+        return copies.compactMap { url in
+            guard url.pathExtension == "json",
+                  let values = try? url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .contentModificationDateKey]),
+                  values.isRegularFile == true, values.isSymbolicLink != true else { return nil }
+            let name = url.deletingPathExtension().lastPathComponent
+            let label: String
+            switch name {
+            case "LastVerifiedCloud": label = "Last verified iCloud copy"
+            case "PreviousVerifiedCloud": label = "Previous verified iCloud copy"
+            case "Local": label = "Local before restore"
+            case "iCloud": label = "iCloud before restore"
+            case let value where value.hasPrefix("ConflictingEdit-"): label = "Conflicting local edit"
+            case let value where value.hasPrefix("ArchivedCloudConflict-") || value.hasPrefix("iCloud Conflict"):
+                label = "Archived iCloud conflict"
+            case let value where value.hasPrefix("ReviewedCloudCopy-"): label = "iCloud copy awaiting review"
+            case let value where value.hasPrefix("UnpublishedLocalCopy-") || value.hasPrefix("LocalBeforeCloudAcceptance-"):
+                label = "Earlier local copy"
+            default: return nil
+            }
+            return SyncRecoveryCopy(id: url, label: label, date: values.contentModificationDate)
+        }.sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
+    }
+
+    func exportSyncRecoveryCopy(_ id: URL) -> Data? {
+        guard listSyncRecoveryCopies().contains(where: { $0.id == id }) else { return nil }
+        return try? Data(contentsOf: id)
+    }
+
+    func canRecoverLastKnownGood() -> Bool { recoveryBytes() != nil }
+
+    private var reviewedCloudRecoveryBytes: Data?
+
+    /// Confirm what can be selected before presenting an explicit recovery
+    /// choice, then pin that exact revision until the user decides.
+    func canAcceptCurrentCloudForRecovery() -> Bool {
+        reviewedCloudRecoveryBytes = nil
+        guard needsRecovery, recoveryReason == .unexpectedReduction || recoveryReason == .divergentEdits,
+              let cloudURL = iCloudURL,
+              case .readable(_, let bytes) = readStoreFile(cloudURL, cloud: true) else { return false }
+        reviewedCloudRecoveryBytes = bytes
+        return true
+    }
+
+    /// Discard neither source. Keep the last verified local revision and
+    /// switch this device to the reviewed cloud snapshot without writing it.
+    func acceptCurrentCloudForRecovery() -> Bool {
+        guard needsRecovery, let expected = reviewedCloudRecoveryBytes,
+              let cloudURL = iCloudURL,
+              case .readable(_, let latest) = readStoreFile(cloudURL, cloud: true), latest == expected else { return false }
+        do {
+            guard let history = try syncHistory(), try history.matchesLocalOwner() else { return false }
+            if case .readable(_, let local) = readStoreFile(localURL), local != latest {
+                try history.preserveCandidate(local, as: "LocalBeforeCloudAcceptance")
+            }
+            try installRemote(latest, baseline: latest, history: history)
+            needsRecovery = false
+            loaded = true
+            reviewedCloudRecoveryBytes = nil
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    func recoverLastKnownGood() -> Bool {
+        guard let bytes = recoveryBytes() else { return false }
+        return recoverFromBackup(bytes, permitVerifiedEmpty: true)
+    }
+
+    private func recoveryBytes() -> Data? {
+        guard recoveryReason != .accountChanged,
+              let history = try? syncHistory(), (try? history.matchesLocalOwner()) == true else { return nil }
+        if let good = history.lastVerified() { return good }
+        if case .readable(let value, let bytes) = readStoreFile(localURL), value.hasUserData { return bytes }
+        return nil
+    }
+
     func recoverFromBackup(_ backup: Data) -> Bool {
+        recoverFromBackup(backup, permitVerifiedEmpty: false)
+    }
+
+    private func recoverFromBackup(_ backup: Data, permitVerifiedEmpty: Bool) -> Bool {
         guard needsRecovery, !sampleDataMode,
               let restored = try? JSONDecoder().decode(AppData.self, from: backup),
-              restored.hasUserData else { return false }
+              restored.hasUserData || permitVerifiedEmpty else { return false }
 
         let cloudURL = iCloudURL
         let fm = FileManager.default
@@ -1068,6 +1396,7 @@ actor DataStore {
         let folder = localURL.deletingLastPathComponent()
             .appendingPathComponent("Recovery Backups", isDirectory: true)
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        var restoredBytes = backup
         do {
             if let cloudURL, !ensureICloudReachable(cloudURL) { return false }
             try fm.createDirectory(at: folder, withIntermediateDirectories: true,
@@ -1089,11 +1418,22 @@ actor DataStore {
                         let conflicts = NSFileVersion.unresolvedConflictVersionsOfItem(at: url) ?? []
                         for (index, conflict) in conflicts.enumerated() {
                             let original = try Data(contentsOf: conflict.url)
-                            try original.write(to: folder.appendingPathComponent("iCloud Conflict \(index + 1).json"),
-                                               options: [.completeFileProtection, .withoutOverwriting])
+                            try writeRecoveryCopy(original, to: folder.appendingPathComponent("iCloud Conflict \(index + 1).json"))
                         }
-                        try backup.write(to: url, options: [.atomic, .completeFileProtectionUnlessOpen])
-                        try backup.write(to: localURL, options: [.atomic, .completeFileProtection])
+                        let preimage = try? Data(contentsOf: folder.appendingPathComponent("iCloud.json"))
+                        if let preimage, preimage != backup,
+                           let prior = try? JSONDecoder().decode(AppData.self, from: preimage),
+                           SharedStoreDocument.suspiciousContraction(previous: prior, incoming: restored) {
+                            restoredBytes = try SharedStoreDocument.explicitReplacement(backup, predecessor: preimage)
+                        }
+                        try restoredBytes.write(to: url, options: [.atomic, .completeFileProtectionUnlessOpen])
+                        guard try Data(contentsOf: url) == restoredBytes else { throw CocoaError(.fileWriteUnknown) }
+                        try restoredBytes.write(to: localURL, options: [.atomic, .completeFileProtection])
+                        guard try Data(contentsOf: localURL) == restoredBytes else { throw CocoaError(.fileWriteUnknown) }
+                        if let history = try syncHistory() {
+                            try history.rememberCloud(restoredBytes)
+                            try history.clearPendingLocal()
+                        }
                         for conflict in conflicts { conflict.isResolved = true }
                     } catch { writeError = error }
                 }
@@ -1109,7 +1449,7 @@ actor DataStore {
         loaded = false
         cloudBaseline = nil
         // Only this exact recovery upload may be read while still in flight.
-        lastPublishedCloudBytes = cloudURL == nil ? nil : backup
+        lastPublishedCloudBytes = cloudURL == nil ? nil : restoredBytes
         return true
     }
 
@@ -1125,7 +1465,13 @@ actor DataStore {
         } catch let error as CocoaError where error.code == .fileReadNoSuchFile || error.code == .fileNoSuchFile {
             return
         }
-        try bytes.write(to: folder.appendingPathComponent(name), options: [.completeFileProtection, .withoutOverwriting])
+        try writeRecoveryCopy(bytes, to: folder.appendingPathComponent(name))
+    }
+
+    private func writeRecoveryCopy(_ bytes: Data, to url: URL) throws {
+        try bytes.write(to: url, options: [.completeFileProtection, .withoutOverwriting])
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+        guard try Data(contentsOf: url) == bytes else { throw CocoaError(.fileWriteUnknown) }
     }
 
     // MARK: - Private

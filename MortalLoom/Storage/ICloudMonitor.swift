@@ -15,10 +15,9 @@ final class ICloudMonitor {
 
     private var query: NSMetadataQuery?
     private var debounceTask: Task<Void, Never>?
-    private var lastWriteDate = Date.distantPast
 
-    private let debounceInterval: TimeInterval = 2.0
-    private let writeSuppressionWindow: TimeInterval = 5.0
+    private let debounceInterval: TimeInterval
+    private let reload: @MainActor () async -> Bool
 
     private(set) var isSyncing = false
     private(set) var isICloud = false
@@ -28,7 +27,11 @@ final class ICloudMonitor {
     /// state without reaching into the private query handle.
     var isMonitoring: Bool { query != nil }
 
-    private init() {}
+    init(debounceInterval: TimeInterval = 2.0,
+         reload: @escaping @MainActor () async -> Bool = { await DataStore.shared.reloadIfNeeded() }) {
+        self.debounceInterval = debounceInterval
+        self.reload = reload
+    }
 
     func start() {
         guard query == nil else { return }
@@ -81,11 +84,6 @@ final class ICloudMonitor {
         isSyncing = false
     }
 
-    /// Call after local writes to suppress reload from our own iCloud changes.
-    func markLocalWrite() {
-        lastWriteDate = Date()
-    }
-
     @objc private func queryDidFinishGathering(_ notification: Notification) {
         query?.enableUpdates()
         logger.info("☁️ initial iCloud gather complete")
@@ -107,18 +105,14 @@ final class ICloudMonitor {
         scheduleReload()
     }
 
-    private func scheduleReload() {
+    func scheduleReload() {
         debounceTask?.cancel()
         debounceTask = Task { @MainActor in
             try? await Task.sleep(for: .seconds(debounceInterval))
             guard !Task.isCancelled else { return }
 
-            let sinceLastWrite = Date().timeIntervalSince(lastWriteDate)
-            guard sinceLastWrite > writeSuppressionWindow else {
-                logger.debug("☁️ skipping reload, local write was \(sinceLastWrite, format: .fixed(precision: 1))s ago")
-                return
-            }
-
+            // Exact revision comparison handles our own writes; don't
+            // drop a real concurrent cloud event during a cooldown window.
             isSyncing = true
             await applyReloadIfNeeded()
             isSyncing = false
@@ -126,7 +120,7 @@ final class ICloudMonitor {
     }
 
     private func applyReloadIfNeeded() async {
-        let didChange = await DataStore.shared.reloadIfNeeded()
+        let didChange = await reload()
         if didChange {
             // One notification per sync. A full reload refreshes the profile too,
             // so `.dataDidSync` alone is a sufficient signal — posting

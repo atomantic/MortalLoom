@@ -243,7 +243,7 @@ struct HabitsSection: View {
             promptAnswered: ReflectionPrompts.dailyNudge
         ))
         Task {
-            await DataStore.shared.updateGoal(updated)
+            await DataStore.shared.updateGoal(updated, replacing: apex)
             await loadData()
         }
         dismissNudge()

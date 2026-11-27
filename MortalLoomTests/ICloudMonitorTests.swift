@@ -6,7 +6,7 @@ import XCTest
 /// file. Unit coverage focuses on the observable contract that doesn't require
 /// a provisioned iCloud container: initial state, the manual `syncNow()` path
 /// (which resolves to a no-op merge when there's no cloud file), the
-/// idempotent start/stop lifecycle, and that `markLocalWrite()` is safe.
+/// idempotent start/stop lifecycle, and that manual sync is safe.
 ///
 /// DataStore is held in sample-data mode, which `reloadIfNeeded()` (reached via
 /// `syncNow()`, and via the metadata query's gather callback in the lifecycle
@@ -34,11 +34,21 @@ final class ICloudMonitorTests: XCTestCase {
         XCTAssertFalse(ICloudMonitor.shared.isSyncing)
     }
 
-    func testMarkLocalWriteIsSafe() {
-        // No observable return value — this just must not crash, and must leave
-        // the monitor idle.
-        ICloudMonitor.shared.markLocalWrite()
-        XCTAssertFalse(ICloudMonitor.shared.isSyncing)
+    func testOneExternalEventImmediatelyAfterAnOwnWriteStillReloads() async {
+        // First callback models an own-write reread suppressed by the
+        // revision comparator; the next is the only external notification.
+        // Neither a second notification nor app foregrounding is required.
+        var reads = 0
+        let monitor = ICloudMonitor(debounceInterval: 0.01) {
+            reads += 1
+            return reads == 2
+        }
+        defer { monitor.stop() }
+        await monitor.syncNow()
+        let didSync = expectation(forNotification: .dataDidSync, object: nil)
+        monitor.scheduleReload()
+        await fulfillment(of: [didSync], timeout: 2)
+        XCTAssertEqual(reads, 2)
     }
 
     func testSyncNowResetsSyncingFlag() async {

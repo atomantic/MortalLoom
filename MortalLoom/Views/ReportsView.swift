@@ -100,7 +100,7 @@ struct ReportsView: View {
         .sheet(item: $checkInGoal) { goal in
             CheckInSheet(goal: goal, allGoals: data.goals) { updated in
                 Task {
-                    await DataStore.shared.updateGoal(updated)
+                    await DataStore.shared.updateGoal(updated, replacing: goal)
                     await loadData()
                 }
             }
@@ -406,10 +406,11 @@ struct ReportsView: View {
     /// re-raises it only if it escalates further. See `Goal.markSignalResolved`.
     private func resolveSignal(_ signal: StagnationSignal) {
         guard let goalId = signal.goalId,
-              var goal = data.goals.first(where: { $0.id == goalId }) else { return }
+              let original = data.goals.first(where: { $0.id == goalId }) else { return }
+        var goal = original
         goal.markSignalResolved(signal)
         Task {
-            await DataStore.shared.updateGoal(goal)
+            await DataStore.shared.updateGoal(goal, replacing: original)
             await loadData()
         }
     }
