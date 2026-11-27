@@ -67,7 +67,7 @@ final class HealthKitSync {
             return (persist: changed, result: changed)
         }
 
-        if changed {
+        if changed == true {
             NotificationCenter.default.post(name: .profileDidChange, object: nil)
         }
     }
@@ -97,7 +97,7 @@ final class HealthKitSync {
             return (persist: changed, result: changed)
         }
 
-        if changed {
+        if changed == true {
             NotificationCenter.default.post(name: .profileDidChange, object: nil)
         }
     }
@@ -303,7 +303,7 @@ final class HealthKitSync {
 
         // result: (metricsChanged, profileChanged) — drives which notifications
         // to post after the single transaction commits.
-        let (metricsChanged, profileChanged) = await DataStore.shared.mutate { data -> (persist: Bool, result: (Bool, Bool)) in
+        let result = await DataStore.shared.mutate { data -> (persist: Bool, result: (Bool, Bool)) in
             // Upsert health metrics by date (mirrors DataStore.upsertHealthMetrics).
             var metricsChanged = false
             if !newMetrics.isEmpty {
@@ -324,20 +324,16 @@ final class HealthKitSync {
             if let avgSleep, abs(data.profile.lifestyle.sleepHoursPerNight - avgSleep) >= 0.05 {
                 data.profile.lifestyle.sleepHoursPerNight = avgSleep
                 profileChanged = true
-                // Average is a rolling 30-day mean — privacy: .private keeps the
-                // numeric value out of system log streams, but the sync event is
-                // worth recording for diagnostics.
-                logger.info("💤 Synced sleep avg from HealthKit: \(avgSleep, privacy: .private)h/night")
             }
             if let weeklyMinutes, data.profile.lifestyle.exerciseMinutesPerWeek != weeklyMinutes {
                 data.profile.lifestyle.exerciseMinutesPerWeek = weeklyMinutes
                 profileChanged = true
-                logger.info("🏃 Synced weekly exercise from HealthKit: \(weeklyMinutes, privacy: .private) min/week")
             }
 
             return (persist: metricsChanged || profileChanged, result: (metricsChanged, profileChanged))
         }
 
+        guard let (metricsChanged, profileChanged) = result else { return }
         if metricsChanged {
             NotificationCenter.default.post(name: .dataDidSync, object: nil)
         }

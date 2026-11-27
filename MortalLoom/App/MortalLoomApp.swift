@@ -230,6 +230,11 @@ struct ContentView: View {
                       message: "iCloud unavailable — saving on this device only",
                       duration: 5.0)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .iCloudWriteDeferred)) { _ in
+            showToast($iCloudWarning,
+                      message: "iCloud data is updating. Try your edit again after it syncs.",
+                      duration: 5.0)
+        }
         #if os(iOS)
         .fullScreenCover(isPresented: $showOnboarding, onDismiss: {
             // Onboarding made its own HealthKit request (step 5); now that the

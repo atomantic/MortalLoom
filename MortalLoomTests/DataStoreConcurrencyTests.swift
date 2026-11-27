@@ -86,11 +86,11 @@ final class DataStoreConcurrencyTests: XCTestCase {
     /// `persist: false` must skip the write so a no-op sync doesn't trigger a
     /// redundant save + iCloud broadcast.
     func testMutateRespectsPersistFlag() async {
-        let changed: Bool = await DataStore.shared.mutate { data -> (persist: Bool, result: Bool) in
+        let changed: Bool? = await DataStore.shared.mutate { data -> (persist: Bool, result: Bool) in
             data.bodyEntries.append(bodyEntry(0)) // mutate the copy…
             return (false, false)                  // …but ask NOT to persist
         }
-        XCTAssertFalse(changed)
+        XCTAssertEqual(changed, false)
         let final = await DataStore.shared.getData()
         XCTAssertTrue(final.bodyEntries.isEmpty,
                       "a mutate that returns persist:false must not commit its changes")
@@ -99,7 +99,7 @@ final class DataStoreConcurrencyTests: XCTestCase {
     /// `mutate` returns the closure's `result` to the caller — HealthKitSync
     /// uses this to decide which change notifications to post.
     func testMutateReturnsResultToCaller() async {
-        let returned: Int = await DataStore.shared.mutate { data -> (persist: Bool, result: Int) in
+        let returned: Int? = await DataStore.shared.mutate { data -> (persist: Bool, result: Int) in
             data.bodyEntries.append(bodyEntry(7))
             return (true, 42)
         }
