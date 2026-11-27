@@ -258,7 +258,7 @@ final class DataStoreCRUDTests: XCTestCase {
 
         var edited = goal
         edited.status = .completed
-        await DataStore.shared.updateGoal(edited)
+        await DataStore.shared.updateGoal(edited, replacing: goal)
         data = await DataStore.shared.getData()
         XCTAssertEqual(data.goals.first?.status, .completed)
 

@@ -93,7 +93,7 @@ struct OverviewView: View {
                 allHabits: vm.data.habits,
                 onSave: { updated in
                     Task {
-                        await DataStore.shared.updateGoal(updated)
+                        await DataStore.shared.updateGoal(updated, replacing: goal)
                         await loadData()
                     }
                 },
@@ -112,24 +112,28 @@ struct OverviewView: View {
             )
         }
         .sheet(isPresented: $showWeeklyReview) {
+            let originalApex = vm.apexGoal
             WeeklyReviewSheet(
-                apex: vm.apexGoal,
+                apex: originalApex,
                 allGoals: vm.data.goals,
                 habits: vm.data.habits
             ) { updated in
                 Task {
-                    await DataStore.shared.updateGoal(updated)
+                    guard let originalApex else { return }
+                    await DataStore.shared.updateGoal(updated, replacing: originalApex)
                     await loadData()
                 }
             }
         }
         .sheet(isPresented: $showMonthlyRethink) {
+            let originalGoals = vm.data.goals
             MonthlyRethinkSheet(
-                allGoals: vm.data.goals,
+                allGoals: originalGoals,
                 habits: vm.data.habits,
                 onSaveGoal: { updated in
                     Task {
-                        await DataStore.shared.updateGoal(updated)
+                        guard let original = originalGoals.first(where: { $0.id == updated.id }) else { return }
+                        await DataStore.shared.updateGoal(updated, replacing: original)
                         await loadData()
                     }
                 },

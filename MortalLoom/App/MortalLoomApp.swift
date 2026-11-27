@@ -152,11 +152,17 @@ struct ContentView: View {
     // unreachable — data is still saved locally, but the user has no iCloud
     // copy, so we tell them rather than failing silently.
     @State private var iCloudWarning: String?
-    private enum StartupScreen { case checking, ready, recovery }
+    private enum StartupScreen { case checking, waiting, ready, recovery }
     @State private var startupScreen: StartupScreen = .checking
     @State private var showRecoveryConfirmation = false
     @State private var showRecoveryPicker = false
     @State private var recoveryMessage: String?
+    @State private var recoveryReason: DataStore.RecoveryReason = .unreadable
+    @State private var hasVerifiedRecoveryCopy = false
+    @State private var showVerifiedRecoveryConfirmation = false
+    @State private var canUseCurrentCloud = false
+    @State private var showCurrentCloudConfirmation = false
+    @State private var showSyncRecoveryCopies = false
 
     // Bridge for OverviewView's Int-based selectedTab binding
     private var selectedTabBinding: Binding<Int> {
@@ -172,11 +178,23 @@ struct ContentView: View {
             case .checking:
                 ProgressView("Opening MortalLoom…")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+            case .waiting:
+                ContentUnavailableView {
+                    Label("Waiting for iCloud", systemImage: "icloud.and.arrow.down")
+                } description: {
+                    Text("iCloud hasn’t made your current data available yet. No edits or imports will run while MortalLoom waits.")
+                } actions: {
+                    Button("Check Again") {
+                        startupScreen = .checking
+                        Task { await openDataStore() }
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
             case .recovery:
                 ContentUnavailableView {
                     Label("Can’t open your data", systemImage: "externaldrive.badge.exclamationmark")
                 } description: {
-                    Text("MortalLoom couldn’t read your saved data. Editing and automatic imports are paused to protect your files. Check that iCloud has finished syncing, or restore a known-good backup.")
+                    Text(recoveryExplanation)
                     if let recoveryMessage { Text(recoveryMessage) }
                 } actions: {
                     Button("Try Again") {
@@ -184,7 +202,14 @@ struct ContentView: View {
                         Task { await openDataStore(retry: true) }
                     }
                     .buttonStyle(.borderedProminent)
+                    if hasVerifiedRecoveryCopy {
+                        Button("Restore Last Verified Copy…") { showVerifiedRecoveryConfirmation = true }
+                    }
                     Button("Restore from File…") { showRecoveryConfirmation = true }
+                    Button("Browse Recovery Copies…") { showSyncRecoveryCopies = true }
+                    if canUseCurrentCloud {
+                        Button("Use Current iCloud Copy…") { showCurrentCloudConfirmation = true }
+                    }
                 }
             case .ready:
                 #if os(macOS)
@@ -194,12 +219,47 @@ struct ContentView: View {
                 #endif
             }
         }
+        .sheet(isPresented: $showSyncRecoveryCopies) {
+            SyncRecoveryCopiesView(archiveCloudConflicts: true)
+        }
         .preferredColorScheme(appearance.mode.colorScheme)
         .environment(store)
         .confirmationDialog("Restore from a backup?", isPresented: $showRecoveryConfirmation, titleVisibility: .visible) {
             Button("Choose Backup…") { showRecoveryPicker = true }
         } message: {
             Text("This replaces your data with the selected backup. MortalLoom saves a separate copy of the current files before replacing them.")
+        }
+        .confirmationDialog("Restore the last verified copy?", isPresented: $showVerifiedRecoveryConfirmation, titleVisibility: .visible) {
+            Button("Restore Last Verified Copy") {
+                startupScreen = .checking
+                Task {
+                    guard await DataStore.shared.recoverLastKnownGood() else {
+                        recoveryMessage = "Couldn’t restore the verified copy. Check that iCloud is available, then try again."
+                        await showSyncRecovery()
+                        return
+                    }
+                    recoveryMessage = nil
+                    await openDataStore()
+                }
+            }
+        } message: {
+            Text("MortalLoom keeps the existing files separately before replacing them.")
+        }
+        .confirmationDialog("Use the current iCloud copy?", isPresented: $showCurrentCloudConfirmation, titleVisibility: .visible) {
+            Button("Use Current Copy") {
+                startupScreen = .checking
+                Task {
+                    guard await DataStore.shared.acceptCurrentCloudForRecovery() else {
+                        recoveryMessage = "The iCloud copy changed or couldn’t be opened. Review it again before continuing."
+                        await showSyncRecovery()
+                        return
+                    }
+                    recoveryMessage = nil
+                    await openDataStore()
+                }
+            }
+        } message: {
+            Text("This doesn’t change the iCloud file. MortalLoom keeps your earlier local copy separately.")
         }
         .fileImporter(isPresented: $showRecoveryPicker, allowedContentTypes: [.json]) { result in
             guard let url = try? result.get() else { return }
@@ -251,8 +311,13 @@ struct ContentView: View {
         }
         #endif
         .onReceive(NotificationCenter.default.publisher(for: .dataStoreNeedsRecovery)) { _ in
-            startupScreen = .recovery
-            showOnboarding = false
+            Task { await showSyncRecovery() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .dataDidSync)) { _ in
+            if startupScreen == .waiting {
+                startupScreen = .checking
+                Task { await openDataStore() }
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .showOnboarding)) { _ in
             if startupScreen == .ready { showOnboarding = true }
@@ -307,9 +372,40 @@ struct ContentView: View {
         }
     }
 
+    private var recoveryExplanation: String {
+        switch recoveryReason {
+        case .unreadable:
+            "MortalLoom couldn’t read or reconcile the saved files. Editing and automatic imports are paused to protect your data."
+        case .unexpectedReduction:
+            "The latest iCloud copy is missing a substantial part of your saved history. MortalLoom kept the earlier copy and paused writes."
+        case .divergentEdits:
+            "Two copies contain overlapping changes and couldn’t be combined safely. MortalLoom kept the copies and paused writes."
+        case .accountChanged:
+            "The local copy belongs to a different iCloud account. MortalLoom won’t upload it to this account automatically."
+        case .historyUnavailable:
+            "MortalLoom couldn’t save a verified recovery copy. Check your available storage before trying again."
+        }
+    }
+
+    private func showSyncRecovery() async {
+        showOnboarding = false
+        recoveryReason = await DataStore.shared.currentRecoveryReason()
+        hasVerifiedRecoveryCopy = await DataStore.shared.canRecoverLastKnownGood()
+        canUseCurrentCloud = await DataStore.shared.canAcceptCurrentCloudForRecovery()
+        startupScreen = .recovery
+    }
+
     private func openDataStore(retry: Bool = false) async {
-        guard case .ready(let loaded) = await DataStore.shared.ensureLoaded(retry: retry) else {
-            startupScreen = .recovery
+        let loaded: AppData
+        switch await DataStore.shared.ensureLoaded(retry: retry) {
+        case .ready(let value):
+            loaded = value
+        case .waitingForCloud:
+            startupScreen = .waiting
+            ICloudMonitor.shared.start()
+            return
+        case .needsRecovery:
+            await showSyncRecovery()
             return
         }
         startupScreen = .ready

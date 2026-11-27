@@ -104,7 +104,7 @@ struct GoalsView: View {
                 allGoals: vm.goals,
                 allHabits: vm.habits,
                 onSave: { updated in
-                    saveAndReload { await DataStore.shared.updateGoal(updated) }
+                    saveAndReload { await DataStore.shared.updateGoal(updated, replacing: goal) }
                 },
                 onDelete: {
                     saveAndReload { await DataStore.shared.removeGoal(id: goal.id) }
@@ -120,7 +120,7 @@ struct GoalsView: View {
                 allGoals: vm.goals,
                 stagnationSignal: vm.signalByGoalId[goal.id]
             ) { updated in
-                saveAndReload { await DataStore.shared.updateGoal(updated) }
+                saveAndReload { await DataStore.shared.updateGoal(updated, replacing: goal) }
             }
         }
         .sheet(item: $pillarDashboardGoal) { pillar in
@@ -663,7 +663,7 @@ struct GoalsView: View {
         saveAndReload {
             var g = goal
             g.status = status
-            await DataStore.shared.updateGoal(g)
+            await DataStore.shared.updateGoal(g, replacing: goal)
         }
     }
 
@@ -673,7 +673,7 @@ struct GoalsView: View {
             g.status = .completed
             g.completedDate = DateFormatting.todayString()
             g.checkIns.append(GoalCheckIn(progressPct: 100, note: "Goal completed"))
-            await DataStore.shared.updateGoal(g)
+            await DataStore.shared.updateGoal(g, replacing: goal)
         }
     }
 

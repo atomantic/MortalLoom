@@ -279,4 +279,195 @@ final class DataStoreRecoveryTests: XCTestCase {
         XCTAssertTrue(snapshots.contains(old), "Import must preserve the old cloud bytes even without a local mirror")
         XCTAssertTrue(snapshots.contains(installed), "Reset must preserve the imported bytes")
     }
+
+    func testNativeEditsKeepOpaquePortOSFieldsButDeletionRemovesTheWholeGoal() async throws {
+        let dir = try makeDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let local = dir.appendingPathComponent("local.json")
+        let cloud = dir.appendingPathComponent("cloud.json")
+        var full = existingData()
+        full.goals[0].milestones = [GoalMilestone(title: "Shared milestone")]
+        let value = try JSONEncoder().encode(full)
+        var raw = try XCTUnwrap(JSONSerialization.jsonObject(with: value) as? [String: Any])
+        var goals = try XCTUnwrap(raw["goals"] as? [[String: Any]])
+        var milestones = try XCTUnwrap(goals[0]["milestones"] as? [[String: Any]])
+        milestones[0]["futureNotes"] = ["origin": "PortOS"]
+        goals[0]["milestones"] = milestones
+        goals[0]["timeBlockConfig"] = ["minutes": 45]
+        goals[0]["id"] = full.goals[0].id.uuidString.lowercased()
+        raw["goals"] = goals
+        raw["unknownFutureSection"] = ["remember": true, "counter": UInt64.max]
+        try JSONSerialization.data(withJSONObject: raw).write(to: cloud)
+        let writer = DataStore(fixtureURLs: (local, cloud))
+        guard case .ready(let initial) = await writer.ensureLoaded() else { return XCTFail("Expected valid snapshot") }
+        var changed = initial.goals[0]
+        changed.title = "Edited from the native app"
+        changed.milestones[0].completed = true
+        await writer.updateGoal(changed, replacing: initial.goals[0])
+        let edited = try Data(contentsOf: cloud)
+        let doc = try XCTUnwrap(JSONSerialization.jsonObject(with: edited) as? [String: Any])
+        let editedGoal = try XCTUnwrap((doc["goals"] as? [[String: Any]])?.first)
+        XCTAssertEqual(editedGoal["timeBlockConfig"] as? [String: Int], ["minutes": 45])
+        XCTAssertEqual(editedGoal["id"] as? String, full.goals[0].id.uuidString.lowercased())
+        let milestone = try XCTUnwrap((editedGoal["milestones"] as? [[String: Any]])?.first)
+        XCTAssertEqual(milestone["futureNotes"] as? [String: String], ["origin": "PortOS"])
+        let future = try XCTUnwrap(doc["unknownFutureSection"] as? [String: Any])
+        XCTAssertEqual(future["remember"] as? Bool, true)
+        XCTAssertEqual((future["counter"] as? NSNumber)?.uint64Value, UInt64.max)
+        await writer.removeGoal(id: full.goals[0].id)
+        let removed = try JSONDecoder().decode(AppData.self, from: Data(contentsOf: cloud))
+        XCTAssertTrue(removed.goals.isEmpty)
+        let reopened = DataStore(fixtureURLs: (local, cloud))
+        guard case .ready(let afterReopen) = await reopened.ensureLoaded() else { return XCTFail("Legitimate delete must reopen") }
+        XCTAssertTrue(afterReopen.goals.isEmpty)
+    }
+
+    func testPartialCurrentCloudAfterRestartCannotReplaceLastGood() async throws {
+        let dir = try makeDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let local = dir.appendingPathComponent("local.json")
+        let cloud = dir.appendingPathComponent("cloud.json")
+        var full = existingData()
+        full.goals += [Goal(title: "Second"), Goal(title: "Third")]
+        full.healthMetrics = [HealthMetricEntry(date: "2026-11-26", steps: 80)]
+        let good = try JSONEncoder().encode(full)
+        try good.write(to: cloud)
+        let first = DataStore(fixtureURLs: (local, cloud))
+        guard case .ready = await first.ensureLoaded() else { return XCTFail("Expected valid snapshot") }
+
+        var partial = AppData.empty
+        partial.healthMetrics = full.healthMetrics
+        let reduced = try JSONEncoder().encode(partial)
+        try reduced.write(to: cloud)
+        let restarted = DataStore(fixtureURLs: (local, cloud))
+        guard case .needsRecovery = await restarted.ensureLoaded() else { return XCTFail("Unexpected shrink must block") }
+        let reason = await restarted.currentRecoveryReason()
+        XCTAssertEqual(reason, .unexpectedReduction)
+        let attempted = await restarted.save(partial)
+        XCTAssertFalse(attempted)
+        XCTAssertEqual(try Data(contentsOf: local), good)
+        XCTAssertEqual(try Data(contentsOf: cloud), reduced)
+        let restored = await restarted.recoverLastKnownGood()
+        XCTAssertTrue(restored)
+        XCTAssertEqual(try Data(contentsOf: cloud), good)
+    }
+
+    func testConfirmedResetHasExactPreimageAndDoesNotReviveOldRows() async throws {
+        let dir = try makeDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let cloud = dir.appendingPathComponent("cloud.json")
+        let leftDir = dir.appendingPathComponent("left")
+        let rightDir = dir.appendingPathComponent("right")
+        for folder in [leftDir, rightDir] {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false)
+        }
+        let left = leftDir.appendingPathComponent("local.json")
+        let right = rightDir.appendingPathComponent("local.json")
+        var full = existingData()
+        full.goals += [Goal(title: "Second"), Goal(title: "Third")]
+        let good = try JSONEncoder().encode(full)
+        try good.write(to: cloud)
+        let one = DataStore(fixtureURLs: (left, cloud))
+        let two = DataStore(fixtureURLs: (right, cloud))
+        guard case .ready = await one.ensureLoaded(), case .ready = await two.ensureLoaded() else {
+            return XCTFail("Both clients should have the same preimage")
+        }
+        let reset = await one.resetAllData()
+        XCTAssertTrue(reset)
+        let bytes = try Data(contentsOf: cloud)
+        XCTAssertTrue(SharedStoreDocument.isExplicitReplacement(bytes, of: good))
+        XCTAssertFalse(SharedStoreDocument.isExplicitReplacement(bytes, of: Data()))
+        let reopened = DataStore(fixtureURLs: (right, cloud))
+        guard case .ready(let afterReset) = await reopened.ensureLoaded() else { return XCTFail("Confirmed reset should converge") }
+        XCTAssertFalse(afterReset.hasUserData)
+        XCTAssertEqual(try Data(contentsOf: right), bytes)
+    }
+
+    func testGoalEditsMergeAcrossWritersAndDoNotResurrectDeletes() async throws {
+        let dir = try makeDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let local = dir.appendingPathComponent("local.json")
+        let cloud = dir.appendingPathComponent("cloud.json")
+        let initial = Goal(title: "Original")
+        let toDelete = Goal(title: "Delete from PortOS")
+        var full = AppData.empty
+        full.goals = [initial, toDelete]
+        try JSONEncoder().encode(full).write(to: cloud)
+        let native = DataStore(fixtureURLs: (local, cloud))
+        guard case .ready = await native.ensureLoaded() else { return XCTFail("Expected readable store") }
+
+        var portOS = full
+        portOS.goals[0].title = "Edited from PortOS"
+        portOS.goals.removeLast()
+        let added = Goal(title: "Added from PortOS")
+        portOS.goals.append(added)
+        try JSONEncoder().encode(portOS).write(to: cloud, options: .atomic)
+
+        var nativeDraft = initial
+        nativeDraft.notes = "Edited from the native form"
+        await native.updateGoal(nativeDraft, replacing: initial)
+        let result = try JSONDecoder().decode(AppData.self, from: Data(contentsOf: cloud))
+        let merged = try XCTUnwrap(result.goals.first { $0.id == initial.id })
+        XCTAssertEqual(merged.title, "Edited from PortOS")
+        XCTAssertEqual(merged.notes, "Edited from the native form")
+        XCTAssertEqual(Set(result.goals.map(\.id)), [initial.id, added.id])
+
+        // If a form remains open while the watcher advances the actor
+        // baseline, the form's own baseline still protects concurrent edits.
+        var newest = result
+        newest.goals[0].checkIns = [GoalCheckIn(progressPct: 75, note: "A newer check-in")]
+        try JSONEncoder().encode(newest).write(to: cloud, options: .atomic)
+        _ = await native.reloadIfNeeded()
+        var staleForm = merged
+        staleForm.notes = "A later note"
+        await native.updateGoal(staleForm, replacing: merged)
+        let later = try JSONDecoder().decode(AppData.self, from: Data(contentsOf: cloud))
+        let laterGoal = try XCTUnwrap(later.goals.first { $0.id == initial.id })
+        XCTAssertEqual(laterGoal.checkIns.first?.note, "A newer check-in")
+        XCTAssertEqual(laterGoal.notes, "A later note")
+    }
+
+    func testCompetingSameFieldEditsKeepBothCopiesAndRequireRecovery() async throws {
+        let dir = try makeDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let local = dir.appendingPathComponent("local.json")
+        let cloud = dir.appendingPathComponent("cloud.json")
+        let full = existingData()
+        let base = try JSONEncoder().encode(full)
+        try base.write(to: cloud)
+        let native = DataStore(fixtureURLs: (local, cloud))
+        guard case .ready = await native.ensureLoaded() else { return XCTFail("Expected readable store") }
+        var portOS = full
+        portOS.goals[0].title = "PortOS title"
+        let remote = try JSONEncoder().encode(portOS)
+        try remote.write(to: cloud)
+        var draft = full
+        draft.goals[0].title = "Native title"
+        let saved = await native.save(draft)
+        XCTAssertFalse(saved)
+        XCTAssertEqual(try Data(contentsOf: cloud), remote)
+        XCTAssertEqual(try Data(contentsOf: local), base)
+        let reason = await native.currentRecoveryReason()
+        XCTAssertEqual(reason, .divergentEdits)
+        let reviewed = await native.canAcceptCurrentCloudForRecovery()
+        XCTAssertTrue(reviewed)
+        let accepted = await native.acceptCurrentCloudForRecovery()
+        XCTAssertTrue(accepted)
+        let ready = await native.getData()
+        XCTAssertEqual(ready.goals.first?.title, "PortOS title")
+        let history = dir.appendingPathComponent("MortalLoomSyncHistory")
+        let scope = try XCTUnwrap(FileManager.default.contentsOfDirectory(at: history, includingPropertiesForKeys: nil)
+            .first { $0.lastPathComponent != "LocalCopyOwner" })
+        let pending = try XCTUnwrap(FileManager.default.contentsOfDirectory(at: scope, includingPropertiesForKeys: nil)
+            .first { $0.lastPathComponent.hasPrefix("ConflictingEdit-") })
+        let preserved = try JSONDecoder().decode(AppData.self, from: Data(contentsOf: pending))
+        XCTAssertEqual(preserved.goals.first?.title, "Native title")
+        let recoveryCopies = await native.listSyncRecoveryCopies()
+        XCTAssertTrue(recoveryCopies.contains { $0.id == pending && $0.label == "Conflicting local edit" })
+        let exported = await native.exportSyncRecoveryCopy(pending)
+        XCTAssertEqual(exported, try Data(contentsOf: pending))
+        let cannotExportOthers = await native.exportSyncRecoveryCopy(cloud)
+        XCTAssertNil(cannotExportOthers)
+    }
+
 }

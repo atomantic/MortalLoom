@@ -15,6 +15,7 @@ struct SettingsView: View {
     @State private var showExporter = false
     @State private var showImporter = false
     @State private var exportDocument: MortalLoomExportDocument? = nil
+    @State private var showSyncRecoveryCopies = false
     @State private var exportFilename: String = "MortalLoom.json"
     @State private var isPreparingExport = false
     @State private var exportMessage: String? = nil
@@ -905,6 +906,8 @@ struct SettingsView: View {
                 }
             }
 
+            Button("Browse iCloud Recovery Copies…") { showSyncRecoveryCopies = true }
+
             if let msg = restoreMessage {
                 HStack(spacing: 6) {
                     Image(systemName: restoreSuccess ? "checkmark.circle.fill" : "xmark.circle.fill")
@@ -918,6 +921,7 @@ struct SettingsView: View {
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
+        .sheet(isPresented: $showSyncRecoveryCopies) { SyncRecoveryCopiesView() }
         .task { await refreshBackups() }
         .onReceive(NotificationCenter.default.publisher(for: .dataDidSync)) { _ in
             Task { await refreshBackups() }
@@ -1382,5 +1386,69 @@ struct MortalLoomExportDocument: FileDocument {
 
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
         FileWrapper(regularFileWithContents: data)
+    }
+}
+
+
+/// Recovery snapshots remain in the local sandbox until the user selects a
+/// copy and destination using the system's document exporter.
+struct SyncRecoveryCopiesView: View {
+    let archiveCloudConflicts: Bool
+    @Environment(\.dismiss) private var dismiss
+    @State private var copies: [DataStore.SyncRecoveryCopy] = []
+    @State private var isLoading = true
+    @State private var document: MortalLoomExportDocument?
+    @State private var showExport = false
+    @State private var exportError: String?
+
+    init(archiveCloudConflicts: Bool = false) {
+        self.archiveCloudConflicts = archiveCloudConflicts
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Text("These copies can contain private health data. Export only to a location you trust.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                if isLoading {
+                    ProgressView("Checking for recovery copies…")
+                } else if copies.isEmpty {
+                    Text("No recovery copies are available.")
+                }
+                ForEach(copies) { copy in
+                    Button {
+                        Task {
+                            guard let bytes = await DataStore.shared.exportSyncRecoveryCopy(copy.id) else {
+                                exportError = "Couldn’t read the selected copy."
+                                return
+                            }
+                            document = MortalLoomExportDocument(data: bytes)
+                            showExport = true
+                        }
+                    } label: {
+                        VStack(alignment: .leading) {
+                            Text(copy.label)
+                            if let date = copy.date {
+                                Text(date.formatted(date: .abbreviated, time: .shortened))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+                if let exportError { Text(exportError).foregroundStyle(.red) }
+            }
+            .navigationTitle("Recovery Copies")
+            .toolbar { Button("Done") { dismiss() } }
+        }
+        .task {
+            copies = await DataStore.shared.listSyncRecoveryCopies(archiveCloudConflicts: archiveCloudConflicts)
+            isLoading = false
+        }
+        .fileExporter(isPresented: $showExport, document: document, contentType: .json,
+                      defaultFilename: "MortalLoom-recovery") { result in
+            if case .failure = result { exportError = "Couldn’t export the selected copy." }
+        }
     }
 }
