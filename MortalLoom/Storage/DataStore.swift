@@ -462,19 +462,20 @@ actor DataStore {
                     candidate = try SharedStoreDocument.merge(base: previous, local: localBytes, cloud: bytes)
                 } else {
                     candidate = bytes
-                    if let localBytes, let previous, localBytes != previous, localBytes != bytes {
+                    if let localBytes, localBytes != previous, localBytes != bytes,
+                       try SharedStoreDocument.parse(localBytes) != SharedStoreDocument.parse(bytes) {
                         // A divergent unmarked copy is not proof of pending
                         // intent (e.g. a crash after a confirmed cloud reset).
+                        // Keep it even when cloud has a newer timestamp.
                         try history?.preserveCandidate(localBytes, as: "UnpublishedLocalCopy")
-                    }
-                    if previous == nil, let localBytes, localBytes != bytes,
-                       (FileManager.default.modificationDate(at: localURL) ?? .distantPast)
-                         > (FileManager.default.modificationDate(at: cloudURL) ?? .distantPast),
-                       try SharedStoreDocument.parse(localBytes) != SharedStoreDocument.parse(bytes) {
-                        // We have no trustworthy common ancestor on the first
-                        // run of the upgraded app. Keep both branches rather
-                        // than choosing a timestamp winner or reviving deletes.
-                        throw SharedStoreDocument.Conflict()
+                        if previous == nil,
+                           (FileManager.default.modificationDate(at: localURL) ?? .distantPast)
+                             > (FileManager.default.modificationDate(at: cloudURL) ?? .distantPast) {
+                            // We have no trustworthy common ancestor on the
+                            // first run. A likely pending local change needs
+                            // review, not a speculative automatic merge.
+                            throw SharedStoreDocument.Conflict()
+                        }
                     }
                 }
                 try installRemote(candidate, baseline: bytes, history: history)
@@ -1282,9 +1283,15 @@ actor DataStore {
         guard !sampleDataMode else { return [] }
         let fm = FileManager.default
         let history = try? syncHistory()
-        if archiveCloudConflicts, needsRecovery, let history, let cloudURL = iCloudURL {
+        if archiveCloudConflicts, needsRecovery, recoveryReason != .accountChanged,
+           let history, let cloudURL = iCloudURL {
             var error: NSError?
             NSFileCoordinator().coordinate(readingItemAt: cloudURL, options: .withoutChanges, error: &error) { url in
+                let status = try? self.cloudStatus(at: url)
+                if status == .current || status == .conflicted,
+                   let bytes = try? Data(contentsOf: url) {
+                    try? history.preserveCandidate(bytes, as: "ReviewedCloudCopy")
+                }
                 for conflict in NSFileVersion.unresolvedConflictVersionsOfItem(at: url) ?? [] {
                     if let bytes = try? Data(contentsOf: conflict.url) {
                         try? history.preserveCandidate(bytes, as: "ArchivedCloudConflict")
@@ -1311,6 +1318,7 @@ actor DataStore {
             case let value where value.hasPrefix("ConflictingEdit-"): label = "Conflicting local edit"
             case let value where value.hasPrefix("ArchivedCloudConflict-") || value.hasPrefix("iCloud Conflict"):
                 label = "Archived iCloud conflict"
+            case let value where value.hasPrefix("ReviewedCloudCopy-"): label = "iCloud copy awaiting review"
             case let value where value.hasPrefix("UnpublishedLocalCopy-") || value.hasPrefix("LocalBeforeCloudAcceptance-"):
                 label = "Earlier local copy"
             default: return nil
@@ -1410,8 +1418,7 @@ actor DataStore {
                         let conflicts = NSFileVersion.unresolvedConflictVersionsOfItem(at: url) ?? []
                         for (index, conflict) in conflicts.enumerated() {
                             let original = try Data(contentsOf: conflict.url)
-                            try original.write(to: folder.appendingPathComponent("iCloud Conflict \(index + 1).json"),
-                                               options: [.completeFileProtection, .withoutOverwriting])
+                            try writeRecoveryCopy(original, to: folder.appendingPathComponent("iCloud Conflict \(index + 1).json"))
                         }
                         let preimage = try? Data(contentsOf: folder.appendingPathComponent("iCloud.json"))
                         if let preimage, preimage != backup,
@@ -1420,7 +1427,9 @@ actor DataStore {
                             restoredBytes = try SharedStoreDocument.explicitReplacement(backup, predecessor: preimage)
                         }
                         try restoredBytes.write(to: url, options: [.atomic, .completeFileProtectionUnlessOpen])
+                        guard try Data(contentsOf: url) == restoredBytes else { throw CocoaError(.fileWriteUnknown) }
                         try restoredBytes.write(to: localURL, options: [.atomic, .completeFileProtection])
+                        guard try Data(contentsOf: localURL) == restoredBytes else { throw CocoaError(.fileWriteUnknown) }
                         if let history = try syncHistory() {
                             try history.rememberCloud(restoredBytes)
                             try history.clearPendingLocal()
@@ -1456,7 +1465,13 @@ actor DataStore {
         } catch let error as CocoaError where error.code == .fileReadNoSuchFile || error.code == .fileNoSuchFile {
             return
         }
-        try bytes.write(to: folder.appendingPathComponent(name), options: [.completeFileProtection, .withoutOverwriting])
+        try writeRecoveryCopy(bytes, to: folder.appendingPathComponent(name))
+    }
+
+    private func writeRecoveryCopy(_ bytes: Data, to url: URL) throws {
+        try bytes.write(to: url, options: [.completeFileProtection, .withoutOverwriting])
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+        guard try Data(contentsOf: url) == bytes else { throw CocoaError(.fileWriteUnknown) }
     }
 
     // MARK: - Private

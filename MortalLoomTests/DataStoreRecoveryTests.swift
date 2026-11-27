@@ -115,6 +115,28 @@ final class DataStoreRecoveryTests: XCTestCase {
         XCTAssertFalse(empty.hasUserData)
     }
 
+    func testLegacyLocalDivergenceIsArchivedEvenWhenCloudIsNewer() async throws {
+        let dir = try makeDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let local = dir.appendingPathComponent("local.json")
+        let cloud = dir.appendingPathComponent("cloud.json")
+        let draft = existingData()
+        var remote = draft
+        remote.goals[0].title = "A different revision"
+        let original = try JSONEncoder().encode(draft)
+        try original.write(to: local)
+        try JSONEncoder().encode(remote).write(to: cloud)
+        try FileManager.default.setAttributes([.modificationDate: Date(timeIntervalSince1970: 100)],
+                                              ofItemAtPath: local.path)
+        let store = DataStore(fixtureURLs: (local, cloud))
+        guard case .ready(let data) = await store.ensureLoaded() else { return XCTFail("Expected cloud revision") }
+        XCTAssertEqual(data.goals.first?.title, "A different revision")
+        let copies = await store.listSyncRecoveryCopies()
+        let earlier = try XCTUnwrap(copies.first { $0.label == "Earlier local copy" })
+        let preserved = await store.exportSyncRecoveryCopy(earlier.id)
+        XCTAssertEqual(preserved, original)
+    }
+
     func testChangedMalformedCloudCannotBeOverwrittenBeforeWatcherRuns() async throws {
         let dir = try makeDirectory()
         defer { try? FileManager.default.removeItem(at: dir) }
